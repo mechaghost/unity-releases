@@ -1,0 +1,37 @@
+{
+  "name": "unity-alerts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx src/jobs/migrate.ts",
+    "ingest:backfill": "tsx src/jobs/backfill-unity6.ts",
+    "ingest:editor": "tsx src/jobs/poll-editor.ts",
+    "ingest:packages": "tsx src/jobs/poll-packages.ts",
+    "ingest:news": "tsx src/jobs/poll-news.ts",
+    "health:ingest": "tsx src/jobs/health.ts"
+  },
+  "dependencies": {
+    "@types/pg": "^8.11.11",
+    "fast-xml-parser": "^5.2.5",
+    "next": "^15.3.2",
+    "pg": "^8.13.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}
