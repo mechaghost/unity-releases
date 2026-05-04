@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS release_note_items (
   risk_reasons TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   body TEXT NOT NULL,
   issue_ids TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  issue_text TEXT NOT NULL DEFAULT '',
   issue_links_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   package_names TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   source_url TEXT NOT NULL,
@@ -92,14 +93,7 @@ CREATE TABLE IF NOT EXISTS release_note_items (
   ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
   parser_version TEXT NOT NULL,
   normalized_sha256 TEXT NOT NULL,
-  search_vector tsvector GENERATED ALWAYS AS (
-    setweight(to_tsvector('english', coalesce(version, '')), 'A') ||
-    setweight(to_tsvector('english', coalesce(section, '')), 'A') ||
-    setweight(to_tsvector('english', coalesce(area, '')), 'A') ||
-    setweight(to_tsvector('english', array_to_string(issue_ids, ' ')), 'A') ||
-    setweight(to_tsvector('english', array_to_string(package_names, ' ')), 'A') ||
-    setweight(to_tsvector('english', coalesce(body, '')), 'B')
-  ) STORED,
+  search_vector tsvector NOT NULL DEFAULT ''::tsvector,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (unity_release_id, section, source_order, normalized_sha256)
@@ -242,5 +236,25 @@ CREATE INDEX IF NOT EXISTS idx_release_note_items_risk ON release_note_items (ri
 CREATE INDEX IF NOT EXISTS idx_release_note_items_platforms ON release_note_items USING GIN (platforms);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_packages ON release_note_items USING GIN (package_names);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_issues ON release_note_items USING GIN (issue_ids);
-CREATE INDEX IF NOT EXISTS idx_release_note_items_issue_text_trgm ON release_note_items USING GIN (array_to_string(issue_ids, ' ') gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_release_note_items_issue_text_trgm ON release_note_items USING GIN (issue_text gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_content_events_time ON content_events (event_time DESC);
+
+CREATE OR REPLACE FUNCTION update_release_note_search_vector()
+RETURNS trigger AS $$
+BEGIN
+  NEW.issue_text := array_to_string(NEW.issue_ids, ' ');
+  NEW.search_vector :=
+    setweight(to_tsvector('english', coalesce(NEW.version, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.section, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.area, '')), 'A') ||
+    setweight(to_tsvector('english', array_to_string(NEW.issue_ids, ' ')), 'A') ||
+    setweight(to_tsvector('english', array_to_string(NEW.package_names, ' ')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.body, '')), 'B');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_release_note_items_search_vector ON release_note_items;
+CREATE TRIGGER trg_release_note_items_search_vector
+BEFORE INSERT OR UPDATE ON release_note_items
+FOR EACH ROW EXECUTE FUNCTION update_release_note_search_vector();
