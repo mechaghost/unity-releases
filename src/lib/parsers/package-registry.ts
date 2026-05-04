@@ -71,7 +71,9 @@ function firstDefined<T>(values: Array<T | null | undefined>): T | null {
 }
 
 function valueAsRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function valueAsString(value: unknown): string | null {
