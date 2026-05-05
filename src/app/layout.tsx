@@ -15,10 +15,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             Unity Alerts
           </a>
           <nav>
-            <a href="/explorer">Explorer</a>
-            <a href="/upgrade">Upgrade Impact</a>
-            <a href="/watch">Watch RSS</a>
-            <a href="/api/health">Health</a>
+            <a href="/">Today</a>
+            <a href="/releases">Editor Releases</a>
+            <a href="/packages">Packages</a>
+            <a href="/explorer">Release Notes</a>
+            <a href="/upgrade">Upgrade Review</a>
+            <a href="/watch">Feeds</a>
+            <a href="/news">News</a>
           </nav>
         </header>
         <main>{children}</main>

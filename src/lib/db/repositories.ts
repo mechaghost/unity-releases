@@ -1,6 +1,10 @@
 import type { PoolClient } from "pg";
 import { getPool, query } from "./client";
-import { buildReleaseNoteSearchQuery, type ReleaseNoteSearchFilters } from "../search";
+import {
+  buildReleaseNoteFeedQuery,
+  buildReleaseNoteSearchQuery,
+  type ReleaseNoteSearchFilters
+} from "../search";
 import type { FetchedSource } from "../ingest/fetch";
 import type { normalizePackageForStorage } from "../ingest/packages";
 import type { normalizeReleaseForStorage } from "../ingest/releases";
@@ -24,6 +28,46 @@ export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
   return result.rows;
 }
 
+export async function listReleaseNoteFacets() {
+  const result = await query<{
+    versions: string[];
+    minor_lines: string[];
+    streams: string[];
+    sections: string[];
+    areas: string[];
+    platforms: string[];
+    impacts: string[];
+    risks: string[];
+    packages: string[];
+  }>(
+    `
+      SELECT
+        COALESCE((SELECT ARRAY_AGG(version ORDER BY release_date DESC NULLS LAST, version DESC) FROM unity_releases), '{}') AS versions,
+        COALESCE((SELECT ARRAY_AGG(DISTINCT minor_line ORDER BY minor_line DESC) FROM release_note_items), '{}') AS minor_lines,
+        COALESCE((SELECT ARRAY_AGG(DISTINCT stream ORDER BY stream) FROM release_note_items), '{}') AS streams,
+        COALESCE((SELECT ARRAY_AGG(DISTINCT section ORDER BY section) FROM release_note_items), '{}') AS sections,
+        COALESCE((SELECT ARRAY_AGG(DISTINCT area ORDER BY area) FROM release_note_items WHERE area IS NOT NULL AND area !~ '^\\\\d{4}\\\\.\\\\d+\\\\.\\\\d+[abf]\\\\d+$'), '{}') AS areas,
+        COALESCE((SELECT ARRAY_AGG(DISTINCT platform ORDER BY platform) FROM release_note_items, UNNEST(platforms) AS platform), '{}') AS platforms,
+        COALESCE((SELECT ARRAY_AGG(DISTINCT impact_kind ORDER BY impact_kind) FROM release_note_items), '{}') AS impacts,
+        COALESCE((SELECT ARRAY_AGG(DISTINCT risk_level ORDER BY risk_level) FROM release_note_items), '{}') AS risks,
+        COALESCE((SELECT ARRAY_AGG(DISTINCT package_name ORDER BY package_name) FROM release_note_items, UNNEST(package_names) AS package_name), '{}') AS packages
+    `
+  );
+  return (
+    result.rows[0] ?? {
+      versions: [],
+      minor_lines: [],
+      streams: [],
+      sections: [],
+      areas: [],
+      platforms: [],
+      impacts: [],
+      risks: [],
+      packages: []
+    }
+  );
+}
+
 export async function listFeedEvents(limit = 50): Promise<FeedEventRow[]> {
   const result = await query<FeedEventRow>(
     `
@@ -35,6 +79,46 @@ export async function listFeedEvents(limit = 50): Promise<FeedEventRow[]> {
     [limit]
   );
   return result.rows;
+}
+
+export async function listFeedEventsByType(eventType: string, limit = 30): Promise<FeedEventRow[]> {
+  const result = await query<FeedEventRow>(
+    `
+      SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
+      FROM content_events
+      WHERE event_type = $1
+      ORDER BY event_time DESC
+      LIMIT $2
+    `,
+    [eventType, limit]
+  );
+  return result.rows;
+}
+
+export async function listWatchFeedEvents(filters: ReleaseNoteSearchFilters, limit = 50): Promise<FeedEventRow[]> {
+  if (!hasReleaseNoteFilters(filters)) {
+    return listFeedEvents(limit);
+  }
+
+  const built = buildReleaseNoteFeedQuery({ ...filters, limit });
+  const result = await query<FeedEventRow>(built.text, built.values);
+  return result.rows;
+}
+
+function hasReleaseNoteFilters(filters: ReleaseNoteSearchFilters): boolean {
+  return Boolean(
+    filters.q ||
+      filters.version ||
+      filters.minorLine ||
+      filters.stream ||
+      filters.section ||
+      filters.area ||
+      filters.platform ||
+      filters.impactKind ||
+      filters.riskLevel ||
+      filters.packageName ||
+      filters.issueId
+  );
 }
 
 export async function listReleases(limit = 50) {

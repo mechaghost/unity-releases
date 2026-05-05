@@ -20,6 +20,54 @@ export type SqlQuery = {
 };
 
 export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): SqlQuery {
+  const { where, values, add } = buildReleaseNoteWhere(filters);
+
+  const limitParam = add(filters.limit ?? 100);
+  const offsetParam = add(filters.offset ?? 0);
+
+  const rank = filters.q?.trim()
+    ? `ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC,`
+    : "";
+
+  return {
+    text: `
+      SELECT *, COUNT(*) OVER() AS total_count
+      FROM release_note_items
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY ${rank} release_date DESC NULLS LAST, source_order ASC
+      LIMIT ${limitParam}
+      OFFSET ${offsetParam}
+    `.trim(),
+    values
+  };
+}
+
+export function buildReleaseNoteFeedQuery(filters: ReleaseNoteSearchFilters): SqlQuery {
+  const { where, values, add } = buildReleaseNoteWhere(filters);
+  const limitParam = add(filters.limit ?? 50);
+
+  return {
+    text: `
+      SELECT
+        id,
+        'release_note' AS event_type,
+        CONCAT(version, ' ', section, CASE WHEN area IS NULL THEN '' ELSE CONCAT(' · ', area) END) AS title,
+        body AS summary,
+        release_date AS event_time,
+        source_url,
+        CONCAT('release_note:', id) AS stable_guid,
+        risk_level,
+        ARRAY_REMOVE(ARRAY_CAT(ARRAY[version, minor_line, stream, section, area, impact_kind, risk_level], platforms), NULL) AS tags
+      FROM release_note_items
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY release_date DESC NULLS LAST, source_order ASC
+      LIMIT ${limitParam}
+    `.trim(),
+    values
+  };
+}
+
+function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
   const where: string[] = [];
   const values: Array<string | number> = [];
   const add = (value: string | number) => {
@@ -43,24 +91,7 @@ export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): 
   addArrayContains(where, add, "package_names", filters.packageName);
   addArrayContains(where, add, "issue_ids", filters.issueId);
 
-  const limitParam = add(filters.limit ?? 100);
-  const offsetParam = add(filters.offset ?? 0);
-
-  const rank = filters.q?.trim()
-    ? `ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC,`
-    : "";
-
-  return {
-    text: `
-      SELECT *
-      FROM release_note_items
-      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY ${rank} release_date DESC NULLS LAST, source_order ASC
-      LIMIT ${limitParam}
-      OFFSET ${offsetParam}
-    `.trim(),
-    values
-  };
+  return { where, values, add };
 }
 
 function addEquals(

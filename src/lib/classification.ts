@@ -29,14 +29,20 @@ const PLATFORM_TAGS = [
 const SECURITY_RE = /\b(vulnerability|security|cve|exploit|preventive)\b/i;
 const BREAKING_RE = /\b(breaking|removed|obsolete|deprecated|incompatible)\b/i;
 const INSTALL_RE = /\b(installer|hub|module|build support|download|license|activation)\b/i;
+const UNITY_VERSION_PREFIX_RE = /^\d{4}\.\d+\.\d+[abf]\d+$/i;
+const BLOCKER_RE = /\b(crash|data loss|corrupt|cannot open)\b/i;
 
 export function extractArea(body: string): string | null {
   const match = body.match(/^([^:\n]{1,48}):\s+/);
-  return match?.[1].trim() || null;
+  const area = match?.[1].trim();
+  if (!area || UNITY_VERSION_PREFIX_RE.test(area) || !/[a-z]/i.test(area)) {
+    return null;
+  }
+  return area;
 }
 
 export function stripAreaPrefix(body: string): string {
-  return body.replace(/^([^:\n]{1,48}):\s+/, "").trim();
+  return extractArea(body) ? body.replace(/^([^:\n]{1,48}):\s+/, "").trim() : body.trim();
 }
 
 export function extractPlatforms(body: string): string[] {
@@ -51,15 +57,17 @@ export function extractPlatforms(body: string): string[] {
 }
 
 export function classifyImpact(section: string, body: string): ImpactKind {
-  if (section === "Known Issues") {
+  const normalizedSection = section.toLowerCase();
+
+  if (normalizedSection === "known issues") {
     return "known_issue";
   }
 
-  if (section === "Package Changes") {
+  if (normalizedSection === "package changes" || normalizedSection === "packages updated") {
     return "package_change";
   }
 
-  if (section === "API Changes") {
+  if (normalizedSection === "api changes") {
     return BREAKING_RE.test(body) ? "breaking_change" : "api_change";
   }
 
@@ -71,11 +79,11 @@ export function classifyImpact(section: string, body: string): ImpactKind {
     return "install_risk";
   }
 
-  if (section === "Fixes") {
+  if (normalizedSection === "fixes") {
     return "fix";
   }
 
-  if (section === "Documentation") {
+  if (normalizedSection === "documentation") {
     return "documentation";
   }
 
@@ -83,12 +91,16 @@ export function classifyImpact(section: string, body: string): ImpactKind {
 }
 
 export function classifyRisk(section: string, impactKind: ImpactKind, body: string): RiskLevel {
-  if (impactKind === "upgrade_blocker" || /\b(crash|data loss|corrupt|cannot open)\b/i.test(body)) {
+  if (impactKind === "upgrade_blocker") {
     return "blocker";
   }
 
-  if (section === "Known Issues" || impactKind === "platform_risk") {
-    return "caution";
+  if (impactKind === "known_issue") {
+    return BLOCKER_RE.test(body) ? "blocker" : "caution";
+  }
+
+  if (impactKind === "platform_risk") {
+    return BLOCKER_RE.test(body) ? "blocker" : "caution";
   }
 
   if (

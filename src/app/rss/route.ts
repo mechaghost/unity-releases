@@ -1,14 +1,16 @@
-import { listFeedEvents } from "@/lib/db/repositories";
+import { filtersFromSearchParams } from "@/lib/api";
+import { listWatchFeedEvents } from "@/lib/db/repositories";
 import { renderRssFeed } from "@/lib/rss";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const events = await safeEvents();
+  const filters = filtersFromSearchParams(url.searchParams);
+  const events = await safeEvents(filters);
   const xml = renderRssFeed({
     title: "Unity Alerts",
-    description: "Filtered Unity release and package activity",
+    description: describeFeed(filters),
     siteUrl: `${url.origin}/`,
     feedUrl: url.toString(),
     events
@@ -22,10 +24,26 @@ export async function GET(request: Request) {
   });
 }
 
-async function safeEvents() {
+async function safeEvents(filters: ReturnType<typeof filtersFromSearchParams>) {
   try {
-    return await listFeedEvents(50);
+    return await listWatchFeedEvents(filters, 50);
   } catch {
     return [];
   }
+}
+
+function describeFeed(filters: ReturnType<typeof filtersFromSearchParams>) {
+  const parts = [
+    filters.minorLine,
+    filters.version,
+    filters.platform,
+    filters.packageName,
+    filters.impactKind,
+    filters.riskLevel,
+    filters.q ? `"${filters.q}"` : ""
+  ].filter(Boolean);
+
+  return parts.length
+    ? `Filtered Unity release-note activity for ${parts.join(", ")}`
+    : "Unity release, package, and official news activity";
 }
