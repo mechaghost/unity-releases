@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { parsePackageRegistry } from "../../src/lib/parsers/package-registry";
 import { parseUnityBlogRss } from "../../src/lib/parsers/rss";
 import { extractReleasePageMetadata } from "../../src/lib/parsers/release-page";
+import { extractApiReleaseMetadata } from "../../src/lib/parsers/release-api";
 
 describe("extractReleasePageMetadata", () => {
   test("extracts release metadata from a Unity page payload", () => {
@@ -38,6 +39,56 @@ describe("extractReleasePageMetadata", () => {
         }
       ]
     });
+  });
+});
+
+describe("extractApiReleaseMetadata", () => {
+  test("maps a Unity services API release into ReleasePageMetadata", () => {
+    const metadata = extractApiReleaseMetadata({
+      version: "6000.3.14f1",
+      releaseDate: "2026-04-22T12:21:09.823Z",
+      shortRevision: "d68c3f99a318",
+      unityHubDeepLink: "unityhub://6000.3.14f1/d68c3f99a318",
+      releaseNotes: { url: "https://storage.googleapis.com/release.md", type: "MD" },
+      downloads: [
+        {
+          platform: "WINDOWS",
+          architecture: "X86_64",
+          url: "https://download.unity3d.com/editor.exe",
+          modules: [
+            { name: "Android Build Support", category: "PLATFORM", url: "https://download.unity3d.com/android.exe" }
+          ]
+        }
+      ]
+    });
+
+    expect(metadata.version).toBe("6000.3.14f1");
+    expect(metadata.stream).toBe("Update/Supported");
+    expect(metadata.releasePageUrl).toBe("https://unity.com/releases/editor/whats-new/6000.3.14f1");
+    expect(metadata.releaseNotesUrl).toBe("https://storage.googleapis.com/release.md");
+    expect(metadata.changeset).toBe("d68c3f99a318");
+    expect(metadata.artifacts).toHaveLength(1);
+    expect(metadata.artifacts[0]).toMatchObject({
+      platform: "WINDOWS",
+      architecture: "X86_64",
+      category: "EDITOR",
+      name: "Unity Editor"
+    });
+    expect(metadata.modules).toHaveLength(1);
+    expect(metadata.modules[0]).toMatchObject({
+      moduleName: "Android Build Support",
+      moduleCategory: "PLATFORM"
+    });
+  });
+
+  test("tolerates missing release notes URL by reporting null", () => {
+    const metadata = extractApiReleaseMetadata({
+      version: "6000.0.59f1",
+      releaseDate: "2026-04-01T00:00:00.000Z"
+    });
+    expect(metadata.releaseNotesUrl).toBeNull();
+    expect(metadata.artifacts).toEqual([]);
+    expect(metadata.modules).toEqual([]);
   });
 });
 
