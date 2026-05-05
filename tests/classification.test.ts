@@ -21,4 +21,19 @@ describe("Unity release note classification", () => {
     expect(impact).toBe("fix");
     expect(classifyRisk("Fixes", impact, "WebGL: Fixed crash when entering play mode")).toBe("info");
   });
+
+  test("classifies improvements, features, and changes sections", () => {
+    expect(classifyImpact("Improvements", "Improved mesh update performance.")).toBe("improvement");
+    expect(classifyImpact("Features", "Added support for generalized GPU archetypes.")).toBe("feature");
+    expect(classifyImpact("Changes", "Made a setting discoverable in the package manager.")).toBe(
+      "change"
+    );
+  });
+
+  test("escalates Changes section entries that announce deprecation or removal", () => {
+    expect(
+      classifyImpact("Changes", "Deprecated the legacy converter; users should migrate.")
+    ).toBe("breaking_change");
+    expect(classifyImpact("Changes", "Removed the obsolete API surface.")).toBe("breaking_change");
+  });
 });

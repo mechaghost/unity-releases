@@ -1,5 +1,8 @@
 export type ImpactKind =
   | "fix"
+  | "improvement"
+  | "feature"
+  | "change"
   | "known_issue"
   | "api_change"
   | "breaking_change"
@@ -85,6 +88,18 @@ export function classifyImpact(section: string, body: string): ImpactKind {
 
   if (normalizedSection === "documentation") {
     return "documentation";
+  }
+
+  if (normalizedSection === "improvements") {
+    return "improvement";
+  }
+
+  if (normalizedSection === "features") {
+    return "feature";
+  }
+
+  if (normalizedSection === "changes") {
+    return BREAKING_RE.test(body) ? "breaking_change" : "change";
   }
 
   return "unknown";
