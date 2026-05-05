@@ -229,15 +229,24 @@ CREATE INDEX IF NOT EXISTS idx_release_note_items_search ON release_note_items U
 CREATE INDEX IF NOT EXISTS idx_release_note_items_body_trgm ON release_note_items USING GIN (body gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_version ON release_note_items (version);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_minor_line ON release_note_items (minor_line);
+CREATE INDEX IF NOT EXISTS idx_release_note_items_stream ON release_note_items (stream);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_section ON release_note_items (section);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_area ON release_note_items (area);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_impact ON release_note_items (impact_kind);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_risk ON release_note_items (risk_level);
+CREATE INDEX IF NOT EXISTS idx_release_note_items_release_id ON release_note_items (unity_release_id);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_platforms ON release_note_items USING GIN (platforms);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_packages ON release_note_items USING GIN (package_names);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_issues ON release_note_items USING GIN (issue_ids);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_issue_text_trgm ON release_note_items USING GIN (issue_text gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_unity_release_artifacts_release_id ON unity_release_artifacts (unity_release_id);
+CREATE INDEX IF NOT EXISTS idx_unity_release_modules_release_id ON unity_release_modules (unity_release_id);
+CREATE INDEX IF NOT EXISTS idx_issue_mentions_release_id ON issue_mentions (unity_release_id);
+CREATE INDEX IF NOT EXISTS idx_issue_mentions_issue_id ON issue_mentions (issue_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_issue_mentions_issue_release ON issue_mentions (issue_id, unity_release_id, release_note_item_id);
+CREATE INDEX IF NOT EXISTS idx_package_versions_package_id ON package_versions (package_id);
 CREATE INDEX IF NOT EXISTS idx_content_events_time ON content_events (event_time DESC);
+CREATE INDEX IF NOT EXISTS idx_content_events_type ON content_events (event_type);
 
 CREATE OR REPLACE FUNCTION update_release_note_search_vector()
 RETURNS trigger AS $$
