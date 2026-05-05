@@ -11,7 +11,7 @@ export function filtersFromSearchParams(params: URLSearchParams): ReleaseNoteSea
     section: params.get("section") ?? undefined,
     area: params.get("area") ?? undefined,
     platform: params.get("platform") ?? watch.platforms?.[0],
-    impactKind: params.get("impact") ?? watch.impacts?.[0],
+    impactKind: params.get("type") ?? params.get("impact") ?? watch.impacts?.[0],
     riskLevel: params.get("risk") ?? watch.risks?.[0],
     packageName: params.get("package") ?? watch.packages?.[0],
     issueId: params.get("issue") ?? undefined,

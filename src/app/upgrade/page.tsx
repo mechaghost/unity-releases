@@ -1,5 +1,6 @@
 import { filtersFromSearchParams } from "@/lib/api";
 import { listReleaseNoteFacets, searchReleaseNotes } from "@/lib/db/repositories";
+import { cleanReleaseNoteText } from "@/lib/release-notes/format";
 
 export const dynamic = "force-dynamic";
 
@@ -197,7 +198,7 @@ function upgradeLane(title: string, items: UpgradeItem[]) {
                 <strong>{item.version}</strong>
                 <span className="muted">{item.area ?? item.section}</span>
               </div>
-              <p>{cleanNoteBody(item.body)}</p>
+              <p>{cleanReleaseNoteText(item.body)}</p>
               <div className="note-meta">
                 {(item.platforms ?? []).map((value) => (
                   <span className="chip" key={value}>
@@ -228,15 +229,4 @@ function riskLabel(value?: string | null) {
     info: "Info"
   };
   return labels[value ?? ""] ?? "Info";
-}
-
-function cleanNoteBody(body: string) {
-  return body
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\\([()])/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
 }

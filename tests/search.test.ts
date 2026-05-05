@@ -25,4 +25,13 @@ describe("release note search SQL", () => {
     expect(query.text).toContain("COUNT(*) OVER() AS total_count");
     expect(query.values).toEqual(["memory leak", "6000.3.14f1", 20, 0]);
   });
+
+  test("can order release detail notes by section and source order", () => {
+    const query = buildReleaseNoteSearchQuery({
+      version: "6000.5.0b6",
+      order: "section"
+    });
+
+    expect(query.text).toContain("section ASC, source_order ASC");
+  });
 });

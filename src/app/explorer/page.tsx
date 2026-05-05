@@ -1,5 +1,6 @@
 import { filtersFromSearchParams } from "@/lib/api";
 import { listReleaseNoteFacets, searchReleaseNotes } from "@/lib/db/repositories";
+import { cleanReleaseNoteText } from "@/lib/release-notes/format";
 
 export const dynamic = "force-dynamic";
 
@@ -236,7 +237,7 @@ export default async function ExplorerPage({
                           <strong>{item.section}</strong>
                           {item.area ? <span className="muted">{item.area}</span> : null}
                         </div>
-                        <p>{cleanNoteBody(item.body)}</p>
+                        <p>{cleanReleaseNoteText(item.body)}</p>
                         <div className="note-meta">
                           {(item.platforms ?? []).map((platform) => (
                             <span className="chip" key={platform}>
@@ -383,17 +384,6 @@ function riskLabel(value?: string | null) {
     info: "Info"
   };
   return labels[value ?? ""] ?? "Info";
-}
-
-function cleanNoteBody(body: string) {
-  return body
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\\([()])/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function titleize(value: string) {

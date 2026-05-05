@@ -12,6 +12,7 @@ export type ReleaseNoteSearchFilters = {
   issueId?: string;
   limit?: number;
   offset?: number;
+  order?: "newest" | "section" | "risk" | "source" | "area" | "issue";
 };
 
 export type SqlQuery = {
@@ -25,21 +26,50 @@ export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): 
   const limitParam = add(filters.limit ?? 100);
   const offsetParam = add(filters.offset ?? 0);
 
-  const rank = filters.q?.trim()
-    ? `ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC,`
-    : "";
+  const order = releaseNoteOrder(filters);
 
   return {
     text: `
       SELECT *, COUNT(*) OVER() AS total_count
       FROM release_note_items
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY ${rank} release_date DESC NULLS LAST, source_order ASC
+      ORDER BY ${order}
       LIMIT ${limitParam}
       OFFSET ${offsetParam}
     `.trim(),
     values
   };
+}
+
+function releaseNoteOrder(filters: ReleaseNoteSearchFilters): string {
+  if (filters.q?.trim()) {
+    return `ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC, release_date DESC NULLS LAST, source_order ASC`;
+  }
+
+  switch (filters.order) {
+    case "section":
+      return "section ASC, source_order ASC";
+    case "risk":
+      return `
+        CASE risk_level
+          WHEN 'blocker' THEN 0
+          WHEN 'caution' THEN 1
+          WHEN 'review' THEN 2
+          ELSE 3
+        END ASC,
+        section ASC,
+        source_order ASC
+      `;
+    case "area":
+      return "area ASC NULLS LAST, section ASC, source_order ASC";
+    case "issue":
+      return "issue_text ASC, section ASC, source_order ASC";
+    case "source":
+      return "source_order ASC";
+    case "newest":
+    default:
+      return "release_date DESC NULLS LAST, source_order ASC";
+  }
 }
 
 export function buildReleaseNoteFeedQuery(filters: ReleaseNoteSearchFilters): SqlQuery {

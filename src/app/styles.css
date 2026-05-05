@@ -203,6 +203,13 @@ code {
   align-items: start;
 }
 
+.release-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
 .filter-rail {
   position: sticky;
   top: 16px;
@@ -292,6 +299,12 @@ code {
   color: #124b8f;
 }
 
+.issue-chip-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .badge {
   background: #eef2f7;
   color: #1f2937;
@@ -353,9 +366,14 @@ code {
   padding: 11px 12px;
 }
 
+.dense-note-row {
+  padding: 10px 12px;
+}
+
 .note-row p {
   margin: 0;
   line-height: 1.38;
+  overflow-wrap: anywhere;
 }
 
 .note-row-top strong {
@@ -429,6 +447,14 @@ code {
   margin-bottom: 18px;
 }
 
+.release-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
 .upgrade-lanes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -460,7 +486,8 @@ code {
     flex-direction: column;
   }
 
-  .explorer-layout {
+  .explorer-layout,
+  .release-detail-layout {
     grid-template-columns: 1fr;
   }
 
