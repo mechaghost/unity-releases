@@ -5,19 +5,21 @@ export type ReleaseNoteSearchFilters = {
   stream?: string;
   section?: string;
   area?: string;
-  platform?: string;
-  impactKind?: string;
-  riskLevel?: string;
-  packageName?: string;
-  issueId?: string;
+  platform?: string | string[];
+  impactKind?: string | string[];
+  riskLevel?: string | string[];
+  packageName?: string | string[];
+  issueId?: string | string[];
   limit?: number;
   offset?: number;
   order?: "newest" | "section" | "risk" | "source" | "area" | "issue";
 };
 
+export type SqlValue = string | number | string[];
+
 export type SqlQuery = {
   text: string;
-  values: Array<string | number>;
+  values: SqlValue[];
 };
 
 export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): SqlQuery {
@@ -99,8 +101,8 @@ export function buildReleaseNoteFeedQuery(filters: ReleaseNoteSearchFilters): Sq
 
 function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
   const where: string[] = [];
-  const values: Array<string | number> = [];
-  const add = (value: string | number) => {
+  const values: SqlValue[] = [];
+  const add = (value: SqlValue) => {
     values.push(value);
     return `$${values.length}`;
   };
@@ -126,10 +128,19 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
 
 function addEquals(
   where: string[],
-  add: (value: string | number) => string,
+  add: (value: SqlValue) => string,
   column: string,
-  value: string | undefined
+  value: string | string[] | undefined
 ) {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return;
+    if (value.length === 1) {
+      where.push(`${column} = ${add(value[0])}`);
+      return;
+    }
+    where.push(`${column} = ANY(${add(value)})`);
+    return;
+  }
   if (value) {
     where.push(`${column} = ${add(value)}`);
   }
@@ -137,10 +148,19 @@ function addEquals(
 
 function addArrayContains(
   where: string[],
-  add: (value: string | number) => string,
+  add: (value: SqlValue) => string,
   column: string,
-  value: string | undefined
+  value: string | string[] | undefined
 ) {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return;
+    if (value.length === 1) {
+      where.push(`${add(value[0])} = ANY(${column})`);
+      return;
+    }
+    where.push(`${column} && ${add(value)}`);
+    return;
+  }
   if (value) {
     where.push(`${add(value)} = ANY(${column})`);
   }

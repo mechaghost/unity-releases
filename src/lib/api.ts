@@ -1,20 +1,18 @@
 import type { ReleaseNoteSearchFilters } from "./search";
-import { parseWatchQuery } from "./watch";
 
 export function filtersFromSearchParams(params: URLSearchParams): ReleaseNoteSearchFilters {
-  const watch = parseWatchQuery(params);
   return {
-    q: params.get("q") ?? watch.q,
+    q: params.get("q") ?? undefined,
     version: params.get("version") ?? undefined,
-    minorLine: params.get("minorLine") ?? watch.minorLine,
+    minorLine: params.get("minorLine") ?? undefined,
     stream: params.get("stream") ?? undefined,
     section: params.get("section") ?? undefined,
     area: params.get("area") ?? undefined,
-    platform: params.get("platform") ?? watch.platforms?.[0],
-    impactKind: params.get("type") ?? params.get("impact") ?? watch.impacts?.[0],
-    riskLevel: params.get("risk") ?? watch.risks?.[0],
-    packageName: params.get("package") ?? watch.packages?.[0],
-    issueId: params.get("issue") ?? undefined,
+    platform: collectMulti(params, "platform"),
+    impactKind: collectMulti(params, "impact") ?? (params.get("type") ?? undefined),
+    riskLevel: collectMulti(params, "risk"),
+    packageName: collectMulti(params, "package"),
+    issueId: collectMulti(params, "issue"),
     limit: numberParam(params.get("limit"), 100),
     offset: numberParam(params.get("offset"), 0)
   };
@@ -24,6 +22,13 @@ export function jsonError(error: unknown) {
   return {
     error: error instanceof Error ? error.message : "Unknown error"
   };
+}
+
+function collectMulti(params: URLSearchParams, key: string): string | string[] | undefined {
+  const all = params.getAll(key);
+  if (all.length === 0) return undefined;
+  if (all.length === 1) return all[0];
+  return all;
 }
 
 function numberParam(value: string | null, fallback: number): number {

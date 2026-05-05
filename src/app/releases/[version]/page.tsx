@@ -372,8 +372,8 @@ function activeFilterLabels(filters: ReleaseNoteSearchFilters) {
     filters.section ? `Section: ${filters.section}` : "",
     filters.area ? `Area: ${filters.area}` : "",
     filters.platform ? `Platform: ${filters.platform}` : "",
-    filters.impactKind ? `Type: ${impactLabel(filters.impactKind)}` : "",
-    filters.riskLevel ? `Risk: ${riskLabel(filters.riskLevel)}` : "",
+    filters.impactKind ? `Type: ${joinLabels(filters.impactKind, impactLabel)}` : "",
+    filters.riskLevel ? `Risk: ${joinLabels(filters.riskLevel, riskLabel)}` : "",
     filters.packageName ? `Package: ${filters.packageName}` : "",
     filters.issueId ? `Issue: ${filters.issueId}` : ""
   ].filter(Boolean);
@@ -409,6 +409,10 @@ function toUrlSearchParams(input: Record<string, string | string[] | undefined>)
 
 function unique(values: string[]) {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
+function joinLabels(value: string | string[] | undefined, fn: (v: string | null | undefined) => string): string {
+  return (Array.isArray(value) ? value : [value]).map(fn).join(", ");
 }
 
 function impactLabel(value?: string | null) {

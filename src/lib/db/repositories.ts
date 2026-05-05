@@ -113,12 +113,18 @@ function hasReleaseNoteFilters(filters: ReleaseNoteSearchFilters): boolean {
       filters.stream ||
       filters.section ||
       filters.area ||
-      filters.platform ||
-      filters.impactKind ||
-      filters.riskLevel ||
-      filters.packageName ||
-      filters.issueId
+      hasFilterValue(filters.platform) ||
+      hasFilterValue(filters.impactKind) ||
+      hasFilterValue(filters.riskLevel) ||
+      hasFilterValue(filters.packageName) ||
+      hasFilterValue(filters.issueId)
   );
+}
+
+function hasFilterValue(value: string | string[] | undefined): boolean {
+  if (!value) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
 }
 
 export async function listReleases(limit = 50) {

@@ -34,4 +34,38 @@ describe("release note search SQL", () => {
 
     expect(query.text).toContain("section ASC, source_order ASC");
   });
+
+  test("expands multi-value array filters into array overlap and IN clauses", () => {
+    const query = buildReleaseNoteFeedQuery({
+      platform: ["WebGL", "iOS"],
+      impactKind: ["fix", "improvement"],
+      riskLevel: ["caution", "blocker"],
+      packageName: ["com.unity.inputsystem", "com.unity.addressables"],
+      limit: 25
+    });
+
+    expect(query.text).toContain("platforms && $1");
+    expect(query.text).toContain("impact_kind = ANY($2)");
+    expect(query.text).toContain("risk_level = ANY($3)");
+    expect(query.text).toContain("package_names && $4");
+    expect(query.values).toEqual([
+      ["WebGL", "iOS"],
+      ["fix", "improvement"],
+      ["caution", "blocker"],
+      ["com.unity.inputsystem", "com.unity.addressables"],
+      25
+    ]);
+  });
+
+  test("collapses single-element arrays back to scalar predicates", () => {
+    const query = buildReleaseNoteFeedQuery({
+      platform: ["WebGL"],
+      impactKind: ["fix"],
+      limit: 10
+    });
+
+    expect(query.text).toContain("$1 = ANY(platforms)");
+    expect(query.text).toContain("impact_kind = $2");
+    expect(query.values).toEqual(["WebGL", "fix", 10]);
+  });
 });

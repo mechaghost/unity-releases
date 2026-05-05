@@ -332,8 +332,8 @@ function activeFilterLabels(filters: ReturnType<typeof filtersFromSearchParams>)
     filters.section ? `Section: ${filters.section}` : "",
     filters.area ? `Area: ${filters.area}` : "",
     filters.platform ? `Platform: ${filters.platform}` : "",
-    filters.impactKind ? `Impact: ${impactLabel(filters.impactKind)}` : "",
-    filters.riskLevel ? `Risk: ${riskLabel(filters.riskLevel)}` : "",
+    filters.impactKind ? `Impact: ${joinLabels(filters.impactKind, impactLabel)}` : "",
+    filters.riskLevel ? `Risk: ${joinLabels(filters.riskLevel, riskLabel)}` : "",
     filters.packageName ? `Package: ${filters.packageName}` : "",
     filters.issueId ? `Issue: ${filters.issueId}` : ""
   ].filter(Boolean);
@@ -357,6 +357,10 @@ function modeLink(label: string, current: URLSearchParams, updates: Record<strin
       {label}
     </a>
   );
+}
+
+function joinLabels(value: string | string[] | undefined, fn: (v: string | null | undefined) => string): string {
+  return (Array.isArray(value) ? value : [value]).map(fn).join(", ");
 }
 
 function impactLabel(value?: string | null) {
