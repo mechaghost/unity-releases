@@ -207,6 +207,53 @@ input, select, textarea {
   border-radius: var(--radius-sm);
 }
 
+/* Visually-hidden utility for screen-reader-only labels. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip-to-main link, hidden until keyboard-focused. */
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-radius: var(--radius-md);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform var(--duration-fast) var(--easing-standard);
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ========================================================================
    Headings
    ======================================================================== */
@@ -1381,24 +1428,97 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   .compare-meta { position: static; }
 }
 
+/* Mobile nav toggle + backdrop (rendered always; visible only <=1024px). */
+.mobile-nav-toggle {
+  display: none;
+  position: fixed;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 60;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.mobile-nav-toggle:hover { background: var(--surface-sunken); }
+
+.mobile-nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(0, 0, 0, 0.45);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
 @media (max-width: 1024px) {
   .app-shell { grid-template-columns: 1fr; }
   .app-shell__nav {
     position: fixed;
     inset: 0 auto 0 0;
-    width: 240px;
+    width: 280px;
+    max-width: 85vw;
     transform: translateX(-100%);
     transition: transform var(--duration-base) var(--easing-standard);
     z-index: 50;
     box-shadow: var(--shadow-lg);
   }
   .app-shell[data-nav-open="true"] .app-shell__nav { transform: translateX(0); }
+  .app-shell[data-nav-open="true"] .mobile-nav-backdrop { display: block; }
+
+  .mobile-nav-toggle { display: inline-flex; }
+
+  /* Make room above the page header for the toggle button. */
+  .app-shell__content { padding-top: calc(var(--space-3) + 36px + var(--space-2)); }
+
+  body { overflow-x: hidden; }
+  body:has(.app-shell[data-nav-open="true"]) { overflow: hidden; }
 }
 
 @media (max-width: 768px) {
-  .app-shell__content { padding: var(--space-4); }
+  .app-shell__content { padding-left: var(--space-3); padding-right: var(--space-3); }
+  .compare-picker { gap: var(--space-2); }
   .compare-picker select { min-width: 0; flex: 1; }
-  .row__lead { width: 80px; }
+  .compare-picker label { flex: 1 1 100%; }
+  .compare-picker__go { width: 100%; }
+  .row__lead { width: 76px; }
   .dense-table { font-size: var(--text-xs); }
   .dense-table th, .dense-table td { padding: var(--space-2); }
+
+  /* Stack release-row pieces on narrow screens so the date and Diff
+     button don't get squashed under the version pill. */
+  .release-row {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+  .release-row__date { text-align: left; }
+  .release-row__cta { width: 100%; justify-content: flex-end; }
+
+  /* Page header buttons should wrap to multiple rows. */
+  .page-header__title-row { flex-wrap: wrap; }
+  .filter-bar { gap: var(--space-2); }
+  .filter-bar > label,
+  .filter-bar > .field { flex: 1 1 100%; }
+
+  /* Dashboard cards full-bleed on small screens. */
+  .card-stack { gap: var(--space-3); }
+  .card { border-radius: var(--radius-md); }
 }
+
+/* Horizontal scroll wrapper for dense tables that overflow on mobile. */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-base);
+}
+.table-wrap > .dense-table { border: 0; border-radius: 0; }

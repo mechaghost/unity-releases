@@ -53,7 +53,7 @@ export default async function PackagePage({ params }: { params: Promise<{ name: 
         Version history ({versions.length.toLocaleString()})
       </h2>
 
-      <table className="dense-table">
+      <div className="table-wrap"><table className="dense-table">
         <thead>
           <tr>
             <th style={{ width: 160 }}>Version</th>
@@ -92,7 +92,7 @@ export default async function PackagePage({ params }: { params: Promise<{ name: 
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </>
   );
 }

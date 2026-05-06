@@ -101,7 +101,7 @@ export function LeftNav() {
   const params = new URLSearchParams(search?.toString() ?? "");
 
   return (
-    <nav className="lnav" aria-label="Primary">
+    <nav className="lnav" id="primary-nav" aria-label="Primary">
       <a href="/" className="lnav__brand">
         <span className="lnav__brand-mark" aria-hidden="true">
           U

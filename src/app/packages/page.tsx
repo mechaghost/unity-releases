@@ -24,7 +24,7 @@ export default async function PackagesPage() {
         <p>{packages.length} official Unity packages tracked from the Unity package registry.</p>
       </section>
 
-      <table className="dense-table">
+      <div className="table-wrap"><table className="dense-table">
         <thead>
           <tr>
             <th>Package</th>
@@ -60,7 +60,7 @@ export default async function PackagesPage() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       {packages.length === 0 ? (
         <div className="empty-state">

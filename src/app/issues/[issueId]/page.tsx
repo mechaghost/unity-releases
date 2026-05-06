@@ -43,7 +43,7 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
       </section>
 
       {results.length === 0 ? null : (
-        <table className="dense-table">
+        <div className="table-wrap"><table className="dense-table">
           <thead>
             <tr>
               <th style={{ width: 140 }}>Version</th>
@@ -79,7 +79,7 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </>
   );

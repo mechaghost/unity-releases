@@ -49,7 +49,7 @@ export default async function ReleasesPage({
         <FilterLink href="/releases?stream=alpha" active={streamFilter === "alpha"} label="Alpha" />
       </nav>
 
-      <table className="dense-table tabnums">
+      <div className="table-wrap"><table className="dense-table tabnums">
         <thead>
           <tr>
             <th style={{ width: 160 }}>Version</th>
@@ -95,7 +95,7 @@ export default async function ReleasesPage({
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       {filtered.length === 0 ? (
         <div className="empty-state">
