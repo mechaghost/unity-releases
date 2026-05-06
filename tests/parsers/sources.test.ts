@@ -13,7 +13,7 @@ describe("extractReleasePageMetadata", () => {
     expect(extractReleasePageMetadata(html, "https://unity.com/releases/editor/whats-new/6000.3.14f1")).toEqual({
       version: "6000.3.14f1",
       releaseDate: "2026-04-22T12:21:09.823Z",
-      stream: "Update/Supported",
+      stream: "LTS",
       shortRevision: "d68c3f99a318",
       changeset: "d68c3f99a318",
       releasePageUrl: "https://unity.com/releases/editor/whats-new/6000.3.14f1",
@@ -63,7 +63,7 @@ describe("extractApiReleaseMetadata", () => {
     });
 
     expect(metadata.version).toBe("6000.3.14f1");
-    expect(metadata.stream).toBe("Update/Supported");
+    expect(metadata.stream).toBe("LTS");
     expect(metadata.releasePageUrl).toBe("https://unity.com/releases/editor/whats-new/6000.3.14f1");
     expect(metadata.releaseNotesUrl).toBe("https://storage.googleapis.com/release.md");
     expect(metadata.changeset).toBe("d68c3f99a318");

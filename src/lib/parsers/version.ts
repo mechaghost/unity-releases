@@ -44,9 +44,24 @@ export function parseUnityVersion(version: string): ParsedUnityVersion {
     suffixNumber,
     majorLine: String(major),
     minorLine: `${major}.${minor}`,
-    stream: streamForChannel(suffixChannel, minor),
+    stream: streamForChannel(suffixChannel, major, minor),
     isPrerelease: suffixChannel === "a" || suffixChannel === "b"
   };
+}
+
+/**
+ * Officially-announced LTS minor lines per major.
+ *
+ * Unity 6: 6000.0, 6000.3, and 6000.7 are LTS. The minor lines in
+ * between are Update/Supported releases. Future LTS lines should be
+ * appended here once Unity announces them.
+ */
+const LTS_MINOR_LINES_BY_MAJOR: Record<number, ReadonlySet<number>> = {
+  6000: new Set([0, 3, 7])
+};
+
+export function isLtsMinorLine(major: number, minor: number): boolean {
+  return LTS_MINOR_LINES_BY_MAJOR[major]?.has(minor) ?? false;
 }
 
 export function isUnity6OrNewer(version: string): boolean {
@@ -66,7 +81,7 @@ export function compareUnityVersions(a: string, b: string): number {
   );
 }
 
-function streamForChannel(channel: string, minor: number): UnityStream {
+function streamForChannel(channel: string, major: number, minor: number): UnityStream {
   if (channel === "a") {
     return "alpha";
   }
@@ -79,5 +94,5 @@ function streamForChannel(channel: string, minor: number): UnityStream {
     return "patch";
   }
 
-  return minor === 0 ? "LTS" : "Update/Supported";
+  return isLtsMinorLine(major, minor) ? "LTS" : "Update/Supported";
 }

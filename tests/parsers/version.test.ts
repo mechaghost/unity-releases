@@ -6,7 +6,7 @@ import {
 } from "../../src/lib/parsers/version";
 
 describe("parseUnityVersion", () => {
-  test("parses a Unity 6 final release", () => {
+  test("parses a Unity 6 LTS final release", () => {
     expect(parseUnityVersion("6000.3.14f1")).toEqual({
       raw: "6000.3.14f1",
       major: 6000,
@@ -16,9 +16,23 @@ describe("parseUnityVersion", () => {
       suffixNumber: 1,
       majorLine: "6000",
       minorLine: "6000.3",
-      stream: "Update/Supported",
+      stream: "LTS",
       isPrerelease: false
     });
+  });
+
+  test("classifies known LTS minor lines for Unity 6", () => {
+    expect(parseUnityVersion("6000.0.59f1").stream).toBe("LTS");
+    expect(parseUnityVersion("6000.3.14f1").stream).toBe("LTS");
+    expect(parseUnityVersion("6000.7.0f1").stream).toBe("LTS");
+  });
+
+  test("classifies in-between minor lines as Update/Supported", () => {
+    expect(parseUnityVersion("6000.1.5f1").stream).toBe("Update/Supported");
+    expect(parseUnityVersion("6000.2.41f1").stream).toBe("Update/Supported");
+    expect(parseUnityVersion("6000.4.5f1").stream).toBe("Update/Supported");
+    expect(parseUnityVersion("6000.5.10f1").stream).toBe("Update/Supported");
+    expect(parseUnityVersion("6000.6.2f1").stream).toBe("Update/Supported");
   });
 
   test("parses beta and alpha releases as prerelease streams", () => {
