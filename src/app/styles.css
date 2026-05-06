@@ -837,6 +837,89 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   min-width: 92px;
 }
 
+.packages-filter {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(128px, 180px) minmax(140px, 170px) minmax(140px, 170px) auto;
+  align-items: end;
+  margin-bottom: var(--space-3);
+}
+
+.packages-filter label:first-child {
+  flex: none;
+}
+
+.packages-filter label {
+  min-width: 0;
+}
+
+.packages-filter select,
+.packages-filter input[type="search"] {
+  width: 100%;
+}
+
+.packages-filter .btn {
+  height: 36px;
+  align-self: end;
+}
+
+.packages-results {
+  background: var(--surface-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.packages-results .list-toolbar {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.packages-table th {
+  white-space: nowrap;
+}
+
+.packages-table {
+  table-layout: fixed;
+}
+
+.packages-table td {
+  min-width: 0;
+}
+
+.package-table__name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.package-table__description {
+  max-width: 720px;
+  margin-top: var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+}
+
+.sort-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: inherit;
+  text-decoration: none;
+}
+
+.sort-link:hover {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.sort-link span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 .row__body {
   flex: 1;
   min-width: 0;
@@ -1989,6 +2072,12 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   .row { gap: var(--space-2); }
   .row__lead { width: 72px; }
   .summary-strip { padding: var(--space-3); }
+  .packages-filter {
+    grid-template-columns: 1fr;
+  }
+  .packages-filter .btn {
+    width: 100%;
+  }
 }
 
 /* Horizontal scroll wrapper for dense tables that overflow on mobile. */

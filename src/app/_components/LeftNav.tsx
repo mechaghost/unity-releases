@@ -73,20 +73,7 @@ const NAV: NavItem[] = [
     href: "/packages",
     label: "Packages",
     icon: "package",
-    match: (pathname) => pathname === "/packages" || pathname.startsWith("/packages/"),
-    showSubsOn: (pathname) => pathname === "/packages" || pathname.startsWith("/packages/"),
-    subItems: [
-      {
-        href: "/packages",
-        label: "All packages",
-        match: (p, s) => p === "/packages" && !s.get("sort")
-      },
-      {
-        href: "/packages?sort=updated",
-        label: "Recently updated",
-        match: (p, s) => p === "/packages" && s.get("sort") === "updated"
-      }
-    ]
+    match: (pathname) => pathname === "/packages"
   },
   {
     href: "/news",

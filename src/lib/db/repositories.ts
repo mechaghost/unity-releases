@@ -451,10 +451,15 @@ export async function getRelease(version: string) {
 export async function listPackages(limit = 100) {
   const result = await query(
     `
-      SELECT p.*, pv.version AS latest_version, pv.published_at AS latest_published_at
+      SELECT
+        p.*,
+        pv.version AS latest_version,
+        pv.published_at AS latest_published_at,
+        pv.is_prerelease AS latest_is_prerelease,
+        pv.unity_compatibility AS latest_unity_compatibility
       FROM packages p
       LEFT JOIN LATERAL (
-        SELECT version, published_at
+        SELECT version, published_at, is_prerelease, unity_compatibility
         FROM package_versions
         WHERE package_id = p.id
         ORDER BY published_at DESC NULLS LAST, version DESC

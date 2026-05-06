@@ -177,7 +177,7 @@ export default async function HomePage() {
           items={packages}
           renderItem={(pkg) => (
             <article className="package-row" key={pkg.name}>
-              <a className="package-row__name link-internal" href={`/packages/${encodeURIComponent(pkg.name)}`}>
+              <a className="package-row__name link-internal" href={`/packages?q=${encodeURIComponent(pkg.name)}`}>
                 <strong>{pkg.display_name ?? pkg.name}</strong>
                 <span className="muted package-row__id">{pkg.name}</span>
               </a>
@@ -342,4 +342,3 @@ async function safeNews(): Promise<FeedEvent[]> {
     return [];
   }
 }
-

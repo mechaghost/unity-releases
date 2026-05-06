@@ -245,7 +245,7 @@ export default async function ExplorerPage({
                             </span>
                           ))}
                           {(item.package_names ?? []).map((packageName) => (
-                            <a className="chip link-chip" href={`/packages/${encodeURIComponent(packageName)}`} key={packageName}>
+                            <a className="chip link-chip" href={`/packages?q=${encodeURIComponent(packageName)}`} key={packageName}>
                               {packageName}
                             </a>
                           ))}

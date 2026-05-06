@@ -694,7 +694,7 @@ function ByPackageLaneBody({
               <div className="row__title">
                 <a
                   className="link-internal--accent"
-                  href={`/packages/${encodeURIComponent(item.packageName)}`}
+                  href={`/packages?q=${encodeURIComponent(item.packageName)}`}
                 >
                   {item.packageName}
                 </a>
