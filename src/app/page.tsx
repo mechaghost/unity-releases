@@ -76,29 +76,22 @@ export default async function HomePage() {
           seeMoreLabel="All releases"
           items={releases}
           renderItem={(release) => (
-            <article className="row" key={release.version}>
-              <span className="row__lead">
-                <VersionPill version={release.version} stream={release.stream} />
+            <article className="release-row" key={release.version}>
+              <VersionPill version={release.version} stream={release.stream} />
+              <span className="release-row__stream muted">{release.stream ?? "Stable"}</span>
+              <span className="release-row__date muted tabnums">
+                {release.release_date ? formatDate(release.release_date) : "—"}
               </span>
-              <div className="row__body">
-                <div className="row__title">
-                  <span className="muted">{release.stream ?? "Stable"}</span>
-                  {release.release_date ? (
-                    <>
-                      {" · "}
-                      <span className="muted">{formatDate(release.release_date)}</span>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-              {latestStable && release.version !== latestStable.version ? (
-                <a
-                  className="btn btn--secondary btn--small"
-                  href={`/compare?from=${encodeURIComponent(release.version)}&to=${encodeURIComponent(latestStable.version)}`}
-                >
-                  Diff
-                </a>
-              ) : null}
+              <span className="release-row__cta">
+                {latestStable && release.version !== latestStable.version ? (
+                  <a
+                    className="btn btn--secondary btn--small"
+                    href={`/compare?from=${encodeURIComponent(release.version)}&to=${encodeURIComponent(latestStable.version)}`}
+                  >
+                    Diff
+                  </a>
+                ) : null}
+              </span>
             </article>
           )}
         />

@@ -713,6 +713,40 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .row__lead--wide { width: 128px; }
 
+.release-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  min-height: 36px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+.release-row:hover { background: var(--surface-sunken); }
+.release-row:last-child { border-bottom: none; }
+
+.release-row__stream {
+  font-size: var(--text-xs);
+  text-transform: capitalize;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.release-row__date {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.release-row__cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
 .row__body {
   flex: 1;
   min-width: 0;
