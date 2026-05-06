@@ -245,6 +245,10 @@ export default async function ComparePage({
     };
   });
 
+  const streamByVersion = new Map<string, string | null>(
+    allReleases.map((r) => [r.version, r.stream])
+  );
+
   return (
     <>
       <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={allReleases} />
@@ -289,7 +293,12 @@ export default async function ComparePage({
       <div className="compare-layout">
         <div>
           {lanes.map((l) => (
-            <Lane key={l.def.id} lane={l} expanded={expandedOverrides} />
+            <Lane
+              key={l.def.id}
+              lane={l}
+              expanded={expandedOverrides}
+              streamByVersion={streamByVersion}
+            />
           ))}
         </div>
 
@@ -348,9 +357,18 @@ type LaneState = {
   totalCount: number;
 };
 
-function Lane({ lane, expanded }: { lane: LaneState; expanded: Set<string> }) {
+function Lane({
+  lane,
+  expanded,
+  streamByVersion
+}: {
+  lane: LaneState;
+  expanded: Set<string>;
+  streamByVersion: Map<string, string | null>;
+}) {
   const { def, rows, totalCount } = lane;
   const isOpen = expanded.has(def.id) || (def.defaultOpen && !expanded.has(`!${def.id}`));
+  const groups = groupByVersion(rows);
   return (
     <section className="lane" id={`lane-${def.id}`} data-collapsed={isOpen ? undefined : "true"}>
       <header className="lane__header">
@@ -367,7 +385,27 @@ function Lane({ lane, expanded }: { lane: LaneState; expanded: Set<string> }) {
             {def.emptyMessage}
           </div>
         ) : (
-          rows.map((row) => <NoteRow key={row.id} row={row} />)
+          groups.map((group) => (
+            <div className="lane__group" key={group.version}>
+              <div className="lane__group-head">
+                <VersionPill
+                  version={group.version}
+                  stream={streamByVersion.get(group.version) ?? null}
+                />
+                {group.releaseDate ? (
+                  <span className="muted tabnums lane__group-date">
+                    {formatDate(group.releaseDate)}
+                  </span>
+                ) : null}
+                <span className="lane__group-count muted tabnums">
+                  {group.rows.length} {group.rows.length === 1 ? "note" : "notes"}
+                </span>
+              </div>
+              {group.rows.map((row) => (
+                <NoteRow key={row.id} row={row} />
+              ))}
+            </div>
+          ))
         )}
       </div>
       {totalCount > rows.length ? (
@@ -387,15 +425,13 @@ function NoteRow({ row }: { row: ReleaseNoteRow }) {
   return (
     <article className="row" aria-label={`${row.section} note in ${row.version}`}>
       <span className="row__lead">
-        <span className="tabnums">{row.version}</span>
-        {row.area ? <span className="muted">{row.area}</span> : null}
+        {row.area ? <span>{row.area}</span> : <span className="muted">{row.section}</span>}
       </span>
       <div className="row__body">
         <div className="row__title row__title--wrap" title={cleanedBody}>
           {cleanedBody}
         </div>
         <div className="row__pills">
-          <ImpactPill kind={row.impact_kind} />
           <RiskBadge level={row.risk_level} />
           {(row.package_names ?? []).slice(0, 2).map((pkg) => (
             <PackagePill name={pkg} key={pkg} />
@@ -410,6 +446,33 @@ function NoteRow({ row }: { row: ReleaseNoteRow }) {
       </div>
     </article>
   );
+}
+
+type ReleaseGroup = { version: string; releaseDate: string | null; rows: ReleaseNoteRow[] };
+
+function groupByVersion(rows: ReleaseNoteRow[]): ReleaseGroup[] {
+  const groups = new Map<string, ReleaseGroup>();
+  for (const row of rows) {
+    const existing = groups.get(row.version);
+    if (existing) {
+      existing.rows.push(row);
+    } else {
+      groups.set(row.version, {
+        version: row.version,
+        releaseDate: row.release_date,
+        rows: [row]
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
 }
 
 function ComparePicker({
