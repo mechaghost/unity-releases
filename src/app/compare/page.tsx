@@ -622,18 +622,12 @@ function DedupedIssueRow({
   const issueLinks = normalizeIssueLinks(item.primary.issue_ids ?? [], item.primary.issue_links_json);
   return (
     <article className="row" aria-label={`${item.primary.section} note`}>
-      <span className="row__lead">
-        {item.primary.area ? (
-          <span>{item.primary.area}</span>
-        ) : (
-          <span className="muted">{item.primary.section}</span>
-        )}
-      </span>
       <div className="row__body">
         <div className="row__title row__title--wrap" title={cleanedBody}>
           {cleanedBody}
         </div>
         <div className="row__pills">
+          <ImpactPill kind={item.primary.impact_kind} />
           <RiskBadge level={item.primary.risk_level} />
           {(item.primary.package_names ?? []).slice(0, 2).map((pkg) => (
             <PackagePill name={pkg} key={pkg} />
