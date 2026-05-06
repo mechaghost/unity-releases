@@ -36,4 +36,32 @@ describe("Unity release note classification", () => {
     ).toBe("breaking_change");
     expect(classifyImpact("Changes", "Removed the obsolete API surface.")).toBe("breaking_change");
   });
+
+  test("does NOT flag cosmetic phrasing as breaking", () => {
+    // Trust-killer case from the team review: the loose regex caught
+    // "removed an erroneous warning" and similar maintenance lines as
+    // breaking_change, drowning the lane in false positives.
+    expect(classifyImpact("Changes", "Removed an erroneous warning that fired on macOS.")).toBe(
+      "change"
+    );
+    expect(classifyImpact("Changes", "Removed unused debug logs from the editor.")).toBe("change");
+    expect(classifyImpact("Changes", "Removed an outdated comment in the build settings.")).toBe(
+      "change"
+    );
+    expect(classifyImpact("Changes", "Cleanup: removed stale references in the package manifest.")).toBe(
+      "change"
+    );
+  });
+
+  test("flags structural breaking signals in API Changes regardless of denylist", () => {
+    expect(classifyImpact("API Changes", "Breaking change: ScriptableObject.Foo no longer returns null.")).toBe(
+      "breaking_change"
+    );
+    expect(classifyImpact("API Changes", "Removed: AssetDatabase.LegacyImport API.")).toBe(
+      "breaking_change"
+    );
+    expect(classifyImpact("API Changes", "Renamed Camera.depthBuffer; no behavior change.")).toBe(
+      "api_change"
+    );
+  });
 });

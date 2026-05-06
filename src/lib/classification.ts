@@ -45,7 +45,7 @@ const SECURITY_RE = /\b(vulnerability|security|cve|exploit|preventive)\b/i;
  * with a denylist.
  */
 const BREAKING_INCLUDE_RE =
-  /\bbreaking\s+change(?:s)?\b|^\s*(?:removed|deprecated|obsoleted)\s*:|^\s*\*\*?(?:removed|deprecated|obsoleted|breaking)\b|\b(?:removed|deprecated|obsoleted|made\s+obsolete|no\s+longer\s+(?:supported|available|valid))\b\s+(?:the\s+|all\s+|an?\s+|its?\s+|some\s+)?(?:public\s+|legacy\s+|old\s+)?(?:api|apis|class(?:es)?|method(?:s)?|function(?:s)?|interface(?:s)?|type(?:s)?|propert(?:y|ies)|enum(?:s)?|namespace(?:s)?|package(?:s)?|module(?:s)?|symbol(?:s)?|setting(?:s)?|option(?:s)?|field(?:s)?|component(?:s)?|asset(?:s)?|platform(?:s)?|target(?:s)?|backend(?:s)?)\b|\b(?:incompatible|backwards?\s*[-\s]?incompatible|backward[-\s]?compat\w*\s+broken)\b/i;
+  /\bbreaking\s+change(?:s)?\b|\bno\s+longer\s+(?:supported|available|valid)\b|\b(?:incompatible|backwards?\s*[-\s]?incompatible|backward[-\s]?compat\w*\s+broken)\b|^\s*(?:removed|deprecated|obsoleted)\s*:|^\s*\*\*?(?:removed|deprecated|obsoleted|breaking)\b|\b(?:removed|deprecated|obsoleted|made\s+obsolete)\b/i;
 
 const BREAKING_DENY_RE =
   /\b(?:removed?\s+(?:an?\s+|the\s+|some\s+|incorrect\s+|spurious\s+|bogus\s+|extra\s+|unnecessary\s+|misleading\s+|outdated\s+|obsolete\s+|erroneous\s+|stale\s+|stray\s+|leftover\s+|unused\s+|dead\s+|duplicate\s+|trailing\s+|leading\s+|verbose\s+|noisy\s+|broken\s+|debug\s+)+(?:warning|warnings|message|messages|log|logs|notice|notices|comment|comments|whitespace|space|spaces|line|lines|reference|references|test|tests|todo|todos|exception|exceptions|placeholder|placeholders|debug|deprecation|info|hint|tip)\b)|\b(?:cleanup|cleaning\s+up|removed\s+unused|removed\s+legacy\s+(?:debug|trace))\b/i;
