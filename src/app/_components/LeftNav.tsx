@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { Icon, type IconName } from "./Icon";
+import { ThemeToggle } from "./ThemeToggle";
 
 type SubItem = {
   href: string;
@@ -140,6 +141,9 @@ export function LeftNav() {
             </div>
           );
         })}
+      </div>
+      <div className="lnav__footer">
+        <ThemeToggle />
       </div>
     </nav>
   );

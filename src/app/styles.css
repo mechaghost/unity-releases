@@ -240,18 +240,12 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   overflow-y: auto;
 }
 
-.app-shell__main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .app-shell__content {
   padding: var(--space-6);
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
-  flex: 1;
+  min-width: 0;
 }
 
 /* ========================================================================
@@ -402,93 +396,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 
 .lnav__footer a:hover { color: var(--text-primary); }
-
-/* ========================================================================
-   Top bar
-   ======================================================================== */
-
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  height: 48px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-4);
-  background: var(--surface-base);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.topbar__menu {
-  display: none;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-base);
-  color: var(--text-secondary);
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-}
-
-.topbar__search {
-  position: relative;
-  max-width: 480px;
-  width: 100%;
-}
-
-.topbar__search input {
-  width: 100%;
-  height: 32px;
-  padding: 0 var(--space-3) 0 36px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-sunken);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  transition: border-color var(--duration-fast) var(--easing-standard);
-}
-
-.topbar__search input:focus {
-  background: var(--surface-base);
-  border-color: var(--border-focus);
-  outline: none;
-}
-
-.topbar__search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: var(--text-muted);
-  width: 16px;
-  height: 16px;
-}
-
-.topbar__search-hint {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 1px 4px;
-  background: var(--surface-base);
-}
-
-.topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
 
 /* ========================================================================
    Buttons
@@ -1397,7 +1304,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
     box-shadow: var(--shadow-lg);
   }
   .app-shell[data-nav-open="true"] .app-shell__nav { transform: translateX(0); }
-  .topbar__menu { display: inline-flex; }
 }
 
 @media (max-width: 768px) {

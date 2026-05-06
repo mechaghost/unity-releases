@@ -1,7 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import "./styles.css";
 import { LeftNav } from "./_components/LeftNav";
-import { TopBar } from "./_components/TopBar";
 import { NoFlashScript } from "./_components/NoFlashScript";
 
 export const metadata = {
@@ -22,12 +21,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <LeftNav />
             </Suspense>
           </aside>
-          <div className="app-shell__main">
-            <TopBar />
-            <main className="app-shell__content" id="main">
-              {children}
-            </main>
-          </div>
+          <main className="app-shell__content" id="main">
+            {children}
+          </main>
         </div>
       </body>
     </html>
