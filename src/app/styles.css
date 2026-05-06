@@ -1206,6 +1206,51 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   letter-spacing: var(--tracking-snug);
 }
 
+.stream-checkbox-filter {
+  gap: var(--space-2);
+}
+
+.stream-checkbox-filter__option {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-base);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.stream-checkbox-filter__option:hover,
+.stream-checkbox-filter__option:focus-within {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.stream-checkbox-filter__option[data-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.stream-checkbox-filter__option input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.stream-checkbox-filter__option span {
+  color: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .active-filters {
   display: flex;
   flex-wrap: wrap;
@@ -2136,6 +2181,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   .filter-bar { gap: var(--space-2); }
   .filter-bar > label,
   .filter-bar > .field { flex: 1 1 100%; }
+  .stream-checkbox-filter > .stream-checkbox-filter__option { flex: 0 1 auto; }
 
   /* Dashboard cards full-bleed on small screens. */
   .card-stack { gap: var(--space-3); }

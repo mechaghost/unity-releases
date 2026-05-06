@@ -1,9 +1,9 @@
 import { listReleases } from "@/lib/db/repositories";
-import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
 import { streamLabel } from "@/lib/stream-labels";
 import { getUserVersion } from "@/lib/user-version";
 import { VersionPill } from "../_components/VersionPill";
 import { ExternalLink } from "../_components/ExternalLink";
+import { ReleaseStreamFilter } from "../_components/ReleaseStreamFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -21,19 +21,17 @@ export default async function ReleasesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const streamFilter = (params.stream as string | undefined)?.toLowerCase() ?? "";
+  const selectedStreams = parseSelectedStreams(params.stream);
 
-  const [all, userVersion, globalStreams] = await Promise.all([
+  const [all, userVersion] = await Promise.all([
     safeListReleases() as Promise<Release[]>,
-    getUserVersion(),
-    getStreamFilter()
+    getUserVersion()
   ]);
 
-  // URL stream filter (e.g. ?stream=lts) overrides the global cookie filter
-  // — clicking a quick-filter pill is an explicit narrowing/override.
-  const filtered = streamFilter
-    ? all.filter((r) => (r.stream ?? "").toLowerCase().includes(streamFilter))
-    : all.filter((r) => streamMatches(r.stream, globalStreams));
+  // The Editor Releases page is intentionally release-first and defaults to
+  // the long-term stable line. Checkbox filters use repeated `stream=` params
+  // (e.g. `?stream=lts&stream=beta`) and override the global sidebar filter.
+  const filtered = all.filter((r) => releaseMatchesSelectedStreams(r.stream, selectedStreams));
 
   // Diff "from" defaults to the user's chosen Unity version. Without one,
   // fall back to the latest active-line stable so the link still does
@@ -51,13 +49,7 @@ export default async function ReleasesPage({
         <p>{filtered.length.toLocaleString()} Unity 6 releases tracked from official Unity sources.</p>
       </section>
 
-      <nav className="filter-bar" aria-label="Stream filter">
-        <FilterLink href="/releases" active={!streamFilter} label="All" />
-        <FilterLink href="/releases?stream=lts" active={streamFilter === "lts"} label="LTS" />
-        <FilterLink href="/releases?stream=update" active={streamFilter === "update"} label="Supported" />
-        <FilterLink href="/releases?stream=beta" active={streamFilter === "beta"} label="Beta" />
-        <FilterLink href="/releases?stream=alpha" active={streamFilter === "alpha"} label="Alpha" />
-      </nav>
+      <ReleaseStreamFilter selected={selectedStreams} />
 
       <div className="table-wrap"><table className="dense-table tabnums">
         <thead>
@@ -115,22 +107,10 @@ export default async function ReleasesPage({
       {filtered.length === 0 ? (
         <div className="empty-state">
           <h2>No releases match this filter.</h2>
-          <p>Try a different stream or <a href="/releases">show all releases</a>.</p>
+          <p>Try a different stream combination.</p>
         </div>
       ) : null}
     </>
-  );
-}
-
-function FilterLink({ href, active, label }: { href: string; active: boolean; label: string }) {
-  return (
-    <a
-      href={href}
-      className={`btn btn--small ${active ? "btn--primary" : "btn--secondary"}`}
-      aria-pressed={active}
-    >
-      {label}
-    </a>
   );
 }
 
@@ -140,6 +120,25 @@ function formatDate(iso: string): string {
     month: "short",
     day: "numeric"
   });
+}
+
+const RELEASE_STREAMS = ["lts", "update", "beta", "alpha"] as const;
+type ReleaseStreamFilterValue = (typeof RELEASE_STREAMS)[number];
+
+function parseSelectedStreams(raw: string | string[] | undefined): ReleaseStreamFilterValue[] {
+  const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const selected = values
+    .map((value) => value.toLowerCase())
+    .filter((value): value is ReleaseStreamFilterValue =>
+      (RELEASE_STREAMS as readonly string[]).includes(value)
+    );
+  return selected.length > 0 ? Array.from(new Set(selected)) : ["lts"];
+}
+
+function releaseMatchesSelectedStreams(stream: string | null, selected: ReleaseStreamFilterValue[]) {
+  const normalized = (stream ?? "").toLowerCase();
+  if (!normalized) return false;
+  return selected.some((value) => normalized.includes(value));
 }
 
 async function safeListReleases() {
