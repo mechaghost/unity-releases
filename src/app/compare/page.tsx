@@ -272,6 +272,13 @@ export default async function ComparePage({
             </>
           ) : null}
         </p>
+        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+          Scoped to {range.includedStreams.join(" + ")} on{" "}
+          {range.includedMinorLines.length === 1
+            ? range.includedMinorLines[0]
+            : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}{" "}
+          to keep the diff focused on the upgrade path. Cross-stream prereleases and unrelated minor lines are excluded.
+        </p>
       </section>
 
       <section className="summary-strip">

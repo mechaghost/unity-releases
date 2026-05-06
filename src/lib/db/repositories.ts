@@ -35,20 +35,72 @@ export type DiffRangeBounds = {
   toDate: string | null;
   versions: string[];
   reversed: boolean;
+  /** Streams that were considered relevant given the destination. */
+  includedStreams: string[];
+  /** Minor lines included (e.g. "6000.0", "6000.1"). */
+  includedMinorLines: string[];
 };
 
 /**
+ * Streams to include when computing a diff into a destination of the given stream.
+ * - Going to alpha     → include everything
+ * - Going to beta      → include beta + stables (but not alpha)
+ * - Going to a stable  → include only stables (no alpha/beta noise)
+ */
+function streamsRelevantForDestination(toStream: string | null): string[] {
+  const s = (toStream ?? "").toLowerCase();
+  if (s === "alpha") return ["alpha", "beta", "Update/Supported", "LTS", "patch"];
+  if (s === "beta") return ["beta", "Update/Supported", "LTS", "patch"];
+  return ["Update/Supported", "LTS", "patch"];
+}
+
+/**
+ * Minor lines on the path from `from` to `to`.
+ * Both endpoints are included; in-between minor lines (numerical) are
+ * filled in so a 6000.0 → 6000.5 jump still picks up 6000.1..4 patches.
+ */
+function minorLinesBetween(fromMinor: string, toMinor: string): string[] {
+  const parse = (s: string) => {
+    const [maj, min] = s.split(".").map((n) => Number(n));
+    return { maj, min };
+  };
+  const a = parse(fromMinor);
+  const b = parse(toMinor);
+  if (!Number.isFinite(a.maj) || !Number.isFinite(b.maj)) return [fromMinor, toMinor];
+  if (a.maj !== b.maj) return [fromMinor, toMinor]; // cross-major, fall back to endpoints
+
+  const lo = Math.min(a.min, b.min);
+  const hi = Math.max(a.min, b.min);
+  const out: string[] = [];
+  for (let m = lo; m <= hi; m += 1) out.push(`${a.maj}.${m}`);
+  return out;
+}
+
+/**
  * Resolve the half-open release range (from, to] for a diff.
- * Always returns versions in chronological order; if from > to,
- * `reversed` is true so the page can label it as a downgrade.
+ *
+ * Two filters are applied to avoid bringing in noise that wouldn't matter
+ * for an upgrade decision:
+ *   1. **Stream filter** — only include streams compatible with the target
+ *      (a stable destination skips alpha/beta entirely).
+ *   2. **Minor-line filter** — only include minor lines on the path from
+ *      `from` to `to` (so a 6000.3 → 6000.5 diff doesn't pick up 6000.6
+ *      alphas that happened to ship during the same calendar window).
+ *
+ * If from > to, `reversed` is true so the page can label it as a downgrade.
  */
 export async function resolveDiffRange(
   fromVersion: string,
   toVersion: string
 ): Promise<DiffRangeBounds | null> {
-  const result = await query<{ version: string; release_date: string | null }>(
+  const result = await query<{
+    version: string;
+    release_date: string | null;
+    stream: string;
+    minor_line: string;
+  }>(
     `
-      SELECT version, release_date
+      SELECT version, release_date, stream, minor_line
       FROM unity_releases
       WHERE version = ANY($1::text[])
     `,
@@ -65,6 +117,9 @@ export async function resolveDiffRange(
   const lower = reversed ? toDate : fromDate;
   const upper = reversed ? fromDate : toDate;
 
+  const includedStreams = streamsRelevantForDestination(toRow.stream);
+  const includedMinorLines = minorLinesBetween(fromRow.minor_line, toRow.minor_line);
+
   const versions = await query<{ version: string }>(
     `
       SELECT version
@@ -72,9 +127,16 @@ export async function resolveDiffRange(
       WHERE release_date IS NOT NULL
         AND release_date > $1::timestamptz
         AND release_date <= $2::timestamptz
+        AND stream = ANY($3::text[])
+        AND minor_line = ANY($4::text[])
       ORDER BY release_date ASC, version ASC
     `,
-    [lower ?? new Date(0).toISOString(), upper ?? new Date().toISOString()]
+    [
+      lower ?? new Date(0).toISOString(),
+      upper ?? new Date().toISOString(),
+      includedStreams,
+      includedMinorLines
+    ]
   );
 
   return {
@@ -83,7 +145,9 @@ export async function resolveDiffRange(
     fromDate,
     toDate,
     versions: versions.rows.map((r) => r.version),
-    reversed
+    reversed,
+    includedStreams,
+    includedMinorLines
   };
 }
 
