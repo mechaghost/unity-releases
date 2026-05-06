@@ -212,6 +212,9 @@ export default async function ComparePage({
   const platform = (params.get("platform") ?? "").trim();
   const expandList = (params.get("expand") ?? "").split(",").filter(Boolean);
   const expandedOverrides = new Set(expandList);
+  const topicList = parseLaneIds(params.get("topics") ?? "");
+  const topicFilter = new Set<LaneId>(topicList);
+  const hasTopicFilter = topicFilter.size > 0;
 
   // The picker dropdowns honor the global stream filter, but the currently
   // selected from/to versions are always included so the user isn't trapped
@@ -304,6 +307,9 @@ export default async function ComparePage({
       totalCount: def.countFrom(counts)
     };
   });
+  const visibleLanes = hasTopicFilter
+    ? lanes.filter((lane) => topicFilter.has(lane.def.id))
+    : lanes;
 
   // Resolve "what package version was shipping at each end of the diff
   // window" so the by-package lane can render `1.10.0 → 1.11.2` next to
@@ -380,36 +386,86 @@ export default async function ComparePage({
         }
       />
 
-      <section className="summary-strip">
+      <section className="summary-strip" id="compare-categories">
         <div className="summary-strip__head">
           <span className="summary-strip__label">Categories</span>
-          <span className="summary-strip__hint">Jump to a release-note group</span>
+          {hasTopicFilter ? (
+            <a
+              className="summary-strip__clear"
+              href={compareTopicsHref({
+                fromVersion,
+                toVersion,
+                platform,
+                expanded: expandedOverrides,
+                topicFilter,
+                laneId: null
+              })}
+            >
+              Show all topics
+            </a>
+          ) : (
+            <span className="summary-strip__hint">Toggle or filter lanes from here</span>
+          )}
         </div>
         <div className="summary-strip__grid">
           {lanes
             .filter((l) => l.totalCount > 0)
-            .map((l) => (
-              <a
-                key={l.def.id}
-                href={compareLaneHref({
-                  fromVersion,
-                  toVersion,
-                  platform,
-                  expanded: expandedOverrides,
-                  laneId: l.def.id
-                })}
-                className={`summary-item summary-item--${l.def.variant}`}
-              >
-                <span className="summary-item__label">{l.def.title}</span>
-                <strong className="summary-item__count tabnums">{l.totalCount.toLocaleString()}</strong>
-              </a>
-            ))}
+            .map((l) => {
+              const open = isLaneOpen(l.def, expandedOverrides);
+              const topicActive = topicFilter.has(l.def.id);
+              return (
+                <div
+                  key={l.def.id}
+                  className={`summary-item summary-item--${l.def.variant}${
+                    topicActive ? " summary-item--active" : ""
+                  }`}
+                >
+                  <a
+                    href={compareLaneToggleHref({
+                      fromVersion,
+                      toVersion,
+                      platform,
+                      expanded: expandedOverrides,
+                      topicFilter,
+                      lane: l.def
+                    })}
+                    className="summary-item__toggle"
+                    aria-controls={`lane-${l.def.id}`}
+                    aria-expanded={open}
+                  >
+                    <Icon name={open ? "chevron-down" : "chevron-right"} size={14} />
+                    <span className="summary-item__label">{l.def.title}</span>
+                    <strong className="summary-item__count tabnums">
+                      {l.totalCount.toLocaleString()}
+                    </strong>
+                  </a>
+                  <a
+                    href={compareTopicsHref({
+                      fromVersion,
+                      toVersion,
+                      platform,
+                      expanded: expandedOverrides,
+                      topicFilter,
+                      laneId: l.def.id
+                    })}
+                    className="summary-item__filter"
+                    aria-label={
+                      topicActive && topicFilter.size === 1
+                        ? "Show all topics"
+                        : `Show only ${l.def.title}`
+                    }
+                  >
+                    {topicActive && topicFilter.size === 1 ? "All" : "Only"}
+                  </a>
+                </div>
+              );
+            })}
         </div>
       </section>
 
       <div className="compare-layout">
         <div>
-          {lanes.map((l) => (
+          {visibleLanes.map((l) => (
             <Lane
               key={l.def.id}
               def={l.def}
@@ -486,7 +542,7 @@ function Lane({
   streamByVersion: Map<string, string | null>;
   packageBoundaries: Map<string, PackageBoundary>;
 }) {
-  const isOpen = expanded.has(def.id) || (def.defaultOpen && !expanded.has(`!${def.id}`));
+  const isOpen = isLaneOpen(def, expanded);
   return (
     <section className="lane" id={`lane-${def.id}`} data-collapsed={isOpen ? undefined : "true"}>
       <header className="lane__header">
@@ -817,23 +873,88 @@ function formatDate(value: string | Date): string {
   });
 }
 
-function compareLaneHref(input: {
+function compareLaneToggleHref(input: {
   fromVersion: string;
   toVersion: string;
   platform: string;
   expanded: Set<string>;
-  laneId: LaneId;
+  topicFilter: Set<LaneId>;
+  lane: LaneDef;
+}) {
+  const expanded = new Set(input.expanded);
+  if (isLaneOpen(input.lane, expanded)) {
+    expanded.delete(input.lane.id);
+    if (input.lane.defaultOpen) expanded.add(`!${input.lane.id}`);
+  } else {
+    expanded.delete(`!${input.lane.id}`);
+    expanded.add(input.lane.id);
+  }
+
+  return compareUrl({
+    fromVersion: input.fromVersion,
+    toVersion: input.toVersion,
+    platform: input.platform,
+    expanded,
+    topicFilter: input.topicFilter,
+    hash: `lane-${input.lane.id}`
+  });
+}
+
+function compareTopicsHref(input: {
+  fromVersion: string;
+  toVersion: string;
+  platform: string;
+  expanded: Set<string>;
+  topicFilter: Set<LaneId>;
+  laneId: LaneId | null;
+}) {
+  const expanded = new Set(input.expanded);
+  let topicFilter = new Set<LaneId>();
+  let hash = "compare-categories";
+
+  if (input.laneId && !(input.topicFilter.size === 1 && input.topicFilter.has(input.laneId))) {
+    topicFilter = new Set([input.laneId]);
+    expanded.delete(`!${input.laneId}`);
+    expanded.add(input.laneId);
+    hash = `lane-${input.laneId}`;
+  }
+
+  return compareUrl({
+    fromVersion: input.fromVersion,
+    toVersion: input.toVersion,
+    platform: input.platform,
+    expanded,
+    topicFilter,
+    hash
+  });
+}
+
+function compareUrl(input: {
+  fromVersion: string;
+  toVersion: string;
+  platform: string;
+  expanded: Set<string>;
+  topicFilter: Set<LaneId>;
+  hash: string;
 }) {
   const params = new URLSearchParams();
   params.set("from", input.fromVersion);
   params.set("to", input.toVersion);
   if (input.platform) params.set("platform", input.platform);
+  if (input.expanded.size > 0) params.set("expand", Array.from(input.expanded).join(","));
+  if (input.topicFilter.size > 0) params.set("topics", Array.from(input.topicFilter).join(","));
+  return `/compare?${params.toString()}#${input.hash}`;
+}
 
-  const expanded = new Set(input.expanded);
-  expanded.add(input.laneId);
-  params.set("expand", Array.from(expanded).join(","));
+function isLaneOpen(def: LaneDef, expanded: Set<string>) {
+  return expanded.has(def.id) || (def.defaultOpen && !expanded.has(`!${def.id}`));
+}
 
-  return `/compare?${params.toString()}#lane-${input.laneId}`;
+function parseLaneIds(value: string) {
+  const ids = new Set(LANES.map((lane) => lane.id));
+  return value
+    .split(",")
+    .filter((id): id is LaneId => ids.has(id as LaneId));
 }
 
 type CompareCounts = {
