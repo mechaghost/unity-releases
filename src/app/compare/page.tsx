@@ -5,6 +5,12 @@ import {
   searchReleaseNotesInRange
 } from "@/lib/db/repositories";
 import type { ReleaseNoteSearchFilters } from "@/lib/search";
+import {
+  aggregateByPackage,
+  dedupeByIssue,
+  groupByVersion,
+  type DedupedIssue
+} from "@/lib/diff-grouping";
 import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
 import { getUserVersion } from "@/lib/user-version";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
@@ -499,16 +505,6 @@ function ByReleaseLaneBody({
 
 // ─── by-issue (dedupe by issue id / body) ──────────────────────
 
-type DedupedIssue = {
-  key: string;
-  primary: ReleaseNoteRow;
-  mentionCount: number;
-  firstVersion: string;
-  lastVersion: string;
-  firstDate: string | Date | null;
-  lastDate: string | Date | null;
-};
-
 function ByIssueLaneBody({
   rows,
   totalRowCount,
@@ -548,7 +544,7 @@ function DedupedIssueRow({
   item,
   streamByVersion
 }: {
-  item: DedupedIssue;
+  item: DedupedIssue<ReleaseNoteRow>;
   streamByVersion: Map<string, string | null>;
 }) {
   const cleanedBody = cleanReleaseNoteText(item.primary.body ?? "");
@@ -610,71 +606,7 @@ function DedupedIssueRow({
   );
 }
 
-function toTime(value: string | Date | null): number {
-  if (!value) return 0;
-  if (value instanceof Date) return value.getTime();
-  const t = Date.parse(value);
-  return Number.isFinite(t) ? t : 0;
-}
-
-function dedupeByIssue(rows: ReleaseNoteRow[]): DedupedIssue[] {
-  const map = new Map<string, DedupedIssue>();
-  for (const row of rows) {
-    const id = (row.issue_ids ?? [])[0];
-    const key = id ? `id:${id}` : `body:${shortHash(row.body ?? "")}`;
-    const rowTime = toTime(row.release_date);
-    const existing = map.get(key);
-    if (!existing) {
-      map.set(key, {
-        key,
-        primary: row,
-        mentionCount: 1,
-        firstVersion: row.version,
-        lastVersion: row.version,
-        firstDate: row.release_date,
-        lastDate: row.release_date
-      });
-      continue;
-    }
-    existing.mentionCount += 1;
-    if (rowTime && (!existing.firstDate || rowTime < toTime(existing.firstDate))) {
-      existing.firstDate = row.release_date;
-      existing.firstVersion = row.version;
-    }
-    if (rowTime && (!existing.lastDate || rowTime > toTime(existing.lastDate))) {
-      existing.lastDate = row.release_date;
-      existing.lastVersion = row.version;
-      existing.primary = row; // most recent restatement is the canonical body
-    }
-  }
-  // Sort: most recently last-seen first; within ties, more mentions first.
-  return [...map.values()].sort((a, b) => {
-    const cmp = toTime(b.lastDate) - toTime(a.lastDate);
-    if (cmp !== 0) return cmp;
-    return b.mentionCount - a.mentionCount;
-  });
-}
-
-function shortHash(value: string): string {
-  // Tiny non-cryptographic hash for deduping by body when no issue id exists.
-  let h = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    h = (h * 31 + value.charCodeAt(i)) | 0;
-  }
-  return h.toString(36);
-}
-
 // ─── by-package (aggregate by package_name) ────────────────────
-
-type DedupedPackage = {
-  packageName: string;
-  mentionCount: number;
-  firstVersion: string;
-  lastVersion: string;
-  firstDate: string | Date | null;
-  lastDate: string | Date | null;
-  sampleBody: string;
-};
 
 function ByPackageLaneBody({
   rows,
@@ -741,41 +673,6 @@ function ByPackageLaneBody({
   );
 }
 
-function aggregateByPackage(rows: ReleaseNoteRow[]): DedupedPackage[] {
-  const map = new Map<string, DedupedPackage>();
-  for (const row of rows) {
-    const names = row.package_names ?? [];
-    if (names.length === 0) continue;
-    const rowTime = toTime(row.release_date);
-    for (const pkg of names) {
-      const existing = map.get(pkg);
-      if (!existing) {
-        map.set(pkg, {
-          packageName: pkg,
-          mentionCount: 1,
-          firstVersion: row.version,
-          lastVersion: row.version,
-          firstDate: row.release_date,
-          lastDate: row.release_date,
-          sampleBody: row.body ?? ""
-        });
-        continue;
-      }
-      existing.mentionCount += 1;
-      if (rowTime && (!existing.firstDate || rowTime < toTime(existing.firstDate))) {
-        existing.firstDate = row.release_date;
-        existing.firstVersion = row.version;
-      }
-      if (rowTime && (!existing.lastDate || rowTime > toTime(existing.lastDate))) {
-        existing.lastDate = row.release_date;
-        existing.lastVersion = row.version;
-        if (row.body) existing.sampleBody = row.body;
-      }
-    }
-  }
-  return [...map.values()].sort((a, b) => b.mentionCount - a.mentionCount);
-}
-
 function NoteRow({ row }: { row: ReleaseNoteRow }) {
   const cleanedBody = cleanReleaseNoteText(row.body ?? "");
   const issueLinks = normalizeIssueLinks(row.issue_ids ?? [], row.issue_links_json);
@@ -804,25 +701,6 @@ function NoteRow({ row }: { row: ReleaseNoteRow }) {
       </div>
     </article>
   );
-}
-
-type ReleaseGroup = { version: string; releaseDate: string | Date | null; rows: ReleaseNoteRow[] };
-
-function groupByVersion(rows: ReleaseNoteRow[]): ReleaseGroup[] {
-  const groups = new Map<string, ReleaseGroup>();
-  for (const row of rows) {
-    const existing = groups.get(row.version);
-    if (existing) {
-      existing.rows.push(row);
-    } else {
-      groups.set(row.version, {
-        version: row.version,
-        releaseDate: row.release_date,
-        rows: [row]
-      });
-    }
-  }
-  return [...groups.values()];
 }
 
 function formatDate(value: string | Date): string {

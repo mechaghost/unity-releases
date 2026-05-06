@@ -5,6 +5,7 @@ import {
   buildReleaseNoteWhereForVersions,
   type ReleaseNoteSearchFilters
 } from "../search";
+import { minorLinesBetween } from "../diff-grouping";
 import type { FetchedSource } from "../ingest/fetch";
 import type { normalizePackageForStorage } from "../ingest/packages";
 import type { normalizeReleaseForStorage } from "../ingest/releases";
@@ -40,28 +41,6 @@ export type DiffRangeBounds = {
   /** Minor lines included (e.g. "6000.0", "6000.1"). */
   includedMinorLines: string[];
 };
-
-/**
- * Minor lines on the path from `from` to `to`.
- * Both endpoints are included; in-between minor lines (numerical) are
- * filled in so a 6000.0 → 6000.5 jump still picks up 6000.1..4 patches.
- */
-function minorLinesBetween(fromMinor: string, toMinor: string): string[] {
-  const parse = (s: string) => {
-    const [maj, min] = s.split(".").map((n) => Number(n));
-    return { maj, min };
-  };
-  const a = parse(fromMinor);
-  const b = parse(toMinor);
-  if (!Number.isFinite(a.maj) || !Number.isFinite(b.maj)) return [fromMinor, toMinor];
-  if (a.maj !== b.maj) return [fromMinor, toMinor]; // cross-major, fall back to endpoints
-
-  const lo = Math.min(a.min, b.min);
-  const hi = Math.max(a.min, b.min);
-  const out: string[] = [];
-  for (let m = lo; m <= hi; m += 1) out.push(`${a.maj}.${m}`);
-  return out;
-}
 
 /**
  * Resolve the half-open release range (from, to] for a diff.
