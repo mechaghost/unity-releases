@@ -54,7 +54,10 @@ export default async function HomePage() {
     safeBlockers()
   ]);
 
-  const latestStable = releases.find((r) => r.stream === "Update/Supported" || r.stream === "LTS");
+  // Latest = tip of the active development line (Update/Supported).
+  // Latest LTS is shown separately as its own metric below.
+  const latestStable = releases.find((r) => r.stream === "Update/Supported");
+  const latestLts = releases.find((r) => r.stream === "LTS");
   const latestBeta = releases.find((r) => r.stream?.toLowerCase() === "beta");
   const latestAlpha = releases.find((r) => r.stream?.toLowerCase() === "alpha");
 
@@ -74,6 +77,13 @@ export default async function HomePage() {
           stream={latestStable?.stream}
           href={latestStable ? `/releases/${encodeURIComponent(latestStable.version)}` : undefined}
           sub={latestStable?.release_date ? formatDate(latestStable.release_date) : undefined}
+        />
+        <DashboardMetric
+          label="Latest LTS"
+          value={latestLts?.version ?? "—"}
+          stream={latestLts?.stream}
+          href={latestLts ? `/releases/${encodeURIComponent(latestLts.version)}` : undefined}
+          sub={latestLts?.release_date ? formatDate(latestLts.release_date) : undefined}
         />
         <DashboardMetric
           label="Latest beta"

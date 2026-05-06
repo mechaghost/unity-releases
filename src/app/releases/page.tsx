@@ -26,9 +26,11 @@ export default async function ReleasesPage({
     ? all.filter((r) => (r.stream ?? "").toLowerCase().includes(streamFilter))
     : all;
 
-  const latestStable = all.find(
-    (r) => r.stream === "Update/Supported" || r.stream === "LTS"
-  );
+  // "Latest" for diff purposes is the tip of the active development line
+  // (Update/Supported), not the most recent LTS patch. LTS is a backport
+  // branch — users on any prior release usually want to compare against
+  // forward-progress, which lives on Update/Supported.
+  const latestStable = all.find((r) => r.stream === "Update/Supported");
 
   return (
     <>
