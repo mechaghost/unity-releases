@@ -1,15 +1,10 @@
 import {
   listFeedEventsByType,
   listPackages,
-  listReleases,
-  searchReleaseNotes
+  listReleases
 } from "@/lib/db/repositories";
 import { VersionPill } from "./_components/VersionPill";
-import { ImpactPill } from "./_components/ImpactPill";
-import { RiskBadge } from "./_components/RiskBadge";
-import { IssuePill } from "./_components/IssuePill";
 import { ExternalLink } from "./_components/ExternalLink";
-import { Icon } from "./_components/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +15,6 @@ type ReleaseRow = {
   version: string;
   stream: string | null;
   release_date: string | null;
-};
-
-type NoteRow = {
-  id: number;
-  version: string;
-  area: string | null;
-  body: string;
-  impact_kind: string;
-  risk_level: string;
-  issue_ids: string[];
 };
 
 type PackageRow = {
@@ -50,11 +35,10 @@ type FeedEvent = {
 };
 
 export default async function HomePage() {
-  const [releases, packages, news, blockers] = await Promise.all([
+  const [releases, packages, news] = await Promise.all([
     safeReleases(),
     safePackages(),
-    safeNews(),
-    safeBlockers()
+    safeNews()
   ]);
 
   // "Latest" for the diff link = tip of the active development line.
@@ -66,7 +50,7 @@ export default async function HomePage() {
         <div className="page-header__title-row">
           <h1>Dashboard</h1>
         </div>
-        <p>Release-first intelligence for Unity 6 — editor releases, package updates, blockers, and Unity news in one place.</p>
+        <p>Release-first intelligence for Unity 6 — editor releases, package updates, and Unity news in one place.</p>
       </section>
 
       <div className="card-stack">
@@ -92,38 +76,6 @@ export default async function HomePage() {
                   </a>
                 ) : null}
               </span>
-            </article>
-          )}
-        />
-
-        <ExpandableCard
-          title="Active known blockers"
-          seeMoreHref="/releases?risk=blocker"
-          seeMoreLabel="All blockers"
-          items={blockers}
-          emptyState={
-            <div className="lane__empty">
-              <Icon name="check" size={16} /> No active blockers indexed.
-            </div>
-          }
-          renderItem={(row) => (
-            <article className="row" key={row.id}>
-              <span className="row__lead">
-                <span className="tabnums">{row.version}</span>
-                {row.area ? <span className="muted">{row.area}</span> : null}
-              </span>
-              <div className="row__body">
-                <div className="row__title" title={row.body}>
-                  {row.body}
-                </div>
-                <div className="row__pills">
-                  <ImpactPill kind={row.impact_kind} />
-                  <RiskBadge level={row.risk_level} />
-                  {(row.issue_ids ?? []).slice(0, 2).map((id) => (
-                    <IssuePill id={id} key={id} />
-                  ))}
-                </div>
-              </div>
             </article>
           )}
         />
@@ -271,15 +223,3 @@ async function safeNews(): Promise<FeedEvent[]> {
   }
 }
 
-async function safeBlockers(): Promise<NoteRow[]> {
-  try {
-    return (await searchReleaseNotes({
-      riskLevel: "blocker",
-      impactKind: "known_issue",
-      order: "newest",
-      limit: EXPANDED
-    })) as NoteRow[];
-  } catch {
-    return [];
-  }
-}
