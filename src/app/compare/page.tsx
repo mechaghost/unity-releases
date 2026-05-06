@@ -381,19 +381,24 @@ export default async function ComparePage({
       />
 
       <section className="summary-strip">
-        <span className="summary-strip__label">Summary</span>
-        {lanes
-          .filter((l) => l.totalCount > 0)
-          .map((l) => (
-            <a
-              key={l.def.id}
-              href={`#lane-${l.def.id}`}
-              className={`summary-chip summary-chip--${l.def.variant}`}
-            >
-              <strong className="tabnums">{l.totalCount.toLocaleString()}</strong>{" "}
-              {l.def.title.toLowerCase()}
-            </a>
-          ))}
+        <div className="summary-strip__head">
+          <span className="summary-strip__label">Categories</span>
+          <span className="summary-strip__hint">Jump to a release-note group</span>
+        </div>
+        <div className="summary-strip__grid">
+          {lanes
+            .filter((l) => l.totalCount > 0)
+            .map((l) => (
+              <a
+                key={l.def.id}
+                href={`#lane-${l.def.id}`}
+                className={`summary-item summary-item--${l.def.variant}`}
+              >
+                <span className="summary-item__label">{l.def.title}</span>
+                <strong className="summary-item__count tabnums">{l.totalCount.toLocaleString()}</strong>
+              </a>
+            ))}
+        </div>
       </section>
 
       <div className="compare-layout">

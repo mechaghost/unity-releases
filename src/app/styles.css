@@ -1250,10 +1250,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
    ======================================================================== */
 
 .summary-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   background: var(--surface-base);
   border: 1px solid var(--border-default);
@@ -1261,40 +1257,106 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   margin-bottom: var(--space-4);
 }
 
-.summary-strip__label {
-  display: inline-flex;
+.summary-strip__head {
+  display: flex;
   align-items: center;
-  height: 28px;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.summary-strip__label {
   font-size: var(--text-xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: var(--tracking-snug);
   font-weight: var(--weight-medium);
-  margin-right: var(--space-1);
 }
 
-.summary-chip {
-  display: inline-flex;
+.summary-strip__hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.summary-strip__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--space-2);
+}
+
+.summary-item {
+  --summary-accent: var(--border-strong);
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
-  height: 28px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-pill);
+  min-height: 34px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   text-decoration: none;
   font-variant-numeric: tabular-nums;
 }
 
-.summary-chip:hover { text-decoration: none; opacity: 0.85; }
+.summary-item::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--summary-accent);
+}
+
+.summary-item:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.summary-item__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-item__count {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.summary-item--blocker { --summary-accent: var(--color-blocker-fg); }
+.summary-item--caution { --summary-accent: var(--color-caution-fg); }
+.summary-item--review  { --summary-accent: var(--color-review-fg); }
+.summary-item--info    { --summary-accent: var(--text-muted); }
+.summary-item--success { --summary-accent: var(--color-success-fg); }
+
+/* Release detail pages still use compact lane chips in this shared strip. */
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  margin: 0 var(--space-2) var(--space-2) 0;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-chip:hover {
+  color: var(--text-primary);
+  text-decoration: none;
+}
 
 .summary-chip strong { font-weight: var(--weight-semibold); }
-
-.summary-chip--blocker { background: var(--color-blocker-bg); color: var(--color-blocker-fg); }
-.summary-chip--caution { background: var(--color-caution-bg); color: var(--color-caution-fg); }
-.summary-chip--review  { background: var(--color-review-bg);  color: var(--color-review-fg); }
-.summary-chip--info    { background: var(--surface-sunken);    color: var(--text-secondary); border: 1px solid var(--border-default); }
-.summary-chip--success { background: var(--color-success-bg); color: var(--color-success-fg); }
 
 /* ========================================================================
    Compare page
