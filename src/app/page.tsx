@@ -54,12 +54,8 @@ export default async function HomePage() {
     safeBlockers()
   ]);
 
-  // Latest = tip of the active development line (Update/Supported).
-  // Latest LTS is shown separately as its own metric below.
+  // "Latest" for the diff link = tip of the active development line.
   const latestStable = releases.find((r) => r.stream === "Update/Supported");
-  const latestLts = releases.find((r) => r.stream === "LTS");
-  const latestBeta = releases.find((r) => r.stream?.toLowerCase() === "beta");
-  const latestAlpha = releases.find((r) => r.stream?.toLowerCase() === "alpha");
 
   return (
     <>
@@ -68,44 +64,6 @@ export default async function HomePage() {
           <h1>Dashboard</h1>
         </div>
         <p>Release-first intelligence for Unity 6 — editor releases, package updates, blockers, and Unity news in one place.</p>
-      </section>
-
-      <section className="dashboard-strip">
-        <DashboardMetric
-          label="Latest stable"
-          value={latestStable?.version ?? "—"}
-          stream={latestStable?.stream}
-          href={latestStable ? `/releases/${encodeURIComponent(latestStable.version)}` : undefined}
-          sub={latestStable?.release_date ? formatDate(latestStable.release_date) : undefined}
-        />
-        <DashboardMetric
-          label="Latest LTS"
-          value={latestLts?.version ?? "—"}
-          stream={latestLts?.stream}
-          href={latestLts ? `/releases/${encodeURIComponent(latestLts.version)}` : undefined}
-          sub={latestLts?.release_date ? formatDate(latestLts.release_date) : undefined}
-        />
-        <DashboardMetric
-          label="Latest beta"
-          value={latestBeta?.version ?? "—"}
-          stream={latestBeta?.stream}
-          href={latestBeta ? `/releases/${encodeURIComponent(latestBeta.version)}` : undefined}
-          sub={latestBeta?.release_date ? formatDate(latestBeta.release_date) : undefined}
-        />
-        <DashboardMetric
-          label="Latest alpha"
-          value={latestAlpha?.version ?? "—"}
-          stream={latestAlpha?.stream}
-          href={latestAlpha ? `/releases/${encodeURIComponent(latestAlpha.version)}` : undefined}
-          sub={latestAlpha?.release_date ? formatDate(latestAlpha.release_date) : undefined}
-        />
-        <a className="metric metric--cta" href={latestStable ? `/compare?from=${encodeURIComponent(releases[10]?.version ?? "")}&to=${encodeURIComponent(latestStable.version)}` : "/compare"}>
-          <span className="metric__label">
-            <Icon name="git-compare" size={14} /> Compare versions
-          </span>
-          <span className="metric__value">→</span>
-          <span className="metric__sub">Diff between two Unity releases</span>
-        </a>
       </section>
 
       <div className="card-grid">
@@ -242,38 +200,6 @@ export default async function HomePage() {
   );
 }
 
-function DashboardMetric({
-  label,
-  value,
-  stream,
-  href,
-  sub
-}: {
-  label: string;
-  value: string;
-  stream?: string | null;
-  href?: string;
-  sub?: string;
-}) {
-  const inner = (
-    <>
-      <span className="metric__label">{label}</span>
-      <span className="metric__value tabnums">{value}</span>
-      <span className="metric__sub">
-        {stream ? <span className="muted">{stream}</span> : null}
-        {sub ? <span className="muted">{sub}</span> : null}
-      </span>
-    </>
-  );
-  if (href) {
-    return (
-      <a className="metric" href={href}>
-        {inner}
-      </a>
-    );
-  }
-  return <div className="metric">{inner}</div>;
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
