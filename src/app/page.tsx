@@ -1,12 +1,16 @@
 import {
+  diffRangeCounts,
   listFeedEventsByType,
+  listIngestionFreshness,
   listPackages,
-  listReleases
+  listReleases,
+  resolveDiffRange
 } from "@/lib/db/repositories";
 import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
 import { getUserVersion } from "@/lib/user-version";
 import { VersionPill } from "./_components/VersionPill";
 import { ExternalLink } from "./_components/ExternalLink";
+import { Icon } from "./_components/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -37,18 +41,15 @@ type FeedEvent = {
 };
 
 export default async function HomePage() {
-  const [allReleases, packages, news, userVersion, streamFilter] = await Promise.all([
+  const [allReleases, packages, news, userVersion, streamFilter, freshness] = await Promise.all([
     safeReleases(),
     safePackages(),
     safeNews(),
     getUserVersion(),
-    getStreamFilter()
+    getStreamFilter(),
+    safeFreshness()
   ]);
 
-  // Honor the global stream filter on the dashboard's release list. The
-  // user's current Unity version stays visible even if its stream is
-  // filtered out (so Diff links still work), and so does the latest
-  // Update/Supported (the fallback diff target).
   const fallbackFrom = allReleases.find((r) => r.stream === "Update/Supported")?.version ?? null;
   const releases = allReleases.filter(
     (r) =>
@@ -59,13 +60,83 @@ export default async function HomePage() {
 
   const diffFrom = userVersion ?? fallbackFrom;
 
+  // Compute the contextual hero numbers: how many releases ahead of the
+  // user and how many active blockers / breaking changes are on that
+  // path. Cheap (one resolveDiffRange + one aggregate query).
+  const heroTarget = allReleases.find((r) => r.stream === "Update/Supported");
+  const hero = userVersion && heroTarget && userVersion !== heroTarget.version
+    ? await safeHeroCounts(userVersion, heroTarget.version, streamFilter)
+    : null;
+
+  const staleSources = freshness.filter((f) => f.isStale);
+
   return (
     <>
-      <section className="page-header">
-        <div className="page-header__title-row">
-          <h1>Dashboard</h1>
+      {staleSources.length > 0 ? (
+        <div className="freshness-banner" role="status">
+          <Icon name="alert-triangle" size={16} />
+          <span>
+            <strong>Data may be out of date.</strong>{" "}
+            {staleSources.map((s) => s.sourceType).join(", ")} hasn’t reported a successful run in
+            over 30 days. Run the corresponding <code>npm run ingest:*</code> job.
+          </span>
         </div>
-        <p>Release-first intelligence for Unity 6 — editor releases, package updates, and Unity news in one place.</p>
+      ) : null}
+
+      <section className="dashboard-hero">
+        {userVersion && heroTarget && hero ? (
+          <>
+            <div className="dashboard-hero__line">
+              <span className="muted">You’re on</span>
+              <VersionPill version={userVersion} stream={lookupStream(allReleases, userVersion)} href={null} />
+              <span className="muted">→</span>
+              <span className="muted">latest stable</span>
+              <VersionPill
+                version={heroTarget.version}
+                stream={heroTarget.stream}
+                href={`/releases/${encodeURIComponent(heroTarget.version)}`}
+              />
+            </div>
+            <p className="dashboard-hero__counts">
+              <strong className="tabnums">{hero.releasesAhead}</strong>{" "}
+              {hero.releasesAhead === 1 ? "release" : "releases"} between you and the latest
+              {" · "}
+              <strong className={hero.blockers > 0 ? "tabnums dashboard-hero__bad" : "tabnums"}>
+                {hero.blockers}
+              </strong>{" "}
+              active known {hero.blockers === 1 ? "blocker" : "blockers"}
+              {" · "}
+              <strong className="tabnums">{hero.breaking}</strong> breaking{" "}
+              {hero.breaking === 1 ? "change" : "changes"}
+            </p>
+            <div className="dashboard-hero__actions">
+              <a
+                className="btn btn--primary"
+                href={`/compare?from=${encodeURIComponent(userVersion)}&to=${encodeURIComponent(heroTarget.version)}`}
+              >
+                <Icon name="git-compare" size={14} /> Open diff
+              </a>
+            </div>
+          </>
+        ) : userVersion ? (
+          <>
+            <div className="dashboard-hero__line">
+              <span className="muted">You’re on</span>
+              <VersionPill version={userVersion} stream={lookupStream(allReleases, userVersion)} href={null} />
+            </div>
+            <p className="dashboard-hero__counts">
+              You’re on the current active-line tip. Nothing newer to diff against right now.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="dashboard-hero__h1">Pick your Unity version to see what’s changed.</h1>
+            <p className="dashboard-hero__counts">
+              Unity Alerts diffs every release, package, and known issue against your current version.
+              Use <strong>Pick your version</strong> in the sidebar to start.
+            </p>
+          </>
+        )}
       </section>
 
       <div className="card-stack">
@@ -211,10 +282,49 @@ function formatDate(iso: string): string {
 
 async function safeReleases(): Promise<ReleaseRow[]> {
   try {
-    return (await listReleases(EXPANDED)) as ReleaseRow[];
+    // Pull a wider slice than EXPANDED for the dashboard so the hero can
+    // resolve the latest target stream even when the user has filtered the
+    // visible cards down.
+    return (await listReleases(200)) as ReleaseRow[];
   } catch {
     return [];
   }
+}
+
+async function safeFreshness() {
+  try {
+    return await listIngestionFreshness();
+  } catch {
+    return [];
+  }
+}
+
+async function safeHeroCounts(
+  fromVersion: string,
+  toVersion: string,
+  streamFilter: string[]
+): Promise<{ releasesAhead: number; blockers: number; breaking: number } | null> {
+  try {
+    // Hero counts are a soft "what's between me and latest" answer; if the
+    // user's version isn't on the active path we just bail out gracefully.
+    const range = await resolveDiffRange(fromVersion, toVersion, streamFilter);
+    if (!range || range.versions.length === 0) return null;
+    const counts = await diffRangeCounts(range.versions);
+    return {
+      releasesAhead: range.versions.length,
+      blockers: counts.blockerKnownIssues,
+      breaking: counts.byImpact.breaking_change ?? 0
+    };
+  } catch {
+    return null;
+  }
+}
+
+function lookupStream(
+  releases: { version: string; stream: string | null }[],
+  version: string
+): string | null {
+  return releases.find((r) => r.version === version)?.stream ?? null;
 }
 
 async function safePackages(): Promise<PackageRow[]> {

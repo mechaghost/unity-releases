@@ -30,6 +30,53 @@ export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
   return result.rows;
 }
 
+export type IngestionFreshness = {
+  /** Source-type of an ingestion run (e.g. "editor_release"). */
+  sourceType: string;
+  /** Most recent successful ingestion (or null if never). */
+  lastSuccessAt: string | null;
+  /** Most recent run regardless of status — distinguishes "never" from "stale". */
+  lastRunAt: string | null;
+  /** Hours since lastSuccessAt; Infinity if never. */
+  hoursSinceLastSuccess: number;
+  /** True if no successful run in the last 30 days. */
+  isStale: boolean;
+};
+
+/** Inventory of every ingestion source's last-success timestamps. */
+export async function listIngestionFreshness(): Promise<IngestionFreshness[]> {
+  const result = await query<{
+    source_type: string;
+    last_success: string | null;
+    last_run: string | null;
+  }>(
+    `
+      SELECT
+        source_type,
+        MAX(finished_at) FILTER (WHERE status = 'success') AS last_success,
+        MAX(finished_at)                                   AS last_run
+      FROM ingestion_runs
+      GROUP BY source_type
+      ORDER BY source_type ASC
+    `
+  );
+  const now = Date.now();
+  return result.rows.map((row) => {
+    const ts = row.last_success ? new Date(row.last_success).getTime() : null;
+    const hours = ts == null ? Infinity : (now - ts) / (1000 * 60 * 60);
+    return {
+      sourceType: row.source_type,
+      lastSuccessAt: row.last_success,
+      lastRunAt: row.last_run,
+      hoursSinceLastSuccess: hours,
+      // "Stale" threshold: 30 days. The polling cadence is up to the operator;
+      // a real outage is when nothing has succeeded for the better part of a
+      // month. Tighter banners belong in monitoring, not the dashboard.
+      isStale: hours > 24 * 30
+    };
+  });
+}
+
 export type DiffRangeBounds = {
   fromVersion: string;
   toVersion: string;
@@ -150,6 +197,73 @@ export async function resolveDiffRange(
     includedStreams: allowedStreams,
     includedMinorLines
   };
+}
+
+export type PackageBoundary = {
+  packageName: string;
+  /** Latest package_version published at-or-before the from-date. */
+  fromVersion: string | null;
+  /** Latest package_version published at-or-before the to-date. */
+  toVersion: string | null;
+  /** Number of package_versions strictly between (from, to]. */
+  interveningCount: number;
+};
+
+/**
+ * For a list of package names, resolve the package_version that was the
+ * "latest available" at each end of the diff window. Lets the package
+ * lane show "Input System: 1.10.0 → 1.11.2" instead of just the count of
+ * Editor-side mentions.
+ */
+export async function packageVersionsAtBoundary(
+  packageNames: string[],
+  fromDate: string | Date,
+  toDate: string | Date
+): Promise<Map<string, PackageBoundary>> {
+  const out = new Map<string, PackageBoundary>();
+  if (packageNames.length === 0) return out;
+
+  const fromIso =
+    fromDate instanceof Date ? fromDate.toISOString() : new Date(fromDate).toISOString();
+  const toIso = toDate instanceof Date ? toDate.toISOString() : new Date(toDate).toISOString();
+  const lower = fromIso < toIso ? fromIso : toIso;
+  const upper = fromIso < toIso ? toIso : fromIso;
+
+  const result = await query<{
+    name: string;
+    from_version: string | null;
+    to_version: string | null;
+    intervening: string;
+  }>(
+    `
+      SELECT
+        p.name,
+        (SELECT version FROM package_versions pv
+          WHERE pv.package_id = p.id AND pv.published_at IS NOT NULL AND pv.published_at <= $2::timestamptz
+          ORDER BY pv.published_at DESC LIMIT 1) AS from_version,
+        (SELECT version FROM package_versions pv
+          WHERE pv.package_id = p.id AND pv.published_at IS NOT NULL AND pv.published_at <= $3::timestamptz
+          ORDER BY pv.published_at DESC LIMIT 1) AS to_version,
+        (SELECT COUNT(*)::text FROM package_versions pv
+          WHERE pv.package_id = p.id
+            AND pv.published_at IS NOT NULL
+            AND pv.published_at > $2::timestamptz
+            AND pv.published_at <= $3::timestamptz) AS intervening
+      FROM packages p
+      WHERE p.name = ANY($1::text[])
+    `,
+    [packageNames, lower, upper]
+  );
+
+  for (const row of result.rows) {
+    out.set(row.name, {
+      packageName: row.name,
+      fromVersion: row.from_version,
+      toVersion: row.to_version,
+      interveningCount: Number(row.intervening) || 0
+    });
+  }
+  return out;
 }
 
 export async function searchReleaseNotesInRange(

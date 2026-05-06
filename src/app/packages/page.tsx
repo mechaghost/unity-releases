@@ -1,4 +1,5 @@
 import { listPackages } from "@/lib/db/repositories";
+import { getUserPackages } from "@/lib/user-packages";
 import { ExternalLink } from "../_components/ExternalLink";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,13 @@ type PackageRow = {
 };
 
 export default async function PackagesPage() {
-  const packages = (await safeListPackages()) as PackageRow[];
+  const [allPackages, userPackages] = await Promise.all([
+    safeListPackages() as Promise<PackageRow[]>,
+    getUserPackages()
+  ]);
+  const userSet = new Set(userPackages);
+  const filtered = userSet.size > 0 ? allPackages.filter((p) => userSet.has(p.name)) : allPackages;
+  const packages = filtered;
 
   return (
     <>
@@ -21,7 +28,17 @@ export default async function PackagesPage() {
         <div className="page-header__title-row">
           <h1>Packages</h1>
         </div>
-        <p>{packages.length} official Unity packages tracked from the Unity package registry.</p>
+        <p>
+          {userSet.size > 0 ? (
+            <>
+              Showing <strong>{packages.length}</strong> of{" "}
+              <strong>{allPackages.length}</strong> tracked packages, scoped to your manifest. Edit
+              the list in the sidebar to broaden.
+            </>
+          ) : (
+            <>{allPackages.length} official Unity packages tracked from the Unity package registry.</>
+          )}
+        </p>
       </section>
 
       <div className="table-wrap"><table className="dense-table">

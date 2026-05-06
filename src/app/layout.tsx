@@ -6,6 +6,7 @@ import { NoFlashScript } from "./_components/NoFlashScript";
 import { UserVersionDialog, type DialogRelease } from "./_components/UserVersionDialog";
 import { listReleases } from "@/lib/db/repositories";
 import { getStreamFilter } from "@/lib/stream-filter";
+import { getUserPackages } from "@/lib/user-packages";
 import { getUserVersion } from "@/lib/user-version";
 
 export const metadata = {
@@ -16,10 +17,11 @@ export const metadata = {
 type ReleaseRow = { version: string; stream: string | null };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [userVersion, releases, streamFilter] = await Promise.all([
+  const [userVersion, releases, streamFilter, userPackages] = await Promise.all([
     getUserVersion(),
     safeReleases(),
-    getStreamFilter()
+    getStreamFilter(),
+    getUserPackages()
   ]);
   const userStream = releases.find((r) => r.version === userVersion)?.stream ?? null;
   // The dialog still shows every version so a user can pick a beta even if
@@ -47,6 +49,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 userVersion={userVersion}
                 userStream={userStream}
                 streamFilter={streamFilter}
+                userPackages={userPackages}
               />
             </Suspense>
           </aside>
