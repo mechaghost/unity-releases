@@ -137,14 +137,9 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
             <tbody>
               {filtered.map((pkg) => (
                 <tr key={pkg.name}>
-                  <td>
+                  <td title={pkg.description ?? undefined}>
                     <strong>{pkg.display_name ?? pkg.name}</strong>
                     <div className="muted package-table__name">{pkg.name}</div>
-                    {pkg.description ? (
-                      <div className="muted package-table__description" title={pkg.description}>
-                        {pkg.description}
-                      </div>
-                    ) : null}
                   </td>
                   <td>
                     <span className="chip chip--package tabnums">{pkg.latest_version ?? "-"}</span>
