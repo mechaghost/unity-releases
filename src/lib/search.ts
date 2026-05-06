@@ -74,6 +74,27 @@ function releaseNoteOrder(filters: ReleaseNoteSearchFilters): string {
   }
 }
 
+export function buildReleaseNoteWhereForVersions(
+  versions: string[],
+  filters: ReleaseNoteSearchFilters,
+  limit: number
+): SqlQuery {
+  const { where, values, add } = buildReleaseNoteWhere(filters);
+  where.push(`version = ANY(${add(versions)})`);
+  const limitParam = add(limit);
+
+  return {
+    text: `
+      SELECT *
+      FROM release_note_items
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY release_date DESC NULLS LAST, source_order ASC
+      LIMIT ${limitParam}
+    `.trim(),
+    values
+  };
+}
+
 export function buildReleaseNoteFeedQuery(filters: ReleaseNoteSearchFilters): SqlQuery {
   const { where, values, add } = buildReleaseNoteWhere(filters);
   const limitParam = add(filters.limit ?? 50);

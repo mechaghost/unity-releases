@@ -3,6 +3,7 @@ import { getPool, query } from "./client";
 import {
   buildReleaseNoteFeedQuery,
   buildReleaseNoteSearchQuery,
+  buildReleaseNoteWhereForVersions,
   type ReleaseNoteSearchFilters
 } from "../search";
 import type { FetchedSource } from "../ingest/fetch";
@@ -24,6 +25,76 @@ export type FeedEventRow = {
 
 export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
   const built = buildReleaseNoteSearchQuery(filters);
+  const result = await query(built.text, built.values);
+  return result.rows;
+}
+
+export type DiffRangeBounds = {
+  fromVersion: string;
+  toVersion: string;
+  fromDate: string | null;
+  toDate: string | null;
+  versions: string[];
+  reversed: boolean;
+};
+
+/**
+ * Resolve the half-open release range (from, to] for a diff.
+ * Always returns versions in chronological order; if from > to,
+ * `reversed` is true so the page can label it as a downgrade.
+ */
+export async function resolveDiffRange(
+  fromVersion: string,
+  toVersion: string
+): Promise<DiffRangeBounds | null> {
+  const result = await query<{ version: string; release_date: string | null }>(
+    `
+      SELECT version, release_date
+      FROM unity_releases
+      WHERE version = ANY($1::text[])
+    `,
+    [[fromVersion, toVersion]]
+  );
+
+  const fromRow = result.rows.find((r) => r.version === fromVersion);
+  const toRow = result.rows.find((r) => r.version === toVersion);
+  if (!fromRow || !toRow) return null;
+
+  const fromDate = fromRow.release_date;
+  const toDate = toRow.release_date;
+  const reversed = (fromDate ?? "") > (toDate ?? "");
+  const lower = reversed ? toDate : fromDate;
+  const upper = reversed ? fromDate : toDate;
+
+  const versions = await query<{ version: string }>(
+    `
+      SELECT version
+      FROM unity_releases
+      WHERE release_date IS NOT NULL
+        AND release_date > $1::timestamptz
+        AND release_date <= $2::timestamptz
+      ORDER BY release_date ASC, version ASC
+    `,
+    [lower ?? new Date(0).toISOString(), upper ?? new Date().toISOString()]
+  );
+
+  return {
+    fromVersion,
+    toVersion,
+    fromDate,
+    toDate,
+    versions: versions.rows.map((r) => r.version),
+    reversed
+  };
+}
+
+export async function searchReleaseNotesInRange(
+  versions: string[],
+  filters: ReleaseNoteSearchFilters,
+  limit = 5000
+) {
+  if (versions.length === 0) return [];
+  const built = buildReleaseNoteWhereForVersions(versions, filters, limit);
   const result = await query(built.text, built.values);
   return result.rows;
 }
