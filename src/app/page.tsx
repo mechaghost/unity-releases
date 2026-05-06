@@ -62,7 +62,6 @@ export default async function HomePage() {
           renderItem={(release) => (
             <article className="release-row" key={release.version}>
               <VersionPill version={release.version} stream={release.stream} />
-              <span className="release-row__stream muted">{release.stream ?? "Stable"}</span>
               <span className="release-row__date muted tabnums">
                 {release.release_date ? formatDate(release.release_date) : "—"}
               </span>

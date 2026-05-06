@@ -773,13 +773,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .release-row:hover { background: var(--surface-sunken); }
 .release-row:last-child { border-bottom: none; }
 
-.release-row__stream {
-  font-size: var(--text-xs);
-  text-transform: capitalize;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 .release-row__date {
   font-size: var(--text-xs);
   white-space: nowrap;
