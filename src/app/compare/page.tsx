@@ -1,4 +1,5 @@
 import { resolveDiffRange, searchReleaseNotesInRange, listReleases } from "@/lib/db/repositories";
+import { getUserVersion } from "@/lib/user-version";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
 import { IssuePill } from "../_components/IssuePill";
 import { PackagePill } from "../_components/PackagePill";
@@ -123,7 +124,9 @@ export default async function ComparePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = toUrlSearchParams(await searchParams);
-  const fromVersion = (params.get("from") ?? "").trim();
+  const userVersion = await getUserVersion();
+  // If `from` isn't in the URL, default to the user's chosen Unity version.
+  const fromVersion = (params.get("from") ?? userVersion ?? "").trim();
   const toVersion = (params.get("to") ?? "").trim();
   const platform = (params.get("platform") ?? "").trim();
   const expandList = (params.get("expand") ?? "").split(",").filter(Boolean);

@@ -3,6 +3,7 @@ import {
   listPackages,
   listReleases
 } from "@/lib/db/repositories";
+import { getUserVersion } from "@/lib/user-version";
 import { VersionPill } from "./_components/VersionPill";
 import { ExternalLink } from "./_components/ExternalLink";
 
@@ -35,14 +36,19 @@ type FeedEvent = {
 };
 
 export default async function HomePage() {
-  const [releases, packages, news] = await Promise.all([
+  const [releases, packages, news, userVersion] = await Promise.all([
     safeReleases(),
     safePackages(),
-    safeNews()
+    safeNews(),
+    getUserVersion()
   ]);
 
-  // "Latest" for the diff link = tip of the active development line.
-  const latestStable = releases.find((r) => r.stream === "Update/Supported");
+  // The Diff button on each release row jumps to /compare from the user's
+  // current version to that row's version. If the user hasn't picked a
+  // version yet, we fall back to the latest active-line stable so the link
+  // still does something useful.
+  const fallbackFrom = releases.find((r) => r.stream === "Update/Supported")?.version ?? null;
+  const diffFrom = userVersion ?? fallbackFrom;
 
   return (
     <>
@@ -66,10 +72,15 @@ export default async function HomePage() {
                 {release.release_date ? formatDate(release.release_date) : "—"}
               </span>
               <span className="release-row__cta">
-                {latestStable && release.version !== latestStable.version ? (
+                {diffFrom && release.version !== diffFrom ? (
                   <a
                     className="btn btn--secondary btn--small"
-                    href={`/compare?from=${encodeURIComponent(release.version)}&to=${encodeURIComponent(latestStable.version)}`}
+                    href={`/compare?from=${encodeURIComponent(diffFrom)}&to=${encodeURIComponent(release.version)}`}
+                    title={
+                      userVersion
+                        ? `Diff your version (${userVersion}) → ${release.version}`
+                        : `Diff ${diffFrom} → ${release.version}`
+                    }
                   >
                     Diff
                   </a>

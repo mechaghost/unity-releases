@@ -1,4 +1,5 @@
 import { listReleases } from "@/lib/db/repositories";
+import { getUserVersion } from "@/lib/user-version";
 import { VersionPill } from "../_components/VersionPill";
 import { ExternalLink } from "../_components/ExternalLink";
 
@@ -20,17 +21,21 @@ export default async function ReleasesPage({
   const params = await searchParams;
   const streamFilter = (params.stream as string | undefined)?.toLowerCase() ?? "";
 
-  const all = (await safeListReleases()) as Release[];
+  const [all, userVersion] = await Promise.all([
+    safeListReleases() as Promise<Release[]>,
+    getUserVersion()
+  ]);
 
   const filtered = streamFilter
     ? all.filter((r) => (r.stream ?? "").toLowerCase().includes(streamFilter))
     : all;
 
-  // "Latest" for diff purposes is the tip of the active development line
-  // (Update/Supported), not the most recent LTS patch. LTS is a backport
-  // branch — users on any prior release usually want to compare against
-  // forward-progress, which lives on Update/Supported.
-  const latestStable = all.find((r) => r.stream === "Update/Supported");
+  // Diff "from" defaults to the user's chosen Unity version. Without one,
+  // fall back to the latest active-line stable so the link still does
+  // something useful.
+  const fallbackFrom = all.find((r) => r.stream === "Update/Supported")?.version ?? null;
+  const diffFrom = userVersion ?? fallbackFrom;
+  const diffLabel = userVersion ? "Diff vs yours" : "Diff vs latest";
 
   return (
     <>
@@ -83,12 +88,17 @@ export default async function ReleasesPage({
                 </span>
               </td>
               <td style={{ textAlign: "right" }}>
-                {latestStable && release.version !== latestStable.version ? (
+                {diffFrom && release.version !== diffFrom ? (
                   <a
                     className="btn btn--secondary btn--small"
-                    href={`/compare?from=${encodeURIComponent(release.version)}&to=${encodeURIComponent(latestStable.version)}`}
+                    href={`/compare?from=${encodeURIComponent(diffFrom)}&to=${encodeURIComponent(release.version)}`}
+                    title={
+                      userVersion
+                        ? `Diff your version (${userVersion}) → ${release.version}`
+                        : `Diff ${diffFrom} → ${release.version}`
+                    }
                   >
-                    Diff vs latest
+                    {diffLabel}
                   </a>
                 ) : null}
               </td>

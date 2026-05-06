@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { Icon, type IconName } from "./Icon";
+import { SidebarVersionStatus } from "./SidebarVersionStatus";
 import { ThemeToggle } from "./ThemeToggle";
 
 type SubItem = {
@@ -95,7 +96,12 @@ const NAV: NavItem[] = [
   }
 ];
 
-export function LeftNav() {
+type LeftNavProps = {
+  userVersion: string | null;
+  userStream: string | null;
+};
+
+export function LeftNav({ userVersion, userStream }: LeftNavProps) {
   const pathname = usePathname() ?? "/";
   const search = useSearchParams();
   const params = new URLSearchParams(search?.toString() ?? "");
@@ -142,6 +148,7 @@ export function LeftNav() {
           );
         })}
       </div>
+      <SidebarVersionStatus userVersion={userVersion} userStream={userStream} />
       <div className="lnav__footer">
         <ThemeToggle />
       </div>
