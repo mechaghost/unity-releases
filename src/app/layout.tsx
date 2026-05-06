@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import "./styles.css";
 import { LeftNav } from "./_components/LeftNav";
 import { TopBar } from "./_components/TopBar";
@@ -11,14 +11,16 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <NoFlashScript />
       </head>
       <body>
         <div className="app-shell">
           <aside className="app-shell__nav" aria-label="Primary navigation">
-            <LeftNav />
+            <Suspense fallback={<nav className="lnav" aria-label="Primary" />}>
+              <LeftNav />
+            </Suspense>
           </aside>
           <div className="app-shell__main">
             <TopBar />
