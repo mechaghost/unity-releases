@@ -1007,6 +1007,31 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   font-size: 11px;
 }
 
+/* "Seen in 6000.3.11f1 → 6000.3.14f1 (5 mentions)" footer line on
+   deduped issue rows + aggregated package rows. */
+.row__seen-in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.package-agg-row .row__title a {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.package-agg-row__sample {
+  font-size: var(--text-xs);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .lane__empty {
   padding: var(--space-4) var(--space-4);
   display: flex;
