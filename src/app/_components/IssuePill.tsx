@@ -1,5 +1,3 @@
-import { Icon } from "./Icon";
-
 type IssuePillProps = {
   id: string;
   url?: string | null;
@@ -22,7 +20,6 @@ export function IssuePill({ id, url }: IssuePillProps) {
       title={`Open ${id} on Unity Issue Tracker`}
     >
       {id}
-      <Icon name="external-link" size={12} />
     </a>
   );
 }

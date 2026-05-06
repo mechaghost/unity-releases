@@ -130,10 +130,9 @@ describe("isUnityExternalHref", () => {
   });
 
   test("unrelated hosts are NOT treated as Unity-external", () => {
-    // The helper is specifically for "is this a Unity-owned host that we
-    // should mark with the external-link icon" — non-Unity links don't
-    // need the icon even though ExternalLink would still open them in a
-    // new tab.
+    // The helper is specifically for "is this a Unity-owned host".
+    // Non-Unity links may still open in a new tab, but they are not part
+    // of the official Unity source allowlist.
     expect(isUnityExternalHref("https://example.com")).toBe(false);
     expect(isUnityExternalHref("http://localhost:3000")).toBe(false);
   });

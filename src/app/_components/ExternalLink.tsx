@@ -1,10 +1,8 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
-import { Icon } from "./Icon";
 
 type ExternalLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   href: string;
   children: ReactNode;
-  showIcon?: boolean;
   className?: string;
 };
 
@@ -28,7 +26,7 @@ export function isUnityExternalHref(href: string): boolean {
   }
 }
 
-export function ExternalLink({ href, children, showIcon = true, className, ...rest }: ExternalLinkProps) {
+export function ExternalLink({ href, children, className, ...rest }: ExternalLinkProps) {
   return (
     <a
       href={href}
@@ -38,7 +36,6 @@ export function ExternalLink({ href, children, showIcon = true, className, ...re
       {...rest}
     >
       <span>{children}</span>
-      {showIcon ? <Icon name="external-link" size={12} /> : null}
     </a>
   );
 }

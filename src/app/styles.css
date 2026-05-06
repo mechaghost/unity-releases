@@ -525,13 +525,8 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .link-external {
   color: var(--text-link);
   text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
 }
 .link-external:hover { text-decoration: underline; }
-
-.link-external svg { width: 12px; height: 12px; flex-shrink: 0; }
 
 /* ========================================================================
    Chips
