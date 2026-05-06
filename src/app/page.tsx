@@ -3,6 +3,7 @@ import {
   listPackages,
   listReleases
 } from "@/lib/db/repositories";
+import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
 import { getUserVersion } from "@/lib/user-version";
 import { VersionPill } from "./_components/VersionPill";
 import { ExternalLink } from "./_components/ExternalLink";
@@ -36,18 +37,26 @@ type FeedEvent = {
 };
 
 export default async function HomePage() {
-  const [releases, packages, news, userVersion] = await Promise.all([
+  const [allReleases, packages, news, userVersion, streamFilter] = await Promise.all([
     safeReleases(),
     safePackages(),
     safeNews(),
-    getUserVersion()
+    getUserVersion(),
+    getStreamFilter()
   ]);
 
-  // The Diff button on each release row jumps to /compare from the user's
-  // current version to that row's version. If the user hasn't picked a
-  // version yet, we fall back to the latest active-line stable so the link
-  // still does something useful.
-  const fallbackFrom = releases.find((r) => r.stream === "Update/Supported")?.version ?? null;
+  // Honor the global stream filter on the dashboard's release list. The
+  // user's current Unity version stays visible even if its stream is
+  // filtered out (so Diff links still work), and so does the latest
+  // Update/Supported (the fallback diff target).
+  const fallbackFrom = allReleases.find((r) => r.stream === "Update/Supported")?.version ?? null;
+  const releases = allReleases.filter(
+    (r) =>
+      streamMatches(r.stream, streamFilter) ||
+      r.version === userVersion ||
+      r.version === fallbackFrom
+  );
+
   const diffFrom = userVersion ?? fallbackFrom;
 
   return (

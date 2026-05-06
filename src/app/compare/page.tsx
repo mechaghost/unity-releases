@@ -5,6 +5,7 @@ import {
   searchReleaseNotesInRange
 } from "@/lib/db/repositories";
 import type { ReleaseNoteSearchFilters } from "@/lib/search";
+import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
 import { getUserVersion } from "@/lib/user-version";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
 import { IssuePill } from "../_components/IssuePill";
@@ -188,18 +189,30 @@ export default async function ComparePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = toUrlSearchParams(await searchParams);
-  const userVersion = await getUserVersion();
+  const [userVersion, allReleases, streamFilter] = await Promise.all([
+    getUserVersion(),
+    safeListReleases(),
+    getStreamFilter()
+  ]);
   const fromVersion = (params.get("from") ?? userVersion ?? "").trim();
   const toVersion = (params.get("to") ?? "").trim();
   const platform = (params.get("platform") ?? "").trim();
   const expandList = (params.get("expand") ?? "").split(",").filter(Boolean);
   const expandedOverrides = new Set(expandList);
 
-  const allReleases = await safeListReleases();
+  // The picker dropdowns honor the global stream filter, but the currently
+  // selected from/to versions are always included so the user isn't trapped
+  // out of editing a URL-supplied selection.
+  const pickerReleases = allReleases.filter(
+    (r) =>
+      streamMatches(r.stream, streamFilter) ||
+      r.version === fromVersion ||
+      r.version === toVersion
+  );
 
   if (!fromVersion || !toVersion) {
     return (
-      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={allReleases}>
+      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases}>
         <div className="empty-state">
           <h2>Compare two Unity versions</h2>
           <p>Pick a “from” and a “to” version to see what changed between them — broken down by impact lane.</p>
@@ -211,7 +224,7 @@ export default async function ComparePage({
   const range = await resolveDiffRange(fromVersion, toVersion);
   if (!range) {
     return (
-      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={allReleases}>
+      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases}>
         <div className="empty-state">
           <h2>Versions not found</h2>
           <p>One of these versions isn’t in the index yet. Try selecting from the dropdowns.</p>
@@ -222,7 +235,7 @@ export default async function ComparePage({
 
   if (range.versions.length === 0) {
     return (
-      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={allReleases}>
+      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases}>
         <div className="empty-state">
           <h2>Same version</h2>
           <p>
@@ -266,7 +279,7 @@ export default async function ComparePage({
 
   return (
     <>
-      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={allReleases} />
+      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases} />
 
       <section className="page-header">
         <div className="page-header__title-row">

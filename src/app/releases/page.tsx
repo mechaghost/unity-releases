@@ -1,4 +1,5 @@
 import { listReleases } from "@/lib/db/repositories";
+import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
 import { getUserVersion } from "@/lib/user-version";
 import { VersionPill } from "../_components/VersionPill";
 import { ExternalLink } from "../_components/ExternalLink";
@@ -21,14 +22,17 @@ export default async function ReleasesPage({
   const params = await searchParams;
   const streamFilter = (params.stream as string | undefined)?.toLowerCase() ?? "";
 
-  const [all, userVersion] = await Promise.all([
+  const [all, userVersion, globalStreams] = await Promise.all([
     safeListReleases() as Promise<Release[]>,
-    getUserVersion()
+    getUserVersion(),
+    getStreamFilter()
   ]);
 
+  // URL stream filter (e.g. ?stream=lts) overrides the global cookie filter
+  // — clicking a quick-filter pill is an explicit narrowing/override.
   const filtered = streamFilter
     ? all.filter((r) => (r.stream ?? "").toLowerCase().includes(streamFilter))
-    : all;
+    : all.filter((r) => streamMatches(r.stream, globalStreams));
 
   // Diff "from" defaults to the user's chosen Unity version. Without one,
   // fall back to the latest active-line stable so the link still does

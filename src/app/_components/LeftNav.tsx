@@ -2,8 +2,10 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { Icon, type IconName } from "./Icon";
+import { SidebarStreamFilter } from "./SidebarStreamFilter";
 import { SidebarVersionStatus } from "./SidebarVersionStatus";
 import { ThemeToggle } from "./ThemeToggle";
+import type { StreamName } from "@/lib/stream-filter";
 
 type SubItem = {
   href: string;
@@ -99,9 +101,10 @@ const NAV: NavItem[] = [
 type LeftNavProps = {
   userVersion: string | null;
   userStream: string | null;
+  streamFilter: StreamName[];
 };
 
-export function LeftNav({ userVersion, userStream }: LeftNavProps) {
+export function LeftNav({ userVersion, userStream, streamFilter }: LeftNavProps) {
   const pathname = usePathname() ?? "/";
   const search = useSearchParams();
   const params = new URLSearchParams(search?.toString() ?? "");
@@ -148,6 +151,7 @@ export function LeftNav({ userVersion, userStream }: LeftNavProps) {
           );
         })}
       </div>
+      <SidebarStreamFilter selected={streamFilter} />
       <SidebarVersionStatus userVersion={userVersion} userStream={userStream} />
       <div className="lnav__footer">
         <ThemeToggle />

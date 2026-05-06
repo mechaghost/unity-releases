@@ -1529,6 +1529,48 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
    User-version dialog + sidebar status
    ======================================================================== */
 
+.sidebar-streams {
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.sidebar-streams[data-pending="true"] { opacity: 0.6; }
+
+.sidebar-streams__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.sidebar-streams__options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-2);
+}
+
+.sidebar-streams__opt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sidebar-streams__opt input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.sidebar-streams__opt:hover { color: var(--text-primary); }
+
 .sidebar-version {
   padding: var(--space-3);
   border-top: 1px solid var(--border-subtle);
