@@ -1,6 +1,13 @@
 import { getRelease, searchReleaseNotes } from "@/lib/db/repositories";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
-import type { ReleaseNoteSearchFilters } from "@/lib/search";
+import { VersionPill } from "../../_components/VersionPill";
+import { ImpactPill } from "../../_components/ImpactPill";
+import { RiskBadge } from "../../_components/RiskBadge";
+import { IssuePill } from "../../_components/IssuePill";
+import { PackagePill } from "../../_components/PackagePill";
+import { PlatformPill } from "../../_components/PlatformPill";
+import { ExternalLink } from "../../_components/ExternalLink";
+import { Icon } from "../../_components/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -8,18 +15,94 @@ type ReleaseNoteRow = {
   id: number;
   version: string;
   section: string;
-  area?: string | null;
-  platforms?: string[];
+  area: string | null;
+  platforms: string[];
   impact_kind: string;
   risk_level: string;
   body: string;
-  issue_ids?: string[];
-  issue_links_json?: unknown;
-  package_names?: string[];
+  issue_ids: string[];
+  issue_links_json: unknown;
+  package_names: string[];
   source_url: string;
   source_order: number;
-  total_count?: string | number;
 };
+
+type LaneDef = {
+  id: string;
+  title: string;
+  filter: (row: ReleaseNoteRow) => boolean;
+  defaultOpen: boolean;
+};
+
+const LANES: LaneDef[] = [
+  {
+    id: "blockers",
+    title: "Active known blockers",
+    filter: (r) => r.impact_kind === "known_issue" && r.risk_level === "blocker",
+    defaultOpen: true
+  },
+  {
+    id: "known",
+    title: "Other known issues",
+    filter: (r) => r.impact_kind === "known_issue" && r.risk_level !== "blocker",
+    defaultOpen: true
+  },
+  {
+    id: "breaking",
+    title: "Breaking changes",
+    filter: (r) => r.impact_kind === "breaking_change",
+    defaultOpen: true
+  },
+  {
+    id: "api",
+    title: "API changes",
+    filter: (r) => r.impact_kind === "api_change",
+    defaultOpen: false
+  },
+  {
+    id: "security",
+    title: "Security & install impact",
+    filter: (r) =>
+      r.impact_kind === "security_related_fix" || r.impact_kind === "install_risk",
+    defaultOpen: false
+  },
+  {
+    id: "package",
+    title: "Package updates",
+    filter: (r) => r.impact_kind === "package_change",
+    defaultOpen: false
+  },
+  {
+    id: "feature",
+    title: "Features",
+    filter: (r) => r.impact_kind === "feature",
+    defaultOpen: false
+  },
+  {
+    id: "improvement",
+    title: "Improvements",
+    filter: (r) => r.impact_kind === "improvement",
+    defaultOpen: false
+  },
+  {
+    id: "fix",
+    title: "Fixes",
+    filter: (r) => r.impact_kind === "fix",
+    defaultOpen: false
+  },
+  {
+    id: "change",
+    title: "Other changes",
+    filter: (r) => r.impact_kind === "change",
+    defaultOpen: false
+  },
+  {
+    id: "docs",
+    title: "Documentation",
+    filter: (r) => r.impact_kind === "documentation",
+    defaultOpen: false
+  }
+];
 
 export default async function ReleasePage({
   params,
@@ -29,273 +112,184 @@ export default async function ReleasePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { version } = await params;
-  const query = toUrlSearchParams(await searchParams);
-  const release = await safeRelease(version);
-  const filters = releaseFilters(version, query);
-  const [notes, allNotes] = await Promise.all([safeNotes(filters), safeNotes({ version, limit: 5000, order: "source" })]);
-  const total = Number(notes[0]?.total_count ?? notes.length);
-  const allTotal = Number(allNotes[0]?.total_count ?? allNotes.length);
-  const facets = releaseFacets(allNotes);
-  const activeFilters = activeFilterLabels(filters);
-  const grouped = groupNotes(notes, query.get("group") ?? "section");
+  const decoded = decodeURIComponent(version);
+  const query = await searchParams;
+  const q = (query.q as string | undefined) ?? "";
+
+  const release = await safeRelease(decoded);
+  const rows = (await safeNotes(decoded, q)) as ReleaseNoteRow[];
+
+  const lanes = LANES.map((def) => ({
+    def,
+    rows: rows.filter(def.filter)
+  }));
 
   return (
-    <div className="workbench">
+    <>
       <section className="page-header">
-        <div>
-          <h1>Unity {version}</h1>
-          <p className="muted">Release detail, official links, and searchable release-note items.</p>
+        <div className="page-header__title-row">
+          <h1>
+            <VersionPill version={decoded} stream={release?.stream} href={null} />
+          </h1>
         </div>
-        <div className="stat-strip" aria-label="Release note summary">
-          <span>
-            <strong>{total}</strong>
-            matches
-          </span>
-          <span>
-            <strong>{allTotal}</strong>
-            note items
-          </span>
+        {release ? (
+          <p>
+            {release.stream}
+            {release.release_date ? <> · Released {formatDate(release.release_date)}</> : null}
+            {release.changeset ? <> · Changeset {release.changeset}</> : null}
+            {" · "}
+            <strong className="tabnums">{rows.length.toLocaleString()}</strong> release notes
+          </p>
+        ) : (
+          <p className="muted">Release not yet indexed.</p>
+        )}
+        <div className="cluster" style={{ marginTop: 12 }}>
+          {release ? (
+            <>
+              <ExternalLink href={release.release_page_url}>Unity release page</ExternalLink>
+              {release.release_notes_url ? (
+                <ExternalLink href={release.release_notes_url}>Release notes (markdown)</ExternalLink>
+              ) : null}
+              {release.unity_hub_deep_link ? (
+                <a className="btn btn--primary btn--small" href={release.unity_hub_deep_link}>
+                  <Icon name="package" size={14} /> Open in Unity Hub
+                </a>
+              ) : null}
+            </>
+          ) : null}
         </div>
       </section>
 
-      {release ? (
-        <section className="panel release-summary">
-          <div>
-            <h2>{release.stream}</h2>
-            <p className="muted">
-              {release.release_date ? new Date(release.release_date).toLocaleDateString() : "Unknown release date"}
-              {release.changeset ? ` · Changeset ${release.changeset}` : ""}
-            </p>
-          </div>
-          <div className="button-row">
-            <a className="secondary-action" href={release.release_page_url}>
-              Official release page
+      <form className="filter-bar" method="get">
+        <label className="field">
+          <span>Search within {decoded}</span>
+          <input
+            type="search"
+            name="q"
+            placeholder="memory leak, URP, UUM-136929"
+            defaultValue={q}
+          />
+        </label>
+        <button type="submit" className="btn btn--primary btn--small">
+          Search
+        </button>
+        {q ? (
+          <a href={`/releases/${encodeURIComponent(decoded)}`} className="btn btn--tertiary btn--small">
+            Clear
+          </a>
+        ) : null}
+      </form>
+
+      <section className="summary-strip">
+        <span className="summary-strip__label">Lanes</span>
+        {lanes
+          .filter(({ rows }) => rows.length > 0)
+          .map(({ def, rows }) => (
+            <a
+              key={def.id}
+              href={`#lane-${def.id}`}
+              className="summary-chip summary-chip--info"
+            >
+              <strong className="tabnums">{rows.length.toLocaleString()}</strong>{" "}
+              {def.title.toLowerCase()}
             </a>
-            {release.unity_hub_deep_link ? (
-              <a className="secondary-action" href={release.unity_hub_deep_link}>
-                Open in Hub
-              </a>
-            ) : null}
-          </div>
-        </section>
-      ) : (
-        <p className="muted">Release not found in the database yet.</p>
-      )}
+          ))}
+      </section>
 
-      <div className="mode-tabs" aria-label="Release note quick filters">
-        {releaseModeLink("All", version, query, { section: "", type: "", impact: "", risk: "" })}
-        {releaseModeLink("Known Issues", version, query, { section: "Known Issues", type: "", impact: "", risk: "" })}
-        {releaseModeLink("Fixes", version, query, { type: "fix", impact: "", section: "", risk: "" })}
-        {releaseModeLink("Features", version, query, { section: "Features", type: "", impact: "", risk: "" })}
-        {releaseModeLink("Improvements", version, query, { section: "Improvements", type: "", impact: "", risk: "" })}
-        {releaseModeLink("Package Updates", version, query, { type: "package_change", impact: "", section: "", risk: "" })}
-        {releaseModeLink("API Changes", version, query, { section: "API Changes", type: "", impact: "", risk: "" })}
-        {releaseModeLink("Blockers", version, query, { risk: "blocker", section: "", type: "", impact: "" })}
+      <div>
+        {lanes.map(({ def, rows }) => (
+          <ReleaseLane key={def.id} def={def} rows={rows} />
+        ))}
       </div>
-
-      <div className="release-detail-layout">
-        <aside className="filter-rail" aria-label="Release filters">
-          <form>
-            <label className="field field-wide">
-              <span>Search within {version}</span>
-              <input name="q" placeholder="memory leak, UUM-136929, URP" defaultValue={filters.q} />
-            </label>
-
-            <label className="field">
-              <span>Section</span>
-              <select name="section" defaultValue={filters.section ?? ""}>
-                <option value="">Any section</option>
-                {facets.sections.map((section) => (
-                  <option value={section} key={section}>
-                    {section}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Type / impact</span>
-              <select name="type" defaultValue={filters.impactKind ?? ""}>
-                <option value="">Any type</option>
-                {facets.impacts.map((impact) => (
-                  <option value={impact} key={impact}>
-                    {impactLabel(impact)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Risk</span>
-              <select name="risk" defaultValue={filters.riskLevel ?? ""}>
-                <option value="">Any risk</option>
-                {facets.risks.map((risk) => (
-                  <option value={risk} key={risk}>
-                    {riskLabel(risk)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Subsystem / area</span>
-              <select name="area" defaultValue={filters.area ?? ""}>
-                <option value="">Any area</option>
-                {facets.areas.map((area) => (
-                  <option value={area} key={area}>
-                    {area}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Platform</span>
-              <select name="platform" defaultValue={filters.platform ?? ""}>
-                <option value="">Any platform</option>
-                {facets.platforms.map((platform) => (
-                  <option value={platform} key={platform}>
-                    {platform}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Package</span>
-              <select name="package" defaultValue={filters.packageName ?? ""}>
-                <option value="">Any package</option>
-                {facets.packages.map((packageName) => (
-                  <option value={packageName} key={packageName}>
-                    {packageName}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Issue ID</span>
-              <input name="issue" placeholder="UUM-136929" defaultValue={filters.issueId} />
-            </label>
-
-            <label className="field">
-              <span>Order</span>
-              <select name="order" defaultValue={filters.order ?? "source"}>
-                <option value="source">Official order</option>
-                <option value="section">Section</option>
-                <option value="risk">Risk first</option>
-                <option value="area">Area A-Z</option>
-                <option value="issue">Issue ID</option>
-                <option value="newest">Newest</option>
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Group by</span>
-              <select name="group" defaultValue={query.get("group") ?? "section"}>
-                <option value="section">Section</option>
-                <option value="impact">Type / impact</option>
-                <option value="risk">Risk</option>
-                <option value="area">Area</option>
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Show</span>
-              <select name="limit" defaultValue={String(filters.limit ?? 500)}>
-                <option value="100">100 items</option>
-                <option value="250">250 items</option>
-                <option value="500">500 items</option>
-                <option value="1000">1,000 items</option>
-                <option value="2500">2,500 items</option>
-              </select>
-            </label>
-
-            <div className="filter-actions">
-              <button type="submit">Apply filters</button>
-              <a className="secondary-action" href={`/releases/${version}`}>
-                Clear
-              </a>
-            </div>
-          </form>
-        </aside>
-
-        <section className="result-pane" aria-live="polite">
-          <div className="result-toolbar">
-            <div>
-              <h2>{total ? `${total} release note items` : "No release note items matched"}</h2>
-              <p className="muted">
-                Showing {notes.length} of {total}. Compact rows with issue links and official source links.
-              </p>
-            </div>
-            {activeFilters.length ? (
-              <div className="chips" aria-label="Active filters">
-                {activeFilters.map((label) => (
-                  <span className="chip" key={label}>
-                    {label}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          {grouped.length ? (
-            <div className="version-groups">
-              {grouped.map(([group, items]) => (
-                <section className="version-group" key={group}>
-                  <header>
-                    <h2>{group}</h2>
-                    <span className="muted">{items.length} items</span>
-                  </header>
-                  <div className="list compact-list">
-                    {items.map((item) => (
-                      <article className="note-row dense-note-row" key={item.id}>
-                        <div className="note-row-top">
-                          <span className={`badge risk-${item.risk_level}`}>{riskLabel(item.risk_level)}</span>
-                          <span className="badge neutral">{impactLabel(item.impact_kind)}</span>
-                          <strong>{item.section}</strong>
-                          {item.area ? <span className="muted">{item.area}</span> : null}
-                        </div>
-                        <p>{cleanReleaseNoteText(item.body)}</p>
-                        <div className="note-meta">
-                          {(item.platforms ?? []).map((platform) => (
-                            <span className="chip" key={platform}>
-                              {platform}
-                            </span>
-                          ))}
-                          {(item.package_names ?? []).map((packageName) => (
-                            <a className="chip link-chip" href={`/packages/${encodeURIComponent(packageName)}`} key={packageName}>
-                              {packageName}
-                            </a>
-                          ))}
-                          {normalizeIssueLinks(item.issue_ids, item.issue_links_json).map((issue) => (
-                            <span className="issue-chip-pair" key={issue.id}>
-                              <a className="chip link-chip" href={`/issues/${encodeURIComponent(issue.id)}`}>
-                                {issue.id}
-                              </a>
-                              <a className="chip link-chip" href={issue.url}>
-                                Tracker
-                              </a>
-                            </span>
-                          ))}
-                          <a href={item.source_url}>Official source</a>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <h2>No matches in this release</h2>
-              <p>Try removing one filter or searching by UUM issue ID.</p>
-            </div>
-          )}
-        </section>
-      </div>
-    </div>
+    </>
   );
+}
+
+function ReleaseLane({ def, rows }: { def: LaneDef; rows: ReleaseNoteRow[] }) {
+  const visible = rows.slice(0, 200);
+  return (
+    <section className="lane" id={`lane-${def.id}`} data-collapsed={def.defaultOpen ? undefined : "true"}>
+      <header className="lane__header">
+        <ImpactPill kind={inferImpactForLane(def.id)} />
+        <h3>{def.title}</h3>
+        <div className="lane__header-meta">
+          <span className="chip chip--count tabnums">{rows.length.toLocaleString()}</span>
+        </div>
+      </header>
+      <div className="lane__body">
+        {rows.length === 0 ? (
+          <div className="lane__empty">
+            <Icon name="check" size={16} />
+            None.
+          </div>
+        ) : (
+          visible.map((row) => <NoteRow key={row.id} row={row} />)
+        )}
+      </div>
+      {rows.length > visible.length ? (
+        <div className="lane__footer">
+          Showing first <strong>{visible.length}</strong> of{" "}
+          <strong className="tabnums">{rows.length.toLocaleString()}</strong>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function NoteRow({ row }: { row: ReleaseNoteRow }) {
+  const cleanedBody = cleanReleaseNoteText(row.body ?? "");
+  const issueLinks = normalizeIssueLinks(row.issue_ids ?? [], row.issue_links_json);
+
+  return (
+    <article className="row">
+      <span className="row__lead">
+        {row.area ? <span className="muted">{row.area}</span> : <span className="muted">{row.section}</span>}
+      </span>
+      <div className="row__body">
+        <div className="row__title row__title--wrap" title={cleanedBody}>
+          {cleanedBody}
+        </div>
+        <div className="row__pills">
+          <ImpactPill kind={row.impact_kind} />
+          <RiskBadge level={row.risk_level} />
+          {(row.package_names ?? []).slice(0, 2).map((pkg) => (
+            <PackagePill name={pkg} key={pkg} />
+          ))}
+          {(row.platforms ?? []).slice(0, 4).map((plat) => (
+            <PlatformPill platform={plat} key={plat} />
+          ))}
+          {issueLinks.slice(0, 3).map((issue) => (
+            <IssuePill id={issue.id} url={issue.url} key={issue.id} />
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function inferImpactForLane(laneId: string): string {
+  const map: Record<string, string> = {
+    blockers: "known_issue",
+    known: "known_issue",
+    breaking: "breaking_change",
+    api: "api_change",
+    security: "security_related_fix",
+    package: "package_change",
+    feature: "feature",
+    improvement: "improvement",
+    fix: "fix",
+    change: "change",
+    docs: "documentation"
+  };
+  return map[laneId] ?? "change";
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
 }
 
 async function safeRelease(version: string) {
@@ -306,144 +300,10 @@ async function safeRelease(version: string) {
   }
 }
 
-async function safeNotes(filters: ReleaseNoteSearchFilters) {
+async function safeNotes(version: string, q?: string) {
   try {
-    return (await searchReleaseNotes(filters)) as ReleaseNoteRow[];
+    return await searchReleaseNotes({ version, q: q || undefined, order: "source", limit: 5000 });
   } catch {
     return [];
   }
-}
-
-function releaseFilters(version: string, params: URLSearchParams): ReleaseNoteSearchFilters {
-  const order = params.get("order");
-  const limit = Number(params.get("limit") ?? 500);
-  return {
-    version,
-    q: params.get("q") ?? undefined,
-    section: params.get("section") ?? undefined,
-    area: params.get("area") ?? undefined,
-    platform: params.get("platform") ?? undefined,
-    impactKind: params.get("type") ?? params.get("impact") ?? undefined,
-    riskLevel: params.get("risk") ?? undefined,
-    packageName: params.get("package") ?? undefined,
-    issueId: params.get("issue") ?? undefined,
-    order:
-      order === "section" || order === "risk" || order === "newest" || order === "source" || order === "area" || order === "issue"
-        ? order
-        : "source",
-    limit: Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 2500) : 500
-  };
-}
-
-function releaseFacets(notes: ReleaseNoteRow[]) {
-  return {
-    sections: unique(notes.map((note) => note.section)),
-    impacts: unique(notes.map((note) => note.impact_kind)),
-    risks: unique(notes.map((note) => note.risk_level)),
-    areas: unique(
-      (notes.map((note) => note.area).filter(Boolean) as string[]).filter((area) => !area.startsWith("com."))
-    ),
-    platforms: unique(notes.flatMap((note) => note.platforms ?? [])),
-    packages: unique(notes.flatMap((note) => note.package_names ?? []))
-  };
-}
-
-function groupNotes(notes: ReleaseNoteRow[], group: string): Array<[string, ReleaseNoteRow[]]> {
-  const groups = new Map<string, ReleaseNoteRow[]>();
-  for (const note of notes) {
-    const key =
-      group === "impact"
-        ? impactLabel(note.impact_kind)
-        : group === "risk"
-          ? riskLabel(note.risk_level)
-          : group === "area"
-            ? note.area ?? "Unspecified area"
-            : note.section;
-    const current = groups.get(key) ?? [];
-    current.push(note);
-    groups.set(key, current);
-  }
-  return [...groups.entries()];
-}
-
-function activeFilterLabels(filters: ReleaseNoteSearchFilters) {
-  return [
-    filters.q ? `Search: ${filters.q}` : "",
-    filters.section ? `Section: ${filters.section}` : "",
-    filters.area ? `Area: ${filters.area}` : "",
-    filters.platform ? `Platform: ${filters.platform}` : "",
-    filters.impactKind ? `Type: ${joinLabels(filters.impactKind, impactLabel)}` : "",
-    filters.riskLevel ? `Risk: ${joinLabels(filters.riskLevel, riskLabel)}` : "",
-    filters.packageName ? `Package: ${filters.packageName}` : "",
-    filters.issueId ? `Issue: ${filters.issueId}` : ""
-  ].filter(Boolean);
-}
-
-function releaseModeLink(label: string, version: string, current: URLSearchParams, updates: Record<string, string>) {
-  const next = new URLSearchParams(current);
-  for (const [key, value] of Object.entries(updates)) {
-    if (value) next.set(key, value);
-    else next.delete(key);
-  }
-  const active = Object.entries(updates).every(([key, value]) =>
-    value ? current.get(key) === value : !current.get(key)
-  );
-  return (
-    <a className={active ? "active" : ""} href={`/releases/${version}${next.toString() ? `?${next}` : ""}`}>
-      {label}
-    </a>
-  );
-}
-
-function toUrlSearchParams(input: Record<string, string | string[] | undefined>) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(input)) {
-    if (Array.isArray(value)) {
-      for (const item of value) params.append(key, item);
-    } else if (value) {
-      params.set(key, value);
-    }
-  }
-  return params;
-}
-
-function unique(values: string[]) {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
-}
-
-function joinLabels(value: string | string[] | undefined, fn: (v: string | null | undefined) => string): string {
-  return (Array.isArray(value) ? value : [value]).map(fn).join(", ");
-}
-
-function impactLabel(value?: string | null) {
-  const labels: Record<string, string> = {
-    fix: "Fix gained",
-    known_issue: "Known issue",
-    api_change: "API change",
-    breaking_change: "Breaking/API",
-    package_change: "Package update",
-    platform_risk: "Platform impact",
-    install_risk: "Install/Hub",
-    security_related_fix: "Security fix",
-    upgrade_blocker: "Upgrade blocker",
-    documentation: "Documentation",
-    unknown: "Unclassified"
-  };
-  return labels[value ?? ""] ?? titleize(value ?? "info");
-}
-
-function riskLabel(value?: string | null) {
-  const labels: Record<string, string> = {
-    blocker: "Blocker",
-    caution: "Caution",
-    review: "Review",
-    info: "Info"
-  };
-  return labels[value ?? ""] ?? "Info";
-}
-
-function titleize(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
