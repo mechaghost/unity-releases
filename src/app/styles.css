@@ -923,7 +923,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   text-transform: uppercase;
   background: var(--surface-sunken);
   position: sticky;
-  top: 48px;
+  top: 0;
   z-index: 1;
 }
 
@@ -952,7 +952,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   background: var(--surface-base);
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
-  top: 48px;
+  top: 0;
   z-index: 2;
 }
 
@@ -1178,7 +1178,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .compare-meta {
   position: sticky;
-  top: 64px;
+  top: var(--space-4);
   background: var(--surface-base);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
