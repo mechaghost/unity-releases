@@ -235,6 +235,9 @@ CREATE INDEX IF NOT EXISTS idx_release_note_items_area ON release_note_items (ar
 CREATE INDEX IF NOT EXISTS idx_release_note_items_impact ON release_note_items (impact_kind);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_risk ON release_note_items (risk_level);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_release_id ON release_note_items (unity_release_id);
+-- Composite indexes that cover the diff-page lane queries (filter by impact + range, sort by date).
+CREATE INDEX IF NOT EXISTS idx_release_note_items_impact_date ON release_note_items (impact_kind, release_date DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_release_note_items_release_date ON release_note_items (release_date DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_platforms ON release_note_items USING GIN (platforms);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_packages ON release_note_items USING GIN (package_names);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_issues ON release_note_items USING GIN (issue_ids);

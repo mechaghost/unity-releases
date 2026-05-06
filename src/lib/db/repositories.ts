@@ -98,6 +98,91 @@ export async function searchReleaseNotesInRange(
   return result.rows;
 }
 
+export type DiffRangeCounts = {
+  totalNotes: number;
+  byImpact: Record<string, number>;
+  blockerKnownIssues: number;
+  topPlatforms: Array<{ platform: string; count: number }>;
+  topAreas: Array<{ area: string; count: number }>;
+};
+
+/**
+ * Single-pass aggregate over the (from, to] range that powers all the
+ * "X notes in this diff" numbers and the right-rail facets. Avoids
+ * shipping rows back when we only need counts.
+ */
+export async function diffRangeCounts(
+  versions: string[],
+  platform?: string
+): Promise<DiffRangeCounts> {
+  if (versions.length === 0) {
+    return { totalNotes: 0, byImpact: {}, blockerKnownIssues: 0, topPlatforms: [], topAreas: [] };
+  }
+
+  const platformFilter = platform ? "AND $2 = ANY(platforms)" : "";
+  const params: Array<string | string[]> = platform ? [versions, platform] : [versions];
+
+  const [impactResult, blockerResult, platformResult, areaResult] = await Promise.all([
+    query<{ impact_kind: string; count: string }>(
+      `
+        SELECT impact_kind, COUNT(*)::text AS count
+        FROM release_note_items
+        WHERE version = ANY($1::text[]) ${platformFilter}
+        GROUP BY impact_kind
+      `,
+      params
+    ),
+    query<{ count: string }>(
+      `
+        SELECT COUNT(*)::text AS count
+        FROM release_note_items
+        WHERE version = ANY($1::text[]) ${platformFilter}
+          AND impact_kind = 'known_issue' AND risk_level = 'blocker'
+      `,
+      params
+    ),
+    query<{ platform: string; count: string }>(
+      `
+        SELECT platform, COUNT(*)::text AS count
+        FROM release_note_items, UNNEST(platforms) AS platform
+        WHERE version = ANY($1::text[])
+        GROUP BY platform
+        ORDER BY 2::int DESC
+        LIMIT 12
+      `,
+      [versions]
+    ),
+    query<{ area: string; count: string }>(
+      `
+        SELECT area, COUNT(*)::text AS count
+        FROM release_note_items
+        WHERE version = ANY($1::text[]) ${platformFilter}
+          AND area IS NOT NULL
+        GROUP BY area
+        ORDER BY 2::int DESC
+        LIMIT 12
+      `,
+      params
+    )
+  ]);
+
+  const byImpact: Record<string, number> = {};
+  let totalNotes = 0;
+  for (const row of impactResult.rows) {
+    const n = Number(row.count);
+    byImpact[row.impact_kind] = n;
+    totalNotes += n;
+  }
+
+  return {
+    totalNotes,
+    byImpact,
+    blockerKnownIssues: Number(blockerResult.rows[0]?.count ?? 0),
+    topPlatforms: platformResult.rows.map((r) => ({ platform: r.platform, count: Number(r.count) })),
+    topAreas: areaResult.rows.map((r) => ({ area: r.area, count: Number(r.count) }))
+  };
+}
+
 export async function listReleaseNoteFacets() {
   const result = await query<{
     versions: string[];

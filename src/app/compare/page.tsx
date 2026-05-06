@@ -1,15 +1,23 @@
-import { resolveDiffRange, searchReleaseNotesInRange, listReleases } from "@/lib/db/repositories";
+import {
+  diffRangeCounts,
+  listReleases,
+  resolveDiffRange,
+  searchReleaseNotesInRange
+} from "@/lib/db/repositories";
+import type { ReleaseNoteSearchFilters } from "@/lib/search";
 import { getUserVersion } from "@/lib/user-version";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
 import { IssuePill } from "../_components/IssuePill";
 import { PackagePill } from "../_components/PackagePill";
 import { PlatformPill } from "../_components/PlatformPill";
-import { ImpactPill, impactLabel } from "../_components/ImpactPill";
+import { ImpactPill } from "../_components/ImpactPill";
 import { RiskBadge } from "../_components/RiskBadge";
 import { VersionPill } from "../_components/VersionPill";
 import { Icon } from "../_components/Icon";
 
 export const dynamic = "force-dynamic";
+
+const ROWS_PER_LANE = 25;
 
 type ReleaseNoteRow = {
   id: number;
@@ -26,95 +34,134 @@ type ReleaseNoteRow = {
   release_date: string | null;
 };
 
+type LaneId =
+  | "blockers"
+  | "breaking"
+  | "api"
+  | "known"
+  | "security"
+  | "package"
+  | "feature"
+  | "improvement"
+  | "fix"
+  | "change";
+
 type LaneDef = {
-  id: string;
+  id: LaneId;
   title: string;
-  filter: (row: ReleaseNoteRow) => boolean;
+  /** Filters to send to the per-lane query. */
+  searchFilter: Partial<Pick<ReleaseNoteSearchFilters, "impactKind" | "riskLevel">>;
+  /** Optional client-side post-filter for compound conditions the SQL builder can't express. */
+  postFilter?: (row: ReleaseNoteRow) => boolean;
+  /** How to compute the lane count from the cheap aggregate. */
+  countFrom: (counts: { byImpact: Record<string, number>; blockerKnownIssues: number }) => number;
   defaultOpen: boolean;
   emptyMessage: string;
   variant: "blocker" | "caution" | "review" | "info" | "success";
+  impactPill: string;
 };
 
 const LANES: LaneDef[] = [
   {
     id: "blockers",
     title: "Active known blockers",
-    filter: (r) => r.impact_kind === "known_issue" && r.risk_level === "blocker",
+    searchFilter: { impactKind: "known_issue", riskLevel: "blocker" },
+    countFrom: (c) => c.blockerKnownIssues,
     defaultOpen: true,
     emptyMessage: "No known blockers in this range.",
-    variant: "blocker"
+    variant: "blocker",
+    impactPill: "known_issue"
   },
   {
     id: "breaking",
     title: "Breaking changes",
-    filter: (r) => r.impact_kind === "breaking_change",
+    searchFilter: { impactKind: "breaking_change" },
+    countFrom: (c) => c.byImpact.breaking_change ?? 0,
     defaultOpen: true,
     emptyMessage: "No breaking changes in this range.",
-    variant: "blocker"
+    variant: "blocker",
+    impactPill: "breaking_change"
   },
   {
     id: "api",
     title: "API changes",
-    filter: (r) => r.impact_kind === "api_change",
+    searchFilter: { impactKind: "api_change" },
+    countFrom: (c) => c.byImpact.api_change ?? 0,
     defaultOpen: true,
     emptyMessage: "No API changes in this range.",
-    variant: "review"
+    variant: "review",
+    impactPill: "api_change"
   },
   {
     id: "known",
     title: "Other known issues",
-    filter: (r) => r.impact_kind === "known_issue" && r.risk_level !== "blocker",
+    searchFilter: { impactKind: "known_issue" },
+    postFilter: (r) => r.risk_level !== "blocker",
+    countFrom: (c) => Math.max((c.byImpact.known_issue ?? 0) - c.blockerKnownIssues, 0),
     defaultOpen: false,
     emptyMessage: "No outstanding known issues.",
-    variant: "caution"
+    variant: "caution",
+    impactPill: "known_issue"
   },
   {
     id: "security",
     title: "Security & install risk",
-    filter: (r) => r.impact_kind === "security_related_fix" || r.impact_kind === "install_risk",
+    searchFilter: { impactKind: ["security_related_fix", "install_risk"] },
+    countFrom: (c) => (c.byImpact.security_related_fix ?? 0) + (c.byImpact.install_risk ?? 0),
     defaultOpen: false,
     emptyMessage: "No security or install-impact notes.",
-    variant: "caution"
+    variant: "caution",
+    impactPill: "security_related_fix"
   },
   {
     id: "package",
     title: "Package changes",
-    filter: (r) => r.impact_kind === "package_change",
+    searchFilter: { impactKind: "package_change" },
+    countFrom: (c) => c.byImpact.package_change ?? 0,
     defaultOpen: false,
     emptyMessage: "No package updates.",
-    variant: "review"
+    variant: "review",
+    impactPill: "package_change"
   },
   {
     id: "feature",
     title: "New features",
-    filter: (r) => r.impact_kind === "feature",
+    searchFilter: { impactKind: "feature" },
+    countFrom: (c) => c.byImpact.feature ?? 0,
     defaultOpen: false,
     emptyMessage: "No new features.",
-    variant: "info"
+    variant: "info",
+    impactPill: "feature"
   },
   {
     id: "improvement",
     title: "Improvements",
-    filter: (r) => r.impact_kind === "improvement",
+    searchFilter: { impactKind: "improvement" },
+    countFrom: (c) => c.byImpact.improvement ?? 0,
     defaultOpen: false,
     emptyMessage: "No improvements.",
-    variant: "info"
+    variant: "info",
+    impactPill: "improvement"
   },
   {
     id: "fix",
     title: "Fixes",
-    filter: (r) => r.impact_kind === "fix",
+    searchFilter: { impactKind: "fix" },
+    countFrom: (c) => c.byImpact.fix ?? 0,
     defaultOpen: false,
     emptyMessage: "No fixes.",
-    variant: "success"
+    variant: "success",
+    impactPill: "fix"
   },
   {
     id: "change",
     title: "Other changes",
-    filter: (r) => r.impact_kind === "change",
+    searchFilter: { impactKind: "change" },
+    countFrom: (c) => c.byImpact.change ?? 0,
     defaultOpen: false,
     emptyMessage: "No miscellaneous changes.",
-    variant: "info"
+    variant: "info",
+    impactPill: "change"
   }
 ];
 
@@ -125,7 +172,6 @@ export default async function ComparePage({
 }) {
   const params = toUrlSearchParams(await searchParams);
   const userVersion = await getUserVersion();
-  // If `from` isn't in the URL, default to the user's chosen Unity version.
   const fromVersion = (params.get("from") ?? userVersion ?? "").trim();
   const toVersion = (params.get("to") ?? "").trim();
   const platform = (params.get("platform") ?? "").trim();
@@ -136,11 +182,7 @@ export default async function ComparePage({
 
   if (!fromVersion || !toVersion) {
     return (
-      <ComparePicker
-        fromVersion={fromVersion}
-        toVersion={toVersion}
-        releases={allReleases}
-      >
+      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={allReleases}>
         <div className="empty-state">
           <h2>Compare two Unity versions</h2>
           <p>Pick a “from” and a “to” version to see what changed between them — broken down by impact lane.</p>
@@ -152,16 +194,10 @@ export default async function ComparePage({
   const range = await resolveDiffRange(fromVersion, toVersion);
   if (!range) {
     return (
-      <ComparePicker
-        fromVersion={fromVersion}
-        toVersion={toVersion}
-        releases={allReleases}
-      >
+      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={allReleases}>
         <div className="empty-state">
           <h2>Versions not found</h2>
-          <p>
-            One of these versions isn’t in the index yet. Try selecting from the dropdowns.
-          </p>
+          <p>One of these versions isn’t in the index yet. Try selecting from the dropdowns.</p>
         </div>
       </ComparePicker>
     );
@@ -169,11 +205,7 @@ export default async function ComparePage({
 
   if (range.versions.length === 0) {
     return (
-      <ComparePicker
-        fromVersion={fromVersion}
-        toVersion={toVersion}
-        releases={allReleases}
-      >
+      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={allReleases}>
         <div className="empty-state">
           <h2>Same version</h2>
           <p>
@@ -184,17 +216,34 @@ export default async function ComparePage({
     );
   }
 
-  const filters = platform ? { platform } : {};
-  const rows = (await searchReleaseNotesInRange(range.versions, filters, 12000)) as ReleaseNoteRow[];
+  // Run the cheap aggregate and every lane's row query in parallel.
+  // The aggregate gives us accurate totals for the summary chips and
+  // the right-rail facets without shipping rows back. The per-lane
+  // queries each cap at ROWS_PER_LANE so total payload stays small.
+  const [counts, ...laneRowsArr] = await Promise.all([
+    diffRangeCounts(range.versions, platform || undefined),
+    ...LANES.map((lane) =>
+      searchReleaseNotesInRange(
+        range.versions,
+        {
+          ...lane.searchFilter,
+          ...(platform ? { platform } : {})
+        },
+        // Fetch a few extra so postFilter can drop some without leaving the lane short.
+        ROWS_PER_LANE * 2
+      ) as Promise<ReleaseNoteRow[]>
+    )
+  ]);
 
-  const lanes = LANES.map((def) => ({
-    def,
-    rows: rows.filter(def.filter)
-  }));
-
-  const totalNotes = rows.length;
-  const platformCounts = countPlatforms(rows);
-  const areaCounts = countAreas(rows);
+  const lanes = LANES.map((def, i) => {
+    const fetched = laneRowsArr[i] ?? [];
+    const filtered = def.postFilter ? fetched.filter(def.postFilter) : fetched;
+    return {
+      def,
+      rows: filtered.slice(0, ROWS_PER_LANE),
+      totalCount: def.countFrom(counts)
+    };
+  });
 
   return (
     <>
@@ -212,7 +261,7 @@ export default async function ComparePage({
         <p className="muted">
           Spans <strong>{range.versions.length}</strong>{" "}
           {range.versions.length === 1 ? "release" : "releases"} ·{" "}
-          <strong className="tabnums">{totalNotes.toLocaleString()}</strong> release notes
+          <strong className="tabnums">{counts.totalNotes.toLocaleString()}</strong> release notes
           {platform ? (
             <>
               {" · platform "}<code>{platform}</code>
@@ -224,23 +273,23 @@ export default async function ComparePage({
       <section className="summary-strip">
         <span className="summary-strip__label">Summary</span>
         {lanes
-          .filter(({ rows }) => rows.length > 0)
-          .map(({ def, rows }) => (
+          .filter((l) => l.totalCount > 0)
+          .map((l) => (
             <a
-              key={def.id}
-              href={`#lane-${def.id}`}
-              className={`summary-chip summary-chip--${def.variant}`}
+              key={l.def.id}
+              href={`#lane-${l.def.id}`}
+              className={`summary-chip summary-chip--${l.def.variant}`}
             >
-              <strong className="tabnums">{rows.length}</strong>{" "}
-              {def.title.toLowerCase()}
+              <strong className="tabnums">{l.totalCount.toLocaleString()}</strong>{" "}
+              {l.def.title.toLowerCase()}
             </a>
           ))}
       </section>
 
       <div className="compare-layout">
         <div>
-          {lanes.map(({ def, rows }) => (
-            <Lane key={def.id} def={def} rows={rows} expanded={expandedOverrides} />
+          {lanes.map((l) => (
+            <Lane key={l.def.id} lane={l} expanded={expandedOverrides} />
           ))}
         </div>
 
@@ -250,18 +299,19 @@ export default async function ComparePage({
             <input type="hidden" name="from" value={fromVersion} />
             <input type="hidden" name="to" value={toVersion} />
             <label style={{ display: "block", marginBottom: 8 }}>
-              <span className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              <span
+                className="muted"
+                style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}
+              >
                 Platform
               </span>
               <select name="platform" defaultValue={platform}>
                 <option value="">All platforms</option>
-                {Array.from(platformCounts.entries())
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([name, count]) => (
-                    <option value={name} key={name}>
-                      {name} ({count.toLocaleString()})
-                    </option>
-                  ))}
+                {counts.topPlatforms.map(({ platform: name, count }) => (
+                  <option value={name} key={name}>
+                    {name} ({count.toLocaleString()})
+                  </option>
+                ))}
               </select>
             </label>
             <button type="submit" className="btn btn--primary btn--small" style={{ width: "100%", marginTop: 8 }}>
@@ -271,23 +321,20 @@ export default async function ComparePage({
 
           <h4 style={{ marginTop: 16 }}>Top areas</h4>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-            {Array.from(areaCounts.entries())
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 10)
-              .map(([area, count]) => (
-                <li
-                  key={area}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 12,
-                    color: "var(--text-secondary)"
-                  }}
-                >
-                  <span>{area}</span>
-                  <span className="muted tabnums">{count}</span>
-                </li>
-              ))}
+            {counts.topAreas.map(({ area, count }) => (
+              <li
+                key={area}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 12,
+                  color: "var(--text-secondary)"
+                }}
+              >
+                <span>{area}</span>
+                <span className="muted tabnums">{count}</span>
+              </li>
+            ))}
           </ul>
         </aside>
       </div>
@@ -295,40 +342,38 @@ export default async function ComparePage({
   );
 }
 
-function Lane({
-  def,
-  rows,
-  expanded
-}: {
+type LaneState = {
   def: LaneDef;
   rows: ReleaseNoteRow[];
-  expanded: Set<string>;
-}) {
+  totalCount: number;
+};
+
+function Lane({ lane, expanded }: { lane: LaneState; expanded: Set<string> }) {
+  const { def, rows, totalCount } = lane;
   const isOpen = expanded.has(def.id) || (def.defaultOpen && !expanded.has(`!${def.id}`));
-  const visible = rows.slice(0, 200);
   return (
     <section className="lane" id={`lane-${def.id}`} data-collapsed={isOpen ? undefined : "true"}>
       <header className="lane__header">
-        <ImpactPill kind={inferImpactForLane(def.id)} />
+        <ImpactPill kind={def.impactPill} />
         <h3>{def.title}</h3>
         <div className="lane__header-meta">
-          <span className="chip chip--count tabnums">{rows.length.toLocaleString()}</span>
+          <span className="chip chip--count tabnums">{totalCount.toLocaleString()}</span>
         </div>
       </header>
       <div className="lane__body">
-        {rows.length === 0 ? (
+        {totalCount === 0 ? (
           <div className="lane__empty">
             <Icon name="check" size={16} />
             {def.emptyMessage}
           </div>
         ) : (
-          visible.map((row) => <NoteRow key={row.id} row={row} />)
+          rows.map((row) => <NoteRow key={row.id} row={row} />)
         )}
       </div>
-      {rows.length > visible.length ? (
+      {totalCount > rows.length ? (
         <div className="lane__footer">
-          Showing first <strong>{visible.length}</strong> of{" "}
-          <strong className="tabnums">{rows.length.toLocaleString()}</strong>
+          Showing first <strong>{rows.length}</strong> of{" "}
+          <strong className="tabnums">{totalCount.toLocaleString()}</strong>
         </div>
       ) : null}
     </section>
@@ -416,45 +461,11 @@ function ComparePicker({
   );
 }
 
-function inferImpactForLane(laneId: string): string {
-  const map: Record<string, string> = {
-    blockers: "known_issue",
-    breaking: "breaking_change",
-    api: "api_change",
-    known: "known_issue",
-    security: "security_related_fix",
-    package: "package_change",
-    feature: "feature",
-    improvement: "improvement",
-    fix: "fix",
-    change: "change"
-  };
-  return map[laneId] ?? "change";
-}
-
 function lookupStream(
   releases: { version: string; stream: string | null }[],
   version: string
 ): string | null {
   return releases.find((r) => r.version === version)?.stream ?? null;
-}
-
-function countPlatforms(rows: ReleaseNoteRow[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    for (const platform of row.platforms ?? []) {
-      counts.set(platform, (counts.get(platform) ?? 0) + 1);
-    }
-  }
-  return counts;
-}
-
-function countAreas(rows: ReleaseNoteRow[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    if (row.area) counts.set(row.area, (counts.get(row.area) ?? 0) + 1);
-  }
-  return counts;
 }
 
 async function safeListReleases() {
