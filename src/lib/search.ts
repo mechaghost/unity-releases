@@ -95,31 +95,6 @@ export function buildReleaseNoteWhereForVersions(
   };
 }
 
-export function buildReleaseNoteFeedQuery(filters: ReleaseNoteSearchFilters): SqlQuery {
-  const { where, values, add } = buildReleaseNoteWhere(filters);
-  const limitParam = add(filters.limit ?? 50);
-
-  return {
-    text: `
-      SELECT
-        id,
-        'release_note' AS event_type,
-        CONCAT(version, ' ', section, CASE WHEN area IS NULL THEN '' ELSE CONCAT(' · ', area) END) AS title,
-        body AS summary,
-        release_date AS event_time,
-        source_url,
-        CONCAT('release_note:', id) AS stable_guid,
-        risk_level,
-        ARRAY_REMOVE(ARRAY_CAT(ARRAY[version, minor_line, stream, section, area, impact_kind, risk_level], platforms), NULL) AS tags
-      FROM release_note_items
-      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY release_date DESC NULLS LAST, source_order ASC
-      LIMIT ${limitParam}
-    `.trim(),
-    values
-  };
-}
-
 function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
   const where: string[] = [];
   const values: SqlValue[] = [];

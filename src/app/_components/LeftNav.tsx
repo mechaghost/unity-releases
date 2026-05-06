@@ -141,13 +141,6 @@ export function LeftNav() {
           );
         })}
       </div>
-      <div className="lnav__footer">
-        <a href="/rss" title="RSS feed">
-          <Icon name="rss" size={14} />
-          <span style={{ marginLeft: 6 }}>RSS</span>
-        </a>
-        <a href="/watch">Custom feeds</a>
-      </div>
     </nav>
   );
 }

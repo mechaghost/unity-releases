@@ -1,7 +1,6 @@
 import type { PoolClient } from "pg";
 import { getPool, query } from "./client";
 import {
-  buildReleaseNoteFeedQuery,
   buildReleaseNoteSearchQuery,
   buildReleaseNoteWhereForVersions,
   type ReleaseNoteSearchFilters
@@ -166,37 +165,6 @@ export async function listFeedEventsByType(eventType: string, limit = 30): Promi
   return result.rows;
 }
 
-export async function listWatchFeedEvents(filters: ReleaseNoteSearchFilters, limit = 50): Promise<FeedEventRow[]> {
-  if (!hasReleaseNoteFilters(filters)) {
-    return listFeedEvents(limit);
-  }
-
-  const built = buildReleaseNoteFeedQuery({ ...filters, limit });
-  const result = await query<FeedEventRow>(built.text, built.values);
-  return result.rows;
-}
-
-function hasReleaseNoteFilters(filters: ReleaseNoteSearchFilters): boolean {
-  return Boolean(
-    filters.q ||
-      filters.version ||
-      filters.minorLine ||
-      filters.stream ||
-      filters.section ||
-      filters.area ||
-      hasFilterValue(filters.platform) ||
-      hasFilterValue(filters.impactKind) ||
-      hasFilterValue(filters.riskLevel) ||
-      hasFilterValue(filters.packageName) ||
-      hasFilterValue(filters.issueId)
-  );
-}
-
-function hasFilterValue(value: string | string[] | undefined): boolean {
-  if (!value) return false;
-  if (Array.isArray(value)) return value.length > 0;
-  return true;
-}
 
 export async function listReleases(limit = 50) {
   const result = await query(

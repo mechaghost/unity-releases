@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 import { normalizeReleaseForStorage } from "../../src/lib/ingest/releases";
 import { normalizePackageForStorage } from "../../src/lib/ingest/packages";
 import { createStableGuid, sha256 } from "../../src/lib/ingest/hash";
-import { parseWatchQuery, serializeWatchQuery } from "../../src/lib/watch";
 
 describe("ingestion hashing", () => {
   test("creates deterministic hashes and stable event GUIDs", () => {
@@ -102,27 +101,3 @@ describe("package normalization", () => {
   });
 });
 
-describe("watch query serialization", () => {
-  test("round-trips watch filters with repeatable ordering", () => {
-    const serialized = serializeWatchQuery({
-      q: "memory leak",
-      minorLine: "6000.3",
-      packages: ["com.unity.inputsystem", "com.unity.addressables"],
-      platforms: ["WebGL"],
-      impacts: ["known_issue"],
-      risks: ["caution"]
-    });
-
-    expect(serialized).toBe(
-      "impact=known_issue&minorLine=6000.3&package=com.unity.addressables&package=com.unity.inputsystem&platform=WebGL&q=memory+leak&risk=caution"
-    );
-    expect(parseWatchQuery(serialized)).toEqual({
-      q: "memory leak",
-      minorLine: "6000.3",
-      packages: ["com.unity.addressables", "com.unity.inputsystem"],
-      platforms: ["WebGL"],
-      impacts: ["known_issue"],
-      risks: ["caution"]
-    });
-  });
-});
