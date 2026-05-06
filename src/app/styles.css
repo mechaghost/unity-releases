@@ -1330,42 +1330,52 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   margin-bottom: var(--space-3);
 }
 
-.compare-verdict {
+.compare-facts {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
-  border: 1px solid;
+  border: 1px solid var(--border-base);
+  background: var(--surface-base);
   margin-bottom: var(--space-3);
   font-size: var(--text-sm);
   line-height: var(--leading-md);
 }
-.compare-verdict__label {
+.compare-facts__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-weight: var(--weight-semibold);
   font-size: var(--text-md);
+  color: var(--text-strong);
   flex-shrink: 0;
 }
-.compare-verdict__detail { color: inherit; opacity: 0.85; }
-.compare-verdict--blocker {
-  background: var(--color-blocker-bg);
-  color: var(--color-blocker-fg);
-  border-color: var(--color-blocker-bg);
+.compare-facts__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
 }
-.compare-verdict--caution {
-  background: var(--color-caution-bg);
-  color: var(--color-caution-fg);
-  border-color: var(--color-caution-bg);
+.compare-fact {
+  min-width: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-muted);
 }
-.compare-verdict--review {
-  background: var(--color-review-bg);
-  color: var(--color-review-fg);
-  border-color: var(--color-review-bg);
+.compare-fact strong {
+  display: block;
+  font-size: var(--text-md);
+  color: var(--text-strong);
 }
-.compare-verdict--success {
-  background: var(--color-success-bg);
-  color: var(--color-success-fg);
-  border-color: var(--color-success-bg);
+.compare-fact span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-sm);
 }
 
 .compare-picker {
@@ -1634,6 +1644,8 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 @media (max-width: 1280px) {
   .compare-layout { grid-template-columns: minmax(0, 1fr); }
   .compare-meta { position: static; }
+  .compare-facts { align-items: flex-start; }
+  .compare-facts__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* ========================================================================
@@ -1928,6 +1940,8 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 @media (max-width: 768px) {
   .app-shell__content { padding-left: var(--space-3); padding-right: var(--space-3); }
+  .compare-facts { flex-direction: column; }
+  .compare-facts__grid { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .compare-picker { gap: var(--space-2); }
   .compare-picker select,
   .compare-picker input[type="text"] { min-width: 0; flex: 1; }

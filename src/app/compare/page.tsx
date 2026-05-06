@@ -363,11 +363,11 @@ export default async function ComparePage({
         </p>
       </section>
 
-      <CompareVerdict counts={counts} />
+      <CompareFacts counts={counts} />
 
       <div className="compare-actions">
         <CopyMarkdownButton
-          text={composeUpgradeBriefMarkdown({
+          text={composeCompareBriefMarkdown({
             fromVersion,
             toVersion,
             reversed: range.reversed,
@@ -817,61 +817,42 @@ type CompareCounts = {
   blockerKnownIssues: number;
 };
 
-function CompareVerdict({ counts }: { counts: CompareCounts }) {
-  const blockers = counts.blockerKnownIssues;
+function CompareFacts({ counts }: { counts: CompareCounts }) {
   const breaking = counts.byImpact.breaking_change ?? 0;
+  const apiChanges = counts.byImpact.api_change ?? 0;
   const security = counts.byImpact.security_related_fix ?? 0;
   const installRisk = counts.byImpact.install_risk ?? 0;
-  const apiChanges = counts.byImpact.api_change ?? 0;
 
-  let label: string;
-  let variant: "blocker" | "caution" | "review" | "success";
-  let icon: "alert-octagon" | "alert-triangle" | "info" | "check";
-  let detail: string;
-
-  if (blockers > 0) {
-    variant = "blocker";
-    icon = "alert-octagon";
-    label = "Hold";
-    detail = `${blockers} active known blocker${blockers === 1 ? "" : "s"} on the path. Verify each before upgrading.`;
-  } else if (breaking + security >= 25 || breaking >= 50) {
-    variant = "caution";
-    icon = "alert-triangle";
-    label = "Heavy review";
-    detail = `${breaking} breaking change${breaking === 1 ? "" : "s"}${
-      security ? ` and ${security} security item${security === 1 ? "" : "s"}` : ""
-    } — plan a sustained migration window.`;
-  } else if (breaking > 0 || apiChanges > 0 || installRisk > 0 || security > 0) {
-    variant = "review";
-    icon = "alert-triangle";
-    label = "Review";
-    const parts: string[] = [];
-    if (breaking) parts.push(`${breaking} breaking`);
-    if (apiChanges) parts.push(`${apiChanges} API change${apiChanges === 1 ? "" : "s"}`);
-    if (security) parts.push(`${security} security`);
-    if (installRisk) parts.push(`${installRisk} install/platform`);
-    detail = `${parts.join(" · ")}. No active blockers; expect targeted code changes.`;
-  } else {
-    variant = "success";
-    icon = "check";
-    label = "Likely safe";
-    detail = `No active blockers, no breaking changes, no security items. ${counts.totalNotes.toLocaleString()} note${
-      counts.totalNotes === 1 ? "" : "s"
-    } in range.`;
-  }
+  const facts = [
+    { label: "Release notes", value: counts.totalNotes },
+    { label: "Active known blockers", value: counts.blockerKnownIssues },
+    { label: "Breaking changes", value: breaking },
+    { label: "API changes", value: apiChanges },
+    { label: "Security items", value: security },
+    { label: "Install/platform items", value: installRisk }
+  ];
 
   return (
-    <div className={`compare-verdict compare-verdict--${variant}`} role="status" aria-live="polite">
-      <Icon name={icon} size={18} />
-      <span className="compare-verdict__label">{label}</span>
-      <span className="compare-verdict__detail">{detail}</span>
-    </div>
+    <section className="compare-facts" aria-label="Diff facts">
+      <div className="compare-facts__heading">
+        <Icon name="info" size={18} />
+        <span>Diff facts</span>
+      </div>
+      <div className="compare-facts__grid">
+        {facts.map((fact) => (
+          <div key={fact.label} className="compare-fact">
+            <strong className="tabnums">{fact.value.toLocaleString()}</strong>
+            <span>{fact.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
-// ─── Upgrade-brief markdown export ────────────────────────────
+// ─── Compare markdown export ────────────────────────────
 
-function composeUpgradeBriefMarkdown(input: {
+function composeCompareBriefMarkdown(input: {
   fromVersion: string;
   toVersion: string;
   reversed: boolean;
@@ -882,12 +863,9 @@ function composeUpgradeBriefMarkdown(input: {
 }): string {
   const { fromVersion, toVersion, reversed, includedStreams, includedMinorLines, counts, lanes } =
     input;
-  const verdict = describeVerdict(counts);
 
   const out: string[] = [];
-  out.push(`# Unity upgrade brief: \`${fromVersion}\` → \`${toVersion}\``);
-  out.push("");
-  out.push(`**${verdict.label}** — ${verdict.detail}`);
+  out.push(`# Unity release diff: \`${fromVersion}\` → \`${toVersion}\``);
   out.push("");
 
   // Header table
@@ -896,6 +874,10 @@ function composeUpgradeBriefMarkdown(input: {
   if (reversed) out.push(`| Direction | downgrade |`);
   out.push(`| Total release notes in range | ${counts.totalNotes.toLocaleString()} |`);
   out.push(`| Active known blockers | ${counts.blockerKnownIssues.toLocaleString()} |`);
+  out.push(`| Breaking changes | ${(counts.byImpact.breaking_change ?? 0).toLocaleString()} |`);
+  out.push(`| API changes | ${(counts.byImpact.api_change ?? 0).toLocaleString()} |`);
+  out.push(`| Security items | ${(counts.byImpact.security_related_fix ?? 0).toLocaleString()} |`);
+  out.push(`| Install/platform items | ${(counts.byImpact.install_risk ?? 0).toLocaleString()} |`);
   if (includedStreams.length) {
     const lineRange =
       includedMinorLines.length === 1
@@ -977,19 +959,6 @@ function composeUpgradeBriefMarkdown(input: {
     )}&to=${encodeURIComponent(toVersion)}_`
   );
   return out.join("\n");
-}
-
-function describeVerdict(counts: CompareCounts) {
-  const blockers = counts.blockerKnownIssues;
-  const breaking = counts.byImpact.breaking_change ?? 0;
-  const security = counts.byImpact.security_related_fix ?? 0;
-  if (blockers > 0)
-    return { label: "Hold", detail: `${blockers} active known blocker${blockers === 1 ? "" : "s"} on the path.` };
-  if (breaking + security >= 25 || breaking >= 50)
-    return { label: "Heavy review", detail: `${breaking} breaking, ${security} security item${security === 1 ? "" : "s"}.` };
-  if (breaking > 0 || security > 0)
-    return { label: "Review", detail: `${breaking} breaking, ${security} security. No active blockers.` };
-  return { label: "Likely safe", detail: "No active blockers, no breaking changes, no security items." };
 }
 
 function ComparePicker({

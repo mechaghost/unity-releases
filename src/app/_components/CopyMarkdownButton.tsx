@@ -11,7 +11,7 @@ type Props = {
 
 /**
  * Single-shot "copy this markdown to my clipboard" button. Used to
- * paste an upgrade brief into Slack, Notion, a PR description, etc.
+ * paste a compare brief into Slack, Notion, a PR description, etc.
  */
 export function CopyMarkdownButton({ text, label = "Copy as Markdown" }: Props) {
   const [state, setState] = useState<"idle" | "copied" | "error">("idle");
