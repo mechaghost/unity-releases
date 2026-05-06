@@ -1486,14 +1486,12 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   .dense-table { font-size: var(--text-xs); }
   .dense-table th, .dense-table td { padding: var(--space-2); }
 
-  /* Stack release-row pieces on narrow screens so the date and Diff
-     button don't get squashed under the version pill. */
-  .release-row {
-    flex-wrap: wrap;
-    row-gap: var(--space-1);
+  /* Allow the date label to shrink before the Diff button does. */
+  .release-row__date {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .release-row__date { text-align: left; }
-  .release-row__cta { width: 100%; justify-content: flex-end; }
 
   /* Page header buttons should wrap to multiple rows. */
   .page-header__title-row { flex-wrap: wrap; }
