@@ -30,10 +30,34 @@ const PLATFORM_TAGS = [
 ];
 
 const SECURITY_RE = /\b(vulnerability|security|cve|exploit|preventive)\b/i;
-const BREAKING_RE = /\b(breaking|removed|obsolete|deprecated|incompatible)\b/i;
+
+/**
+ * Tight breaking-change detector. The previous regex
+ *   /\b(breaking|removed|obsolete|deprecated|incompatible)\b/i
+ * fired on any "removed an erroneous warning" / "obsolete marker dropped"
+ * cosmetics, producing thousands of false positives that wrecked the
+ * value of the breaking-change lane.
+ *
+ * The new rules require structural signals (literal "Breaking change(s)"
+ * markers, leading "Removed:" / "Deprecated:" labels, or explicit
+ * removal/incompatibility phrasing applied to APIs / types / classes /
+ * methods / properties / packages / platforms) and exclude cosmetics
+ * with a denylist.
+ */
+const BREAKING_INCLUDE_RE =
+  /\bbreaking\s+change(?:s)?\b|^\s*(?:removed|deprecated|obsoleted)\s*:|^\s*\*\*?(?:removed|deprecated|obsoleted|breaking)\b|\b(?:removed|deprecated|obsoleted|made\s+obsolete|no\s+longer\s+(?:supported|available|valid))\b\s+(?:the\s+|all\s+|an?\s+|its?\s+|some\s+)?(?:public\s+|legacy\s+|old\s+)?(?:api|apis|class(?:es)?|method(?:s)?|function(?:s)?|interface(?:s)?|type(?:s)?|propert(?:y|ies)|enum(?:s)?|namespace(?:s)?|package(?:s)?|module(?:s)?|symbol(?:s)?|setting(?:s)?|option(?:s)?|field(?:s)?|component(?:s)?|asset(?:s)?|platform(?:s)?|target(?:s)?|backend(?:s)?)\b|\b(?:incompatible|backwards?\s*[-\s]?incompatible|backward[-\s]?compat\w*\s+broken)\b/i;
+
+const BREAKING_DENY_RE =
+  /\b(?:removed?\s+(?:an?\s+|the\s+|some\s+|incorrect\s+|spurious\s+|bogus\s+|extra\s+|unnecessary\s+|misleading\s+|outdated\s+|obsolete\s+|erroneous\s+|stale\s+|stray\s+|leftover\s+|unused\s+|dead\s+|duplicate\s+|trailing\s+|leading\s+|verbose\s+|noisy\s+|broken\s+|debug\s+)+(?:warning|warnings|message|messages|log|logs|notice|notices|comment|comments|whitespace|space|spaces|line|lines|reference|references|test|tests|todo|todos|exception|exceptions|placeholder|placeholders|debug|deprecation|info|hint|tip)\b)|\b(?:cleanup|cleaning\s+up|removed\s+unused|removed\s+legacy\s+(?:debug|trace))\b/i;
+
 const INSTALL_RE = /\b(installer|hub|module|build support|download|license|activation)\b/i;
 const UNITY_VERSION_PREFIX_RE = /^\d{4}\.\d+\.\d+[abf]\d+$/i;
 const BLOCKER_RE = /\b(crash|data loss|corrupt|cannot open)\b/i;
+
+export function isBreakingChange(body: string): boolean {
+  if (BREAKING_DENY_RE.test(body)) return false;
+  return BREAKING_INCLUDE_RE.test(body);
+}
 
 export function extractArea(body: string): string | null {
   const match = body.match(/^([^:\n]{1,48}):\s+/);
@@ -71,7 +95,7 @@ export function classifyImpact(section: string, body: string): ImpactKind {
   }
 
   if (normalizedSection === "api changes") {
-    return BREAKING_RE.test(body) ? "breaking_change" : "api_change";
+    return isBreakingChange(body) ? "breaking_change" : "api_change";
   }
 
   if (SECURITY_RE.test(body)) {
@@ -99,7 +123,7 @@ export function classifyImpact(section: string, body: string): ImpactKind {
   }
 
   if (normalizedSection === "changes") {
-    return BREAKING_RE.test(body) ? "breaking_change" : "change";
+    return isBreakingChange(body) ? "breaking_change" : "change";
   }
 
   return "unknown";

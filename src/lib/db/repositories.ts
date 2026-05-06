@@ -6,6 +6,7 @@ import {
   type ReleaseNoteSearchFilters
 } from "../search";
 import { minorLinesBetween } from "../diff-grouping";
+import { compareUnityVersions } from "../parsers/version";
 import type { FetchedSource } from "../ingest/fetch";
 import type { normalizePackageForStorage } from "../ingest/packages";
 import type { normalizeReleaseForStorage } from "../ingest/releases";
@@ -81,9 +82,26 @@ export async function resolveDiffRange(
 
   const fromDate = fromRow.release_date;
   const toDate = toRow.release_date;
-  const reversed = (fromDate ?? "") > (toDate ?? "");
-  const lower = reversed ? toDate : fromDate;
-  const upper = reversed ? fromDate : toDate;
+
+  // Direction is determined by **semver order**, not release_date.
+  // 6000.0 LTS gets ongoing patches that ship later than 6000.3 LTS's
+  // initial release, so a date-based check would call 6000.0.74f1 →
+  // 6000.3.14f1 a "downgrade" even though it's the headline forward path.
+  // We fall back to date order only when both versions don't parse.
+  let reversed = false;
+  try {
+    reversed = compareUnityVersions(fromVersion, toVersion) > 0;
+  } catch {
+    reversed = (fromDate ?? "") > (toDate ?? "");
+  }
+  // The release_date bounds for the range scan still use chronology
+  // (we want the calendar-window of releases between the two), so when
+  // we know it's a downgrade we still need the older of the two dates
+  // as the lower bound.
+  const fromTime = fromDate ? new Date(fromDate).getTime() : 0;
+  const toTime = toDate ? new Date(toDate).getTime() : 0;
+  const lower = fromTime <= toTime ? fromDate : toDate;
+  const upper = fromTime <= toTime ? toDate : fromDate;
 
   const includedMinorLines = minorLinesBetween(fromRow.minor_line, toRow.minor_line);
 

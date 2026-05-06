@@ -31,28 +31,25 @@ const NAV: NavItem[] = [
     match: (pathname) => pathname === "/"
   },
   {
+    // Promoted to a top-level entry — this is the product's killer
+    // feature and the team review unanimously called out that hiding
+    // it under a sub-nav was the wrong call.
+    href: "/compare",
+    label: "Compare versions",
+    icon: "git-compare",
+    match: (pathname) => pathname === "/compare"
+  },
+  {
     href: "/releases",
     label: "Editor Releases",
     icon: "rocket",
-    match: (pathname) =>
-      pathname === "/releases" ||
-      pathname.startsWith("/releases/") ||
-      pathname === "/compare",
-    showSubsOn: (pathname) =>
-      pathname === "/releases" ||
-      pathname.startsWith("/releases/") ||
-      pathname === "/compare",
+    match: (pathname) => pathname === "/releases" || pathname.startsWith("/releases/"),
+    showSubsOn: (pathname) => pathname === "/releases" || pathname.startsWith("/releases/"),
     subItems: [
       {
         href: "/releases",
         label: "All releases",
         match: (p, s) => p === "/releases" && !s.get("stream")
-      },
-      {
-        href: "/compare",
-        label: "Compare versions",
-        featured: true,
-        match: (p) => p === "/compare"
       },
       {
         href: "/releases?stream=lts",

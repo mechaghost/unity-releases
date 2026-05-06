@@ -73,6 +73,29 @@ export function groupByVersion<T extends GroupableByVersion>(rows: T[]): Release
   return [...groups.values()];
 }
 
+/**
+ * Drop duplicate rows that appear within a single release. Unity sometimes
+ * re-lists the same fix or known issue inside one release-notes page, and a
+ * by-release lane should not show the same UUM twice in the same group.
+ *
+ * Across releases we keep duplicates: the same fact restated in 6000.3.13f1
+ * AND 6000.3.14f1 is information (it's a restatement we want the user to see).
+ */
+export function dedupWithinReleases<
+  T extends GroupableByVersion & { body?: string; issue_ids?: string[] }
+>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const row of rows) {
+    const issue = (row.issue_ids ?? [])[0];
+    const fingerprint = `${row.version}::${issue || `body:${shortHash(row.body ?? "")}`}`;
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    out.push(row);
+  }
+  return out;
+}
+
 // ─── Dedupe by issue ───────────────────────────────────────────
 
 export type DedupableByIssue = GroupableByVersion & {

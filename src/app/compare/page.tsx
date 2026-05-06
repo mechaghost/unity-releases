@@ -8,6 +8,7 @@ import type { ReleaseNoteSearchFilters } from "@/lib/search";
 import {
   aggregateByPackage,
   dedupeByIssue,
+  dedupWithinReleases,
   groupByVersion,
   type DedupedIssue
 } from "@/lib/diff-grouping";
@@ -331,6 +332,8 @@ export default async function ComparePage({
         </p>
       </section>
 
+      <CompareVerdict counts={counts} />
+
       <section className="summary-strip">
         <span className="summary-strip__label">Summary</span>
         {lanes
@@ -470,7 +473,11 @@ function ByReleaseLaneBody({
   totalRowCount: number;
   streamByVersion: Map<string, string | null>;
 }) {
-  const visible = rows.slice(0, ROWS_PER_LANE);
+  // Dedup intra-release repeats (Unity sometimes lists the same UUM
+  // twice in one release-notes page) before slicing — otherwise the
+  // duplicates can crowd the visible window and push real entries off.
+  const deduped = dedupWithinReleases(rows);
+  const visible = deduped.slice(0, ROWS_PER_LANE);
   const groups = groupByVersion(visible);
   return (
     <>
@@ -711,6 +718,64 @@ function formatDate(value: string | Date): string {
   });
 }
 
+type CompareCounts = {
+  totalNotes: number;
+  byImpact: Record<string, number>;
+  blockerKnownIssues: number;
+};
+
+function CompareVerdict({ counts }: { counts: CompareCounts }) {
+  const blockers = counts.blockerKnownIssues;
+  const breaking = counts.byImpact.breaking_change ?? 0;
+  const security = counts.byImpact.security_related_fix ?? 0;
+  const installRisk = counts.byImpact.install_risk ?? 0;
+  const apiChanges = counts.byImpact.api_change ?? 0;
+
+  let label: string;
+  let variant: "blocker" | "caution" | "review" | "success";
+  let icon: "alert-octagon" | "alert-triangle" | "info" | "check";
+  let detail: string;
+
+  if (blockers > 0) {
+    variant = "blocker";
+    icon = "alert-octagon";
+    label = "Hold";
+    detail = `${blockers} active known blocker${blockers === 1 ? "" : "s"} on the path. Verify each before upgrading.`;
+  } else if (breaking + security >= 25 || breaking >= 50) {
+    variant = "caution";
+    icon = "alert-triangle";
+    label = "Heavy review";
+    detail = `${breaking} breaking change${breaking === 1 ? "" : "s"}${
+      security ? ` and ${security} security item${security === 1 ? "" : "s"}` : ""
+    } — plan a sustained migration window.`;
+  } else if (breaking > 0 || apiChanges > 0 || installRisk > 0 || security > 0) {
+    variant = "review";
+    icon = "alert-triangle";
+    label = "Review";
+    const parts: string[] = [];
+    if (breaking) parts.push(`${breaking} breaking`);
+    if (apiChanges) parts.push(`${apiChanges} API change${apiChanges === 1 ? "" : "s"}`);
+    if (security) parts.push(`${security} security`);
+    if (installRisk) parts.push(`${installRisk} install/platform`);
+    detail = `${parts.join(" · ")}. No active blockers; expect targeted code changes.`;
+  } else {
+    variant = "success";
+    icon = "check";
+    label = "Likely safe";
+    detail = `No active blockers, no breaking changes, no security items. ${counts.totalNotes.toLocaleString()} note${
+      counts.totalNotes === 1 ? "" : "s"
+    } in range.`;
+  }
+
+  return (
+    <div className={`compare-verdict compare-verdict--${variant}`} role="status" aria-live="polite">
+      <Icon name={icon} size={18} />
+      <span className="compare-verdict__label">{label}</span>
+      <span className="compare-verdict__detail">{detail}</span>
+    </div>
+  );
+}
+
 function ComparePicker({
   fromVersion,
   toVersion,
@@ -722,34 +787,62 @@ function ComparePicker({
   releases: { version: string; stream: string | null; release_date: string | null }[];
   children?: React.ReactNode;
 }) {
+  // A single shared <datalist> drives substring autocomplete on both inputs.
+  // Native <select> with 200 versions has no search at all; <input list>
+  // gives the user proper type-to-filter without a JS combobox dependency.
+  const datalistId = "compare-picker-versions";
+  const swapHref =
+    fromVersion && toVersion
+      ? `/compare?from=${encodeURIComponent(toVersion)}&to=${encodeURIComponent(fromVersion)}`
+      : "";
+
   return (
     <>
       <form className="compare-picker" method="get" action="/compare">
+        <datalist id={datalistId}>
+          {releases.map((r) => (
+            <option key={r.version} value={r.version}>
+              {r.stream ? `${r.stream} · ${r.release_date ? formatDate(r.release_date) : ""}` : ""}
+            </option>
+          ))}
+        </datalist>
+
         <label>
           <span>From</span>
-          <select name="from" defaultValue={fromVersion}>
-            <option value="">Select…</option>
-            {releases.map((r) => (
-              <option key={r.version} value={r.version}>
-                {r.version} {r.stream ? `· ${r.stream}` : ""}
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            name="from"
+            list={datalistId}
+            defaultValue={fromVersion}
+            placeholder="Type a version…"
+            autoComplete="off"
+            spellCheck={false}
+          />
         </label>
-        <button type="button" className="compare-picker__swap" aria-label="Swap from and to" disabled>
-          <Icon name="arrows-left-right" size={16} />
-        </button>
+
+        {swapHref ? (
+          <a className="compare-picker__swap" href={swapHref} aria-label="Swap from and to" title="Swap from and to">
+            <Icon name="arrows-left-right" size={16} />
+          </a>
+        ) : (
+          <button type="button" className="compare-picker__swap" aria-label="Swap from and to" disabled>
+            <Icon name="arrows-left-right" size={16} />
+          </button>
+        )}
+
         <label>
           <span>To</span>
-          <select name="to" defaultValue={toVersion}>
-            <option value="">Select…</option>
-            {releases.map((r) => (
-              <option key={r.version} value={r.version}>
-                {r.version} {r.stream ? `· ${r.stream}` : ""}
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            name="to"
+            list={datalistId}
+            defaultValue={toVersion}
+            placeholder="Type a version…"
+            autoComplete="off"
+            spellCheck={false}
+          />
         </label>
+
         <button type="submit" className="btn btn--primary compare-picker__go">
           <Icon name="git-compare" size={14} />
           Compare
