@@ -1,6 +1,7 @@
 import { filtersFromSearchParams } from "@/lib/api";
 import { listReleaseNoteFacets, searchReleaseNotes } from "@/lib/db/repositories";
 import { cleanReleaseNoteText } from "@/lib/release-notes/format";
+import { streamLabel } from "@/lib/stream-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +103,7 @@ export default async function ExplorerPage({
                 <option value="">Any stream</option>
                 {facets.streams.map((stream) => (
                   <option value={stream} key={stream}>
-                    {stream}
+                    {streamLabel(stream)}
                   </option>
                 ))}
               </select>
@@ -328,7 +329,7 @@ function activeFilterLabels(filters: ReturnType<typeof filtersFromSearchParams>)
     filters.q ? `Search: ${filters.q}` : "",
     filters.version ? `Version: ${filters.version}` : "",
     filters.minorLine ? `Line: ${filters.minorLine}` : "",
-    filters.stream ? `Stream: ${filters.stream}` : "",
+    filters.stream ? `Stream: ${streamLabel(filters.stream)}` : "",
     filters.section ? `Section: ${filters.section}` : "",
     filters.area ? `Area: ${filters.area}` : "",
     filters.platform ? `Platform: ${filters.platform}` : "",

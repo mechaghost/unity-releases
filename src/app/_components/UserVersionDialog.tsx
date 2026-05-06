@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { setUserVersionAction } from "../_actions/user-version";
 import { Icon } from "./Icon";
+import { streamLabel } from "@/lib/stream-labels";
 
 export const VERSION_DIALOG_ID = "user-version-dialog";
 
@@ -133,6 +134,5 @@ function groupByStream(versions: DialogRelease[]) {
 }
 
 function prettyStream(s: string): string {
-  if (s === "Update/Supported") return "Update / Supported";
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return streamLabel(s) || s.charAt(0).toUpperCase() + s.slice(1);
 }

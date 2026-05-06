@@ -15,6 +15,7 @@ import {
   type DedupedIssue
 } from "@/lib/diff-grouping";
 import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
+import { streamLabel, streamListLabel } from "@/lib/stream-labels";
 import { getUserPackages } from "@/lib/user-packages";
 import { getUserVersion } from "@/lib/user-version";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
@@ -255,14 +256,14 @@ export default async function ComparePage({
           {streamFilter.length === 0 ? (
             <>
               <h2>No streams selected</h2>
-              <p>Re-check at least one stream (LTS / Update / Beta / Alpha) in the left sidebar to see what changed.</p>
+              <p>Re-check at least one stream (LTS / Supported / Beta / Alpha) in the left sidebar to see what changed.</p>
             </>
           ) : (
             <>
               <h2>No releases in range</h2>
               <p>
                 Nothing falls between <code>{fromVersion}</code> and <code>{toVersion}</code> with the streams you have
-                checked in the sidebar ({streamFilter.join(" + ")}). Try widening your selection.
+                checked in the sidebar ({streamListLabel(streamFilter)}). Try widening your selection.
               </p>
             </>
           )}
@@ -356,7 +357,7 @@ export default async function ComparePage({
         <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
           {range.includedStreams.length > 0 ? (
             <>
-              Scoped to {range.includedStreams.join(" + ")} on{" "}
+              Scoped to {streamListLabel(range.includedStreams)} on{" "}
               {range.includedMinorLines.length === 1
                 ? range.includedMinorLines[0]
                 : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}{" "}
@@ -1008,7 +1009,7 @@ function ComparePicker({
         <datalist id={datalistId}>
           {releases.map((r) => (
             <option key={r.version} value={r.version}>
-              {r.stream ? `${r.stream} · ${r.release_date ? formatDate(r.release_date) : ""}` : ""}
+              {r.stream ? `${streamLabel(r.stream)} · ${r.release_date ? formatDate(r.release_date) : ""}` : ""}
             </option>
           ))}
         </datalist>

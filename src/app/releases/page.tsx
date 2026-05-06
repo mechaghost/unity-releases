@@ -1,5 +1,6 @@
 import { listReleases } from "@/lib/db/repositories";
 import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
+import { streamLabel } from "@/lib/stream-labels";
 import { getUserVersion } from "@/lib/user-version";
 import { VersionPill } from "../_components/VersionPill";
 import { ExternalLink } from "../_components/ExternalLink";
@@ -53,7 +54,7 @@ export default async function ReleasesPage({
       <nav className="filter-bar" aria-label="Stream filter">
         <FilterLink href="/releases" active={!streamFilter} label="All" />
         <FilterLink href="/releases?stream=lts" active={streamFilter === "lts"} label="LTS" />
-        <FilterLink href="/releases?stream=update" active={streamFilter === "update"} label="Update/Supported" />
+        <FilterLink href="/releases?stream=update" active={streamFilter === "update"} label="Supported" />
         <FilterLink href="/releases?stream=beta" active={streamFilter === "beta"} label="Beta" />
         <FilterLink href="/releases?stream=alpha" active={streamFilter === "alpha"} label="Alpha" />
       </nav>
@@ -75,7 +76,7 @@ export default async function ReleasesPage({
                 <VersionPill version={release.version} stream={release.stream} />
               </td>
               <td>
-                <span className="muted">{release.stream ?? "—"}</span>
+                <span className="muted">{streamLabel(release.stream) || "—"}</span>
               </td>
               <td>
                 <span className="muted">{release.release_date ? formatDate(release.release_date) : "—"}</span>

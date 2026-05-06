@@ -3,10 +3,11 @@
 import { useTransition, type FormEvent } from "react";
 import { setStreamFilterAction } from "../_actions/stream-filter";
 import type { StreamName } from "@/lib/stream-filter";
+import { streamLabel } from "@/lib/stream-labels";
 
 const OPTIONS: { value: StreamName; label: string }[] = [
   { value: "LTS", label: "LTS" },
-  { value: "Update/Supported", label: "Update" },
+  { value: "Update/Supported", label: streamLabel("Update/Supported") },
   { value: "beta", label: "Beta" },
   { value: "alpha", label: "Alpha" }
 ];

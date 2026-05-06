@@ -4,6 +4,7 @@ import { riskLabel, RISK_LABELS } from "../../src/app/_components/RiskBadge";
 import { streamMark } from "../../src/app/_components/VersionPill";
 import { isUnityExternalHref } from "../../src/app/_components/ExternalLink";
 import { issueTrackerHref } from "../../src/app/_components/IssuePill";
+import { streamLabel, streamListLabel } from "../../src/lib/stream-labels";
 
 // ─── impactLabel ───────────────────────────────────────────────
 
@@ -103,6 +104,20 @@ describe("streamMark", () => {
     expect(streamMark(null)).toBe("U");
     expect(streamMark(undefined)).toBe("U");
     expect(streamMark("")).toBe("U");
+  });
+});
+
+// ─── streamLabel ───────────────────────────────────────────────
+
+describe("streamLabel", () => {
+  test("shows the user-facing name for the canonical supported stream", () => {
+    expect(streamLabel("Update/Supported")).toBe("Supported");
+    expect(streamListLabel(["LTS", "Update/Supported", "beta"])).toBe("LTS + Supported + Beta");
+  });
+
+  test("falls back to the stored stream name when no display override exists", () => {
+    expect(streamLabel("LTS")).toBe("LTS");
+    expect(streamLabel(null)).toBe("");
   });
 });
 

@@ -1,5 +1,6 @@
 import { getRelease, searchReleaseNotes } from "@/lib/db/repositories";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
+import { streamLabel } from "@/lib/stream-labels";
 import { VersionPill } from "../../_components/VersionPill";
 import { ImpactPill } from "../../_components/ImpactPill";
 import { RiskBadge } from "../../_components/RiskBadge";
@@ -134,7 +135,7 @@ export default async function ReleasePage({
         </div>
         {release ? (
           <p>
-            {release.stream}
+            {streamLabel(release.stream)}
             {release.release_date ? <> · Released {formatDate(release.release_date)}</> : null}
             {release.changeset ? <> · Changeset {release.changeset}</> : null}
             {" · "}

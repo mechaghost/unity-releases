@@ -1,3 +1,5 @@
+import { streamLabel } from "@/lib/stream-labels";
+
 type VersionPillProps = {
   version: string;
   stream?: string | null;
@@ -23,15 +25,16 @@ export function streamMark(stream?: string | null): string {
 export function VersionPill({ version, stream, href }: VersionPillProps) {
   const target = href === undefined ? `/releases/${encodeURIComponent(version)}` : href;
   const mark = streamMark(stream);
+  const label = streamLabel(stream);
   if (target) {
     return (
-      <a className="chip chip--version" href={target} data-stream={mark} title={`${version}${stream ? ` · ${stream}` : ""}`}>
+      <a className="chip chip--version" href={target} data-stream={mark} title={`${version}${label ? ` · ${label}` : ""}`}>
         {version}
       </a>
     );
   }
   return (
-    <span className="chip chip--version" data-stream={mark} title={`${version}${stream ? ` · ${stream}` : ""}`}>
+    <span className="chip chip--version" data-stream={mark} title={`${version}${label ? ` · ${label}` : ""}`}>
       {version}
     </span>
   );
