@@ -85,26 +85,17 @@ export default async function HomePage() {
           seeMoreLabel="All packages"
           items={packages}
           renderItem={(pkg) => (
-            <article className="row" key={pkg.name}>
-              <span className="row__lead">
-                <span className="muted">pkg</span>
+            <article className="package-row" key={pkg.name}>
+              <a className="package-row__name link-internal" href={`/packages/${encodeURIComponent(pkg.name)}`}>
+                <strong>{pkg.display_name ?? pkg.name}</strong>
+                <span className="muted package-row__id">{pkg.name}</span>
+              </a>
+              <span className="chip chip--package tabnums package-row__version">
+                {pkg.latest_version ?? "—"}
               </span>
-              <div className="row__body">
-                <div className="row__title">
-                  <a className="link-internal" href={`/packages/${encodeURIComponent(pkg.name)}`}>
-                    {pkg.display_name ?? pkg.name}
-                  </a>
-                  <span className="muted"> · {pkg.name}</span>
-                </div>
-                <div className="row__pills">
-                  <span className="chip chip--package">{pkg.latest_version ?? "—"}</span>
-                  {pkg.latest_published_at ? (
-                    <span className="muted" style={{ fontSize: 12 }}>
-                      {formatDate(pkg.latest_published_at)}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
+              <span className="package-row__date muted tabnums">
+                {pkg.latest_published_at ? formatDate(pkg.latest_published_at) : "—"}
+              </span>
             </article>
           )}
         />
