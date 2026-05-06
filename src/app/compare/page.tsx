@@ -221,7 +221,7 @@ export default async function ComparePage({
     );
   }
 
-  const range = await resolveDiffRange(fromVersion, toVersion);
+  const range = await resolveDiffRange(fromVersion, toVersion, streamFilter);
   if (!range) {
     return (
       <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases}>
@@ -237,10 +237,20 @@ export default async function ComparePage({
     return (
       <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases}>
         <div className="empty-state">
-          <h2>Same version</h2>
-          <p>
-            <code>{fromVersion}</code> and <code>{toVersion}</code> are identical or have the same release date.
-          </p>
+          {streamFilter.length === 0 ? (
+            <>
+              <h2>No streams selected</h2>
+              <p>Re-check at least one stream (LTS / Update / Beta / Alpha) in the left sidebar to see what changed.</p>
+            </>
+          ) : (
+            <>
+              <h2>No releases in range</h2>
+              <p>
+                Nothing falls between <code>{fromVersion}</code> and <code>{toVersion}</code> with the streams you have
+                checked in the sidebar ({streamFilter.join(" + ")}). Try widening your selection.
+              </p>
+            </>
+          )}
         </div>
       </ComparePicker>
     );
@@ -301,11 +311,17 @@ export default async function ComparePage({
           ) : null}
         </p>
         <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
-          Scoped to {range.includedStreams.join(" + ")} on{" "}
-          {range.includedMinorLines.length === 1
-            ? range.includedMinorLines[0]
-            : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}{" "}
-          to keep the diff focused on the upgrade path. Cross-stream prereleases and unrelated minor lines are excluded.
+          {range.includedStreams.length > 0 ? (
+            <>
+              Scoped to {range.includedStreams.join(" + ")} on{" "}
+              {range.includedMinorLines.length === 1
+                ? range.includedMinorLines[0]
+                : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}{" "}
+              from your sidebar streams. Toggle streams in the left nav to broaden or narrow the diff.
+            </>
+          ) : (
+            <>No streams selected in the sidebar — re-check at least one to see results.</>
+          )}
         </p>
       </section>
 

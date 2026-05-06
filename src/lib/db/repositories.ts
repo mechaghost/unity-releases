@@ -35,24 +35,11 @@ export type DiffRangeBounds = {
   toDate: string | null;
   versions: string[];
   reversed: boolean;
-  /** Streams that were considered relevant given the destination. */
+  /** Streams that were actually used to scope the range. */
   includedStreams: string[];
   /** Minor lines included (e.g. "6000.0", "6000.1"). */
   includedMinorLines: string[];
 };
-
-/**
- * Streams to include when computing a diff into a destination of the given stream.
- * - Going to alpha     → include everything
- * - Going to beta      → include beta + stables (but not alpha)
- * - Going to a stable  → include only stables (no alpha/beta noise)
- */
-function streamsRelevantForDestination(toStream: string | null): string[] {
-  const s = (toStream ?? "").toLowerCase();
-  if (s === "alpha") return ["alpha", "beta", "Update/Supported", "LTS", "patch"];
-  if (s === "beta") return ["beta", "Update/Supported", "LTS", "patch"];
-  return ["Update/Supported", "LTS", "patch"];
-}
 
 /**
  * Minor lines on the path from `from` to `to`.
@@ -81,8 +68,9 @@ function minorLinesBetween(fromMinor: string, toMinor: string): string[] {
  *
  * Two filters are applied to avoid bringing in noise that wouldn't matter
  * for an upgrade decision:
- *   1. **Stream filter** — only include streams compatible with the target
- *      (a stable destination skips alpha/beta entirely).
+ *   1. **Stream filter** — caller-supplied. The compare page passes the
+ *      user's sidebar checkboxes here so the entire app honors the same
+ *      "what streams am I tracking?" preference.
  *   2. **Minor-line filter** — only include minor lines on the path from
  *      `from` to `to` (so a 6000.3 → 6000.5 diff doesn't pick up 6000.6
  *      alphas that happened to ship during the same calendar window).
@@ -91,7 +79,8 @@ function minorLinesBetween(fromMinor: string, toMinor: string): string[] {
  */
 export async function resolveDiffRange(
   fromVersion: string,
-  toVersion: string
+  toVersion: string,
+  allowedStreams: string[]
 ): Promise<DiffRangeBounds | null> {
   const result = await query<{
     version: string;
@@ -117,8 +106,23 @@ export async function resolveDiffRange(
   const lower = reversed ? toDate : fromDate;
   const upper = reversed ? fromDate : toDate;
 
-  const includedStreams = streamsRelevantForDestination(toRow.stream);
   const includedMinorLines = minorLinesBetween(fromRow.minor_line, toRow.minor_line);
+
+  // If the sidebar has unchecked everything we still need a non-empty
+  // ANY() argument; an empty array would make the query return no rows.
+  // Treat that as "no streams allowed → empty range" by short-circuiting.
+  if (allowedStreams.length === 0) {
+    return {
+      fromVersion,
+      toVersion,
+      fromDate,
+      toDate,
+      versions: [],
+      reversed,
+      includedStreams: [],
+      includedMinorLines
+    };
+  }
 
   const versions = await query<{ version: string }>(
     `
@@ -134,7 +138,7 @@ export async function resolveDiffRange(
     [
       lower ?? new Date(0).toISOString(),
       upper ?? new Date().toISOString(),
-      includedStreams,
+      allowedStreams,
       includedMinorLines
     ]
   );
@@ -146,7 +150,7 @@ export async function resolveDiffRange(
     toDate,
     versions: versions.rows.map((r) => r.version),
     reversed,
-    includedStreams,
+    includedStreams: allowedStreams,
     includedMinorLines
   };
 }
