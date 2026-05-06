@@ -137,7 +137,7 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
             <tbody>
               {filtered.map((pkg) => (
                 <tr key={pkg.name}>
-                  <td title={pkg.description ?? undefined}>
+                  <td>
                     <strong>{pkg.display_name ?? pkg.name}</strong>
                     <div className="muted package-table__name">{pkg.name}</div>
                   </td>
