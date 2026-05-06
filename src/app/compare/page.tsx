@@ -363,21 +363,22 @@ export default async function ComparePage({
         </p>
       </section>
 
-      <CompareFacts counts={counts} />
-
-      <div className="compare-actions">
-        <CopyMarkdownButton
-          text={composeCompareBriefMarkdown({
-            fromVersion,
-            toVersion,
-            reversed: range.reversed,
-            includedStreams: range.includedStreams,
-            includedMinorLines: range.includedMinorLines,
-            counts,
-            lanes
-          })}
-        />
-      </div>
+      <CompareFacts
+        counts={counts}
+        action={
+          <CopyMarkdownButton
+            text={composeCompareBriefMarkdown({
+              fromVersion,
+              toVersion,
+              reversed: range.reversed,
+              includedStreams: range.includedStreams,
+              includedMinorLines: range.includedMinorLines,
+              counts,
+              lanes
+            })}
+          />
+        }
+      />
 
       <section className="summary-strip">
         <span className="summary-strip__label">Summary</span>
@@ -817,7 +818,7 @@ type CompareCounts = {
   blockerKnownIssues: number;
 };
 
-function CompareFacts({ counts }: { counts: CompareCounts }) {
+function CompareFacts({ counts, action }: { counts: CompareCounts; action?: React.ReactNode }) {
   const breaking = counts.byImpact.breaking_change ?? 0;
   const apiChanges = counts.byImpact.api_change ?? 0;
   const security = counts.byImpact.security_related_fix ?? 0;
@@ -834,9 +835,12 @@ function CompareFacts({ counts }: { counts: CompareCounts }) {
 
   return (
     <section className="compare-facts" aria-label="Diff facts">
-      <div className="compare-facts__heading">
-        <Icon name="info" size={18} />
-        <span>Diff facts</span>
+      <div className="compare-facts__top">
+        <div className="compare-facts__heading">
+          <Icon name="info" size={18} />
+          <span>Diff facts</span>
+        </div>
+        {action ? <div className="compare-facts__actions">{action}</div> : null}
       </div>
       <div className="compare-facts__grid">
         {facts.map((fact) => (
