@@ -391,7 +391,13 @@ export default async function ComparePage({
             .map((l) => (
               <a
                 key={l.def.id}
-                href={`#lane-${l.def.id}`}
+                href={compareLaneHref({
+                  fromVersion,
+                  toVersion,
+                  platform,
+                  expanded: expandedOverrides,
+                  laneId: l.def.id
+                })}
                 className={`summary-item summary-item--${l.def.variant}`}
               >
                 <span className="summary-item__label">{l.def.title}</span>
@@ -815,6 +821,25 @@ function formatDate(value: string | Date): string {
     month: "short",
     day: "numeric"
   });
+}
+
+function compareLaneHref(input: {
+  fromVersion: string;
+  toVersion: string;
+  platform: string;
+  expanded: Set<string>;
+  laneId: LaneId;
+}) {
+  const params = new URLSearchParams();
+  params.set("from", input.fromVersion);
+  params.set("to", input.toVersion);
+  if (input.platform) params.set("platform", input.platform);
+
+  const expanded = new Set(input.expanded);
+  expanded.add(input.laneId);
+  params.set("expand", Array.from(expanded).join(","));
+
+  return `/compare?${params.toString()}#lane-${input.laneId}`;
 }
 
 type CompareCounts = {
