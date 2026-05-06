@@ -25,7 +25,6 @@ import { ImpactPill } from "../_components/ImpactPill";
 import { RiskBadge } from "../_components/RiskBadge";
 import { VersionPill } from "../_components/VersionPill";
 import { Icon } from "../_components/Icon";
-import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
 
 export const dynamic = "force-dynamic";
 
@@ -369,22 +368,7 @@ export default async function ComparePage({
         </p>
       </section>
 
-      <CompareFacts
-        counts={counts}
-        action={
-          <CopyMarkdownButton
-            text={composeCompareBriefMarkdown({
-              fromVersion,
-              toVersion,
-              reversed: range.reversed,
-              includedStreams: range.includedStreams,
-              includedMinorLines: range.includedMinorLines,
-              counts,
-              lanes
-            })}
-          />
-        }
-      />
+      <CompareFacts counts={counts} />
 
       <section className="summary-strip" id="compare-categories">
         <div className="summary-strip__head">
@@ -963,7 +947,7 @@ type CompareCounts = {
   blockerKnownIssues: number;
 };
 
-function CompareFacts({ counts, action }: { counts: CompareCounts; action?: React.ReactNode }) {
+function CompareFacts({ counts }: { counts: CompareCounts }) {
   const breaking = counts.byImpact.breaking_change ?? 0;
   const apiChanges = counts.byImpact.api_change ?? 0;
   const security = counts.byImpact.security_related_fix ?? 0;
@@ -985,7 +969,6 @@ function CompareFacts({ counts, action }: { counts: CompareCounts; action?: Reac
           <Icon name="info" size={18} />
           <span>Diff facts</span>
         </div>
-        {action ? <div className="compare-facts__actions">{action}</div> : null}
       </div>
       <div className="compare-facts__grid">
         {facts.map((fact) => (
@@ -997,117 +980,6 @@ function CompareFacts({ counts, action }: { counts: CompareCounts; action?: Reac
       </div>
     </section>
   );
-}
-
-// ─── Compare markdown export ────────────────────────────
-
-function composeCompareBriefMarkdown(input: {
-  fromVersion: string;
-  toVersion: string;
-  reversed: boolean;
-  includedStreams: string[];
-  includedMinorLines: string[];
-  counts: CompareCounts;
-  lanes: Array<{ def: LaneDef; fetchedRows: ReleaseNoteRow[]; totalCount: number }>;
-}): string {
-  const { fromVersion, toVersion, reversed, includedStreams, includedMinorLines, counts, lanes } =
-    input;
-
-  const out: string[] = [];
-  out.push(`# Unity release diff: \`${fromVersion}\` → \`${toVersion}\``);
-  out.push("");
-
-  // Header table
-  out.push("| | |");
-  out.push("|--|--|");
-  if (reversed) out.push(`| Direction | downgrade |`);
-  out.push(`| Total release notes in range | ${counts.totalNotes.toLocaleString()} |`);
-  out.push(`| Active known blockers | ${counts.blockerKnownIssues.toLocaleString()} |`);
-  out.push(`| Breaking changes | ${(counts.byImpact.breaking_change ?? 0).toLocaleString()} |`);
-  out.push(`| API changes | ${(counts.byImpact.api_change ?? 0).toLocaleString()} |`);
-  out.push(`| Security items | ${(counts.byImpact.security_related_fix ?? 0).toLocaleString()} |`);
-  out.push(`| Install/platform items | ${(counts.byImpact.install_risk ?? 0).toLocaleString()} |`);
-  if (includedStreams.length) {
-    const lineRange =
-      includedMinorLines.length === 1
-        ? includedMinorLines[0]
-        : `${includedMinorLines[0]}–${includedMinorLines[includedMinorLines.length - 1]}`;
-    out.push(`| Scope | ${includedStreams.join(" + ")} on ${lineRange} |`);
-  }
-  out.push("");
-
-  // Counts row
-  out.push("## Summary");
-  for (const lane of lanes) {
-    if (lane.totalCount === 0) continue;
-    out.push(`- **${lane.totalCount.toLocaleString()}** ${lane.def.title.toLowerCase()}`);
-  }
-  out.push("");
-
-  // Per-lane bullets — only show lanes with content, capped per lane
-  const PER_LANE = 10;
-  for (const lane of lanes) {
-    if (lane.totalCount === 0) continue;
-    out.push(`## ${lane.def.title}`);
-    out.push("");
-    if (lane.def.mode === "by-package") {
-      const aggregated = aggregateByPackage(lane.fetchedRows).slice(0, PER_LANE);
-      if (aggregated.length === 0) {
-        out.push("_No packages mentioned in this lane._");
-      } else {
-        for (const item of aggregated) {
-          const range =
-            item.firstVersion === item.lastVersion
-              ? `in \`${item.firstVersion}\``
-              : `\`${item.firstVersion}\` → \`${item.lastVersion}\``;
-          out.push(`- \`${item.packageName}\` — ${item.mentionCount} mention${
-            item.mentionCount === 1 ? "" : "s"
-          }, ${range}`);
-        }
-      }
-    } else if (lane.def.mode === "by-issue") {
-      const deduped = dedupeByIssue(lane.fetchedRows).slice(0, PER_LANE);
-      if (deduped.length === 0) {
-        out.push("_None._");
-      } else {
-        for (const item of deduped) {
-          const issueId = (item.primary.issue_ids ?? [])[0];
-          const head = issueId ? `**${issueId}**` : "_(no issue id)_";
-          const range =
-            item.firstVersion === item.lastVersion
-              ? `\`${item.firstVersion}\``
-              : `\`${item.firstVersion}\` → \`${item.lastVersion}\``;
-          out.push(`- ${head} — ${cleanReleaseNoteText(item.primary.body ?? "")}`);
-          out.push(`  - Seen ${range} (${item.mentionCount} mention${
-            item.mentionCount === 1 ? "" : "s"
-          })`);
-        }
-      }
-    } else {
-      const visible = dedupWithinReleases(lane.fetchedRows).slice(0, PER_LANE);
-      if (visible.length === 0) {
-        out.push("_None._");
-      } else {
-        for (const row of visible) {
-          const id = (row.issue_ids ?? [])[0];
-          const head = id ? `**${id}** — ` : "";
-          out.push(`- \`${row.version}\` · ${head}${cleanReleaseNoteText(row.body ?? "")}`);
-        }
-      }
-    }
-    if (lane.totalCount > PER_LANE) {
-      out.push(`- _…and ${(lane.totalCount - PER_LANE).toLocaleString()} more in this lane._`);
-    }
-    out.push("");
-  }
-
-  out.push("---");
-  out.push(
-    `_Generated by Unity Alerts. View full diff: /compare?from=${encodeURIComponent(
-      fromVersion
-    )}&to=${encodeURIComponent(toVersion)}_`
-  );
-  return out.join("\n");
 }
 
 function ComparePicker({
