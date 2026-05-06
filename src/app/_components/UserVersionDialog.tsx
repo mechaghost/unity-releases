@@ -54,7 +54,6 @@ export function UserVersionDialog({ versions, currentVersion, autoOpen }: Props)
   return (
     <dialog ref={ref} id={VERSION_DIALOG_ID} className="version-dialog" aria-labelledby="user-version-dialog-title">
       <form
-        method="dialog"
         action={setUserVersionAction}
         onSubmit={() => {
           // Optimistically close after the action fires.
