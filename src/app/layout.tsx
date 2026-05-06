@@ -1,30 +1,32 @@
 import type { ReactNode } from "react";
 import "./styles.css";
+import { LeftNav } from "./_components/LeftNav";
+import { TopBar } from "./_components/TopBar";
+import { NoFlashScript } from "./_components/NoFlashScript";
 
 export const metadata = {
   title: "Unity Alerts",
-  description: "Unity 6 release, package, and release-note tracking."
+  description: "Unity 6 release, package, and release-note intelligence dashboard."
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <NoFlashScript />
+      </head>
       <body>
-        <header className="topbar">
-          <a href="/" className="brand">
-            Unity Alerts
-          </a>
-          <nav>
-            <a href="/">Today</a>
-            <a href="/releases">Editor Releases</a>
-            <a href="/packages">Packages</a>
-            <a href="/explorer">Release Notes</a>
-            <a href="/upgrade">Upgrade Review</a>
-            <a href="/watch">Feeds</a>
-            <a href="/news">News</a>
-          </nav>
-        </header>
-        <main>{children}</main>
+        <div className="app-shell">
+          <aside className="app-shell__nav" aria-label="Primary navigation">
+            <LeftNav />
+          </aside>
+          <div className="app-shell__main">
+            <TopBar />
+            <main className="app-shell__content" id="main">
+              {children}
+            </main>
+          </div>
+        </div>
       </body>
     </html>
   );
