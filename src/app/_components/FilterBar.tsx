@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   EMPTY_FILTERS,
+  PIPELINE_LABELS,
   activeFilterCount,
   serializeFiltersToParams,
-  type FilterState
+  type FilterState,
+  type PipelineId
 } from "@/lib/filters";
 import { LANE_CATALOG, type LaneId } from "@/lib/lane-catalog";
 import { FilterDrawer } from "./FilterDrawer";
@@ -14,7 +16,11 @@ import { Icon } from "./Icon";
 
 type Props = {
   filters: FilterState;
-  facets: { platforms: Array<{ value: string; count: number }>; packages: Array<{ value: string; count: number }> };
+  facets: {
+    platforms: Array<{ value: string; count: number }>;
+    packages: Array<{ value: string; count: number }>;
+    areas: Array<{ value: string; count: number }>;
+  };
   manifestPackages: readonly string[];
   preservedParams: Record<string, string>;
   basePath: string;
@@ -130,6 +136,21 @@ function ChipRow({
       remove: () => onChange({ ...filters, packages: filters.packages.filter((p) => p !== pkg) })
     });
   }
+  for (const area of filters.areas) {
+    chips.push({
+      key: `area:${area}`,
+      label: area,
+      remove: () => onChange({ ...filters, areas: filters.areas.filter((a) => a !== area) })
+    });
+  }
+  for (const pipeline of filters.pipelines) {
+    chips.push({
+      key: `pipeline:${pipeline}`,
+      label: PIPELINE_LABELS[pipeline as PipelineId] ?? pipeline,
+      remove: () =>
+        onChange({ ...filters, pipelines: filters.pipelines.filter((p) => p !== pipeline) })
+    });
+  }
   if (filters.manifestOnly) {
     chips.push({
       key: "manifest",
@@ -142,6 +163,13 @@ function ChipRow({
       key: "tracker",
       label: "Has tracker link",
       remove: () => onChange({ ...filters, hasTracker: false })
+    });
+  }
+  if (filters.hideNoise) {
+    chips.push({
+      key: "hide_noise",
+      label: "Hide noise",
+      remove: () => onChange({ ...filters, hideNoise: false })
     });
   }
 

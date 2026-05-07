@@ -6,11 +6,14 @@ import {
   ALL_LANE_IDS,
   EMPTY_FILTERS,
   PERSONA_PRESETS,
+  PIPELINES,
+  PIPELINE_LABELS,
   RISK_LEVELS,
   presetState,
   serializeFiltersToParams,
   type FilterState,
   type PersonaPreset,
+  type PipelineId,
   type RiskLevel
 } from "@/lib/filters";
 import { LANE_CATALOG, type LaneId } from "@/lib/lane-catalog";
@@ -25,7 +28,7 @@ type Props = {
   /** Read-only initial state, taken from the URL on the server. */
   initial: FilterState;
   /** Available facet values within the current view scope. */
-  facets: { platforms: FacetOption[]; packages: FacetOption[] };
+  facets: { platforms: FacetOption[]; packages: FacetOption[]; areas: FacetOption[] };
   /** The user's saved manifest packages (for the "Affects my team" toggle). */
   manifestPackages: readonly string[];
   /** Static URL params that must be preserved on apply (from, to, p_<lane> …). */
@@ -201,6 +204,42 @@ export function FilterDrawer({
             />
           </Section>
 
+          <Section title="Render pipeline">
+            <FacetChips
+              options={PIPELINES.map((id) => ({
+                value: id,
+                count: 0,
+                label: PIPELINE_LABELS[id]
+              }))}
+              selected={state.pipelines}
+              onToggle={(value) =>
+                setState({
+                  ...state,
+                  pipelines: toggleListItem(state.pipelines, value as PipelineId)
+                })
+              }
+              hideZeroCount
+            />
+          </Section>
+
+          {facets.areas.length > 0 ? (
+            <Section title="Feature areas" hint={`${facets.areas.length} in scope`}>
+              <FacetChips
+                options={facets.areas.slice(0, 60)}
+                selected={state.areas}
+                onToggle={(value) =>
+                  setState({ ...state, areas: toggleListItem(state.areas, value) })
+                }
+              />
+              {facets.areas.length > 60 ? (
+                <p className="filter-section__hint">
+                  Showing top 60 of {facets.areas.length} areas — use Search above
+                  to narrow.
+                </p>
+              ) : null}
+            </Section>
+          ) : null}
+
           {facets.platforms.length > 0 ? (
             <Section title="Platforms" hint={`${facets.platforms.length} in scope`}>
               <FacetChips
@@ -245,6 +284,11 @@ export function FilterDrawer({
           </Section>
 
           <Section title="Other">
+            <Toggle
+              checked={state.hideNoise}
+              onChange={(checked) => setState({ ...state, hideNoise: checked })}
+              label="Hide noise (docs, untagged, other changes)"
+            />
             <Toggle
               checked={state.hasTracker}
               onChange={(checked) => setState({ ...state, hasTracker: checked })}
@@ -357,11 +401,15 @@ function CheckboxGrid({
 function FacetChips({
   options,
   selected,
-  onToggle
+  onToggle,
+  hideZeroCount
 }: {
-  options: FacetOption[];
+  options: Array<FacetOption & { label?: string }>;
   selected: readonly string[];
   onToggle: (value: string) => void;
+  /** When true, omit the count badge on each chip (useful for derived
+   *  facets like render-pipeline scope where the count isn't precomputed). */
+  hideZeroCount?: boolean;
 }) {
   const sel = new Set(selected);
   if (options.length === 0) {
@@ -379,10 +427,12 @@ function FacetChips({
             onClick={() => onToggle(opt.value)}
             aria-pressed={active}
           >
-            {opt.value}
-            <span className="filter-facet-chip__count tabnums">
-              {opt.count.toLocaleString()}
-            </span>
+            {opt.label ?? opt.value}
+            {!hideZeroCount ? (
+              <span className="filter-facet-chip__count tabnums">
+                {opt.count.toLocaleString()}
+              </span>
+            ) : null}
           </button>
         );
       })}

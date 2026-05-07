@@ -4,7 +4,7 @@ export type ReleaseNoteSearchFilters = {
   minorLine?: string;
   stream?: string;
   section?: string;
-  area?: string;
+  area?: string | string[];
   platform?: string | string[];
   impactKind?: string | string[];
   riskLevel?: string | string[];
@@ -12,10 +12,48 @@ export type ReleaseNoteSearchFilters = {
   issueId?: string | string[];
   /** Only return notes that ship with at least one Issue Tracker link. */
   hasTracker?: boolean;
+  /** Render-pipeline scope: any of "urp" | "hdrp" | "birp" | "agnostic". */
+  pipelines?: string[];
+  /** Drop low-signal rows: documentation, "other changes", and rows with
+   *  no impact_kind tag. */
+  hideNoise?: boolean;
   limit?: number;
   offset?: number;
   order?: "newest" | "section" | "risk" | "source" | "area" | "issue";
 };
+
+/** Render-pipeline taxonomy for the "Render pipeline" filter chip. */
+export const PIPELINE_DEFINITIONS: Record<
+  string,
+  { label: string; areas: string[]; packagePrefixes: string[] }
+> = {
+  urp: {
+    label: "URP",
+    areas: ["URP", "Universal RP"],
+    packagePrefixes: ["com.unity.render-pipelines.universal"]
+  },
+  hdrp: {
+    label: "HDRP",
+    areas: ["HDRP", "High Definition RP"],
+    packagePrefixes: ["com.unity.render-pipelines.high-definition"]
+  },
+  birp: {
+    label: "Built-in RP",
+    areas: ["Built-in RP", "BIRP"],
+    packagePrefixes: []
+  },
+  agnostic: {
+    label: "Pipeline-agnostic",
+    areas: ["SRP Core", "Shaders", "Shadergraph", "VFX Graph", "Graphics"],
+    packagePrefixes: [
+      "com.unity.render-pipelines.core",
+      "com.unity.shadergraph",
+      "com.unity.visualeffectgraph"
+    ]
+  }
+};
+
+const NOISE_IMPACT_KINDS = ["documentation", "change"];
 
 export type SqlValue = string | number | string[];
 
@@ -129,6 +167,34 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
     // issue_ids array — the parser populates whichever it can.
     where.push(
       "((jsonb_typeof(issue_links_json) = 'array' AND jsonb_array_length(issue_links_json) > 0) OR cardinality(issue_ids) > 0)"
+    );
+  }
+
+  if (filters.pipelines && filters.pipelines.length > 0) {
+    // Render-pipeline scope: each selected pipeline contributes an OR clause
+    // that matches by `area` value or by `package_names` prefix. Multiple
+    // pipelines OR together — selecting URP and HDRP gives "either".
+    const orParts: string[] = [];
+    for (const id of filters.pipelines) {
+      const def = PIPELINE_DEFINITIONS[id];
+      if (!def) continue;
+      const parts: string[] = [];
+      if (def.areas.length > 0) {
+        parts.push(`area = ANY(${add(def.areas)})`);
+      }
+      for (const prefix of def.packagePrefixes) {
+        parts.push(`EXISTS (
+          SELECT 1 FROM unnest(package_names) AS p WHERE p LIKE ${add(`${prefix}%`)}
+        )`);
+      }
+      if (parts.length > 0) orParts.push(`(${parts.join(" OR ")})`);
+    }
+    if (orParts.length > 0) where.push(`(${orParts.join(" OR ")})`);
+  }
+
+  if (filters.hideNoise) {
+    where.push(
+      `(impact_kind IS NOT NULL AND impact_kind <> ALL(${add(NOISE_IMPACT_KINDS)}))`
     );
   }
 

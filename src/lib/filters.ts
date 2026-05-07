@@ -15,6 +15,15 @@ import type { ReleaseNoteSearchFilters } from "@/lib/search";
 export const RISK_LEVELS = ["blocker", "caution", "review", "info"] as const;
 export type RiskLevel = (typeof RISK_LEVELS)[number];
 
+export const PIPELINES = ["urp", "hdrp", "birp", "agnostic"] as const;
+export type PipelineId = (typeof PIPELINES)[number];
+export const PIPELINE_LABELS: Record<PipelineId, string> = {
+  urp: "URP",
+  hdrp: "HDRP",
+  birp: "Built-in RP",
+  agnostic: "Pipeline-agnostic"
+};
+
 export const PERSONA_PRESETS = ["director", "balanced", "indie"] as const;
 export type PersonaPreset = (typeof PERSONA_PRESETS)[number];
 
@@ -26,9 +35,12 @@ export type FilterState = {
   risks: RiskLevel[];
   platforms: string[];
   packages: string[];
+  areas: string[];
+  pipelines: PipelineId[];
   issueId: string;
   manifestOnly: boolean;
   hasTracker: boolean;
+  hideNoise: boolean;
   preset: PersonaPreset;
 };
 
@@ -38,9 +50,12 @@ export const EMPTY_FILTERS: FilterState = {
   risks: [],
   platforms: [],
   packages: [],
+  areas: [],
+  pipelines: [],
   issueId: "",
   manifestOnly: false,
   hasTracker: false,
+  hideNoise: false,
   preset: DEFAULT_PERSONA
 };
 
@@ -114,6 +129,9 @@ export function parseFiltersFromParams(
     .filter((id): id is RiskLevel => (RISK_LEVELS as readonly string[]).includes(id));
   const platforms = parseList(params.get("platforms"));
   const packages = parseList(params.get("packages"));
+  const areas = parseList(params.get("areas"));
+  const pipelines = parseList(params.get("pipelines"))
+    .filter((id): id is PipelineId => (PIPELINES as readonly string[]).includes(id));
 
   return {
     q: (params.get("q") ?? "").trim(),
@@ -121,9 +139,12 @@ export function parseFiltersFromParams(
     risks,
     platforms,
     packages,
+    areas,
+    pipelines,
     issueId: (params.get("issue") ?? "").trim().toUpperCase(),
     manifestOnly: params.get("manifest") === "1",
     hasTracker: params.get("tracker") === "1",
+    hideNoise: params.get("hide_noise") === "1",
     preset
   };
 }
@@ -136,9 +157,12 @@ export function serializeFiltersToParams(state: FilterState, into: URLSearchPara
   if (state.risks.length) into.set("risks", state.risks.join(","));
   if (state.platforms.length) into.set("platforms", state.platforms.join(","));
   if (state.packages.length) into.set("packages", state.packages.join(","));
+  if (state.areas.length) into.set("areas", state.areas.join(","));
+  if (state.pipelines.length) into.set("pipelines", state.pipelines.join(","));
   if (state.issueId) into.set("issue", state.issueId);
   if (state.manifestOnly) into.set("manifest", "1");
   if (state.hasTracker) into.set("tracker", "1");
+  if (state.hideNoise) into.set("hide_noise", "1");
   if (state.preset && state.preset !== DEFAULT_PERSONA) into.set("preset", state.preset);
 }
 
@@ -160,9 +184,12 @@ export function hasActiveFilters(state: FilterState): boolean {
     state.risks.length > 0 ||
     state.platforms.length > 0 ||
     state.packages.length > 0 ||
+    state.areas.length > 0 ||
+    state.pipelines.length > 0 ||
     state.issueId !== "" ||
     state.manifestOnly ||
-    state.hasTracker
+    state.hasTracker ||
+    state.hideNoise
   );
 }
 
@@ -173,10 +200,13 @@ export function activeFilterCount(state: FilterState): number {
   if (state.issueId) n += 1;
   if (state.manifestOnly) n += 1;
   if (state.hasTracker) n += 1;
+  if (state.hideNoise) n += 1;
   n += state.lanes.length;
   n += state.risks.length;
   n += state.platforms.length;
   n += state.packages.length;
+  n += state.areas.length;
+  n += state.pipelines.length;
   return n;
 }
 
@@ -193,18 +223,39 @@ export function filtersToSearchFilters(
   manifestPackages: readonly string[] = []
 ): Pick<
   ReleaseNoteSearchFilters,
-  "q" | "impactKind" | "riskLevel" | "platform" | "packageName" | "issueId" | "hasTracker"
+  | "q"
+  | "impactKind"
+  | "riskLevel"
+  | "platform"
+  | "packageName"
+  | "issueId"
+  | "hasTracker"
+  | "area"
+  | "pipelines"
+  | "hideNoise"
 > {
   const out: Pick<
     ReleaseNoteSearchFilters,
-    "q" | "impactKind" | "riskLevel" | "platform" | "packageName" | "issueId" | "hasTracker"
+    | "q"
+    | "impactKind"
+    | "riskLevel"
+    | "platform"
+    | "packageName"
+    | "issueId"
+    | "hasTracker"
+    | "area"
+    | "pipelines"
+    | "hideNoise"
   > = {};
 
   if (state.q) out.q = state.q;
   if (state.issueId) out.issueId = state.issueId;
   if (state.hasTracker) out.hasTracker = true;
+  if (state.hideNoise) out.hideNoise = true;
   if (state.platforms.length) out.platform = state.platforms;
   if (state.risks.length) out.riskLevel = state.risks;
+  if (state.areas.length) out.area = state.areas;
+  if (state.pipelines.length) out.pipelines = state.pipelines;
 
   if (state.lanes.length) {
     const kinds = new Set<string>();

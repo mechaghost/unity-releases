@@ -281,6 +281,7 @@ export async function searchReleaseNotesInRange(
 export type ReleaseRangeFacets = {
   platforms: Array<{ value: string; count: number }>;
   packages: Array<{ value: string; count: number }>;
+  areas: Array<{ value: string; count: number }>;
 };
 
 /**
@@ -293,7 +294,7 @@ export type ReleaseRangeFacets = {
  */
 export async function getReleaseRangeFacets(versions: string[]): Promise<ReleaseRangeFacets> {
   if (versions.length === 0) {
-    return { platforms: [], packages: [] };
+    return { platforms: [], packages: [], areas: [] };
   }
   const platformsP = query<{ value: string; count: string }>(
     `
@@ -317,10 +318,22 @@ export async function getReleaseRangeFacets(versions: string[]): Promise<Release
     `,
     [versions]
   );
-  const [platforms, packages] = await Promise.all([platformsP, packagesP]);
+  const areasP = query<{ value: string; count: string }>(
+    `
+      SELECT area AS value, COUNT(*)::text AS count
+      FROM release_note_items
+      WHERE version = ANY($1) AND area IS NOT NULL AND area <> ''
+      GROUP BY area
+      ORDER BY COUNT(*) DESC, area ASC
+      LIMIT 200
+    `,
+    [versions]
+  );
+  const [platforms, packages, areas] = await Promise.all([platformsP, packagesP, areasP]);
   return {
     platforms: platforms.rows.map((r) => ({ value: r.value, count: Number(r.count) })),
-    packages: packages.rows.map((r) => ({ value: r.value, count: Number(r.count) }))
+    packages: packages.rows.map((r) => ({ value: r.value, count: Number(r.count) })),
+    areas: areas.rows.map((r) => ({ value: r.value, count: Number(r.count) }))
   };
 }
 
