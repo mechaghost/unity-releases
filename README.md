@@ -48,20 +48,37 @@ you want production to update.
    - `APP_BASE_URL` (your Railway-provided HTTPS URL)
    - `INGESTION_USER_AGENT` (e.g. `unity-releases/0.1 (+contact@example.com)`)
    - `PACKAGE_ALLOWLIST` (optional)
-4. Add separate Railway services for the cron jobs you want — each one
-   reuses the repo and overrides the start command:
+4. Add separate Railway services for the cron jobs. The repo ships
+   ready-to-use Railway config-as-code files for each:
 
-| Service | Start command | Notes |
-|---|---|---|
-| Web | `npm run start` | Healthcheck: `/api/health` |
-| Migrate | `npm run db:migrate` | One-off, run once after creating the DB |
-| Editor cron | `npm run ingest:editor` | Cron every 30–60 min |
-| Package cron | `npm run ingest:packages` | Cron every few hours |
-| News cron | `npm run ingest:news` | Cron daily |
-| Backfill | `npm run ingest:backfill` | One-off |
+| Service | Config file | Cron schedule | What it does |
+|---|---|---|---|
+| Web (default) | `railway.json` | — (long-running) | `npm run start`, healthcheck `/api/health` |
+| `cron-editor` | `config/railway/cron-editor.json` | `0 * * * *` (hourly) | `npm run ingest:editor` |
+| `cron-packages` | `config/railway/cron-packages.json` | `0 */6 * * *` (every 6h) | `npm run ingest:packages` |
+| `cron-news` | `config/railway/cron-news.json` | `0 5 * * *` (daily 5am UTC) | `npm run ingest:news` |
 
-Railway cron jobs should finish and exit. The job entrypoints under
-`src/jobs/` already exit cleanly after a successful run.
+Each cron config sets `deploy.cronSchedule` + `deploy.startCommand` and
+uses `restartPolicyType: NEVER` so a failed run doesn't loop. Jobs all
+exit cleanly via `withIngestionTransaction` so Railway's "skip if
+already running" guard never triggers.
+
+For each cron service in the dashboard:
+1. **+ New** → **Empty Service** (or use the CLI:
+   `echo "" | railway add --service cron-<name>`).
+2. Settings → **Source** → connect to `mechaghost/unity-releases`,
+   branch `release`.
+3. Settings → **Config-as-code** → set the path to
+   `config/railway/cron-<name>.json`.
+4. Variables — these are already set by the CLI helpers above:
+   - `DATABASE_URL = ${{Postgres.DATABASE_URL}}`
+   - `INGESTION_USER_AGENT = unity-releases/0.1 (+you@example.com)`
+
+Trigger the first run manually via **Deploy** to validate; subsequent
+runs fire on schedule. Logs are per-service.
+
+`Backfill` and `Migrate` aren't cron — leave them as one-off services
+or run them via `railway run --service <web> npm run ingest:backfill`.
 
 ### Seeding prod from your local DB
 
