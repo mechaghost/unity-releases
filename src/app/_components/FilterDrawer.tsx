@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-  type FormEvent
-} from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ALL_LANE_IDS,
@@ -54,15 +47,19 @@ export function FilterDrawer({
   view
 }: Props) {
   const [state, setState] = useState<FilterState>(initial);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const router = useRouter();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const initialSerialized = useRef<string>(JSON.stringify(initial));
 
   // Reset internal state to whatever the server reported whenever the drawer
   // opens — guarantees the form mirrors the active URL state, not a stale
   // edit from a previous open.
   useEffect(() => {
-    if (open) setState(initial);
+    if (open) {
+      setState(initial);
+      initialSerialized.current = JSON.stringify(initial);
+    }
   }, [open, initial]);
 
   // Body scroll lock while the surface is open.
@@ -85,9 +82,28 @@ export function FilterDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const dirty = useMemo(() => {
-    return JSON.stringify(state) !== JSON.stringify(initial);
-  }, [state, initial]);
+  // Auto-apply: any state change that diverges from the last-applied state
+  // pushes a new URL after a 300ms debounce. The debounce keeps a typing
+  // burst (search box, issue ID) from firing one navigation per keystroke
+  // while still feeling immediate for checkboxes and chips.
+  useEffect(() => {
+    if (!open) return;
+    const next = JSON.stringify(state);
+    if (next === initialSerialized.current) return;
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(preservedParams)) {
+        if (v) params.set(k, v);
+      }
+      serializeFiltersToParams(state, params);
+      initialSerialized.current = next;
+      startTransition(() => {
+        void setPersonaPresetAction(view, state.preset);
+      });
+      router.push(`${basePath}?${params.toString()}`);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [open, state, preservedParams, basePath, view, router, startTransition]);
 
   function applyPreset(preset: PersonaPreset) {
     setState(presetState(preset));
@@ -95,22 +111,6 @@ export function FilterDrawer({
 
   function reset() {
     setState({ ...EMPTY_FILTERS, preset: state.preset });
-  }
-
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(preservedParams)) {
-      if (v) params.set(k, v);
-    }
-    serializeFiltersToParams(state, params);
-    // Persist persona preset cookie out-of-band; the URL push doesn't need
-    // to wait for it.
-    startTransition(() => {
-      void setPersonaPresetAction(view, state.preset);
-    });
-    router.push(`${basePath}?${params.toString()}`);
-    onClose();
   }
 
   return (
@@ -145,7 +145,7 @@ export function FilterDrawer({
           </button>
         </header>
 
-        <form className="filter-surface__body" onSubmit={onSubmit}>
+        <div className="filter-surface__body">
           <PresetSection state={state} onPick={applyPreset} />
 
           <Section title="Search">
@@ -251,20 +251,16 @@ export function FilterDrawer({
               label="Has Issue Tracker link"
             />
           </Section>
-        </form>
+        </div>
 
         <footer className="filter-surface__foot">
+          <span className="filter-surface__foot-hint">Filters apply automatically.</span>
+          <span className="filter-surface__foot-spacer" />
           <button type="button" className="btn btn--tertiary btn--small" onClick={reset}>
             Reset
           </button>
-          <span className="filter-surface__foot-spacer" />
-          <button
-            type="button"
-            className="btn btn--primary btn--small"
-            disabled={!dirty || isPending}
-            onClick={(e) => onSubmit(e)}
-          >
-            Apply
+          <button type="button" className="btn btn--primary btn--small" onClick={onClose}>
+            Done
           </button>
         </footer>
       </aside>

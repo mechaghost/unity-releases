@@ -212,7 +212,7 @@ Filters: [ Lane: Blockers ×] [ Platform: iOS ×] [ My packages ×] [ clear all 
 | # | Question | Decision |
 |---|---|---|
 | 1 | Surface | **Drawer on desktop, full-screen modal on mobile** |
-| 2 | Apply timing | **Apply on click** (no live updates) |
+| 2 | Apply timing | **Apply automatically** (debounced ~300ms; no Apply button) |
 | 3 | Persona presets | **In, collapsed by default** (Director / Balanced / Indie) |
 | 4 | "Should I upgrade?" preset | **Cut** — covered by persona presets + manifest filter |
 | 5 | Saved presets storage | **Cookie-only** (per-browser, ~10 cap per view) |
