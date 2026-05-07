@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { Icon } from "./Icon";
 
 type StreamOption = {
   value: string;
@@ -41,6 +42,11 @@ export function ReleaseStreamFilter({ selected }: { selected: string[] }) {
               value={option.value}
               defaultChecked={checked}
             />
+            {checked ? (
+              <span className="stream-checkbox-filter__check" aria-hidden="true">
+                <Icon name="check" size={12} />
+              </span>
+            ) : null}
             <span>{option.label}</span>
           </label>
         );

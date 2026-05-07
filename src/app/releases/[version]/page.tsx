@@ -1,109 +1,54 @@
 import { getRelease, searchReleaseNotes } from "@/lib/db/repositories";
-import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
 import { streamLabel } from "@/lib/stream-labels";
+import { formatReleaseDate } from "@/lib/format-date";
+import { LANE_CATALOG, LANE_IDS, type LaneId } from "@/lib/lane-catalog";
 import { VersionPill } from "../../_components/VersionPill";
-import { ImpactPill } from "../../_components/ImpactPill";
-import { RiskBadge } from "../../_components/RiskBadge";
-import { IssuePill } from "../../_components/IssuePill";
-import { PackagePill } from "../../_components/PackagePill";
-import { PlatformPill } from "../../_components/PlatformPill";
 import { ExternalLink } from "../../_components/ExternalLink";
 import { Icon } from "../../_components/Icon";
+import { NoteRow, type NoteRowData } from "../../_components/NoteRow";
+import {
+  LaneCollapseProvider,
+  LaneShell,
+  LaneSummaryPanel,
+  type LaneSummary
+} from "../../_components/ReviewLanes";
 
 export const dynamic = "force-dynamic";
 
-type ReleaseNoteRow = {
-  id: number;
+type ReleaseNoteRow = NoteRowData & {
   version: string;
-  section: string;
-  area: string | null;
-  platforms: string[];
-  impact_kind: string;
-  risk_level: string;
-  body: string;
-  issue_ids: string[];
-  issue_links_json: unknown;
-  package_names: string[];
   source_url: string;
   source_order: number;
 };
 
-type LaneDef = {
-  id: string;
-  title: string;
+type LaneDef = (typeof LANE_CATALOG)[LaneId] & {
   filter: (row: ReleaseNoteRow) => boolean;
-  defaultOpen: boolean;
 };
 
-const LANES: LaneDef[] = [
-  {
-    id: "blockers",
-    title: "Active known blockers",
-    filter: (r) => r.impact_kind === "known_issue" && r.risk_level === "blocker",
-    defaultOpen: true
-  },
-  {
-    id: "known",
-    title: "Other known issues",
-    filter: (r) => r.impact_kind === "known_issue" && r.risk_level !== "blocker",
-    defaultOpen: true
-  },
-  {
-    id: "breaking",
-    title: "Breaking changes",
-    filter: (r) => r.impact_kind === "breaking_change",
-    defaultOpen: true
-  },
-  {
-    id: "api",
-    title: "API changes",
-    filter: (r) => r.impact_kind === "api_change",
-    defaultOpen: false
-  },
-  {
-    id: "security",
-    title: "Security & install impact",
-    filter: (r) =>
-      r.impact_kind === "security_related_fix" || r.impact_kind === "install_risk",
-    defaultOpen: false
-  },
-  {
-    id: "package",
-    title: "Package updates",
-    filter: (r) => r.impact_kind === "package_change",
-    defaultOpen: false
-  },
-  {
-    id: "feature",
-    title: "Features",
-    filter: (r) => r.impact_kind === "feature",
-    defaultOpen: false
-  },
-  {
-    id: "improvement",
-    title: "Improvements",
-    filter: (r) => r.impact_kind === "improvement",
-    defaultOpen: false
-  },
-  {
-    id: "fix",
-    title: "Fixes",
-    filter: (r) => r.impact_kind === "fix",
-    defaultOpen: false
-  },
-  {
-    id: "change",
-    title: "Other changes",
-    filter: (r) => r.impact_kind === "change",
-    defaultOpen: false
-  },
-  {
-    id: "docs",
-    title: "Documentation",
-    filter: (r) => r.impact_kind === "documentation",
-    defaultOpen: false
-  }
-];
+/**
+ * Filters mirror the impact_kind / risk_level columns from
+ * `release_note_items` so the per-release view buckets every parsed
+ * note into the same lanes the diff view uses on the server side.
+ */
+const LANE_FILTERS: Record<LaneId, (r: ReleaseNoteRow) => boolean> = {
+  blockers: (r) => r.impact_kind === "known_issue" && r.risk_level === "blocker",
+  known: (r) => r.impact_kind === "known_issue" && r.risk_level !== "blocker",
+  breaking: (r) => r.impact_kind === "breaking_change",
+  api: (r) => r.impact_kind === "api_change",
+  security: (r) =>
+    r.impact_kind === "security_related_fix" || r.impact_kind === "install_risk",
+  package: (r) => r.impact_kind === "package_change",
+  feature: (r) => r.impact_kind === "feature",
+  improvement: (r) => r.impact_kind === "improvement",
+  fix: (r) => r.impact_kind === "fix",
+  change: (r) => r.impact_kind === "change",
+  docs: (r) => r.impact_kind === "documentation"
+};
+
+const LANES: LaneDef[] = LANE_IDS.map((id) => ({
+  ...LANE_CATALOG[id],
+  filter: LANE_FILTERS[id]
+}));
 
 export default async function ReleasePage({
   params,
@@ -136,7 +81,7 @@ export default async function ReleasePage({
         {release ? (
           <p>
             {streamLabel(release.stream)}
-            {release.release_date ? <> · Released {formatDate(release.release_date)}</> : null}
+            {release.release_date ? <> · Released {formatReleaseDate(release.release_date)}</> : null}
             {release.changeset ? <> · Changeset {release.changeset}</> : null}
             {" · "}
             <strong className="tabnums">{rows.length.toLocaleString()}</strong> release notes
@@ -181,27 +126,29 @@ export default async function ReleasePage({
         ) : null}
       </form>
 
-      <section className="summary-strip">
-        <span className="summary-strip__label">Lanes</span>
-        {lanes
-          .filter(({ rows }) => rows.length > 0)
-          .map(({ def, rows }) => (
-            <a
-              key={def.id}
-              href={`#lane-${def.id}`}
-              className="summary-chip summary-chip--info"
-            >
-              <strong className="tabnums">{rows.length.toLocaleString()}</strong>{" "}
-              {def.title.toLowerCase()}
-            </a>
-          ))}
-      </section>
+      {(() => {
+        const lanesWithResults = lanes.filter(({ rows }) => rows.length > 0);
+        const laneSummaries: LaneSummary[] = lanesWithResults.map(({ def, rows }) => ({
+          id: def.id,
+          title: def.title,
+          count: rows.length,
+          variant: def.variant
+        }));
+        const initialCollapsed = lanesWithResults
+          .filter(({ def }) => !def.defaultOpen)
+          .map(({ def }) => def.id);
 
-      <div>
-        {lanes.map(({ def, rows }) => (
-          <ReleaseLane key={def.id} def={def} rows={rows} />
-        ))}
-      </div>
+        return (
+          <LaneCollapseProvider initialCollapsed={initialCollapsed}>
+            <LaneSummaryPanel lanes={laneSummaries} />
+            <div>
+              {lanesWithResults.map(({ def, rows }) => (
+                <ReleaseLane key={def.id} def={def} rows={rows} />
+              ))}
+            </div>
+          </LaneCollapseProvider>
+        );
+      })()}
     </>
   );
 }
@@ -209,88 +156,28 @@ export default async function ReleasePage({
 function ReleaseLane({ def, rows }: { def: LaneDef; rows: ReleaseNoteRow[] }) {
   const visible = rows.slice(0, 200);
   return (
-    <section className="lane" id={`lane-${def.id}`} data-collapsed={def.defaultOpen ? undefined : "true"}>
-      <header className="lane__header">
-        <ImpactPill kind={inferImpactForLane(def.id)} />
-        <h3>{def.title}</h3>
-        <div className="lane__header-meta">
-          <span className="chip chip--count tabnums">{rows.length.toLocaleString()}</span>
+    <LaneShell
+      id={def.id}
+      variant={def.variant}
+      title={def.title}
+      count={rows.length}
+    >
+      {rows.length === 0 ? (
+        <div className="lane__empty">
+          <Icon name="check" size={16} />
+          None.
         </div>
-      </header>
-      <div className="lane__body">
-        {rows.length === 0 ? (
-          <div className="lane__empty">
-            <Icon name="check" size={16} />
-            None.
-          </div>
-        ) : (
-          visible.map((row) => <NoteRow key={row.id} row={row} />)
-        )}
-      </div>
+      ) : (
+        visible.map((row) => <NoteRow key={row.id} row={row} showImpactPill />)
+      )}
       {rows.length > visible.length ? (
         <div className="lane__footer">
           Showing first <strong>{visible.length}</strong> of{" "}
           <strong className="tabnums">{rows.length.toLocaleString()}</strong>
         </div>
       ) : null}
-    </section>
+    </LaneShell>
   );
-}
-
-function NoteRow({ row }: { row: ReleaseNoteRow }) {
-  const cleanedBody = cleanReleaseNoteText(row.body ?? "");
-  const issueLinks = normalizeIssueLinks(row.issue_ids ?? [], row.issue_links_json);
-
-  return (
-    <article className="row">
-      <span className="row__lead">
-        {row.area ? <span className="muted">{row.area}</span> : <span className="muted">{row.section}</span>}
-      </span>
-      <div className="row__body">
-        <div className="row__title row__title--wrap" title={cleanedBody}>
-          {cleanedBody}
-        </div>
-        <div className="row__pills">
-          <ImpactPill kind={row.impact_kind} />
-          <RiskBadge level={row.risk_level} />
-          {(row.package_names ?? []).slice(0, 2).map((pkg) => (
-            <PackagePill name={pkg} key={pkg} />
-          ))}
-          {(row.platforms ?? []).slice(0, 4).map((plat) => (
-            <PlatformPill platform={plat} key={plat} />
-          ))}
-          {issueLinks.slice(0, 3).map((issue) => (
-            <IssuePill id={issue.id} url={issue.url} key={issue.id} />
-          ))}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function inferImpactForLane(laneId: string): string {
-  const map: Record<string, string> = {
-    blockers: "known_issue",
-    known: "known_issue",
-    breaking: "breaking_change",
-    api: "api_change",
-    security: "security_related_fix",
-    package: "package_change",
-    feature: "feature",
-    improvement: "improvement",
-    fix: "fix",
-    change: "change",
-    docs: "documentation"
-  };
-  return map[laneId] ?? "change";
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
 }
 
 async function safeRelease(version: string) {

@@ -31,16 +31,23 @@ export function MobileNavToggle() {
 
   return (
     <>
-      <button
-        type="button"
-        className="mobile-nav-toggle"
-        aria-label={open ? "Close navigation" : "Open navigation"}
-        aria-expanded={open}
-        aria-controls="primary-nav"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Icon name={open ? "x" : "menu"} size={20} />
-      </button>
+      <div className="mobile-topbar" role="banner">
+        <div className="mobile-topbar__lead">
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-label={open ? "Close navigation" : "Open navigation"}
+            aria-expanded={open}
+            aria-controls="primary-nav"
+            onClick={() => setOpen((v) => !v)}
+          >
+            <Icon name={open ? "x" : "menu"} size={20} />
+          </button>
+          <a href="/" className="mobile-topbar__brand">
+            Unity Releases
+          </a>
+        </div>
+      </div>
       <button
         type="button"
         className="mobile-nav-backdrop"

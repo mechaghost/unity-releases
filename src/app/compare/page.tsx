@@ -10,21 +10,16 @@ import type { ReleaseNoteSearchFilters } from "@/lib/search";
 import {
   aggregateByPackage,
   dedupeByIssue,
-  dedupWithinReleases,
   groupByVersion,
   type DedupedIssue
 } from "@/lib/diff-grouping";
-import {
-  compareControlUrl,
-  isCompareLaneOpen,
-  toggleCompareLaneOpenUrl,
-  toggleCompareTopicUrl
-} from "@/lib/compare-controls";
 import { ALL_STREAMS, streamMatches } from "@/lib/stream-filter";
 import { streamLabel, streamListLabel } from "@/lib/stream-labels";
 import { getUserPackages } from "@/lib/user-packages";
 import { getUserVersion } from "@/lib/user-version";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
+import { formatReleaseDate } from "@/lib/format-date";
+import { LANE_CATALOG, type LaneId } from "@/lib/lane-catalog";
 import { IssuePill } from "../_components/IssuePill";
 import { PackagePill } from "../_components/PackagePill";
 import { PlatformPill } from "../_components/PlatformPill";
@@ -32,12 +27,21 @@ import { ImpactPill } from "../_components/ImpactPill";
 import { RiskBadge } from "../_components/RiskBadge";
 import { VersionPill } from "../_components/VersionPill";
 import { Icon } from "../_components/Icon";
-import { SidebarVersionStatus } from "../_components/SidebarVersionStatus";
+import { NoteRow } from "../_components/NoteRow";
+import {
+  LaneCollapseProvider,
+  LaneShell,
+  LaneSummaryPanel,
+  type LaneSummary
+} from "../_components/ReviewLanes";
+import { submitCompareAction } from "../_actions/compare-submit";
 
 export const dynamic = "force-dynamic";
 
 const ROWS_PER_LANE = 25;
-const FETCH_FOR_BY_RELEASE = ROWS_PER_LANE * 2;
+// by-release lanes paginate via SQL OFFSET, so we only fetch the page we render.
+// dedup lanes fetch a generous slice and paginate the deduped result in memory —
+// 1500 rows is enough to surface ~all unique issues in any realistic diff range.
 const FETCH_FOR_DEDUP = 1500;
 
 type ReleaseNoteRow = {
@@ -56,150 +60,92 @@ type ReleaseNoteRow = {
   release_date: string | Date | null;
 };
 
-type LaneId =
-  | "blockers"
-  | "breaking"
-  | "api"
-  | "known"
-  | "security"
-  | "package"
-  | "feature"
-  | "improvement"
-  | "fix"
-  | "change";
-
 type LaneMode = "by-release" | "by-issue" | "by-package";
 
-type LaneDef = {
-  id: LaneId;
-  title: string;
-  /** How rows are presented inside the lane. */
+/**
+ * Compare-only lane spec. The visual identity (id, title, variant,
+ * impactPill, defaultOpen) comes from `LANE_CATALOG` so it stays in
+ * lock-step with the per-release view; this layer only adds what's
+ * specific to running a server-side diff query: how rows are bucketed,
+ * how to count from the cheap aggregate, and the empty-state copy.
+ */
+type LaneDef = (typeof LANE_CATALOG)[LaneId] & {
   mode: LaneMode;
-  /** Filters to send to the per-lane query. */
   searchFilter: Partial<Pick<ReleaseNoteSearchFilters, "impactKind" | "riskLevel">>;
-  /** Optional client-side post-filter for compound conditions the SQL builder can't express. */
   postFilter?: (row: ReleaseNoteRow) => boolean;
-  /** How to compute the lane count from the cheap aggregate. */
   countFrom: (counts: { byImpact: Record<string, number>; blockerKnownIssues: number }) => number;
-  defaultOpen: boolean;
   emptyMessage: string;
-  variant: "blocker" | "caution" | "review" | "info" | "success";
-  impactPill: string;
 };
 
-const LANES: LaneDef[] = [
-  {
-    id: "blockers",
-    title: "Active known blockers",
+type LaneSpec = Omit<LaneDef, keyof (typeof LANE_CATALOG)[LaneId]>;
+
+const COMPARE_LANE_SPECS: Partial<Record<LaneId, LaneSpec>> = {
+  blockers: {
     mode: "by-issue",
     searchFilter: { impactKind: "known_issue", riskLevel: "blocker" },
     countFrom: (c) => c.blockerKnownIssues,
-    defaultOpen: true,
-    emptyMessage: "No known blockers in this range.",
-    variant: "blocker",
-    impactPill: "known_issue"
+    emptyMessage: "No known blockers in this range."
   },
-  {
-    id: "breaking",
-    title: "Breaking changes",
+  breaking: {
     mode: "by-release",
     searchFilter: { impactKind: "breaking_change" },
     countFrom: (c) => c.byImpact.breaking_change ?? 0,
-    defaultOpen: true,
-    emptyMessage: "No breaking changes in this range.",
-    variant: "blocker",
-    impactPill: "breaking_change"
+    emptyMessage: "No breaking changes in this range."
   },
-  {
-    id: "api",
-    title: "API changes",
+  api: {
     mode: "by-release",
     searchFilter: { impactKind: "api_change" },
     countFrom: (c) => c.byImpact.api_change ?? 0,
-    defaultOpen: true,
-    emptyMessage: "No API changes in this range.",
-    variant: "review",
-    impactPill: "api_change"
+    emptyMessage: "No API changes in this range."
   },
-  {
-    id: "known",
-    title: "Other known issues",
+  known: {
     mode: "by-issue",
     searchFilter: { impactKind: "known_issue" },
     postFilter: (r) => r.risk_level !== "blocker",
     countFrom: (c) => Math.max((c.byImpact.known_issue ?? 0) - c.blockerKnownIssues, 0),
-    defaultOpen: false,
-    emptyMessage: "No outstanding known issues.",
-    variant: "caution",
-    impactPill: "known_issue"
+    emptyMessage: "No outstanding known issues."
   },
-  {
-    id: "security",
-    title: "Security & install risk",
+  security: {
     mode: "by-release",
     searchFilter: { impactKind: ["security_related_fix", "install_risk"] },
     countFrom: (c) => (c.byImpact.security_related_fix ?? 0) + (c.byImpact.install_risk ?? 0),
-    defaultOpen: false,
-    emptyMessage: "No security or install-impact notes.",
-    variant: "caution",
-    impactPill: "security_related_fix"
+    emptyMessage: "No security or install-impact notes."
   },
-  {
-    id: "package",
-    title: "Package changes",
+  package: {
     mode: "by-package",
     searchFilter: { impactKind: "package_change" },
     countFrom: (c) => c.byImpact.package_change ?? 0,
-    defaultOpen: false,
-    emptyMessage: "No package updates.",
-    variant: "review",
-    impactPill: "package_change"
+    emptyMessage: "No package updates."
   },
-  {
-    id: "feature",
-    title: "New features",
+  feature: {
     mode: "by-release",
     searchFilter: { impactKind: "feature" },
     countFrom: (c) => c.byImpact.feature ?? 0,
-    defaultOpen: false,
-    emptyMessage: "No new features.",
-    variant: "info",
-    impactPill: "feature"
+    emptyMessage: "No new features."
   },
-  {
-    id: "improvement",
-    title: "Improvements",
+  improvement: {
     mode: "by-release",
     searchFilter: { impactKind: "improvement" },
     countFrom: (c) => c.byImpact.improvement ?? 0,
-    defaultOpen: false,
-    emptyMessage: "No improvements.",
-    variant: "info",
-    impactPill: "improvement"
+    emptyMessage: "No improvements."
   },
-  {
-    id: "fix",
-    title: "Fixes",
+  fix: {
     mode: "by-release",
     searchFilter: { impactKind: "fix" },
     countFrom: (c) => c.byImpact.fix ?? 0,
-    defaultOpen: false,
-    emptyMessage: "No fixes.",
-    variant: "success",
-    impactPill: "fix"
+    emptyMessage: "No fixes."
   },
-  {
-    id: "change",
-    title: "Other changes",
+  change: {
     mode: "by-release",
     searchFilter: { impactKind: "change" },
     countFrom: (c) => c.byImpact.change ?? 0,
-    defaultOpen: false,
-    emptyMessage: "No miscellaneous changes.",
-    variant: "info",
-    impactPill: "change"
+    emptyMessage: "No miscellaneous changes."
   }
-];
+};
+
+const LANES: LaneDef[] = (Object.entries(COMPARE_LANE_SPECS) as [LaneId, LaneSpec][]).map(
+  ([id, spec]) => ({ ...LANE_CATALOG[id], ...spec })
+);
 
 export default async function ComparePage({
   searchParams
@@ -213,16 +159,10 @@ export default async function ComparePage({
     getUserPackages()
   ]);
   const streamFilter = Array.from(ALL_STREAMS);
-  const userStream = userVersion ? lookupStream(allReleases, userVersion) : null;
   const userPackagesSet = new Set(userPackages);
   const fromVersion = (params.get("from") ?? userVersion ?? "").trim();
   const toVersion = (params.get("to") ?? "").trim();
   const platform = (params.get("platform") ?? "").trim();
-  const expandList = (params.get("expand") ?? "").split(",").filter(Boolean);
-  const expandedOverrides = new Set(expandList);
-  const topicList = parseLaneIds(params.get("topics") ?? "");
-  const topicFilter = new Set<LaneId>(topicList);
-  const hasTopicFilter = topicFilter.size > 0;
 
   // Compare is independent of the Editor Releases page stream checkboxes.
   // The picker dropdowns include every indexed Unity 6 stream, while the currently
@@ -241,8 +181,6 @@ export default async function ComparePage({
         fromVersion={fromVersion}
         toVersion={toVersion}
         releases={pickerReleases}
-        userVersion={userVersion}
-        userStream={userStream}
       >
         <div className="empty-state">
           <h2>Compare two Unity versions</h2>
@@ -259,8 +197,6 @@ export default async function ComparePage({
         fromVersion={fromVersion}
         toVersion={toVersion}
         releases={pickerReleases}
-        userVersion={userVersion}
-        userStream={userStream}
       >
         <div className="empty-state">
           <h2>Versions not found</h2>
@@ -276,8 +212,6 @@ export default async function ComparePage({
         fromVersion={fromVersion}
         toVersion={toVersion}
         releases={pickerReleases}
-        userVersion={userVersion}
-        userStream={userStream}
       >
         <div className="empty-state">
           <h2>No releases in range</h2>
@@ -290,21 +224,33 @@ export default async function ComparePage({
     );
   }
 
+  // Per-lane page numbers come from URL params (`p_<laneId>`, 1-indexed).
+  const lanePages: Record<LaneId, number> = LANES.reduce((acc, lane) => {
+    acc[lane.id] = parseLanePage(params.get(`p_${lane.id}`));
+    return acc;
+  }, {} as Record<LaneId, number>);
+
   // Run the cheap aggregate and every lane's row query in parallel.
-  // by-issue and by-package lanes pull a generous slice so dedupe still
-  // produces a useful set; by-release lanes only need ~2x the visible rows.
+  // by-release lanes paginate via SQL OFFSET so we only fetch the visible page.
+  // dedup lanes (by-issue, by-package) still pull the generous slice — dedup
+  // happens after fetch so we need a wide enough window to make the unique
+  // set stable, then we paginate the deduped result in memory.
   const [counts, ...laneRowsArr] = await Promise.all([
     diffRangeCounts(range.versions, platform || undefined),
-    ...LANES.map((lane) =>
-      searchReleaseNotesInRange(
+    ...LANES.map((lane) => {
+      const page = lanePages[lane.id];
+      const offset = lane.mode === "by-release" ? (page - 1) * ROWS_PER_LANE : 0;
+      const limit = lane.mode === "by-release" ? ROWS_PER_LANE : FETCH_FOR_DEDUP;
+      return searchReleaseNotesInRange(
         range.versions,
         {
           ...lane.searchFilter,
           ...(platform ? { platform } : {})
         },
-        lane.mode === "by-release" ? FETCH_FOR_BY_RELEASE : FETCH_FOR_DEDUP
-      ) as Promise<ReleaseNoteRow[]>
-    )
+        limit,
+        offset
+      ) as Promise<ReleaseNoteRow[]>;
+    })
   ]);
 
   const lanes = LANES.map((def, i) => {
@@ -322,22 +268,21 @@ export default async function ComparePage({
     return {
       def,
       fetchedRows: filtered,
-      totalCount: def.countFrom(counts)
+      totalCount: def.countFrom(counts),
+      page: lanePages[def.id]
     };
   });
-  const visibleLanes = hasTopicFilter
-    ? lanes.filter((lane) => topicFilter.has(lane.def.id))
-    : lanes;
   const lanesWithResults = lanes.filter((lane) => lane.totalCount > 0);
-  const visibleLanesWithResults = visibleLanes.filter((lane) => lane.totalCount > 0);
-  const openLaneCount = lanesWithResults.filter((lane) =>
-    isCompareLaneOpen(lane.def, expandedOverrides)
-  ).length;
-  const viewIsCustomized = hasTopicFilter || expandedOverrides.size > 0;
-  const reviewLaneStatus =
-    hasTopicFilter && visibleLanesWithResults.length === 1
-      ? `Focused on ${visibleLanesWithResults[0].def.title}`
-      : `${visibleLanesWithResults.length.toLocaleString()} lanes visible · ${openLaneCount.toLocaleString()} expanded`;
+  const laneSummaries: LaneSummary[] = lanesWithResults.map((l) => ({
+    id: l.def.id,
+    title: l.def.title,
+    count: l.totalCount,
+    variant: l.def.variant
+  }));
+  // Lanes default to expanded; the user collapses individual ones from
+  // the summary panel or the per-lane Hide button. State is client-side
+  // only — toggling does not reload the page.
+  const initialCollapsed: string[] = [];
 
   // Resolve "what package version was shipping at each end of the diff
   // window" so the by-package lane can render `1.10.0 → 1.11.2` next to
@@ -365,18 +310,16 @@ export default async function ComparePage({
         fromVersion={fromVersion}
         toVersion={toVersion}
         releases={pickerReleases}
-        userVersion={userVersion}
-        userStream={userStream}
       />
 
       <section className="page-header">
         <div className="page-header__title-row">
-          <h1>
-            {range.reversed ? "Downgrading from " : "Comparing "}
-            <VersionPill version={fromVersion} stream={lookupStream(allReleases, fromVersion)} />
-            {" → "}
-            <VersionPill version={toVersion} stream={lookupStream(allReleases, toVersion)} />
-          </h1>
+          <h1>{range.reversed ? "Downgrading from" : "Comparing"}</h1>
+        </div>
+        <div className="compare-versions" aria-label="Version range">
+          <VersionPill version={fromVersion} stream={lookupStream(allReleases, fromVersion)} />
+          <span className="compare-versions__arrow" aria-hidden="true">→</span>
+          <VersionPill version={toVersion} stream={lookupStream(allReleases, toVersion)} />
         </div>
         <p className="muted">
           Spans <strong>{range.versions.length}</strong>{" "}
@@ -405,140 +348,33 @@ export default async function ComparePage({
 
       <CompareFacts counts={counts} />
 
-      <section className="summary-strip" id="compare-categories">
-        <div className="summary-strip__head">
+      <LaneCollapseProvider initialCollapsed={initialCollapsed}>
+        <LaneSummaryPanel lanes={laneSummaries} />
+
+        <div className="compare-layout">
           <div>
-            <span className="summary-strip__label">Review lanes</span>
-            <span className="summary-strip__hint">{reviewLaneStatus}</span>
-          </div>
-          {viewIsCustomized ? (
-            <a
-              className="summary-strip__clear"
-              href={compareControlUrl({
-                fromVersion,
-                toVersion,
-                platform,
-                expanded: new Set(),
-                topicFilter: new Set()
-              })}
-            >
-              Reset view
-            </a>
-          ) : null}
-        </div>
-
-        <div className="summary-control-row" aria-label="Visible lanes">
-          <span className="summary-control-row__label">Visible lanes</span>
-          <a
-            href={compareControlUrl({
-              fromVersion,
-              toVersion,
-              platform,
-              expanded: expandedOverrides,
-              topicFilter: new Set()
-            })}
-            className={`summary-filter-chip${!hasTopicFilter ? " summary-filter-chip--active" : ""}`}
-            aria-current={!hasTopicFilter ? "true" : undefined}
-          >
-            All lanes
-          </a>
-          {lanesWithResults.map((lane) => {
-            const active = topicFilter.has(lane.def.id);
-            return (
-              <a
-                key={lane.def.id}
-                href={toggleCompareTopicUrl({
-                  fromVersion,
-                  toVersion,
-                  platform,
-                  expanded: expandedOverrides,
-                  topicFilter,
-                  laneId: lane.def.id
-                })}
-                className={`summary-filter-chip summary-filter-chip--${lane.def.variant}${
-                  active ? " summary-filter-chip--active" : ""
-                }`}
-                aria-pressed={active}
-              >
-                <span>{lane.def.title}</span>
-                <strong className="tabnums">{lane.totalCount.toLocaleString()}</strong>
-              </a>
-            );
-          })}
-        </div>
-
-        <div className="summary-strip__grid">
-          {lanesWithResults.map((l) => {
-            const open = isCompareLaneOpen(l.def, expandedOverrides);
-            const topicActive = topicFilter.has(l.def.id);
-            return (
-              <div
+            {lanesWithResults.map((l) => (
+              <Lane
                 key={l.def.id}
-                className={`summary-item summary-item--${l.def.variant}${
-                  topicActive ? " summary-item--active" : ""
-                }`}
-              >
-                <div className="summary-item__main">
-                  <span className="summary-item__label">{l.def.title}</span>
-                  <strong className="summary-item__count tabnums">
-                    {l.totalCount.toLocaleString()}
-                  </strong>
-                </div>
-                <a
-                  href={toggleCompareLaneOpenUrl({
+                def={l.def}
+                fetchedRows={l.fetchedRows}
+                totalCount={l.totalCount}
+                page={l.page}
+                streamByVersion={streamByVersion}
+                packageBoundaries={packageBoundaries}
+                buildPageUrl={(nextPage) =>
+                  buildLanePageUrl({
                     fromVersion,
                     toVersion,
                     platform,
-                    expanded: expandedOverrides,
-                    topicFilter,
-                    lane: l.def
-                  })}
-                  className="summary-item__action"
-                  aria-controls={`lane-${l.def.id}`}
-                  aria-expanded={open}
-                >
-                  {open ? "Hide" : "Show"}
-                </a>
-              </div>
-            );
-          })}
-        </div>
-
-        <nav className="summary-jump-row" aria-label="Jump to lane">
-          <span className="summary-jump-row__label">Jump to</span>
-          {visibleLanesWithResults.map((lane) => (
-            <a
-              key={lane.def.id}
-              href={compareLaneJumpHref({
-                fromVersion,
-                toVersion,
-                platform,
-                expanded: expandedOverrides,
-                topicFilter,
-                lane: lane.def
-              })}
-              className="summary-jump-link"
-            >
-              {lane.def.title}
-            </a>
-          ))}
-        </nav>
-      </section>
-
-      <div className="compare-layout">
-        <div>
-          {visibleLanes.map((l) => (
-            <Lane
-              key={l.def.id}
-              def={l.def}
-              fetchedRows={l.fetchedRows}
-              totalCount={l.totalCount}
-              expanded={expandedOverrides}
-              streamByVersion={streamByVersion}
-              packageBoundaries={packageBoundaries}
-            />
-          ))}
-        </div>
+                    lanePages,
+                    laneId: l.def.id,
+                    nextPage
+                  })
+                }
+              />
+            ))}
+          </div>
 
         <aside className="compare-meta">
           <h4>Filters</h4>
@@ -584,7 +420,8 @@ export default async function ComparePage({
             ))}
           </ul>
         </aside>
-      </div>
+        </div>
+      </LaneCollapseProvider>
     </>
   );
 }
@@ -593,54 +430,117 @@ function Lane({
   def,
   fetchedRows,
   totalCount,
-  expanded,
+  page,
   streamByVersion,
-  packageBoundaries
+  packageBoundaries,
+  buildPageUrl
 }: {
   def: LaneDef;
   fetchedRows: ReleaseNoteRow[];
   totalCount: number;
-  expanded: Set<string>;
+  page: number;
   streamByVersion: Map<string, string | null>;
   packageBoundaries: Map<string, PackageBoundary>;
+  buildPageUrl: (nextPage: number) => string;
 }) {
-  const isOpen = isCompareLaneOpen(def, expanded);
   return (
-    <section className="lane" id={`lane-${def.id}`} data-collapsed={isOpen ? undefined : "true"}>
-      <header className="lane__header">
-        <ImpactPill kind={def.impactPill} />
-        <h3>{def.title}</h3>
-        <div className="lane__header-meta">
-          <span className="chip chip--count tabnums">{totalCount.toLocaleString()}</span>
+    <LaneShell
+      id={def.id}
+      variant={def.variant}
+      title={def.title}
+      count={totalCount}
+    >
+      {totalCount === 0 ? (
+        <div className="lane__empty">
+          <Icon name="check" size={16} />
+          {def.emptyMessage}
         </div>
-      </header>
-      <div className="lane__body">
-        {totalCount === 0 ? (
-          <div className="lane__empty">
-            <Icon name="check" size={16} />
-            {def.emptyMessage}
-          </div>
-        ) : def.mode === "by-issue" ? (
-          <ByIssueLaneBody
-            rows={fetchedRows}
-            totalRowCount={totalCount}
-            streamByVersion={streamByVersion}
-          />
-        ) : def.mode === "by-package" ? (
-          <ByPackageLaneBody
-            rows={fetchedRows}
-            totalRowCount={totalCount}
-            boundaries={packageBoundaries}
-          />
+      ) : def.mode === "by-issue" ? (
+        <ByIssueLaneBody
+          rows={fetchedRows}
+          totalRowCount={totalCount}
+          page={page}
+          streamByVersion={streamByVersion}
+          buildPageUrl={buildPageUrl}
+        />
+      ) : def.mode === "by-package" ? (
+        <ByPackageLaneBody
+          rows={fetchedRows}
+          totalRowCount={totalCount}
+          page={page}
+          boundaries={packageBoundaries}
+          buildPageUrl={buildPageUrl}
+        />
+      ) : (
+        <ByReleaseLaneBody
+          rows={fetchedRows}
+          totalRowCount={totalCount}
+          page={page}
+          streamByVersion={streamByVersion}
+          buildPageUrl={buildPageUrl}
+        />
+      )}
+    </LaneShell>
+  );
+}
+
+function LanePagination({
+  page,
+  pageSize,
+  total,
+  itemNoun,
+  buildPageUrl
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  itemNoun: { singular: string; plural: string };
+  buildPageUrl: (nextPage: number) => string;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const start = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const end = Math.min(safePage * pageSize, total);
+  const hasPrev = safePage > 1;
+  const hasNext = safePage < totalPages;
+  const noun = total === 1 ? itemNoun.singular : itemNoun.plural;
+
+  return (
+    <nav className="lane__pagination" aria-label="Lane pagination">
+      <span className="lane__pagination-status">
+        Showing <strong className="tabnums">{start.toLocaleString()}</strong>
+        {start !== end ? <>–<strong className="tabnums">{end.toLocaleString()}</strong></> : null}
+        {" of "}
+        <strong className="tabnums">{total.toLocaleString()}</strong> {noun}
+      </span>
+      <span className="lane__pagination-controls">
+        {hasPrev ? (
+          <a className="lane__pagination-btn" href={buildPageUrl(safePage - 1)} rel="prev">
+            <Icon name="chevron-left" size={14} />
+            Prev
+          </a>
         ) : (
-          <ByReleaseLaneBody
-            rows={fetchedRows}
-            totalRowCount={totalCount}
-            streamByVersion={streamByVersion}
-          />
+          <span className="lane__pagination-btn lane__pagination-btn--disabled" aria-disabled="true">
+            <Icon name="chevron-left" size={14} />
+            Prev
+          </span>
         )}
-      </div>
-    </section>
+        <span className="lane__pagination-page tabnums">
+          Page {safePage} of {totalPages}
+        </span>
+        {hasNext ? (
+          <a className="lane__pagination-btn" href={buildPageUrl(safePage + 1)} rel="next">
+            Next
+            <Icon name="chevron-right" size={14} />
+          </a>
+        ) : (
+          <span className="lane__pagination-btn lane__pagination-btn--disabled" aria-disabled="true">
+            Next
+            <Icon name="chevron-right" size={14} />
+          </span>
+        )}
+      </span>
+    </nav>
   );
 }
 
@@ -649,18 +549,20 @@ function Lane({
 function ByReleaseLaneBody({
   rows,
   totalRowCount,
-  streamByVersion
+  page,
+  streamByVersion,
+  buildPageUrl
 }: {
   rows: ReleaseNoteRow[];
   totalRowCount: number;
+  page: number;
   streamByVersion: Map<string, string | null>;
+  buildPageUrl: (nextPage: number) => string;
 }) {
-  // Dedup intra-release repeats (Unity sometimes lists the same UUM
-  // twice in one release-notes page) before slicing — otherwise the
-  // duplicates can crowd the visible window and push real entries off.
-  const deduped = dedupWithinReleases(rows);
-  const visible = deduped.slice(0, ROWS_PER_LANE);
-  const groups = groupByVersion(visible);
+  // SQL has already paginated; render exactly what we got. No intra-release
+  // dedup here — across pages it would silently drop rows the user is
+  // expecting to see for that page index.
+  const groups = groupByVersion(rows);
   return (
     <>
       {groups.map((group) => (
@@ -671,7 +573,7 @@ function ByReleaseLaneBody({
               stream={streamByVersion.get(group.version) ?? null}
             />
             {group.releaseDate ? (
-              <span className="muted tabnums lane__group-date">{formatDate(group.releaseDate)}</span>
+              <span className="muted tabnums lane__group-date">{formatReleaseDate(group.releaseDate)}</span>
             ) : null}
             <span className="lane__group-count muted tabnums">
               {group.rows.length} {group.rows.length === 1 ? "note" : "notes"}
@@ -682,12 +584,13 @@ function ByReleaseLaneBody({
           ))}
         </div>
       ))}
-      {totalRowCount > visible.length ? (
-        <div className="lane__footer">
-          Showing first <strong>{visible.length}</strong> of{" "}
-          <strong className="tabnums">{totalRowCount.toLocaleString()}</strong>
-        </div>
-      ) : null}
+      <LanePagination
+        page={page}
+        pageSize={ROWS_PER_LANE}
+        total={totalRowCount}
+        itemNoun={{ singular: "note", plural: "notes" }}
+        buildPageUrl={buildPageUrl}
+      />
     </>
   );
 }
@@ -697,33 +600,33 @@ function ByReleaseLaneBody({
 function ByIssueLaneBody({
   rows,
   totalRowCount,
-  streamByVersion
+  page,
+  streamByVersion,
+  buildPageUrl
 }: {
   rows: ReleaseNoteRow[];
   totalRowCount: number;
+  page: number;
   streamByVersion: Map<string, string | null>;
+  buildPageUrl: (nextPage: number) => string;
 }) {
   const deduped = dedupeByIssue(rows);
-  const visible = deduped.slice(0, ROWS_PER_LANE);
+  const start = (page - 1) * ROWS_PER_LANE;
+  const visible = deduped.slice(start, start + ROWS_PER_LANE);
   return (
     <>
       {visible.map((item) => (
         <DedupedIssueRow key={item.key} item={item} streamByVersion={streamByVersion} />
       ))}
-      <div className="lane__footer">
-        {deduped.length === visible.length ? (
-          <>
-            <strong>{deduped.length.toLocaleString()}</strong> unique{" "}
-            {deduped.length === 1 ? "issue" : "issues"} across{" "}
-            <strong className="tabnums">{totalRowCount.toLocaleString()}</strong> mentions.
-          </>
-        ) : (
-          <>
-            Showing first <strong>{visible.length}</strong> of{" "}
-            <strong>{deduped.length.toLocaleString()}</strong> unique issues (
-            <span className="tabnums">{totalRowCount.toLocaleString()}</span> total mentions).
-          </>
-        )}
+      <LanePagination
+        page={page}
+        pageSize={ROWS_PER_LANE}
+        total={deduped.length}
+        itemNoun={{ singular: "unique issue", plural: "unique issues" }}
+        buildPageUrl={buildPageUrl}
+      />
+      <div className="lane__footer lane__footer--meta">
+        Across <strong className="tabnums">{totalRowCount.toLocaleString()}</strong> total mentions in this range.
       </div>
     </>
   );
@@ -794,14 +697,19 @@ function DedupedIssueRow({
 function ByPackageLaneBody({
   rows,
   totalRowCount,
-  boundaries
+  page,
+  boundaries,
+  buildPageUrl
 }: {
   rows: ReleaseNoteRow[];
   totalRowCount: number;
+  page: number;
   boundaries: Map<string, PackageBoundary>;
+  buildPageUrl: (nextPage: number) => string;
 }) {
   const aggregated = aggregateByPackage(rows);
-  const visible = aggregated.slice(0, ROWS_PER_LANE);
+  const start = (page - 1) * ROWS_PER_LANE;
+  const visible = aggregated.slice(start, start + ROWS_PER_LANE);
   return (
     <>
       {visible.map((item) => {
@@ -879,89 +787,48 @@ function ByPackageLaneBody({
           </article>
         );
       })}
-      <div className="lane__footer">
-        {aggregated.length === visible.length ? (
-          <>
-            <strong>{aggregated.length.toLocaleString()}</strong>{" "}
-            {aggregated.length === 1 ? "package" : "packages"} touched across{" "}
-            <strong className="tabnums">{totalRowCount.toLocaleString()}</strong> mentions.
-          </>
-        ) : (
-          <>
-            Showing top <strong>{visible.length}</strong> of{" "}
-            <strong>{aggregated.length.toLocaleString()}</strong> packages.
-          </>
-        )}
+      <LanePagination
+        page={page}
+        pageSize={ROWS_PER_LANE}
+        total={aggregated.length}
+        itemNoun={{ singular: "package", plural: "packages" }}
+        buildPageUrl={buildPageUrl}
+      />
+      <div className="lane__footer lane__footer--meta">
+        Across <strong className="tabnums">{totalRowCount.toLocaleString()}</strong> total mentions in this range.
       </div>
     </>
   );
 }
 
-function NoteRow({ row }: { row: ReleaseNoteRow }) {
-  const cleanedBody = cleanReleaseNoteText(row.body ?? "");
-  const issueLinks = normalizeIssueLinks(row.issue_ids ?? [], row.issue_links_json);
-
-  return (
-    <article className="row" aria-label={`${row.section} note in ${row.version}`}>
-      <span className="row__lead">
-        {row.area ? <span>{row.area}</span> : <span className="muted">{row.section}</span>}
-      </span>
-      <div className="row__body">
-        <div className="row__title row__title--wrap" title={cleanedBody}>
-          {cleanedBody}
-        </div>
-        <div className="row__pills">
-          <RiskBadge level={row.risk_level} />
-          {(row.package_names ?? []).slice(0, 2).map((pkg) => (
-            <PackagePill name={pkg} key={pkg} />
-          ))}
-          {(row.platforms ?? []).slice(0, 4).map((plat) => (
-            <PlatformPill platform={plat} key={plat} />
-          ))}
-          {issueLinks.slice(0, 3).map((issue) => (
-            <IssuePill id={issue.id} url={issue.url} key={issue.id} />
-          ))}
-        </div>
-      </div>
-    </article>
-  );
+function parseLanePage(raw: string | null): number {
+  if (!raw) return 1;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
-function formatDate(value: string | Date): string {
-  return new Date(value).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
-}
-
-function compareLaneJumpHref(input: {
+function buildLanePageUrl(input: {
   fromVersion: string;
   toVersion: string;
   platform: string;
-  expanded: Set<string>;
-  topicFilter: Set<LaneId>;
-  lane: LaneDef;
-}) {
-  const expanded = new Set(input.expanded);
-  expanded.delete(`!${input.lane.id}`);
-  if (!input.lane.defaultOpen) expanded.add(input.lane.id);
-
-  return compareControlUrl({
-    fromVersion: input.fromVersion,
-    toVersion: input.toVersion,
-    platform: input.platform,
-    expanded,
-    topicFilter: input.topicFilter,
-    hash: `lane-${input.lane.id}`
-  });
-}
-
-function parseLaneIds(value: string) {
-  const ids = new Set(LANES.map((lane) => lane.id));
-  return value
-    .split(",")
-    .filter((id): id is LaneId => ids.has(id as LaneId));
+  lanePages: Record<LaneId, number>;
+  laneId: LaneId;
+  nextPage: number;
+}): string {
+  const params = new URLSearchParams();
+  params.set("from", input.fromVersion);
+  params.set("to", input.toVersion);
+  if (input.platform) params.set("platform", input.platform);
+  // Preserve every other lane's page param so paginating one lane doesn't
+  // silently reset the rest of the page.
+  for (const [laneId, page] of Object.entries(input.lanePages)) {
+    if (laneId === input.laneId) continue;
+    if (page > 1) params.set(`p_${laneId}`, String(page));
+  }
+  if (input.nextPage > 1) {
+    params.set(`p_${input.laneId}`, String(input.nextPage));
+  }
+  return `/compare?${params.toString()}#lane-${input.laneId}`;
 }
 
 type CompareCounts = {
@@ -1009,15 +876,11 @@ function ComparePicker({
   fromVersion,
   toVersion,
   releases,
-  userVersion,
-  userStream,
   children
 }: {
   fromVersion: string;
   toVersion: string;
   releases: { version: string; stream: string | null; release_date: string | null }[];
-  userVersion: string | null;
-  userStream: string | null;
   children?: React.ReactNode;
 }) {
   // A single shared <datalist> drives substring autocomplete on both inputs.
@@ -1031,11 +894,15 @@ function ComparePicker({
 
   return (
     <>
-      <form className="compare-picker" method="get" action="/compare">
+      {/*
+        Submitting via server action persists the `from` value as the user's
+        saved Unity version — no separate "Your Unity version" widget needed.
+      */}
+      <form className="compare-picker" action={submitCompareAction}>
         <datalist id={datalistId}>
           {releases.map((r) => (
             <option key={r.version} value={r.version}>
-              {r.stream ? `${streamLabel(r.stream)} · ${r.release_date ? formatDate(r.release_date) : ""}` : ""}
+              {r.stream ? `${streamLabel(r.stream)} · ${r.release_date ? formatReleaseDate(r.release_date) : ""}` : ""}
             </option>
           ))}
         </datalist>
@@ -1047,7 +914,7 @@ function ComparePicker({
             name="from"
             list={datalistId}
             defaultValue={fromVersion}
-            placeholder="Type a version…"
+            placeholder="6000.x.yfz"
             autoComplete="off"
             spellCheck={false}
           />
@@ -1070,7 +937,7 @@ function ComparePicker({
             name="to"
             list={datalistId}
             defaultValue={toVersion}
-            placeholder="Type a version…"
+            placeholder="6000.x.yfz"
             autoComplete="off"
             spellCheck={false}
           />
@@ -1081,9 +948,6 @@ function ComparePicker({
           Compare
         </button>
       </form>
-      <div className="compare-version-panel">
-        <SidebarVersionStatus userVersion={userVersion} userStream={userStream} />
-      </div>
       {children}
     </>
   );

@@ -77,11 +77,13 @@ function releaseNoteOrder(filters: ReleaseNoteSearchFilters): string {
 export function buildReleaseNoteWhereForVersions(
   versions: string[],
   filters: ReleaseNoteSearchFilters,
-  limit: number
+  limit: number,
+  offset: number = 0
 ): SqlQuery {
   const { where, values, add } = buildReleaseNoteWhere(filters);
   where.push(`version = ANY(${add(versions)})`);
   const limitParam = add(limit);
+  const offsetClause = offset > 0 ? `OFFSET ${add(offset)}` : "";
 
   return {
     text: `
@@ -90,6 +92,7 @@ export function buildReleaseNoteWhereForVersions(
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY release_date DESC NULLS LAST, source_order ASC
       LIMIT ${limitParam}
+      ${offsetClause}
     `.trim(),
     values
   };

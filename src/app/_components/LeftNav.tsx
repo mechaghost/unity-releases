@@ -47,9 +47,6 @@ export function LeftNav() {
   return (
     <nav className="lnav" id="primary-nav" aria-label="Primary">
       <a href="/" className="lnav__brand">
-        <span className="lnav__brand-mark" aria-hidden="true">
-          U
-        </span>
         Unity Releases
       </a>
       <div className="lnav__sections">

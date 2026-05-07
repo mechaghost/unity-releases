@@ -269,10 +269,11 @@ export async function packageVersionsAtBoundary(
 export async function searchReleaseNotesInRange(
   versions: string[],
   filters: ReleaseNoteSearchFilters,
-  limit = 5000
+  limit = 5000,
+  offset = 0
 ) {
   if (versions.length === 0) return [];
-  const built = buildReleaseNoteWhereForVersions(versions, filters, limit);
+  const built = buildReleaseNoteWhereForVersions(versions, filters, limit, offset);
   const result = await query(built.text, built.values);
   return result.rows;
 }
@@ -446,6 +447,24 @@ export async function listReleases(limit = 50) {
 export async function getRelease(version: string) {
   const result = await query("SELECT * FROM unity_releases WHERE version = $1", [version]);
   return result.rows[0] ?? null;
+}
+
+/** Map of release version → parsed-note-item count, used by the desktop
+ *  releases table to render a "Parsed · N entries" status column without
+ *  N+1 queries. Versions with no parsed notes are omitted. */
+export async function listReleaseNoteCounts(): Promise<Record<string, number>> {
+  const result = await query(
+    `
+      SELECT version, COUNT(*)::int AS note_count
+      FROM release_note_items
+      GROUP BY version
+    `
+  );
+  const map: Record<string, number> = {};
+  for (const row of result.rows as Array<{ version: string; note_count: number }>) {
+    map[row.version] = row.note_count;
+  }
+  return map;
 }
 
 export async function listPackages(limit = 100) {
