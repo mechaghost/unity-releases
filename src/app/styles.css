@@ -2160,6 +2160,50 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   cursor: pointer;
 }
 
+.filter-saved__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.filter-saved__chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+.filter-saved__chip:hover { border-color: var(--border-strong); }
+
+.filter-saved__chip-apply,
+.filter-saved__chip-remove {
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0 var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
+}
+.filter-saved__chip-apply { padding-right: var(--space-1); }
+.filter-saved__chip-remove {
+  border-left: 1px solid var(--border-default);
+  color: var(--text-muted);
+}
+.filter-saved__chip-remove:hover { color: var(--text-primary); }
+.filter-saved__chip-remove:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.filter-saved__form {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.filter-saved__form .filter-input { flex: 1 1 0; min-width: 0; }
+
 @media (max-width: 640px) {
   .filter-surface__panel {
     width: 100vw;

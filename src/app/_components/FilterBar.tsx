@@ -8,7 +8,8 @@ import {
   activeFilterCount,
   serializeFiltersToParams,
   type FilterState,
-  type PipelineId
+  type PipelineId,
+  type SavedPreset
 } from "@/lib/filters";
 import { LANE_CATALOG, type LaneId } from "@/lib/lane-catalog";
 import { FilterDrawer } from "./FilterDrawer";
@@ -22,6 +23,7 @@ type Props = {
     areas: Array<{ value: string; count: number }>;
   };
   manifestPackages: readonly string[];
+  savedPresets: SavedPreset[];
   preservedParams: Record<string, string>;
   basePath: string;
   view: "compare" | "release";
@@ -31,6 +33,7 @@ export function FilterBar({
   filters,
   facets,
   manifestPackages,
+  savedPresets,
   preservedParams,
   basePath,
   view
@@ -73,6 +76,7 @@ export function FilterBar({
         initial={filters}
         facets={facets}
         manifestPackages={manifestPackages}
+        savedPresets={savedPresets}
         preservedParams={preservedParams}
         basePath={basePath}
         view={view}

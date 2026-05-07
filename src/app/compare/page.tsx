@@ -26,7 +26,9 @@ import {
   filtersToSearchFilters,
   parseFiltersFromParams,
   parsePersonaCookie,
-  personaCookieName
+  parseSavedPresetsCookie,
+  personaCookieName,
+  savedPresetsCookieName
 } from "@/lib/filters";
 import { IssuePill } from "../_components/IssuePill";
 import { PackagePill } from "../_components/PackagePill";
@@ -159,6 +161,9 @@ export default async function ComparePage({
   const params = toUrlSearchParams(await searchParams);
   const cookieJar = await cookies();
   const presetCookie = parsePersonaCookie(cookieJar.get(personaCookieName("compare"))?.value);
+  const savedPresets = parseSavedPresetsCookie(
+    cookieJar.get(savedPresetsCookieName("compare"))?.value
+  );
   const [userVersion, allReleases, userPackages] = await Promise.all([
     getUserVersion(),
     safeListReleases(),
@@ -387,6 +392,7 @@ export default async function ComparePage({
         filters={filterState}
         facets={facets}
         manifestPackages={userPackages}
+        savedPresets={savedPresets}
         preservedParams={{
           from: fromVersion,
           to: toVersion,

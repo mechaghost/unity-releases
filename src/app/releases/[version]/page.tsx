@@ -8,7 +8,9 @@ import {
   filtersToSearchFilters,
   parseFiltersFromParams,
   parsePersonaCookie,
-  personaCookieName
+  parseSavedPresetsCookie,
+  personaCookieName,
+  savedPresetsCookieName
 } from "@/lib/filters";
 import { VersionPill } from "../../_components/VersionPill";
 import { ExternalLink } from "../../_components/ExternalLink";
@@ -68,6 +70,9 @@ export default async function ReleasePage({
 
   const cookieJar = await cookies();
   const presetCookie = parsePersonaCookie(cookieJar.get(personaCookieName("release"))?.value);
+  const savedPresets = parseSavedPresetsCookie(
+    cookieJar.get(savedPresetsCookieName("release"))?.value
+  );
   const filterState = parseFiltersFromParams(urlParams, presetCookie ?? "balanced");
   const userPackages = await getUserPackages();
   const userSearchFilters = filtersToSearchFilters(filterState, userPackages);
@@ -130,6 +135,7 @@ export default async function ReleasePage({
         filters={filterState}
         facets={facets}
         manifestPackages={userPackages}
+        savedPresets={savedPresets}
         preservedParams={{}}
         basePath={`/releases/${encodeURIComponent(decoded)}`}
         view="release"

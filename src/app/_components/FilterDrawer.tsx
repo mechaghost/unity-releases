@@ -10,14 +10,21 @@ import {
   PIPELINE_LABELS,
   RISK_LEVELS,
   presetState,
+  savedPresetToState,
   serializeFiltersToParams,
+  stateToSavedPreset,
   type FilterState,
   type PersonaPreset,
   type PipelineId,
-  type RiskLevel
+  type RiskLevel,
+  type SavedPreset
 } from "@/lib/filters";
 import { LANE_CATALOG, type LaneId } from "@/lib/lane-catalog";
-import { setPersonaPresetAction } from "../_actions/filter-prefs";
+import {
+  deleteFilterPresetAction,
+  saveFilterPresetAction,
+  setPersonaPresetAction
+} from "../_actions/filter-prefs";
 import { Icon } from "./Icon";
 
 type FacetOption = { value: string; count: number };
@@ -31,6 +38,8 @@ type Props = {
   facets: { platforms: FacetOption[]; packages: FacetOption[]; areas: FacetOption[] };
   /** The user's saved manifest packages (for the "Affects my team" toggle). */
   manifestPackages: readonly string[];
+  /** Cookie-backed saved presets for this view. */
+  savedPresets: SavedPreset[];
   /** Static URL params that must be preserved on apply (from, to, p_<lane> …). */
   preservedParams: Record<string, string>;
   /** Page path the form should submit to. */
@@ -45,6 +54,7 @@ export function FilterDrawer({
   initial,
   facets,
   manifestPackages,
+  savedPresets,
   preservedParams,
   basePath,
   view
@@ -150,6 +160,13 @@ export function FilterDrawer({
 
         <div className="filter-surface__body">
           <PresetSection state={state} onPick={applyPreset} />
+
+          <SavedPresetsSection
+            view={view}
+            presets={savedPresets}
+            currentState={state}
+            onApply={(p) => setState(savedPresetToState(p))}
+          />
 
           <Section title="Search">
             <input
@@ -349,6 +366,105 @@ function PresetSection({
         Picking a preset replaces every filter below with that preset's defaults.
       </p>
     </details>
+  );
+}
+
+function SavedPresetsSection({
+  view,
+  presets,
+  currentState,
+  onApply
+}: {
+  view: "compare" | "release";
+  presets: SavedPreset[];
+  currentState: FilterState;
+  onApply: (preset: SavedPreset) => void;
+}) {
+  const [name, setName] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  const trimmed = name.trim();
+  const collision = presets.some((p) => p.name === trimmed);
+
+  function save() {
+    if (!trimmed) return;
+    const preset = stateToSavedPreset(trimmed, currentState);
+    startTransition(() => {
+      void saveFilterPresetAction(view, preset.name, preset.qs);
+    });
+    setName("");
+  }
+
+  function remove(name: string) {
+    startTransition(() => {
+      void deleteFilterPresetAction(view, name);
+    });
+  }
+
+  return (
+    <section className="filter-section filter-saved">
+      <header className="filter-section__head">
+        <span className="filter-section__title">Saved presets</span>
+        <span className="filter-section__hint">
+          {presets.length}/{10}
+        </span>
+      </header>
+      <div className="filter-section__body">
+        {presets.length === 0 ? (
+          <p className="filter-section__hint">
+            No saved presets yet. Save the current filter combo below.
+          </p>
+        ) : (
+          <div className="filter-saved__chips">
+            {presets.map((p) => (
+              <span key={p.name} className="filter-saved__chip">
+                <button
+                  type="button"
+                  className="filter-saved__chip-apply"
+                  onClick={() => onApply(p)}
+                  title="Apply this preset"
+                >
+                  {p.name}
+                </button>
+                <button
+                  type="button"
+                  className="filter-saved__chip-remove"
+                  onClick={() => remove(p.name)}
+                  aria-label={`Delete preset ${p.name}`}
+                  disabled={pending}
+                >
+                  <Icon name="x" size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="filter-saved__form">
+          <input
+            type="text"
+            className="filter-input"
+            placeholder="Save current as…"
+            value={name}
+            maxLength={40}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                save();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn--secondary btn--small"
+            onClick={save}
+            disabled={!trimmed || pending}
+          >
+            {collision ? "Overwrite" : "Save"}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 

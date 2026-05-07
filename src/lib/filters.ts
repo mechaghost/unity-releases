@@ -297,6 +297,71 @@ export function parsePersonaCookie(raw: string | undefined | null): PersonaPrese
     : null;
 }
 
+// ─── saved presets cookie ────────────────────────────────────────────────
+
+export const SAVED_PRESETS_COOKIE_PREFIX = "unity-alerts-filter-saved-";
+export const MAX_SAVED_PRESETS = 10;
+export const MAX_PRESET_NAME_LENGTH = 40;
+
+/** A user-named filter combo. The state is stored as the same URL-encoded
+ *  query string the page already uses, so apply = parse with
+ *  `parseFiltersFromParams`. Keeps the cookie small. */
+export type SavedPreset = {
+  name: string;
+  qs: string;
+};
+
+export function savedPresetsCookieName(view: "compare" | "release"): string {
+  return `${SAVED_PRESETS_COOKIE_PREFIX}${view}`;
+}
+
+/** Tolerant parser: bad cookies return []. The cookies API decodes the
+ *  cookie value once on read, so we only need JSON.parse here. */
+export function parseSavedPresetsCookie(raw: string | undefined | null): SavedPreset[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (p): p is SavedPreset =>
+          p &&
+          typeof p.name === "string" &&
+          typeof p.qs === "string" &&
+          p.name.length > 0 &&
+          p.name.length <= MAX_PRESET_NAME_LENGTH
+      )
+      .slice(0, MAX_SAVED_PRESETS);
+  } catch {
+    return [];
+  }
+}
+
+/** Inverse: a JSON blob. Cookie API handles URL-encoding on set. */
+export function serializeSavedPresetsCookie(presets: SavedPreset[]): string {
+  const trimmed = presets.slice(0, MAX_SAVED_PRESETS).map((p) => ({
+    name: p.name.slice(0, MAX_PRESET_NAME_LENGTH),
+    qs: p.qs
+  }));
+  return JSON.stringify(trimmed);
+}
+
+/** Apply a saved preset on the page: parse its `qs` back into FilterState.
+ *  Defaults that aren't in the qs come from EMPTY_FILTERS. */
+export function savedPresetToState(preset: SavedPreset): FilterState {
+  const params = new URLSearchParams(preset.qs);
+  return parseFiltersFromParams(params);
+}
+
+/** Build a SavedPreset from the current FilterState — strips the preset
+ *  field (saved presets are persona-agnostic) and re-uses the standard
+ *  serializer so the qs round-trips cleanly. */
+export function stateToSavedPreset(name: string, state: FilterState): SavedPreset {
+  const params = new URLSearchParams();
+  serializeFiltersToParams({ ...state, preset: DEFAULT_PERSONA }, params);
+  return { name: name.slice(0, MAX_PRESET_NAME_LENGTH), qs: params.toString() };
+}
+
 /** Convenience: every known lane id, in catalog order. Re-exported so the
  *  drawer doesn't import lane-catalog directly. */
 export const ALL_LANE_IDS: readonly LaneId[] = LANE_IDS;
