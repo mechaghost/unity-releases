@@ -1,19 +1,8 @@
 "use client";
 
 import { useRef } from "react";
+import { RELEASE_FILTERS } from "@/lib/release-page-filter";
 import { Icon } from "./Icon";
-
-type StreamOption = {
-  value: string;
-  label: string;
-};
-
-const OPTIONS: StreamOption[] = [
-  { value: "lts", label: "LTS" },
-  { value: "update", label: "Supported" },
-  { value: "beta", label: "Beta" },
-  { value: "alpha", label: "Alpha" }
-];
 
 export function ReleaseStreamFilter({ selected }: { selected: string[] }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -28,7 +17,7 @@ export function ReleaseStreamFilter({ selected }: { selected: string[] }) {
       aria-label="Stream filter"
       onChange={() => formRef.current?.requestSubmit()}
     >
-      {OPTIONS.map((option) => {
+      {RELEASE_FILTERS.map((option) => {
         const checked = selectedSet.has(option.value);
         return (
           <label

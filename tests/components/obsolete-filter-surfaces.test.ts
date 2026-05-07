@@ -13,6 +13,6 @@ describe("obsolete filter surfaces", () => {
 
   test("releases page keeps the useful stream filter", () => {
     expect(releasesPage).toContain("ReleaseStreamFilter");
-    expect(releasesPage).toContain("selectedStreams");
+    expect(releasesPage).toContain("selectedFilters");
   });
 });
