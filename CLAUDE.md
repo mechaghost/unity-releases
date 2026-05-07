@@ -62,6 +62,7 @@ npm run ingest:editor
 npm run ingest:packages
 npm run ingest:news
 npm run ingest:backfill
+npm run check:packages   # surfaces com.unity.* mentioned in release notes but not in the curated list
 ```
 
 Current local database was populated from real Unity sources:
@@ -71,6 +72,17 @@ Current local database was populated from real Unity sources:
 - Official Unity blog/news RSS
 
 Unity 6+ is the focus. The user explicitly does not care about pre-Unity-6 history right now.
+
+### Catching missing packages
+
+Unity has no list endpoint for `com.unity.*` packages — `UNITY_OFFICIAL_PACKAGES`
+in `src/lib/ingest/unity-packages.ts` is the canonical curated list. To
+catch new packages Unity ships, run `npm run check:packages` after each
+`npm run ingest:editor`. It prints any `com.unity.*` package mentioned in
+the editor release notes that isn't in the curated list, sorted by
+mention count. Add the ones worth tracking to the list and re-run
+`npm run ingest:packages`. Built-in `com.unity.modules.*` are skipped
+(they're not registry entries).
 
 ## Current App Shape
 

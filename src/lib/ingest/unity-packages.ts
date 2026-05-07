@@ -13,6 +13,7 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   // 2D
   "com.unity.2d.animation",
   "com.unity.2d.aseprite",
+  "com.unity.2d.common",
   "com.unity.2d.pixel-perfect",
   "com.unity.2d.psdimporter",
   "com.unity.2d.sprite",
@@ -22,7 +23,11 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
 
   // Addressables / Asset bundles
   "com.unity.addressables",
+  "com.unity.addressables.android",
   "com.unity.scriptablebuildpipeline",
+
+  // Asset Manager
+  "com.unity.asset-manager-for-unity",
 
   // AI & navigation
   "com.unity.ai.assistant",
@@ -77,6 +82,7 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
 
   // Multiplayer & networking
   "com.unity.multiplayer.center",
+  "com.unity.multiplayer.playmode",
   "com.unity.multiplayer.tools",
   "com.unity.netcode",
   "com.unity.netcode.gameobjects",
@@ -157,6 +163,15 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   "com.unity.xr.windowsmr",
   "com.unity.xr.visionos",
 
+  // Apple Vision Pro / PolySpatial
+  "com.unity.polyspatial",
+  "com.unity.polyspatial.extensions",
+  "com.unity.polyspatial.visionos",
+  "com.unity.polyspatial.xr",
+
+  // Web platform
+  "com.unity.web.stripping-tool",
+
   // Cloud services (com.unity.services.*)
   "com.unity.services.analytics",
   "com.unity.services.authentication",
@@ -170,6 +185,7 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   "com.unity.services.lobby",
   "com.unity.services.matchmaker",
   "com.unity.services.multiplay",
+  "com.unity.services.multiplayer",
   "com.unity.services.push-notifications",
   "com.unity.services.qos",
   "com.unity.services.relay",

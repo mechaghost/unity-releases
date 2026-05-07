@@ -15,7 +15,8 @@
     "ingest:editor": "tsx src/jobs/poll-editor.ts",
     "ingest:packages": "tsx src/jobs/poll-packages.ts",
     "ingest:news": "tsx src/jobs/poll-news.ts",
-    "health:ingest": "tsx src/jobs/health.ts"
+    "health:ingest": "tsx src/jobs/health.ts",
+    "check:packages": "tsx src/jobs/check-missing-packages.ts"
   },
   "dependencies": {
     "@types/pg": "^8.11.11",
