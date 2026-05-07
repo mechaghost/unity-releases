@@ -2178,40 +2178,29 @@ button.filter-section__head:focus-visible {
   accent-color: var(--accent);
 }
 
-.filter-preset {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-sunken);
-  padding: var(--space-2) var(--space-3);
-}
-.filter-preset > summary {
+/* Combined Persona + Saved presets section. The two sub-groups share
+   one card so the drawer doesn't open with two stacked preset blocks. */
+.filter-presets {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  list-style: none;
+  flex-direction: column;
+  gap: var(--space-3);
 }
-.filter-preset > summary::-webkit-details-marker {
-  display: none;
+.filter-presets__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
-.filter-preset__active {
-  font-size: var(--text-sm);
-  color: var(--text-primary);
+.filter-presets__sublabel {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-snug);
+  color: var(--text-muted);
   font-weight: var(--weight-medium);
 }
-.filter-preset__options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-.filter-preset__option {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  cursor: pointer;
+.filter-presets__divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0;
 }
 
 .filter-saved__chips {

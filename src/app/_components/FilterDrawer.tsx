@@ -166,13 +166,12 @@ export function FilterDrawer({
         </header>
 
         <div className="filter-surface__body">
-          <PresetSection state={state} onPick={applyPreset} />
-
-          <SavedPresetsSection
+          <PresetsSection
+            state={state}
             view={view}
-            presets={savedPresets}
-            currentState={state}
-            onApply={(p) => setState(savedPresetToState(p))}
+            savedPresets={savedPresets}
+            onPickPersona={applyPreset}
+            onApplySaved={(p) => setState(savedPresetToState(p))}
           />
 
           <Section title="Search" count={state.q ? 1 : 0}>
@@ -427,140 +426,129 @@ export function FilterDrawer({
 
 // ─── sub-components ──────────────────────────────────────────────────────
 
-function PresetSection({
+function PresetsSection({
   state,
-  onPick
+  view,
+  savedPresets,
+  onPickPersona,
+  onApplySaved
 }: {
   state: FilterState;
-  onPick: (preset: PersonaPreset) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <details
-      className="filter-section filter-preset"
-      open={open}
-      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
-    >
-      <summary>
-        <span className="filter-section__title">Persona preset</span>
-        <span className="filter-preset__active">{capitalize(state.preset)}</span>
-      </summary>
-      <div className="filter-preset__options">
-        {PERSONA_PRESETS.map((p) => (
-          <label key={p} className="filter-preset__option">
-            <input
-              type="radio"
-              name="filter-preset"
-              checked={state.preset === p}
-              onChange={() => onPick(p)}
-            />
-            {capitalize(p)}
-          </label>
-        ))}
-      </div>
-      <p className="filter-section__hint">
-        Picking a preset replaces every filter below with that preset's defaults.
-      </p>
-    </details>
-  );
-}
-
-function SavedPresetsSection({
-  view,
-  presets,
-  currentState,
-  onApply
-}: {
   view: "compare" | "release";
-  presets: SavedPreset[];
-  currentState: FilterState;
-  onApply: (preset: SavedPreset) => void;
+  savedPresets: SavedPreset[];
+  onPickPersona: (preset: PersonaPreset) => void;
+  onApplySaved: (preset: SavedPreset) => void;
 }) {
   const [name, setName] = useState("");
   const [pending, startTransition] = useTransition();
 
   const trimmed = name.trim();
-  const collision = presets.some((p) => p.name === trimmed);
+  const collision = savedPresets.some((p) => p.name === trimmed);
 
   function save() {
     if (!trimmed) return;
-    const preset = stateToSavedPreset(trimmed, currentState);
+    const preset = stateToSavedPreset(trimmed, state);
     startTransition(() => {
       void saveFilterPresetAction(view, preset.name, preset.qs);
     });
     setName("");
   }
 
-  function remove(name: string) {
+  function remove(presetName: string) {
     startTransition(() => {
-      void deleteFilterPresetAction(view, name);
+      void deleteFilterPresetAction(view, presetName);
     });
   }
 
+  // Show a count when the user has diverged from the default persona,
+  // or when they have any saved presets stored.
+  const count =
+    (state.preset !== "balanced" ? 1 : 0) + (savedPresets.length > 0 ? 1 : 0);
+
   return (
-    <section className="filter-section filter-saved">
-      <header className="filter-section__head">
-        <span className="filter-section__title">Saved presets</span>
-        <span className="filter-section__hint">
-          {presets.length}/{10}
-        </span>
-      </header>
-      <div className="filter-section__body">
-        {presets.length === 0 ? (
-          <p className="filter-section__hint">
-            No saved presets yet. Save the current filter combo below.
-          </p>
-        ) : (
-          <div className="filter-saved__chips">
-            {presets.map((p) => (
-              <span key={p.name} className="filter-saved__chip">
-                <button
-                  type="button"
-                  className="filter-saved__chip-apply"
-                  onClick={() => onApply(p)}
-                  title="Apply this preset"
-                >
-                  {p.name}
-                </button>
-                <button
-                  type="button"
-                  className="filter-saved__chip-remove"
-                  onClick={() => remove(p.name)}
-                  aria-label={`Delete preset ${p.name}`}
-                  disabled={pending}
-                >
-                  <Icon name="x" size={11} />
-                </button>
-              </span>
+    <Section title="Presets" count={count} hint={`${savedPresets.length}/10 saved`}>
+      <div className="filter-presets">
+        <div className="filter-presets__group">
+          <span className="filter-presets__sublabel">Persona</span>
+          <div className="filter-radio-row">
+            {PERSONA_PRESETS.map((p) => (
+              <label key={p} className="filter-radio">
+                <input
+                  type="radio"
+                  name="filter-preset"
+                  checked={state.preset === p}
+                  onChange={() => onPickPersona(p)}
+                />
+                {capitalize(p)}
+              </label>
             ))}
           </div>
-        )}
-        <div className="filter-saved__form">
-          <input
-            type="text"
-            className="filter-input"
-            placeholder="Save current as…"
-            value={name}
-            maxLength={40}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                save();
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="btn btn--secondary btn--small"
-            onClick={save}
-            disabled={!trimmed || pending}
-          >
-            {collision ? "Overwrite" : "Save"}
-          </button>
+          <p className="filter-section__hint">
+            Picking a persona replaces every filter below with that persona's
+            defaults.
+          </p>
+        </div>
+
+        <div className="filter-presets__divider" />
+
+        <div className="filter-presets__group">
+          <span className="filter-presets__sublabel">Your saved presets</span>
+          {savedPresets.length === 0 ? (
+            <p className="filter-section__hint">
+              No saved presets yet. Save the current filter combo below.
+            </p>
+          ) : (
+            <div className="filter-saved__chips">
+              {savedPresets.map((p) => (
+                <span key={p.name} className="filter-saved__chip">
+                  <button
+                    type="button"
+                    className="filter-saved__chip-apply"
+                    onClick={() => onApplySaved(p)}
+                    title="Apply this preset"
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="filter-saved__chip-remove"
+                    onClick={() => remove(p.name)}
+                    aria-label={`Delete preset ${p.name}`}
+                    disabled={pending}
+                  >
+                    <Icon name="x" size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="filter-saved__form">
+            <input
+              type="text"
+              className="filter-input"
+              placeholder="Save current as…"
+              value={name}
+              maxLength={40}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  save();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn btn--secondary btn--small"
+              onClick={save}
+              disabled={!trimmed || pending}
+            >
+              {collision ? "Overwrite" : "Save"}
+            </button>
+          </div>
         </div>
       </div>
-    </section>
+    </Section>
   );
 }
 
