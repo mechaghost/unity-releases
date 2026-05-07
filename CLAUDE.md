@@ -86,69 +86,50 @@ mention count. Add the ones worth tracking to the list and re-run
 
 ## Current App Shape
 
-Primary navigation:
+Primary navigation (sidebar on desktop, drawer on mobile):
 
-- `/` - Today, release-first dashboard
-- `/releases` - Editor release browse
-- `/releases/[version]` - release detail with compact release-note workbench
-- `/packages` - package browse
+- `/` - redirects to `/releases`
+- `/releases` - editor release index, paginated, with stream filter
+- `/releases/[version]` - release detail with lane-bucketed parsed notes
+- `/compare?from=X&to=Y` - diff view, lane-bucketed, with sub-range slider
+- `/packages` - package index (sortable)
 - `/packages/[name]` - package detail
-- `/explorer` - global release-note workbench
+- `/news` - official Unity blog feed
+- `/faq` - source list + not-affiliated-with-Unity disclaimer
+- `/explorer` - global release-note workbench (faceted search)
 - `/upgrade` - upgrade review lanes
-- `/watch` - feed builder
-- `/rss` - RSS output
-- `/news` - broader official Unity news
+- `/issues/[issueId]` - every release-note that mentions a UUM-xxxxx
 
 Do not put `/api/health` back in primary navigation.
 
-## Important Recent Work
+## Filter system
 
-Latest commits:
-
-- `fa95969 feat: improve release detail notes`
-- `4c3d109 feat: improve release intelligence IA`
-- `be277cb docs: add repository workflow conventions`
-- `90bae57 fix: use trigger-backed release note search vector`
-
-Release detail pages now:
-
-- show compact release-note rows
-- clean raw markdown and `<br>` tags
-- render compact `UUM-xxxxx` chips
-- link `UUM-xxxxx` internally to `/issues/[issueId]`
-- link `Tracker` chips to Unity Issue Tracker when available
-- support scoped search, quick tabs, filters, grouping, ordering, and explicit result windowing
-
-Global Explorer now:
-
-- has labeled facets rather than raw unlabeled inputs
-- groups by version
-- shows active filter chips and result counts
-- uses readable impact/risk labels
-
-Upgrade Review now:
-
-- groups target-version findings into active known issues, fixes gained, API/breaking changes, package changes, platform/install impact, and other notes
-- still needs deeper true `from` to `to` diff semantics in future work
+Both `/compare` and `/releases/[version]` share a Filter drawer
+(`src/app/_components/FilterDrawer.tsx`) backed by a single state
+shape (`src/lib/filters.ts`). State is URL-encoded for shareability +
+sticky cookie for persona/saved presets. Plan + decisions in
+`docs/filter-plan.md`.
 
 ## Useful Implementation Files
 
-- `src/lib/search.ts` - release-note SQL builders and whitelisted ordering
+- `src/lib/search.ts` - release-note SQL builder (filters + COUNT() OVER for pagination)
+- `src/lib/filters.ts` - filter state + presets + URL/cookie projection
 - `src/lib/classification.ts` - Unity-specific area/impact/risk classification
+- `src/lib/lane-catalog.ts` - canonical lane id → title/variant/impactPill map (shared by compare + release detail)
 - `src/lib/release-notes/format.ts` - shared release-note text cleanup and issue-link helpers
-- `src/lib/db/repositories.ts` - database reads/writes
-- `src/app/explorer/page.tsx` - global release-note workbench
-- `src/app/releases/[version]/page.tsx` - release-specific workbench
-- `src/app/upgrade/page.tsx` - upgrade review lanes
+- `src/lib/db/repositories.ts` - database reads/writes (incl. getReleaseRangeFacets)
+- `src/lib/ingest/unity-packages.ts` - curated package allowlist (run check:packages after editor ingest)
+- `src/app/_components/{ReviewLanes,FilterDrawer,FilterBar,NoteRow}.tsx` - shared lane + filter UI
+- `src/app/compare/page.tsx`, `src/app/releases/[version]/page.tsx` - the two main lane views
 - `src/app/styles.css` - shared UI styles
+- `scripts/release.sh` - promote main → release for Railway deploy
+- `scripts/migrate-db-to-prod.sh` - one-shot dev DB → Railway DB seeding
 
 ## Current Test Coverage
 
-The suite currently includes parser, RSS, search SQL, classification, formatting, schema, normalization, and smoke tests.
+`npm test` runs the full Vitest suite — 162 tests across parsers,
+classification, search SQL, lane logic, ingestion normalization,
+filter state round-trips, server actions, and component renderers.
 
-Most recent verification before this handoff:
-
-- `npm test` passed, 33 tests
-- `npm run typecheck` passed
-- `DATABASE_URL='postgres://unity:unity@localhost:54329/unity_releases' npm run build` passed
-- `curl http://localhost:3000/api/health` returned `databaseConfigured: true`
+Run `npm run typecheck` + `npm test` before committing anything
+non-trivial. Both must pass.

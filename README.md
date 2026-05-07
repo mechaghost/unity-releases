@@ -1,8 +1,17 @@
 # Unity Releases
 
-Unity Releases is an independent Unity 6+ release intelligence app. It tracks Editor releases, curated official package releases, Unity Hub/news sources, searchable release-note items, upgrade-impact signals, and watchable RSS URLs.
+Unity Releases is an independent Unity 6+ release intelligence app. It
+tracks editor releases across LTS / Supported / Beta / Alpha streams,
+the official Unity package registry, and the Unity blog. Every parsed
+release-note item is bucketed into impact lanes (blockers, breaking,
+API, security, packages, features, fixes, …), filterable per-view via
+a drawer that supports persona presets, saved presets, and shareable
+URL-encoded filter state. Diff two versions side-by-side at `/compare`,
+or drill into one release at `/releases/[version]`.
 
-This project is not affiliated with, endorsed by, sponsored by, or approved by Unity Technologies or its affiliates.
+This project is not affiliated with, endorsed by, sponsored by, or
+approved by Unity Technologies or its affiliates. See `/faq` for the
+data-source list and disclaimer.
 
 ## Stack
 
@@ -123,7 +132,10 @@ shipped the schema) and let the cron services keep the data fresh.
 
 ## Current Limitations
 
-- UI is intentionally plain; visual polish comes after functionality is tested.
-- Jobs currently parse and report source data, with DB persistence ready through schema/repositories.
-- Package discovery uses a curated allowlist, not registry-wide discovery.
-- Issue Tracker pages are linked, not crawled.
+- Package discovery uses a curated allowlist (`src/lib/ingest/unity-packages.ts`)
+  because Unity doesn't publish a registry-listing endpoint.
+  `npm run check:packages` surfaces `com.unity.*` mentions in editor
+  release notes that aren't in the list yet.
+- Unity Issue Tracker pages are linked, not crawled.
+- Backport-status filter is blocked on missing source data — see
+  `docs/filter-plan.md` § Phase 3.
