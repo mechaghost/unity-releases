@@ -217,14 +217,8 @@ export default function FaqPage() {
 
         <Question id="bug">Found a bug or missing data?</Question>
         <Answer>
-          Open an issue on the GitHub repo:{" "}
-          <a
-            href="https://github.com/mechaghost/unity-releases"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            github.com/mechaghost/unity-releases
-          </a>
+          Reach out at{" "}
+          <a href="mailto:elbert@mechaghost.com">elbert@mechaghost.com</a>
           .
         </Answer>
       </article>
