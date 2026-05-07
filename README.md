@@ -54,8 +54,8 @@ you want production to update.
 | Service | Config file | Cron schedule | What it does |
 |---|---|---|---|
 | Web (default) | `railway.json` | — (long-running) | `npm run start`, healthcheck `/api/health` |
-| `cron-editor` | `config/railway/cron-editor.json` | `0 * * * *` (hourly) | `npm run ingest:editor` |
-| `cron-packages` | `config/railway/cron-packages.json` | `0 */6 * * *` (every 6h) | `npm run ingest:packages` |
+| `cron-editor` | `config/railway/cron-editor.json` | `0 */12 * * *` (every 12h) | `npm run ingest:editor` |
+| `cron-packages` | `config/railway/cron-packages.json` | `0 */12 * * *` (every 12h) | `npm run ingest:packages` |
 | `cron-news` | `config/railway/cron-news.json` | `0 5 * * *` (daily 5am UTC) | `npm run ingest:news` |
 
 Each cron config sets `deploy.cronSchedule` + `deploy.startCommand` and

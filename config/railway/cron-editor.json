@@ -5,7 +5,7 @@
   },
   "deploy": {
     "startCommand": "npm run ingest:editor",
-    "cronSchedule": "0 * * * *",
+    "cronSchedule": "0 */12 * * *",
     "restartPolicyType": "NEVER"
   }
 }

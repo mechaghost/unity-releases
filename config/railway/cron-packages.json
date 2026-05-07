@@ -5,7 +5,7 @@
   },
   "deploy": {
     "startCommand": "npm run ingest:packages",
-    "cronSchedule": "0 */6 * * *",
+    "cronSchedule": "0 */12 * * *",
     "restartPolicyType": "NEVER"
   }
 }
