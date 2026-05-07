@@ -50,7 +50,7 @@ export function LeftNav() {
         <span className="lnav__brand-mark" aria-hidden="true">
           U
         </span>
-        Unity Alerts
+        Unity Releases
       </a>
       <div className="lnav__sections">
         {NAV.map((item) => {

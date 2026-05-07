@@ -8,7 +8,7 @@ import { listReleases } from "@/lib/db/repositories";
 import { getUserVersion } from "@/lib/user-version";
 
 export const metadata = {
-  title: "Unity Alerts",
+  title: "Unity Releases",
   description: "Unity 6 editor release, package, and release-note intelligence."
 };
 

@@ -76,10 +76,8 @@ export function UserVersionDialog({ versions, currentVersion, autoOpen }: Props)
         </header>
 
         <p className="version-dialog__copy">
-          Unity Alerts compares releases against the version your project is on. Picking it now means
-          every <strong>Diff</strong> button on the dashboard, the releases list, and on each release page
-          will jump straight to the upgrade-relevant lanes — what breaks, what's fixed, what's new — between
-          where you are and where you might be going.
+          Unity Releases compares releases against the version your project is on. Picking it now keeps
+          Compare versions focused on what changes between where you are and where you might be going.
         </p>
 
         <label className="version-dialog__field">
