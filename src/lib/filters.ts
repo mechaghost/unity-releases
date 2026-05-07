@@ -29,6 +29,14 @@ export type PersonaPreset = (typeof PERSONA_PRESETS)[number];
 
 export const DEFAULT_PERSONA: PersonaPreset = "balanced";
 
+export const EDITOR_SCOPES = ["any", "editor", "runtime"] as const;
+export type EditorScope = (typeof EDITOR_SCOPES)[number];
+export const EDITOR_SCOPE_LABELS: Record<EditorScope, string> = {
+  any: "Both",
+  editor: "Editor only",
+  runtime: "Runtime only"
+};
+
 export type FilterState = {
   q: string;
   lanes: LaneId[];
@@ -41,6 +49,11 @@ export type FilterState = {
   manifestOnly: boolean;
   hasTracker: boolean;
   hideNoise: boolean;
+  editorScope: EditorScope;
+  /** Sub-range narrowing inside `/compare`. Both values must match
+   *  versions that exist in the resolved range; otherwise they're ignored. */
+  subFromVersion: string;
+  subToVersion: string;
   preset: PersonaPreset;
 };
 
@@ -56,6 +69,9 @@ export const EMPTY_FILTERS: FilterState = {
   manifestOnly: false,
   hasTracker: false,
   hideNoise: false,
+  editorScope: "any",
+  subFromVersion: "",
+  subToVersion: "",
   preset: DEFAULT_PERSONA
 };
 
@@ -133,6 +149,11 @@ export function parseFiltersFromParams(
   const pipelines = parseList(params.get("pipelines"))
     .filter((id): id is PipelineId => (PIPELINES as readonly string[]).includes(id));
 
+  const scopeRaw = params.get("scope") ?? "any";
+  const editorScope = (EDITOR_SCOPES as readonly string[]).includes(scopeRaw)
+    ? (scopeRaw as EditorScope)
+    : "any";
+
   return {
     q: (params.get("q") ?? "").trim(),
     lanes,
@@ -145,6 +166,9 @@ export function parseFiltersFromParams(
     manifestOnly: params.get("manifest") === "1",
     hasTracker: params.get("tracker") === "1",
     hideNoise: params.get("hide_noise") === "1",
+    editorScope,
+    subFromVersion: (params.get("sub_from") ?? "").trim(),
+    subToVersion: (params.get("sub_to") ?? "").trim(),
     preset
   };
 }
@@ -163,6 +187,9 @@ export function serializeFiltersToParams(state: FilterState, into: URLSearchPara
   if (state.manifestOnly) into.set("manifest", "1");
   if (state.hasTracker) into.set("tracker", "1");
   if (state.hideNoise) into.set("hide_noise", "1");
+  if (state.editorScope && state.editorScope !== "any") into.set("scope", state.editorScope);
+  if (state.subFromVersion) into.set("sub_from", state.subFromVersion);
+  if (state.subToVersion) into.set("sub_to", state.subToVersion);
   if (state.preset && state.preset !== DEFAULT_PERSONA) into.set("preset", state.preset);
 }
 
@@ -189,7 +216,10 @@ export function hasActiveFilters(state: FilterState): boolean {
     state.issueId !== "" ||
     state.manifestOnly ||
     state.hasTracker ||
-    state.hideNoise
+    state.hideNoise ||
+    state.editorScope !== "any" ||
+    state.subFromVersion !== "" ||
+    state.subToVersion !== ""
   );
 }
 
@@ -201,6 +231,8 @@ export function activeFilterCount(state: FilterState): number {
   if (state.manifestOnly) n += 1;
   if (state.hasTracker) n += 1;
   if (state.hideNoise) n += 1;
+  if (state.editorScope !== "any") n += 1;
+  if (state.subFromVersion || state.subToVersion) n += 1;
   n += state.lanes.length;
   n += state.risks.length;
   n += state.platforms.length;
@@ -233,6 +265,7 @@ export function filtersToSearchFilters(
   | "area"
   | "pipelines"
   | "hideNoise"
+  | "editorScope"
 > {
   const out: Pick<
     ReleaseNoteSearchFilters,
@@ -246,12 +279,16 @@ export function filtersToSearchFilters(
     | "area"
     | "pipelines"
     | "hideNoise"
+    | "editorScope"
   > = {};
 
   if (state.q) out.q = state.q;
   if (state.issueId) out.issueId = state.issueId;
   if (state.hasTracker) out.hasTracker = true;
   if (state.hideNoise) out.hideNoise = true;
+  if (state.editorScope === "editor" || state.editorScope === "runtime") {
+    out.editorScope = state.editorScope;
+  }
   if (state.platforms.length) out.platform = state.platforms;
   if (state.risks.length) out.riskLevel = state.risks;
   if (state.areas.length) out.area = state.areas;

@@ -17,6 +17,9 @@ export type ReleaseNoteSearchFilters = {
   /** Drop low-signal rows: documentation, "other changes", and rows with
    *  no impact_kind tag. */
   hideNoise?: boolean;
+  /** Bucket each row as Editor-only or Runtime-impacting based on its
+   *  `area` value. Heuristic; see EDITOR_AREAS. Omit for "both". */
+  editorScope?: "editor" | "runtime";
   limit?: number;
   offset?: number;
   order?: "newest" | "section" | "risk" | "source" | "area" | "issue";
@@ -54,6 +57,30 @@ export const PIPELINE_DEFINITIONS: Record<
 };
 
 const NOISE_IMPACT_KINDS = ["documentation", "change"];
+
+/**
+ * Areas treated as Editor-only for the Editor-vs-Runtime filter. These
+ * are the high-confidence picks from the actual Unity 6 release-note
+ * data; ambiguous areas (Animation, Physics, Graphics, URP, etc.) are
+ * treated as runtime so we avoid hiding things a runtime dev cares about.
+ */
+export const EDITOR_AREAS = [
+  "Editor",
+  "Inspector framework",
+  "Inspector",
+  "Build Pipeline",
+  "Asset Pipeline",
+  "Asset Importers",
+  "Package Manager",
+  "Profiler",
+  "Scene/Game View",
+  "Project Browser",
+  "Hierarchy",
+  "Search Window",
+  "Test Tools",
+  "Version Control",
+  "Shader Compiler"
+];
 
 export type SqlValue = string | number | string[];
 
@@ -196,6 +223,12 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
     where.push(
       `(impact_kind IS NOT NULL AND impact_kind <> ALL(${add(NOISE_IMPACT_KINDS)}))`
     );
+  }
+
+  if (filters.editorScope === "editor") {
+    where.push(`area = ANY(${add(EDITOR_AREAS)})`);
+  } else if (filters.editorScope === "runtime") {
+    where.push(`(area IS NULL OR area <> ALL(${add(EDITOR_AREAS)}))`);
   }
 
   return { where, values, add };

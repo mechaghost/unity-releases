@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ALL_LANE_IDS,
+  EDITOR_SCOPES,
+  EDITOR_SCOPE_LABELS,
   EMPTY_FILTERS,
   PERSONA_PRESETS,
   PIPELINES,
@@ -13,6 +15,7 @@ import {
   savedPresetToState,
   serializeFiltersToParams,
   stateToSavedPreset,
+  type EditorScope,
   type FilterState,
   type PersonaPreset,
   type PipelineId,
@@ -40,6 +43,9 @@ type Props = {
   manifestPackages: readonly string[];
   /** Cookie-backed saved presets for this view. */
   savedPresets: SavedPreset[];
+  /** When non-empty, render a Sub-range picker (compare-only). The list is
+   *  the resolved diff range; sub_from / sub_to must be in this set. */
+  versionsInRange?: readonly string[];
   /** Static URL params that must be preserved on apply (from, to, p_<lane> …). */
   preservedParams: Record<string, string>;
   /** Page path the form should submit to. */
@@ -55,6 +61,7 @@ export function FilterDrawer({
   facets,
   manifestPackages,
   savedPresets,
+  versionsInRange,
   preservedParams,
   basePath,
   view
@@ -219,6 +226,62 @@ export function FilterDrawer({
                 })
               }
             />
+          </Section>
+
+          {versionsInRange && versionsInRange.length > 1 ? (
+            <Section title="Sub-range" hint={`${versionsInRange.length} versions in range`}>
+              <div className="filter-subrange">
+                <select
+                  value={state.subFromVersion}
+                  onChange={(e) =>
+                    setState({ ...state, subFromVersion: e.target.value })
+                  }
+                >
+                  <option value="">{versionsInRange[0]} (start)</option>
+                  {versionsInRange.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+                <span aria-hidden="true">→</span>
+                <select
+                  value={state.subToVersion}
+                  onChange={(e) =>
+                    setState({ ...state, subToVersion: e.target.value })
+                  }
+                >
+                  <option value="">{versionsInRange[versionsInRange.length - 1]} (end)</option>
+                  {versionsInRange.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="filter-section__hint">
+                Narrow the diff window to a slice — useful when bisecting which
+                patch introduced a regression you've already shipped past.
+              </p>
+            </Section>
+          ) : null}
+
+          <Section title="Editor vs Runtime">
+            <div className="filter-radio-row">
+              {EDITOR_SCOPES.map((scope) => (
+                <label key={scope} className="filter-radio">
+                  <input
+                    type="radio"
+                    name="editor-scope"
+                    checked={state.editorScope === scope}
+                    onChange={() =>
+                      setState({ ...state, editorScope: scope as EditorScope })
+                    }
+                  />
+                  {EDITOR_SCOPE_LABELS[scope]}
+                </label>
+              ))}
+            </div>
           </Section>
 
           <Section title="Render pipeline">

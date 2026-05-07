@@ -244,6 +244,20 @@ export default async function ComparePage({
     );
   }
 
+  // Sub-range narrowing: if both sub_from and sub_to map to versions in
+  // the resolved range, slice the range to that window before lane queries
+  // run. Otherwise the picker values are ignored.
+  const fullVersions = range.versions;
+  let effectiveVersions = fullVersions;
+  if (filterState.subFromVersion && filterState.subToVersion) {
+    const aIdx = fullVersions.indexOf(filterState.subFromVersion);
+    const bIdx = fullVersions.indexOf(filterState.subToVersion);
+    if (aIdx >= 0 && bIdx >= 0) {
+      const [lo, hi] = aIdx <= bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
+      effectiveVersions = fullVersions.slice(lo, hi + 1);
+    }
+  }
+
   // Per-lane page numbers come from URL params (`p_<laneId>`, 1-indexed).
   const lanePages: Record<LaneId, number> = LANES.reduce((acc, lane) => {
     acc[lane.id] = parseLanePage(params.get(`p_${lane.id}`));
@@ -275,14 +289,14 @@ export default async function ComparePage({
   // accurate. With them, we'd need filtered per-lane counts — handled below
   // via the SQL window's total_count instead of an extra round-trip.
   const [counts, facets, ...laneRowsArr] = await Promise.all([
-    diffRangeCounts(range.versions, platform || undefined),
-    getReleaseRangeFacets(range.versions),
+    diffRangeCounts(effectiveVersions, platform || undefined),
+    getReleaseRangeFacets(effectiveVersions),
     ...activeLaneDefs.map((lane) => {
       const page = lanePages[lane.id];
       const offset = lane.mode === "by-release" ? (page - 1) * ROWS_PER_LANE : 0;
       const limit = lane.mode === "by-release" ? ROWS_PER_LANE : FETCH_FOR_DEDUP;
       return searchReleaseNotesInRange(
-        range.versions,
+        effectiveVersions,
         { ...lane.searchFilter, ...userSliceForLanes },
         limit,
         offset
@@ -362,8 +376,17 @@ export default async function ComparePage({
           <VersionPill version={toVersion} stream={lookupStream(allReleases, toVersion)} />
         </div>
         <p className="muted">
-          Spans <strong>{range.versions.length}</strong>{" "}
-          {range.versions.length === 1 ? "release" : "releases"} ·{" "}
+          {effectiveVersions.length < fullVersions.length ? (
+            <>
+              Sub-range <strong>{effectiveVersions.length}</strong> of{" "}
+              <strong>{fullVersions.length}</strong> releases ·{" "}
+            </>
+          ) : (
+            <>
+              Spans <strong>{fullVersions.length}</strong>{" "}
+              {fullVersions.length === 1 ? "release" : "releases"} ·{" "}
+            </>
+          )}
           <strong className="tabnums">{counts.totalNotes.toLocaleString()}</strong> release notes
           {platform ? (
             <>
@@ -393,6 +416,7 @@ export default async function ComparePage({
         facets={facets}
         manifestPackages={userPackages}
         savedPresets={savedPresets}
+        versionsInRange={fullVersions}
         preservedParams={{
           from: fromVersion,
           to: toVersion,

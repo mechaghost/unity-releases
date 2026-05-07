@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  EDITOR_SCOPE_LABELS,
   EMPTY_FILTERS,
   PIPELINE_LABELS,
   activeFilterCount,
@@ -24,6 +25,7 @@ type Props = {
   };
   manifestPackages: readonly string[];
   savedPresets: SavedPreset[];
+  versionsInRange?: readonly string[];
   preservedParams: Record<string, string>;
   basePath: string;
   view: "compare" | "release";
@@ -34,6 +36,7 @@ export function FilterBar({
   facets,
   manifestPackages,
   savedPresets,
+  versionsInRange,
   preservedParams,
   basePath,
   view
@@ -77,6 +80,7 @@ export function FilterBar({
         facets={facets}
         manifestPackages={manifestPackages}
         savedPresets={savedPresets}
+        versionsInRange={versionsInRange}
         preservedParams={preservedParams}
         basePath={basePath}
         view={view}
@@ -174,6 +178,20 @@ function ChipRow({
       key: "hide_noise",
       label: "Hide noise",
       remove: () => onChange({ ...filters, hideNoise: false })
+    });
+  }
+  if (filters.editorScope !== "any") {
+    chips.push({
+      key: "scope",
+      label: EDITOR_SCOPE_LABELS[filters.editorScope],
+      remove: () => onChange({ ...filters, editorScope: "any" })
+    });
+  }
+  if (filters.subFromVersion || filters.subToVersion) {
+    chips.push({
+      key: "subrange",
+      label: `Sub-range: ${filters.subFromVersion || "start"} → ${filters.subToVersion || "end"}`,
+      remove: () => onChange({ ...filters, subFromVersion: "", subToVersion: "" })
     });
   }
 
