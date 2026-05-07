@@ -25,7 +25,11 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   "com.unity.scriptablebuildpipeline",
 
   // AI & navigation
+  "com.unity.ai.assistant",
+  "com.unity.ai.generators",
+  "com.unity.ai.inference",
   "com.unity.ai.navigation",
+  "com.unity.ai.toolkit",
 
   // Animation
   "com.unity.animation.rigging",
@@ -78,6 +82,14 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   "com.unity.netcode.gameobjects",
   "com.unity.dedicated-server",
   "com.unity.transport",
+
+  // Muse
+  "com.unity.muse.animate",
+  "com.unity.muse.behavior",
+  "com.unity.muse.chat",
+  "com.unity.muse.common",
+  "com.unity.muse.sprite",
+  "com.unity.muse.texture",
 
   // Polybrush / ProBuilder / level design
   "com.unity.polybrush",
