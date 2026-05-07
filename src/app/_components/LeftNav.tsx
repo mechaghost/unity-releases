@@ -15,7 +15,7 @@ const NAV: NavItem[] = [
   {
     href: "/",
     label: "Editor Releases",
-    icon: "rocket",
+    icon: "file-text",
     match: (pathname) => pathname === "/" || pathname === "/releases" || pathname.startsWith("/releases/")
   },
   {
