@@ -2003,6 +2003,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .filter-section {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface-base);
@@ -2035,10 +2036,8 @@ button.filter-section__head:focus-visible {
 }
 
 .filter-section__title {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-snug);
-  color: var(--text-muted);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
   font-weight: var(--weight-semibold);
 }
 
