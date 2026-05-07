@@ -458,51 +458,6 @@ export default async function ComparePage({
               />
             ))}
           </div>
-
-        <aside className="compare-meta">
-          <h4>Filters</h4>
-          <form method="get" action="/compare">
-            <input type="hidden" name="from" value={fromVersion} />
-            <input type="hidden" name="to" value={toVersion} />
-            <label style={{ display: "block", marginBottom: 8 }}>
-              <span
-                className="muted"
-                style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}
-              >
-                Platform
-              </span>
-              <select name="platform" defaultValue={platform}>
-                <option value="">All platforms</option>
-                {counts.topPlatforms.map(({ platform: name, count }) => (
-                  <option value={name} key={name}>
-                    {name} ({count.toLocaleString()})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className="btn btn--primary btn--small" style={{ width: "100%", marginTop: 8 }}>
-              Apply
-            </button>
-          </form>
-
-          <h4 style={{ marginTop: 16 }}>Top areas</h4>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-            {counts.topAreas.map(({ area, count }) => (
-              <li
-                key={area}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 12,
-                  color: "var(--text-secondary)"
-                }}
-              >
-                <span>{area}</span>
-                <span className="muted tabnums">{count}</span>
-              </li>
-            ))}
-          </ul>
-        </aside>
         </div>
       </LaneCollapseProvider>
     </>

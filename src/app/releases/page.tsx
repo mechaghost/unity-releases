@@ -2,7 +2,6 @@ import { listReleases, listReleaseNoteCounts } from "@/lib/db/repositories";
 import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
 import { VersionPill } from "../_components/VersionPill";
-import { ReleaseStreamFilter } from "../_components/ReleaseStreamFilter";
 import { Icon } from "../_components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -19,35 +18,26 @@ export default async function ReleasesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = await searchParams;
-  const selectedStreams = parseSelectedStreams(params.stream);
+  await searchParams;
 
   const [all, noteCounts] = await Promise.all([
     safeListReleases() as Promise<Release[]>,
     safeListReleaseNoteCounts()
   ]);
 
-  // The Editor Releases page is intentionally release-first and defaults to
-  // the long-term stable line. Checkbox filters use repeated `stream=` params
-  // (e.g. `?stream=lts&stream=beta`) and override the global sidebar filter.
-  const filtered = all.filter((r) => releaseMatchesSelectedStreams(r.stream, selectedStreams));
-
   return (
     <>
       <section className="page-header">
         <h1>Editor Releases</h1>
-        <p>{filtered.length.toLocaleString()} Unity 6 releases tracked from official Unity sources.</p>
+        <p>{all.length.toLocaleString()} Unity 6 releases tracked from official Unity sources.</p>
       </section>
 
-      <ReleaseStreamFilter selected={selectedStreams} />
-
-      {filtered.length === 0 ? (
+      {all.length === 0 ? (
         <div className="releases-table-wrap">
           <div className="releases-empty-state">
             <Icon name="file-text" size={24} />
-            <h2>No releases match this filter.</h2>
-            <p>Try a different stream combination.</p>
-            <a href="/releases" className="btn btn--secondary btn--small">Reset to LTS</a>
+            <h2>No releases indexed yet.</h2>
+            <p>Run ingestion to populate Editor release data.</p>
           </div>
         </div>
       ) : (
@@ -64,7 +54,7 @@ export default async function ReleasesPage({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((release) => {
+              {all.map((release) => {
                 const noteCount = noteCounts[release.version] ?? 0;
                 return (
                   <tr key={release.version}>
@@ -121,25 +111,6 @@ export default async function ReleasesPage({
       )}
     </>
   );
-}
-
-const RELEASE_STREAMS = ["lts", "update", "beta", "alpha"] as const;
-type ReleaseStreamFilterValue = (typeof RELEASE_STREAMS)[number];
-
-function parseSelectedStreams(raw: string | string[] | undefined): ReleaseStreamFilterValue[] {
-  const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  const selected = values
-    .map((value) => value.toLowerCase())
-    .filter((value): value is ReleaseStreamFilterValue =>
-      (RELEASE_STREAMS as readonly string[]).includes(value)
-    );
-  return selected.length > 0 ? Array.from(new Set(selected)) : ["lts"];
-}
-
-function releaseMatchesSelectedStreams(stream: string | null, selected: ReleaseStreamFilterValue[]) {
-  const normalized = (stream ?? "").toLowerCase();
-  if (!normalized) return false;
-  return selected.some((value) => normalized.includes(value));
 }
 
 async function safeListReleases() {
