@@ -39,7 +39,7 @@ export default async function ReleasesPage({
 
       <ReleaseStreamFilter selected={selectedStreams} />
 
-      <div className="table-wrap"><table className="dense-table tabnums">
+      <div className="table-wrap releases-table-wrap"><table className="dense-table releases-table tabnums">
         <thead>
           <tr>
             <th style={{ width: 160 }}>Version</th>
@@ -51,16 +51,16 @@ export default async function ReleasesPage({
         <tbody>
           {filtered.map((release) => (
             <tr key={release.version}>
-              <td>
+              <td data-label="Version">
                 <VersionPill version={release.version} stream={release.stream} />
               </td>
-              <td>
+              <td data-label="Stream">
                 <span className="muted">{streamLabel(release.stream) || "—"}</span>
               </td>
-              <td>
+              <td data-label="Released">
                 <span className="muted">{release.release_date ? formatDate(release.release_date) : "—"}</span>
               </td>
-              <td>
+              <td data-label="Actions">
                 <span className="release-actions">
                   <a
                     className="release-action"

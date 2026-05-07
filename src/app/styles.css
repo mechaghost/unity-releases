@@ -2196,6 +2196,72 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   .packages-filter .btn {
     width: 100%;
   }
+
+  .releases-table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .releases-table,
+  .releases-table tbody,
+  .releases-table tr,
+  .releases-table td {
+    display: block;
+  }
+
+  .releases-table thead {
+    display: none;
+  }
+
+  .releases-table tbody {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .releases-table tr {
+    position: relative;
+    min-height: 76px;
+    padding: var(--space-3) 76px var(--space-3) var(--space-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--surface-base);
+  }
+
+  .releases-table td {
+    border: 0;
+    padding: 0;
+  }
+
+  .releases-table td[data-label="Version"] {
+    margin-bottom: var(--space-1);
+  }
+
+  .releases-table td[data-label="Stream"],
+  .releases-table td[data-label="Released"] {
+    display: inline-flex;
+    align-items: center;
+    margin-right: var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .releases-table td[data-label="Actions"] {
+    position: absolute;
+    top: 50%;
+    right: var(--space-3);
+    transform: translateY(-50%);
+  }
+
+  .releases-table .release-actions {
+    gap: var(--space-1);
+  }
+
+  .releases-table .release-action {
+    width: 32px;
+    height: 32px;
+    background: var(--surface-sunken);
+    border-color: var(--border-subtle);
+  }
 }
 
 /* Horizontal scroll wrapper for dense tables that overflow on mobile. */
