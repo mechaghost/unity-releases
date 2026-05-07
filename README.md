@@ -1,6 +1,6 @@
-# Unity Alerts
+# Unity Releases
 
-Unity Alerts is an independent Unity 6+ release intelligence app. It tracks Editor releases, curated official package releases, Unity Hub/news sources, searchable release-note items, upgrade-impact signals, and watchable RSS URLs.
+Unity Releases is an independent Unity 6+ release intelligence app. It tracks Editor releases, curated official package releases, Unity Hub/news sources, searchable release-note items, upgrade-impact signals, and watchable RSS URLs.
 
 This project is not affiliated with, endorsed by, sponsored by, or approved by Unity Technologies or its affiliates.
 

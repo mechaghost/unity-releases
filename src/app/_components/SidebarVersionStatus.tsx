@@ -9,7 +9,7 @@ type Props = {
 
 export function SidebarVersionStatus({ userVersion, userStream }: Props) {
   function open() {
-    document.dispatchEvent(new CustomEvent("unity-alerts:open-version-dialog"));
+    document.dispatchEvent(new CustomEvent("unity-releases:open-version-dialog"));
   }
 
   return (

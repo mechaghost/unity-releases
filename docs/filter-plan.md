@@ -58,7 +58,7 @@ Indie) into a buildable plan you can mark up.
 | 5 | Unity feature area (URP, HDRP, Built-in, Physics, XR, Animation, Input, UI Toolkit, Addressables, Burst, ECS, Build, Editor, …) | ✅ | ✅ | ✅ coarse | partial (`area` text — needs taxonomy) | **2** |
 | 6 | Free-text search (body + title) | ✅ | ✅ | ✅ | yes (`search_vector`) | **1** |
 | 7 | Issue ID lookup (`UUM-xxxxx`, `IN-xxxxx`) | ✅ | ✅ | — | yes (`issue_ids[]`) | **1** |
-| 8 | "Affects my team" — manifest-aware (only my packages) | ✅ | — | ✅ (their pinned list) | yes (cookie `unity-alerts-packages`) | **1** |
+| 8 | "Affects my team" — manifest-aware (only my packages) | ✅ | — | ✅ (their pinned list) | yes (cookie `unity-releases-packages`) | **1** |
 | 9 | ~~"Should I upgrade?" preset~~ — **dropped** (covered by persona presets + manifest filter) | — | — | ✅ | — | **❌ cut** |
 | 10 | Sub-range slider inside `/compare` (narrow `from→to` further) | ✅ | — | — | yes (`version`) | **2** |
 | 11 | Has Issue Tracker link (toggle) | ✅ | ✅ | — | yes (`issue_links_json`) | **1** |
@@ -69,7 +69,7 @@ Indie) into a buildable plan you can mark up.
 | 16 | "Affects scripting API" toggle | — | ✅ | — | derived from area/keywords | **2** |
 | 17 | Render pipeline scope (URP / HDRP / Built-in / Pipeline-agnostic) | — | ✅ | — | derived from area + package | **2** |
 | 18 | Note source (Editor changelog / Package changelog / Security bulletin) | — | ✅ | — | partial (separate tables today) | **2** |
-| 19 | "Since I last upgraded" preset on `/compare` (prefill `from = userVersion`) | — | — | ✅ | yes (cookie `unity-alerts-version`) | **1** |
+| 19 | "Since I last upgraded" preset on `/compare` (prefill `from = userVersion`) | — | — | ✅ | yes (cookie `unity-releases-version`) | **1** |
 | 20 | "Hide noise" toggle (docs-only, Editor-only, no-impact-tag) | — | — | ✅ headline | derived (needs section taxonomy) | **2** |
 
 **Personas legend:** ✅ they explicitly named it, — they didn't ask for it.
@@ -151,7 +151,7 @@ Data work:
 - **Note source:** already in separate ingest paths; add a `source_kind` view
   on top of the existing tables (no migration).
 - **Saved presets:** serialize the active filter state to a cookie
-  (`unity-alerts-filter-presets`) keyed by view + name. JSON blob, capped at
+  (`unity-releases-filter-presets`) keyed by view + name. JSON blob, capped at
   ~10 presets per view.
 
 ### Phase 3 — schema additions

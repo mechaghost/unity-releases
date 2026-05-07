@@ -1,4 +1,4 @@
-# Unity Alerts Agent Notes
+# Unity Releases Agent Notes
 
 These are project conventions for Codex sessions working in this repository.
 

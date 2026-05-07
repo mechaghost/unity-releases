@@ -1,10 +1,10 @@
-# Unity Alerts Handoff
+# Unity Releases Handoff
 
 This file captures the current project state and working conventions for another coding assistant.
 
 ## Project Goal
 
-Unity Alerts is a release-first Unity 6+ intelligence hub. It should help Unity developers quickly understand:
+Unity Releases is a release-first Unity 6+ intelligence hub. It should help Unity developers quickly understand:
 
 - latest Unity Editor releases across stable/beta/alpha streams
 - official Unity package updates
@@ -26,19 +26,19 @@ The user wants functionality tested first. Visual polish can come later, but inf
 Local Postgres runs in Docker:
 
 ```bash
-docker ps --filter name=unity-alerts-postgres
+docker ps --filter name=unity-releases-postgres
 ```
 
 Connection string used locally:
 
 ```bash
-postgres://unity:unity@localhost:54329/unity_alerts
+postgres://unity:unity@localhost:54329/unity_releases
 ```
 
 Start the preview:
 
 ```bash
-DATABASE_URL='postgres://unity:unity@localhost:54329/unity_alerts' npm run dev -- --port 3000
+DATABASE_URL='postgres://unity:unity@localhost:54329/unity_releases' npm run dev -- --port 3000
 ```
 
 Useful checks:
@@ -46,7 +46,7 @@ Useful checks:
 ```bash
 npm test
 npm run typecheck
-DATABASE_URL='postgres://unity:unity@localhost:54329/unity_alerts' npm run build
+DATABASE_URL='postgres://unity:unity@localhost:54329/unity_releases' npm run build
 curl -sS http://localhost:3000/api/health
 ```
 
@@ -138,6 +138,5 @@ Most recent verification before this handoff:
 
 - `npm test` passed, 33 tests
 - `npm run typecheck` passed
-- `DATABASE_URL='postgres://unity:unity@localhost:54329/unity_alerts' npm run build` passed
+- `DATABASE_URL='postgres://unity:unity@localhost:54329/unity_releases' npm run build` passed
 - `curl http://localhost:3000/api/health` returned `databaseConfigured: true`
-

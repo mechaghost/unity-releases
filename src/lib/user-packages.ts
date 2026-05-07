@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-export const USER_PACKAGES_COOKIE = "unity-alerts-packages";
+export const USER_PACKAGES_COOKIE = "unity-releases-packages";
 
 /**
  * Parse the user's manifest input into a list of canonical Unity package

@@ -1,6 +1,6 @@
 import { sha256 } from "./hash";
 
-export const DEFAULT_USER_AGENT = "UnityAlertsBot/0.1 (+https://github.com/mechaghost/unity-alerts)";
+export const DEFAULT_USER_AGENT = "UnityReleasesBot/0.1 (+https://github.com/mechaghost/unity-releases)";
 
 export type FetchedSource = {
   url: string;

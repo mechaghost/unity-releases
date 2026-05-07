@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-export const USER_VERSION_COOKIE = "unity-alerts-version";
+export const USER_VERSION_COOKIE = "unity-releases-version";
 
 /** Read the user's chosen "current" Unity version from the request cookie. */
 export async function getUserVersion(): Promise<string | null> {

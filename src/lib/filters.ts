@@ -339,7 +339,7 @@ export function filtersToSearchFilters(
 
 // ─── persona-preset cookie ───────────────────────────────────────────────
 
-export const PERSONA_COOKIE_PREFIX = "unity-alerts-filter-preset-";
+export const PERSONA_COOKIE_PREFIX = "unity-releases-filter-preset-";
 
 /** View-scoped cookie name for the persona preset. */
 export function personaCookieName(view: "compare" | "release"): string {
@@ -356,7 +356,7 @@ export function parsePersonaCookie(raw: string | undefined | null): PersonaPrese
 
 // ─── saved presets cookie ────────────────────────────────────────────────
 
-export const SAVED_PRESETS_COOKIE_PREFIX = "unity-alerts-filter-saved-";
+export const SAVED_PRESETS_COOKIE_PREFIX = "unity-releases-filter-saved-";
 export const MAX_SAVED_PRESETS = 10;
 export const MAX_PRESET_NAME_LENGTH = 40;
 

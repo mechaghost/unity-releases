@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-export const STREAM_FILTER_COOKIE = "unity-alerts-streams";
+export const STREAM_FILTER_COOKIE = "unity-releases-streams";
 
 export const ALL_STREAMS = ["LTS", "Update/Supported", "beta", "alpha"] as const;
 export type StreamName = (typeof ALL_STREAMS)[number];

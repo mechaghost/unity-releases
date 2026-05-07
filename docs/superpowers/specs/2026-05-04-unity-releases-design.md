@@ -1,11 +1,11 @@
-# Unity Alerts Design Spec
+# Unity Releases Design Spec
 
 Date: 2026-05-04
 Status: Reviewed draft
 
 ## Purpose
 
-Unity Alerts is a release-first website for Unity 6 and newer. It gives Unity developers one place to track official Editor releases, package releases, Unity Hub updates, beta/pre-release changes, and broader Unity news.
+Unity Releases is a release-first website for Unity 6 and newer. It gives Unity developers one place to track official Editor releases, package releases, Unity Hub updates, beta/pre-release changes, and broader Unity news.
 
 The product exists because Unity changes are spread across several official surfaces: Editor release pages, package registry metadata, Unity Hub release notes, beta release pages, package documentation, the blog RSS feed, and issue tracker links embedded inside release notes. The MVP should make those sources searchable, filterable, and alertable without mixing high-signal release events into an undifferentiated news feed.
 
@@ -199,7 +199,7 @@ The MVP should still make issue IDs useful by providing issue-centric filters an
 
 ## Legal And Branding
 
-Unity Alerts is an independent, unofficial project. It is not affiliated with, endorsed by, sponsored by, or approved by Unity Technologies or its affiliates.
+Unity Releases is an independent, unofficial project. It is not affiliated with, endorsed by, sponsored by, or approved by Unity Technologies or its affiliates.
 
 Unity and related marks are trademarks or registered trademarks of Unity Technologies or its affiliates. The product should not use Unity logos, official branding assets, or wording that implies official status.
 

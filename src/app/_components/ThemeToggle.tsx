@@ -5,7 +5,7 @@ import { Icon } from "./Icon";
 
 type Theme = "light" | "dark";
 
-const STORAGE_KEY = "unity-alerts:theme";
+const STORAGE_KEY = "unity-releases:theme";
 
 function readSavedTheme(): Theme | null {
   if (typeof window === "undefined") return null;

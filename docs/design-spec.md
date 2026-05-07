@@ -1,4 +1,4 @@
-# Unity Alerts — Design Spec
+# Unity Releases — Design Spec
 
 A release-first dashboard. The visual reference is Linear / Vercel / Railway / GitHub Releases / Stripe — contained surfaces with hairline dividers, dense rows, sticky filter bars, sidebar nav on desktop and a top bar with drawer on mobile. No floating cards on a bare background. No "goofy".
 

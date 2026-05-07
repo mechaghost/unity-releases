@@ -46,8 +46,8 @@ export function UserVersionDialog({ versions, currentVersion, autoOpen }: Props)
         /* already open */
       }
     }
-    document.addEventListener("unity-alerts:open-version-dialog", onOpen);
-    return () => document.removeEventListener("unity-alerts:open-version-dialog", onOpen);
+    document.addEventListener("unity-releases:open-version-dialog", onOpen);
+    return () => document.removeEventListener("unity-releases:open-version-dialog", onOpen);
   }, []);
 
   const grouped = groupByStream(versions);
