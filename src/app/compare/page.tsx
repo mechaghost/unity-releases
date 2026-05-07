@@ -16,7 +16,7 @@ import {
   type DedupedIssue
 } from "@/lib/diff-grouping";
 import { ALL_STREAMS, streamMatches } from "@/lib/stream-filter";
-import { streamLabel, streamListLabel } from "@/lib/stream-labels";
+import { streamListLabel } from "@/lib/stream-labels";
 import { getUserPackages } from "@/lib/user-packages";
 import { getUserVersion } from "@/lib/user-version";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
@@ -40,7 +40,7 @@ import { Icon } from "../_components/Icon";
 import { NoteRow } from "../_components/NoteRow";
 import { LaneCollapseProvider, LaneShell } from "../_components/ReviewLanes";
 import { FilterBar } from "../_components/FilterBar";
-import { submitCompareAction } from "../_actions/compare-submit";
+import { ComparePicker } from "../_components/ComparePicker";
 
 export const dynamic = "force-dynamic";
 
@@ -952,87 +952,6 @@ function CompareFacts({ counts }: { counts: CompareCounts }) {
         ))}
       </div>
     </section>
-  );
-}
-
-function ComparePicker({
-  fromVersion,
-  toVersion,
-  releases,
-  children
-}: {
-  fromVersion: string;
-  toVersion: string;
-  releases: { version: string; stream: string | null; release_date: string | null }[];
-  children?: React.ReactNode;
-}) {
-  // A single shared <datalist> drives substring autocomplete on both inputs.
-  // Native <select> with 200 versions has no search at all; <input list>
-  // gives the user proper type-to-filter without a JS combobox dependency.
-  const datalistId = "compare-picker-versions";
-  const swapHref =
-    fromVersion && toVersion
-      ? `/compare?from=${encodeURIComponent(toVersion)}&to=${encodeURIComponent(fromVersion)}`
-      : "";
-
-  return (
-    <>
-      {/*
-        Submitting via server action persists the `from` value as the user's
-        saved Unity version — no separate "Your Unity version" widget needed.
-      */}
-      <form className="compare-picker" action={submitCompareAction}>
-        <datalist id={datalistId}>
-          {releases.map((r) => (
-            <option key={r.version} value={r.version}>
-              {r.stream ? `${streamLabel(r.stream)} · ${r.release_date ? formatReleaseDate(r.release_date) : ""}` : ""}
-            </option>
-          ))}
-        </datalist>
-
-        <label>
-          <span>From</span>
-          <input
-            type="text"
-            name="from"
-            list={datalistId}
-            defaultValue={fromVersion}
-            placeholder="6000.x.yfz"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
-
-        {swapHref ? (
-          <a className="compare-picker__swap" href={swapHref} aria-label="Swap from and to" title="Swap from and to">
-            <Icon name="arrows-left-right" size={16} />
-          </a>
-        ) : (
-          <button type="button" className="compare-picker__swap" aria-label="Swap from and to" disabled>
-            <Icon name="arrows-left-right" size={16} />
-          </button>
-        )}
-
-        <label>
-          <span>To</span>
-          <input
-            type="text"
-            name="to"
-            list={datalistId}
-            defaultValue={toVersion}
-            placeholder="6000.x.yfz"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
-
-        <button type="submit" className="btn btn--primary compare-picker__go">
-          <Icon name="git-compare" size={14} />
-          Compare
-        </button>
-      </form>
-      {children}
-    </>
   );
 }
 
