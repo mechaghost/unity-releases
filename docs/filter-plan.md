@@ -155,8 +155,20 @@ Data work:
   ~10 presets per view.
 
 ### Phase 3 — schema additions
-Filter 15 only (backport status — needs ingest enrichment to record the
-original landing version of a fix).
+Filter 15 (backport status) only.
+
+**Status: blocked on missing source data.** A scan of the live database
+(147,054 release-note items) found just 48 rows mentioning "backport" in
+their body text and zero rows with structured `(backported from X)`
+markers. Unity's published release notes don't include backport metadata
+in any reliable form — it would need to come from a different source
+(Unity's internal QA tooling or Jira), which we don't ingest. Shipping
+the filter against the existing data would surface almost nothing.
+
+Reopen if/when:
+- Unity exposes backport provenance in their release-notes feed, OR
+- We add a side ingest path (Unity Issue Tracker scrape, QA dump) that
+  joins backport→origin version onto our items.
 
 ---
 
