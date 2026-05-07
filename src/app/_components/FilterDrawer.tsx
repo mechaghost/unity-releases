@@ -175,7 +175,7 @@ export function FilterDrawer({
             onApply={(p) => setState(savedPresetToState(p))}
           />
 
-          <Section title="Search">
+          <Section title="Search" count={state.q ? 1 : 0}>
             <input
               type="search"
               className="filter-input"
@@ -185,7 +185,7 @@ export function FilterDrawer({
             />
           </Section>
 
-          <Section title="Issue ID">
+          <Section title="Issue ID" count={state.issueId ? 1 : 0}>
             <input
               type="text"
               className="filter-input"
@@ -199,7 +199,7 @@ export function FilterDrawer({
             />
           </Section>
 
-          <Section title="Lane">
+          <Section title="Lane" count={state.lanes.length}>
             <CheckboxGrid
               options={ALL_LANE_IDS.map((id) => ({
                 value: id,
@@ -215,7 +215,7 @@ export function FilterDrawer({
             />
           </Section>
 
-          <Section title="Risk">
+          <Section title="Risk" count={state.risks.length}>
             <CheckboxGrid
               options={RISK_LEVELS.map((r) => ({ value: r, label: capitalize(r) }))}
               selected={state.risks}
@@ -229,7 +229,11 @@ export function FilterDrawer({
           </Section>
 
           {versionsInRange && versionsInRange.length > 1 ? (
-            <Section title="Sub-range" hint={`${versionsInRange.length} versions in range`}>
+            <Section
+              title="Sub-range"
+              hint={`${versionsInRange.length} versions in range`}
+              count={state.subFromVersion || state.subToVersion ? 1 : 0}
+            >
               <div className="filter-subrange">
                 <select
                   value={state.subFromVersion}
@@ -266,7 +270,10 @@ export function FilterDrawer({
             </Section>
           ) : null}
 
-          <Section title="Editor vs Runtime">
+          <Section
+            title="Editor vs Runtime"
+            count={state.editorScope !== "any" ? 1 : 0}
+          >
             <div className="filter-radio-row">
               {EDITOR_SCOPES.map((scope) => (
                 <label key={scope} className="filter-radio">
@@ -284,7 +291,7 @@ export function FilterDrawer({
             </div>
           </Section>
 
-          <Section title="Render pipeline">
+          <Section title="Render pipeline" count={state.pipelines.length}>
             <FacetChips
               options={PIPELINES.map((id) => ({
                 value: id,
@@ -303,7 +310,11 @@ export function FilterDrawer({
           </Section>
 
           {facets.areas.length > 0 ? (
-            <Section title="Feature areas" hint={`${facets.areas.length} in scope`}>
+            <Section
+              title="Feature areas"
+              hint={`${facets.areas.length} in scope`}
+              count={state.areas.length}
+            >
               <FacetChips
                 options={facets.areas.slice(0, 60)}
                 selected={state.areas}
@@ -321,7 +332,11 @@ export function FilterDrawer({
           ) : null}
 
           {facets.platforms.length > 0 ? (
-            <Section title="Platforms" hint={`${facets.platforms.length} in scope`}>
+            <Section
+              title="Platforms"
+              hint={`${facets.platforms.length} in scope`}
+              count={state.platforms.length}
+            >
               <FacetChips
                 options={facets.platforms}
                 selected={state.platforms}
@@ -335,7 +350,11 @@ export function FilterDrawer({
             </Section>
           ) : null}
 
-          <Section title="Packages" hint={`${facets.packages.length} in scope`}>
+          <Section
+            title="Packages"
+            hint={`${facets.packages.length} in scope`}
+            count={state.packages.length + (state.manifestOnly ? 1 : 0)}
+          >
             <Toggle
               checked={state.manifestOnly}
               onChange={(checked) =>
@@ -363,7 +382,14 @@ export function FilterDrawer({
             ) : null}
           </Section>
 
-          <Section title="Other">
+          <Section
+            title="Other"
+            count={
+              (state.hideNoise ? 1 : 0) +
+              (state.hasTracker ? 1 : 0) +
+              (state.regressionsOnly ? 1 : 0)
+            }
+          >
             <Toggle
               checked={state.hideNoise}
               onChange={(checked) => setState({ ...state, hideNoise: checked })}
@@ -541,19 +567,44 @@ function SavedPresetsSection({
 function Section({
   title,
   hint,
+  count,
   children
 }: {
   title: string;
   hint?: string;
+  /** How many filters in this section are currently active. Drives both
+   *  the badge next to the title and the section's initial open state —
+   *  sections with active filters expand by default; the rest start
+   *  collapsed so the drawer doesn't overwhelm. */
+  count?: number;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(() => (count ?? 0) > 0);
   return (
-    <section className="filter-section">
-      <header className="filter-section__head">
+    <section
+      className="filter-section"
+      data-collapsed={open ? undefined : "true"}
+    >
+      <button
+        type="button"
+        className="filter-section__head"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
         <span className="filter-section__title">{title}</span>
-        {hint ? <span className="filter-section__hint">{hint}</span> : null}
-      </header>
-      <div className="filter-section__body">{children}</div>
+        <span className="filter-section__meta">
+          {count !== undefined && count > 0 ? (
+            <span className="filter-section__count tabnums">{count}</span>
+          ) : null}
+          {hint ? <span className="filter-section__hint">{hint}</span> : null}
+          <Icon
+            name={open ? "chevron-down" : "chevron-right"}
+            size={14}
+            className="filter-section__chevron"
+          />
+        </span>
+      </button>
+      {open ? <div className="filter-section__body">{children}</div> : null}
     </section>
   );
 }

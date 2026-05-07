@@ -2003,14 +2003,35 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .filter-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-base);
+  overflow: hidden;
 }
 
 .filter-section__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+}
+
+button.filter-section__head {
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+button.filter-section__head:hover {
+  background: var(--surface-overlay);
+}
+button.filter-section__head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .filter-section__title {
@@ -2021,16 +2042,50 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   font-weight: var(--weight-semibold);
 }
 
+.filter-section__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+
+.filter-section__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+}
+
 .filter-section__hint {
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0;
 }
 
+.filter-section__chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.filter-section[data-collapsed="true"] .filter-section__head {
+  /* No subtle treatment here — collapse is the default state. */
+}
+
 .filter-section__body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-3);
 }
 
 .filter-input {
