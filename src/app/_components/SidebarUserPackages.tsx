@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, type FormEvent } from "react";
+import React, { useTransition, type FormEvent } from "react";
 import { clearUserPackagesAction, setUserPackagesAction } from "../_actions/user-packages";
 
 type Props = {
@@ -34,7 +34,7 @@ export function SidebarUserPackages({ packages }: Props) {
       <summary className="sidebar-packages__summary">
         <span className="sidebar-packages__label">My packages</span>
         <span className="sidebar-packages__count tabnums">
-          {packages.length === 0 ? "all" : packages.length}
+          {packageSummary(packages.length)}
         </span>
       </summary>
       <form className="sidebar-packages__form" onSubmit={handleSubmit}>
@@ -62,4 +62,9 @@ export function SidebarUserPackages({ packages }: Props) {
       </form>
     </details>
   );
+}
+
+function packageSummary(count: number) {
+  if (count === 0) return "All packages";
+  return `${count.toLocaleString()} tracked`;
 }
