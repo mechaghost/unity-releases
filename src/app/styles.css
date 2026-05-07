@@ -1000,6 +1000,29 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .dense-table--no-sticky th { position: static; }
 
+.release-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.release-action {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+}
+
+.release-action:hover {
+  color: var(--text-primary);
+  background: var(--surface-overlay);
+  border-color: var(--border-default);
+}
+
 /* ========================================================================
    Lanes (used on /compare, /releases/[version])
    ======================================================================== */

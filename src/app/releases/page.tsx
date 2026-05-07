@@ -1,8 +1,8 @@
 import { listReleases } from "@/lib/db/repositories";
 import { streamLabel } from "@/lib/stream-labels";
 import { VersionPill } from "../_components/VersionPill";
-import { ExternalLink } from "../_components/ExternalLink";
 import { ReleaseStreamFilter } from "../_components/ReleaseStreamFilter";
+import { Icon } from "../_components/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,6 @@ type Release = {
   stream: string | null;
   release_date: string | null;
   release_page_url: string;
-  release_notes_url: string | null;
 };
 
 export default async function ReleasesPage({
@@ -46,7 +45,7 @@ export default async function ReleasesPage({
             <th style={{ width: 160 }}>Version</th>
             <th style={{ width: 180 }}>Stream</th>
             <th style={{ width: 130 }}>Released</th>
-            <th>Links</th>
+            <th style={{ width: 96 }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -62,14 +61,25 @@ export default async function ReleasesPage({
                 <span className="muted">{release.release_date ? formatDate(release.release_date) : "—"}</span>
               </td>
               <td>
-                <span className="cluster" style={{ gap: 8 }}>
-                  <a className="link-internal--accent" href={`/releases/${encodeURIComponent(release.version)}`}>
-                    Notes
+                <span className="release-actions">
+                  <a
+                    className="release-action"
+                    href={`/releases/${encodeURIComponent(release.version)}`}
+                    aria-label={`Open parsed notes for Unity ${release.version}`}
+                    title="Parsed notes"
+                  >
+                    <Icon name="file-text" size={16} />
                   </a>
-                  <ExternalLink href={release.release_page_url}>Unity page</ExternalLink>
-                  {release.release_notes_url ? (
-                    <ExternalLink href={release.release_notes_url}>Markdown</ExternalLink>
-                  ) : null}
+                  <a
+                    className="release-action"
+                    href={release.release_page_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open official Unity page for ${release.version}`}
+                    title="Unity page"
+                  >
+                    <Icon name="external-link" size={16} />
+                  </a>
                 </span>
               </td>
             </tr>
