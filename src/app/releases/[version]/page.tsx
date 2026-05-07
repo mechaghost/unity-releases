@@ -1,17 +1,21 @@
-import { getRelease, searchReleaseNotes } from "@/lib/db/repositories";
+import { cookies } from "next/headers";
+import { getRelease, getReleaseRangeFacets, searchReleaseNotes } from "@/lib/db/repositories";
 import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate } from "@/lib/format-date";
+import { getUserPackages } from "@/lib/user-packages";
 import { LANE_CATALOG, LANE_IDS, type LaneId } from "@/lib/lane-catalog";
+import {
+  filtersToSearchFilters,
+  parseFiltersFromParams,
+  parsePersonaCookie,
+  personaCookieName
+} from "@/lib/filters";
 import { VersionPill } from "../../_components/VersionPill";
 import { ExternalLink } from "../../_components/ExternalLink";
 import { Icon } from "../../_components/Icon";
 import { NoteRow, type NoteRowData } from "../../_components/NoteRow";
-import {
-  LaneCollapseProvider,
-  LaneShell,
-  LaneSummaryPanel,
-  type LaneSummary
-} from "../../_components/ReviewLanes";
+import { LaneCollapseProvider, LaneShell } from "../../_components/ReviewLanes";
+import { FilterBar } from "../../_components/FilterBar";
 
 export const dynamic = "force-dynamic";
 
@@ -60,12 +64,28 @@ export default async function ReleasePage({
   const { version } = await params;
   const decoded = decodeURIComponent(version);
   const query = await searchParams;
-  const q = (query.q as string | undefined) ?? "";
+  const urlParams = toUrlSearchParams(query);
 
-  const release = await safeRelease(decoded);
-  const rows = (await safeNotes(decoded, q)) as ReleaseNoteRow[];
+  const cookieJar = await cookies();
+  const presetCookie = parsePersonaCookie(cookieJar.get(personaCookieName("release"))?.value);
+  const filterState = parseFiltersFromParams(urlParams, presetCookie ?? "balanced");
+  const userPackages = await getUserPackages();
+  const userSearchFilters = filtersToSearchFilters(filterState, userPackages);
 
-  const lanes = LANES.map((def) => ({
+  const [release, allRows, facets] = await Promise.all([
+    safeRelease(decoded),
+    safeNotes(decoded, userSearchFilters),
+    getReleaseRangeFacets([decoded])
+  ]);
+  const rows = allRows as ReleaseNoteRow[];
+
+  // If the user picked specific lanes in the drawer, hide the others entirely.
+  const laneIdSelection =
+    filterState.lanes.length > 0 ? new Set(filterState.lanes) : null;
+  const visibleLaneDefs = laneIdSelection
+    ? LANES.filter((l) => laneIdSelection.has(l.id))
+    : LANES;
+  const lanes = visibleLaneDefs.map((def) => ({
     def,
     rows: rows.filter(def.filter)
   }));
@@ -106,41 +126,23 @@ export default async function ReleasePage({
         </div>
       </section>
 
-      <form className="filter-bar" method="get">
-        <label className="field">
-          <span>Search within {decoded}</span>
-          <input
-            type="search"
-            name="q"
-            placeholder="memory leak, URP, UUM-136929"
-            defaultValue={q}
-          />
-        </label>
-        <button type="submit" className="btn btn--primary btn--small">
-          Search
-        </button>
-        {q ? (
-          <a href={`/releases/${encodeURIComponent(decoded)}`} className="btn btn--tertiary btn--small">
-            Clear
-          </a>
-        ) : null}
-      </form>
+      <FilterBar
+        filters={filterState}
+        facets={facets}
+        manifestPackages={userPackages}
+        preservedParams={{}}
+        basePath={`/releases/${encodeURIComponent(decoded)}`}
+        view="release"
+      />
 
       {(() => {
         const lanesWithResults = lanes.filter(({ rows }) => rows.length > 0);
-        const laneSummaries: LaneSummary[] = lanesWithResults.map(({ def, rows }) => ({
-          id: def.id,
-          title: def.title,
-          count: rows.length,
-          variant: def.variant
-        }));
         const initialCollapsed = lanesWithResults
           .filter(({ def }) => !def.defaultOpen)
           .map(({ def }) => def.id);
 
         return (
           <LaneCollapseProvider initialCollapsed={initialCollapsed}>
-            <LaneSummaryPanel lanes={laneSummaries} />
             <div>
               {lanesWithResults.map(({ def, rows }) => (
                 <ReleaseLane key={def.id} def={def} rows={rows} />
@@ -188,10 +190,27 @@ async function safeRelease(version: string) {
   }
 }
 
-async function safeNotes(version: string, q?: string) {
+async function safeNotes(
+  version: string,
+  extraFilters: ReturnType<typeof filtersToSearchFilters> = {}
+) {
   try {
-    return await searchReleaseNotes({ version, q: q || undefined, order: "source", limit: 5000 });
+    return await searchReleaseNotes({
+      version,
+      order: "source",
+      limit: 5000,
+      ...extraFilters
+    });
   } catch {
     return [];
   }
+}
+
+function toUrlSearchParams(params: Record<string, string | string[] | undefined>): URLSearchParams {
+  const out = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (Array.isArray(value)) value.forEach((v) => out.append(key, v));
+    else if (value !== undefined) out.set(key, value);
+  }
+  return out;
 }

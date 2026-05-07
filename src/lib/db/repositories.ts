@@ -278,6 +278,52 @@ export async function searchReleaseNotesInRange(
   return result.rows;
 }
 
+export type ReleaseRangeFacets = {
+  platforms: Array<{ value: string; count: number }>;
+  packages: Array<{ value: string; count: number }>;
+};
+
+/**
+ * Facet counts for the filter drawer. Returns the *available* values for
+ * each multi-select dimension within the visible scope, plus the count of
+ * notes that would match each value, so the drawer can show "iOS (12)".
+ *
+ * Scoped to the supplied `versions` set so /compare and /releases/[version]
+ * both pre-populate accurate option lists.
+ */
+export async function getReleaseRangeFacets(versions: string[]): Promise<ReleaseRangeFacets> {
+  if (versions.length === 0) {
+    return { platforms: [], packages: [] };
+  }
+  const platformsP = query<{ value: string; count: string }>(
+    `
+      SELECT value, COUNT(*)::text AS count
+      FROM release_note_items, unnest(platforms) AS value
+      WHERE version = ANY($1) AND value IS NOT NULL AND value <> ''
+      GROUP BY value
+      ORDER BY COUNT(*) DESC, value ASC
+      LIMIT 200
+    `,
+    [versions]
+  );
+  const packagesP = query<{ value: string; count: string }>(
+    `
+      SELECT value, COUNT(*)::text AS count
+      FROM release_note_items, unnest(package_names) AS value
+      WHERE version = ANY($1) AND value IS NOT NULL AND value <> ''
+      GROUP BY value
+      ORDER BY COUNT(*) DESC, value ASC
+      LIMIT 200
+    `,
+    [versions]
+  );
+  const [platforms, packages] = await Promise.all([platformsP, packagesP]);
+  return {
+    platforms: platforms.rows.map((r) => ({ value: r.value, count: Number(r.count) })),
+    packages: packages.rows.map((r) => ({ value: r.value, count: Number(r.count) }))
+  };
+}
+
 export type DiffRangeCounts = {
   totalNotes: number;
   byImpact: Record<string, number>;

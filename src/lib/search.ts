@@ -10,6 +10,8 @@ export type ReleaseNoteSearchFilters = {
   riskLevel?: string | string[];
   packageName?: string | string[];
   issueId?: string | string[];
+  /** Only return notes that ship with at least one Issue Tracker link. */
+  hasTracker?: boolean;
   limit?: number;
   offset?: number;
   order?: "newest" | "section" | "risk" | "source" | "area" | "issue";
@@ -87,7 +89,7 @@ export function buildReleaseNoteWhereForVersions(
 
   return {
     text: `
-      SELECT *
+      SELECT *, COUNT(*) OVER() AS total_count
       FROM release_note_items
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY release_date DESC NULLS LAST, source_order ASC
@@ -121,6 +123,14 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
   addEquals(where, add, "risk_level", filters.riskLevel);
   addArrayContains(where, add, "package_names", filters.packageName);
   addArrayContains(where, add, "issue_ids", filters.issueId);
+
+  if (filters.hasTracker) {
+    // A "tracker link" is any non-empty issue_links_json array OR any populated
+    // issue_ids array — the parser populates whichever it can.
+    where.push(
+      "((jsonb_typeof(issue_links_json) = 'array' AND jsonb_array_length(issue_links_json) > 0) OR cardinality(issue_ids) > 0)"
+    );
+  }
 
   return { where, values, add };
 }

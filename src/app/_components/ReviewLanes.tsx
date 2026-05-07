@@ -11,13 +11,6 @@ import {
 
 export type LaneVariant = "blocker" | "caution" | "review" | "info" | "success";
 
-export type LaneSummary = {
-  id: string;
-  title: string;
-  count: number;
-  variant: LaneVariant;
-};
-
 type LaneCollapseValue = {
   collapsed: ReadonlySet<string>;
   toggle: (id: string) => void;
@@ -70,75 +63,6 @@ function useLaneCollapse() {
     throw new Error("useLaneCollapse must be used inside <LaneCollapseProvider>");
   }
   return ctx;
-}
-
-/**
- * The "neat boxes" panel. Each box is the title + count (anchor to the
- * lane section) plus a Hide/Show toggle that flips collapse state for
- * that lane only — no page reload.
- */
-export function LaneSummaryPanel({
-  lanes,
-  label = "Review lanes"
-}: {
-  lanes: LaneSummary[];
-  label?: string;
-}) {
-  const { collapsed, toggle, setCollapsed } = useLaneCollapse();
-  if (lanes.length === 0) return null;
-
-  const allCollapsed = lanes.every((l) => collapsed.has(l.id));
-  const handleToggleAll = () => {
-    for (const lane of lanes) {
-      setCollapsed(lane.id, !allCollapsed);
-    }
-  };
-
-  return (
-    <section className="review-lanes">
-      <header className="review-lanes__head">
-        <span className="review-lanes__label">{label}</span>
-        <button type="button" className="review-lanes__bulk" onClick={handleToggleAll}>
-          {allCollapsed ? "Show all" : "Hide all"}
-        </button>
-      </header>
-      <div className="review-lanes__grid">
-        {lanes.map((lane) => {
-          const isCollapsed = collapsed.has(lane.id);
-          return (
-            <div
-              key={lane.id}
-              className={`review-lane-card review-lane-card--${lane.variant}`}
-              data-collapsed={isCollapsed ? "true" : undefined}
-            >
-              <a
-                href={`#lane-${lane.id}`}
-                className="review-lane-card__link"
-                onClick={() => {
-                  // Auto-expand on jump so the user actually sees content.
-                  if (isCollapsed) setCollapsed(lane.id, false);
-                }}
-              >
-                <span className="review-lane-card__title">{lane.title}</span>
-                <strong className="review-lane-card__count tabnums">
-                  {lane.count.toLocaleString()}
-                </strong>
-              </a>
-              <button
-                type="button"
-                className="review-lane-card__toggle"
-                aria-controls={`lane-${lane.id}`}
-                aria-expanded={!isCollapsed}
-                onClick={() => toggle(lane.id)}
-              >
-                {isCollapsed ? "Show" : "Hide"}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
 }
 
 /**

@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import {
   diffRangeCounts,
+  getReleaseRangeFacets,
   listReleases,
   packageVersionsAtBoundary,
   resolveDiffRange,
@@ -20,6 +22,12 @@ import { getUserVersion } from "@/lib/user-version";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
 import { formatReleaseDate } from "@/lib/format-date";
 import { LANE_CATALOG, type LaneId } from "@/lib/lane-catalog";
+import {
+  filtersToSearchFilters,
+  parseFiltersFromParams,
+  parsePersonaCookie,
+  personaCookieName
+} from "@/lib/filters";
 import { IssuePill } from "../_components/IssuePill";
 import { PackagePill } from "../_components/PackagePill";
 import { PlatformPill } from "../_components/PlatformPill";
@@ -28,12 +36,8 @@ import { RiskBadge } from "../_components/RiskBadge";
 import { VersionPill } from "../_components/VersionPill";
 import { Icon } from "../_components/Icon";
 import { NoteRow } from "../_components/NoteRow";
-import {
-  LaneCollapseProvider,
-  LaneShell,
-  LaneSummaryPanel,
-  type LaneSummary
-} from "../_components/ReviewLanes";
+import { LaneCollapseProvider, LaneShell } from "../_components/ReviewLanes";
+import { FilterBar } from "../_components/FilterBar";
 import { submitCompareAction } from "../_actions/compare-submit";
 
 export const dynamic = "force-dynamic";
@@ -153,6 +157,8 @@ export default async function ComparePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = toUrlSearchParams(await searchParams);
+  const cookieJar = await cookies();
+  const presetCookie = parsePersonaCookie(cookieJar.get(personaCookieName("compare"))?.value);
   const [userVersion, allReleases, userPackages] = await Promise.all([
     getUserVersion(),
     safeListReleases(),
@@ -163,6 +169,15 @@ export default async function ComparePage({
   const fromVersion = (params.get("from") ?? userVersion ?? "").trim();
   const toVersion = (params.get("to") ?? "").trim();
   const platform = (params.get("platform") ?? "").trim();
+
+  // User filter state — URL is the source of truth, persona cookie is the
+  // first-visit fallback. The drawer applies user changes via router.push.
+  const filterState = parseFiltersFromParams(params, presetCookie ?? "balanced");
+  const userSearchFilters = filtersToSearchFilters(filterState, userPackages);
+  if (platform && !userSearchFilters.platform) {
+    // Honor the legacy ?platform= query param for back-compat.
+    userSearchFilters.platform = platform;
+  }
 
   // Compare is independent of the Editor Releases page stream checkboxes.
   // The picker dropdowns include every indexed Unity 6 stream, while the currently
@@ -230,58 +245,78 @@ export default async function ComparePage({
     return acc;
   }, {} as Record<LaneId, number>);
 
-  // Run the cheap aggregate and every lane's row query in parallel.
-  // by-release lanes paginate via SQL OFFSET so we only fetch the visible page.
-  // dedup lanes (by-issue, by-package) still pull the generous slice — dedup
-  // happens after fetch so we need a wide enough window to make the unique
-  // set stable, then we paginate the deduped result in memory.
-  const [counts, ...laneRowsArr] = await Promise.all([
+  // If the user picked specific lanes in the drawer, only run those queries
+  // (the others would render as empty cards). Otherwise everything runs.
+  const laneIdSelection =
+    filterState.lanes.length > 0 ? new Set(filterState.lanes) : null;
+  const activeLaneDefs = laneIdSelection
+    ? LANES.filter((l) => laneIdSelection.has(l.id))
+    : LANES;
+
+  // Build the merged filter for each lane: lane.searchFilter is the
+  // impactKind/riskLevel that defines the lane bucket; user filters narrow
+  // within it (search text, platforms, packages, manifest, hasTracker, …).
+  // We strip impactKind/riskLevel from the user filters because the lane
+  // already pins those — letting the user re-narrow them via the drawer is
+  // handled at the lane-selection level (laneIdSelection above).
+  const userSliceForLanes = { ...userSearchFilters };
+  delete userSliceForLanes.impactKind;
+  // riskLevel: keep, since some lanes don't pin a risk and the user may
+  // genuinely want "only blocker risk across all visible lanes".
+  const filtersWereNarrowed =
+    Object.keys(userSliceForLanes).length > 0 || laneIdSelection !== null;
+
+  // Aggregate counts. Without user filters, the cheap range aggregate is
+  // accurate. With them, we'd need filtered per-lane counts — handled below
+  // via the SQL window's total_count instead of an extra round-trip.
+  const [counts, facets, ...laneRowsArr] = await Promise.all([
     diffRangeCounts(range.versions, platform || undefined),
-    ...LANES.map((lane) => {
+    getReleaseRangeFacets(range.versions),
+    ...activeLaneDefs.map((lane) => {
       const page = lanePages[lane.id];
       const offset = lane.mode === "by-release" ? (page - 1) * ROWS_PER_LANE : 0;
       const limit = lane.mode === "by-release" ? ROWS_PER_LANE : FETCH_FOR_DEDUP;
       return searchReleaseNotesInRange(
         range.versions,
-        {
-          ...lane.searchFilter,
-          ...(platform ? { platform } : {})
-        },
+        { ...lane.searchFilter, ...userSliceForLanes },
         limit,
         offset
-      ) as Promise<ReleaseNoteRow[]>;
+      ) as Promise<Array<ReleaseNoteRow & { total_count?: string | number }>>;
     })
   ]);
 
-  const lanes = LANES.map((def, i) => {
+  const lanes = activeLaneDefs.map((def, i) => {
     const fetched = laneRowsArr[i] ?? [];
     let filtered = def.postFilter ? fetched.filter(def.postFilter) : fetched;
-    // Manifest-aware filtering on the package lane only. Other lanes
-    // intentionally stay unfiltered — a breaking-change in a package the
-    // user doesn't depend on directly can still affect a transitive
-    // dependency, so we don't want to silently hide those.
-    if (def.id === "package" && userPackagesSet.size > 0) {
+    // Manifest-aware filtering on the package lane only when the user
+    // hasn't already opted in via the drawer's `manifestOnly` toggle.
+    if (
+      def.id === "package" &&
+      userPackagesSet.size > 0 &&
+      !filterState.manifestOnly
+    ) {
       filtered = filtered.filter((row) =>
         (row.package_names ?? []).some((p) => userPackagesSet.has(p))
       );
     }
+    // totalCount: the SQL window returns total_count (filtered, ignores
+    // limit/offset). When user filters narrow the result, that's the
+    // authoritative count. Otherwise use the cheap range aggregate.
+    const sqlTotal = Number(fetched[0]?.total_count ?? 0);
+    const totalCount = filtersWereNarrowed
+      ? sqlTotal
+      : def.countFrom(counts);
     return {
       def,
       fetchedRows: filtered,
-      totalCount: def.countFrom(counts),
+      totalCount,
       page: lanePages[def.id]
     };
   });
   const lanesWithResults = lanes.filter((lane) => lane.totalCount > 0);
-  const laneSummaries: LaneSummary[] = lanesWithResults.map((l) => ({
-    id: l.def.id,
-    title: l.def.title,
-    count: l.totalCount,
-    variant: l.def.variant
-  }));
-  // Lanes default to expanded; the user collapses individual ones from
-  // the summary panel or the per-lane Hide button. State is client-side
-  // only — toggling does not reload the page.
+  // Lanes default to expanded; the user collapses individual ones by
+  // clicking the lane header. State is client-side only — toggling
+  // does not reload the page.
   const initialCollapsed: string[] = [];
 
   // Resolve "what package version was shipping at each end of the diff
@@ -348,9 +383,20 @@ export default async function ComparePage({
 
       <CompareFacts counts={counts} />
 
-      <LaneCollapseProvider initialCollapsed={initialCollapsed}>
-        <LaneSummaryPanel lanes={laneSummaries} />
+      <FilterBar
+        filters={filterState}
+        facets={facets}
+        manifestPackages={userPackages}
+        preservedParams={{
+          from: fromVersion,
+          to: toVersion,
+          ...(platform ? { platform } : {})
+        }}
+        basePath="/compare"
+        view="compare"
+      />
 
+      <LaneCollapseProvider initialCollapsed={initialCollapsed}>
         <div className="compare-layout">
           <div>
             {lanesWithResults.map((l) => (
