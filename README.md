@@ -108,12 +108,16 @@ shipped the schema) and let the cron services keep the data fresh.
 
 ## Functional Surfaces
 
-- `/`: release-first hub
+- `/`: redirects to `/releases`
+- `/releases`, `/releases/[version]`: editor release index + per-release notes
+- `/compare?from=X&to=Y`: diff lanes between two versions
+- `/packages`, `/packages/[name]`: official Unity package index + history
+- `/news`: official Unity blog feed
 - `/explorer`: release-note search/filter surface
 - `/upgrade`: rule-based upgrade-impact page
-- `/watch`: no-account RSS/watch URL builder
-- `/rss`: RSS feed endpoint
-- `/api/health`: health endpoint
+- `/issues/[issueId]`: every release-note that mentions a UUM-xxxxx
+- `/faq`: source list + disclaimer
+- `/api/health`: health endpoint (used by Railway)
 - `/api/release-notes`: search API
 - `/api/releases`, `/api/packages`, `/api/events`: JSON APIs
 

@@ -215,12 +215,6 @@ export default function FaqPage() {
           state.
         </Answer>
 
-        <Question id="rss">Is there an RSS feed?</Question>
-        <Answer>
-          Yes, at <a href="/rss">/rss</a>. The feed re-publishes the events
-          stream — releases, package updates, blog posts.
-        </Answer>
-
         <Question id="bug">Found a bug or missing data?</Question>
         <Answer>
           Open an issue on the GitHub repo:{" "}
