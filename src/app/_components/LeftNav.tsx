@@ -38,6 +38,12 @@ const NAV: NavItem[] = [
     label: "News",
     icon: "newspaper",
     match: (pathname) => pathname === "/news"
+  },
+  {
+    href: "/faq",
+    label: "FAQ",
+    icon: "info",
+    match: (pathname) => pathname === "/faq"
   }
 ];
 

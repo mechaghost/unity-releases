@@ -1,6 +1,6 @@
 export const RELEASE_FILTERS = [
-  { value: "6000.0-lts", label: "6.0 LTS" },
   { value: "6000.3-lts", label: "6.3 LTS" },
+  { value: "6000.0-lts", label: "6.0 LTS" },
   { value: "update", label: "Supported" },
   { value: "beta", label: "Beta" },
   { value: "alpha", label: "Alpha" }
@@ -14,7 +14,7 @@ export type FilterableRelease = {
 };
 
 const RELEASE_FILTER_VALUES = RELEASE_FILTERS.map((filter) => filter.value);
-const DEFAULT_RELEASE_FILTERS: ReleaseFilterValue[] = ["6000.0-lts", "6000.3-lts"];
+const DEFAULT_RELEASE_FILTERS: ReleaseFilterValue[] = ["6000.3-lts", "6000.0-lts"];
 const LEGACY_ALIASES: Record<string, ReleaseFilterValue[]> = {
   lts: DEFAULT_RELEASE_FILTERS
 };
