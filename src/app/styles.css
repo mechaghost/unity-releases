@@ -2620,7 +2620,8 @@ button.filter-section__head:focus-visible {
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: var(--space-2);
   user-select: none;
 }
 .sidebar-packages__summary::-webkit-details-marker { display: none; }
@@ -2641,6 +2642,7 @@ button.filter-section__head:focus-visible {
 }
 
 .sidebar-packages__count {
+  margin-left: auto;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   background: var(--surface-sunken);
@@ -2709,7 +2711,35 @@ button.filter-section__head:focus-visible {
   margin-bottom: var(--space-4);
 }
 
-.packages-settings .sidebar-packages,
+.packages-settings .sidebar-packages {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.packages-settings .sidebar-packages__summary {
+  min-height: 46px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-base);
+}
+
+.packages-settings .sidebar-packages[open] .sidebar-packages__summary {
+  border-bottom-color: var(--border-subtle);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.packages-settings .sidebar-packages__form {
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-top: 0;
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+  background: var(--surface-base);
+}
+
 .compare-version-panel .sidebar-version {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
