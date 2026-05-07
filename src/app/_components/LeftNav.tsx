@@ -2,11 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "./Icon";
-import { SidebarStreamFilter } from "./SidebarStreamFilter";
-import { SidebarUserPackages } from "./SidebarUserPackages";
-import { SidebarVersionStatus } from "./SidebarVersionStatus";
 import { ThemeToggle } from "./ThemeToggle";
-import type { StreamName } from "@/lib/stream-filter";
 
 type NavItem = {
   href: string;
@@ -18,9 +14,9 @@ type NavItem = {
 const NAV: NavItem[] = [
   {
     href: "/",
-    label: "Dashboard",
-    icon: "home",
-    match: (pathname) => pathname === "/"
+    label: "Editor Releases",
+    icon: "rocket",
+    match: (pathname) => pathname === "/" || pathname === "/releases" || pathname.startsWith("/releases/")
   },
   {
     // Promoted to a top-level entry — this is the product's killer
@@ -30,12 +26,6 @@ const NAV: NavItem[] = [
     label: "Compare versions",
     icon: "git-compare",
     match: (pathname) => pathname === "/compare"
-  },
-  {
-    href: "/releases",
-    label: "Editor Releases",
-    icon: "rocket",
-    match: (pathname) => pathname === "/releases" || pathname.startsWith("/releases/")
   },
   {
     href: "/packages",
@@ -51,14 +41,7 @@ const NAV: NavItem[] = [
   }
 ];
 
-type LeftNavProps = {
-  userVersion: string | null;
-  userStream: string | null;
-  streamFilter: StreamName[];
-  userPackages: string[];
-};
-
-export function LeftNav({ userVersion, userStream, streamFilter, userPackages }: LeftNavProps) {
+export function LeftNav() {
   const pathname = usePathname() ?? "/";
 
   return (
@@ -86,9 +69,6 @@ export function LeftNav({ userVersion, userStream, streamFilter, userPackages }:
           );
         })}
       </div>
-      <SidebarStreamFilter selected={streamFilter} />
-      <SidebarUserPackages packages={userPackages} />
-      <SidebarVersionStatus userVersion={userVersion} userStream={userStream} />
       <div className="lnav__footer">
         <ThemeToggle />
       </div>

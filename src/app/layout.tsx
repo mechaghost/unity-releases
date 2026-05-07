@@ -5,28 +5,22 @@ import { MobileNavToggle } from "./_components/MobileNavToggle";
 import { NoFlashScript } from "./_components/NoFlashScript";
 import { UserVersionDialog, type DialogRelease } from "./_components/UserVersionDialog";
 import { listReleases } from "@/lib/db/repositories";
-import { getStreamFilter } from "@/lib/stream-filter";
-import { getUserPackages } from "@/lib/user-packages";
 import { getUserVersion } from "@/lib/user-version";
 
 export const metadata = {
   title: "Unity Alerts",
-  description: "Unity 6 release, package, and release-note intelligence dashboard."
+  description: "Unity 6 editor release, package, and release-note intelligence."
 };
 
 type ReleaseRow = { version: string; stream: string | null };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [userVersion, releases, streamFilter, userPackages] = await Promise.all([
+  const [userVersion, releases] = await Promise.all([
     getUserVersion(),
-    safeReleases(),
-    getStreamFilter(),
-    getUserPackages()
+    safeReleases()
   ]);
-  const userStream = releases.find((r) => r.version === userVersion)?.stream ?? null;
-  // The dialog still shows every version so a user can pick a beta even if
-  // their stream filter currently hides betas — selecting a version
-  // shouldn't be gated on browse-time filters.
+  // The dialog still shows every indexed version so Compare can use any
+  // project baseline, including prerelease versions.
   const dialogVersions: DialogRelease[] = releases.map((r) => ({
     version: r.version,
     stream: r.stream
@@ -45,12 +39,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <MobileNavToggle />
           <aside className="app-shell__nav" aria-label="Primary navigation">
             <Suspense fallback={<nav className="lnav" id="primary-nav" aria-label="Primary" />}>
-              <LeftNav
-                userVersion={userVersion}
-                userStream={userStream}
-                streamFilter={streamFilter}
-                userPackages={userPackages}
-              />
+              <LeftNav />
             </Suspense>
           </aside>
           <main className="app-shell__content" id="main" tabIndex={-1}>
@@ -60,7 +49,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <UserVersionDialog
           versions={dialogVersions}
           currentVersion={userVersion}
-          autoOpen={!userVersion}
+          autoOpen={false}
         />
       </body>
     </html>

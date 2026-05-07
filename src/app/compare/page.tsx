@@ -20,7 +20,7 @@ import {
   toggleCompareLaneOpenUrl,
   toggleCompareTopicUrl
 } from "@/lib/compare-controls";
-import { getStreamFilter, streamMatches } from "@/lib/stream-filter";
+import { ALL_STREAMS, streamMatches } from "@/lib/stream-filter";
 import { streamLabel, streamListLabel } from "@/lib/stream-labels";
 import { getUserPackages } from "@/lib/user-packages";
 import { getUserVersion } from "@/lib/user-version";
@@ -32,6 +32,7 @@ import { ImpactPill } from "../_components/ImpactPill";
 import { RiskBadge } from "../_components/RiskBadge";
 import { VersionPill } from "../_components/VersionPill";
 import { Icon } from "../_components/Icon";
+import { SidebarVersionStatus } from "../_components/SidebarVersionStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -206,12 +207,13 @@ export default async function ComparePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = toUrlSearchParams(await searchParams);
-  const [userVersion, allReleases, streamFilter, userPackages] = await Promise.all([
+  const [userVersion, allReleases, userPackages] = await Promise.all([
     getUserVersion(),
     safeListReleases(),
-    getStreamFilter(),
     getUserPackages()
   ]);
+  const streamFilter = Array.from(ALL_STREAMS);
+  const userStream = userVersion ? lookupStream(allReleases, userVersion) : null;
   const userPackagesSet = new Set(userPackages);
   const fromVersion = (params.get("from") ?? userVersion ?? "").trim();
   const toVersion = (params.get("to") ?? "").trim();
@@ -222,7 +224,8 @@ export default async function ComparePage({
   const topicFilter = new Set<LaneId>(topicList);
   const hasTopicFilter = topicFilter.size > 0;
 
-  // The picker dropdowns honor the global stream filter, but the currently
+  // Compare is independent of the Editor Releases page stream checkboxes.
+  // The picker dropdowns include every indexed Unity 6 stream, while the currently
   // selected from/to versions are always included so the user isn't trapped
   // out of editing a URL-supplied selection.
   const pickerReleases = allReleases.filter(
@@ -234,7 +237,13 @@ export default async function ComparePage({
 
   if (!fromVersion || !toVersion) {
     return (
-      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases}>
+      <ComparePicker
+        fromVersion={fromVersion}
+        toVersion={toVersion}
+        releases={pickerReleases}
+        userVersion={userVersion}
+        userStream={userStream}
+      >
         <div className="empty-state">
           <h2>Compare two Unity versions</h2>
           <p>Pick a “from” and a “to” version to see what changed between them — broken down by impact lane.</p>
@@ -246,7 +255,13 @@ export default async function ComparePage({
   const range = await resolveDiffRange(fromVersion, toVersion, streamFilter);
   if (!range) {
     return (
-      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases}>
+      <ComparePicker
+        fromVersion={fromVersion}
+        toVersion={toVersion}
+        releases={pickerReleases}
+        userVersion={userVersion}
+        userStream={userStream}
+      >
         <div className="empty-state">
           <h2>Versions not found</h2>
           <p>One of these versions isn’t in the index yet. Try selecting from the dropdowns.</p>
@@ -257,22 +272,19 @@ export default async function ComparePage({
 
   if (range.versions.length === 0) {
     return (
-      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases}>
+      <ComparePicker
+        fromVersion={fromVersion}
+        toVersion={toVersion}
+        releases={pickerReleases}
+        userVersion={userVersion}
+        userStream={userStream}
+      >
         <div className="empty-state">
-          {streamFilter.length === 0 ? (
-            <>
-              <h2>No streams selected</h2>
-              <p>Re-check at least one stream (LTS / Supported / Beta / Alpha) in the left sidebar to see what changed.</p>
-            </>
-          ) : (
-            <>
-              <h2>No releases in range</h2>
-              <p>
-                Nothing falls between <code>{fromVersion}</code> and <code>{toVersion}</code> with the streams you have
-                checked in the sidebar ({streamListLabel(streamFilter)}). Try widening your selection.
-              </p>
-            </>
-          )}
+          <h2>No releases in range</h2>
+          <p>
+            Nothing falls between <code>{fromVersion}</code> and <code>{toVersion}</code> in the compare
+            scope ({streamListLabel(streamFilter)}).
+          </p>
         </div>
       </ComparePicker>
     );
@@ -349,7 +361,13 @@ export default async function ComparePage({
 
   return (
     <>
-      <ComparePicker fromVersion={fromVersion} toVersion={toVersion} releases={pickerReleases} />
+      <ComparePicker
+        fromVersion={fromVersion}
+        toVersion={toVersion}
+        releases={pickerReleases}
+        userVersion={userVersion}
+        userStream={userStream}
+      />
 
       <section className="page-header">
         <div className="page-header__title-row">
@@ -377,10 +395,10 @@ export default async function ComparePage({
               {range.includedMinorLines.length === 1
                 ? range.includedMinorLines[0]
                 : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}{" "}
-              from your sidebar streams. Toggle streams in the left nav to broaden or narrow the diff.
+              in the compare scope.
             </>
           ) : (
-            <>No streams selected in the sidebar — re-check at least one to see results.</>
+            <>No releases are included for this comparison.</>
           )}
         </p>
       </section>
@@ -991,11 +1009,15 @@ function ComparePicker({
   fromVersion,
   toVersion,
   releases,
+  userVersion,
+  userStream,
   children
 }: {
   fromVersion: string;
   toVersion: string;
   releases: { version: string; stream: string | null; release_date: string | null }[];
+  userVersion: string | null;
+  userStream: string | null;
   children?: React.ReactNode;
 }) {
   // A single shared <datalist> drives substring autocomplete on both inputs.
@@ -1059,6 +1081,9 @@ function ComparePicker({
           Compare
         </button>
       </form>
+      <div className="compare-version-panel">
+        <SidebarVersionStatus userVersion={userVersion} userStream={userStream} />
+      </div>
       {children}
     </>
   );

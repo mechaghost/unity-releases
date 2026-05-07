@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { listPackages } from "@/lib/db/repositories";
 import { getUserPackages } from "@/lib/user-packages";
 import { ExternalLink } from "../_components/ExternalLink";
+import { SidebarUserPackages } from "../_components/SidebarUserPackages";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,10 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
           Search, filter, and click column names to sort.
         </p>
       </section>
+
+      <div className="packages-settings">
+        <SidebarUserPackages packages={userPackages} />
+      </div>
 
       <form className="filter-bar packages-filter" method="get" action="/packages">
         <label>

@@ -1552,46 +1552,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   color: var(--text-primary);
 }
 
-/* Dashboard contextual hero: replaces the bare "Dashboard" h1 with
-   a one-line "you're on X → latest is Y, N blockers ahead" answer. */
-.dashboard-hero {
-  background: var(--surface-base);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  margin-bottom: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.dashboard-hero__h1 {
-  font-size: var(--text-xl);
-  letter-spacing: var(--tracking-snug);
-}
-
-.dashboard-hero__line {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  font-size: var(--text-md);
-}
-
-.dashboard-hero__counts {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.dashboard-hero__bad { color: var(--color-blocker-fg); }
-
-.dashboard-hero__actions {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-
 /* Stale-data banner shown when ingestion runs are older than the
    threshold in listIngestionFreshness. */
 .freshness-banner {
@@ -1817,42 +1777,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   font-weight: var(--weight-medium);
 }
 
-.dashboard-strip {
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  margin-bottom: var(--space-5);
-}
-
-.metric {
-  background: var(--surface-base);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-}
-
-.metric__label {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-snug);
-  font-weight: var(--weight-medium);
-  margin-bottom: var(--space-1);
-}
-
-.metric__value {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.metric__sub {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-top: var(--space-1);
-}
-
 /* ========================================================================
    Empty states
    ======================================================================== */
@@ -1942,48 +1866,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 /* ========================================================================
    User-version dialog + sidebar status
    ======================================================================== */
-
-.sidebar-streams {
-  padding: var(--space-3);
-  border-top: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.sidebar-streams[data-pending="true"] { opacity: 0.6; }
-
-.sidebar-streams__label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  font-weight: var(--weight-medium);
-}
-
-.sidebar-streams__options {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-1) var(--space-2);
-}
-
-.sidebar-streams__opt {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.sidebar-streams__opt input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.sidebar-streams__opt:hover { color: var(--text-primary); }
 
 .sidebar-packages {
   padding: var(--space-3);
@@ -2079,6 +1961,25 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .sidebar-version__cta {
   width: 100%;
   justify-content: center;
+}
+
+.packages-settings {
+  margin-bottom: var(--space-4);
+}
+
+.packages-settings .sidebar-packages,
+.compare-version-panel .sidebar-version {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-base);
+}
+
+.compare-version-panel {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+}
+
+.compare-version-panel .sidebar-version {
+  max-width: 420px;
 }
 
 .version-dialog {
@@ -2250,7 +2151,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   .filter-bar > .field { flex: 1 1 100%; }
   .stream-checkbox-filter > .stream-checkbox-filter__option { flex: 0 1 auto; }
 
-  /* Dashboard cards full-bleed on small screens. */
   .card-stack { gap: var(--space-3); }
   .card { border-radius: var(--radius-md); }
 }

@@ -1,6 +1,5 @@
 import { listReleases } from "@/lib/db/repositories";
 import { streamLabel } from "@/lib/stream-labels";
-import { getUserVersion } from "@/lib/user-version";
 import { VersionPill } from "../_components/VersionPill";
 import { ExternalLink } from "../_components/ExternalLink";
 import { ReleaseStreamFilter } from "../_components/ReleaseStreamFilter";
@@ -23,22 +22,12 @@ export default async function ReleasesPage({
   const params = await searchParams;
   const selectedStreams = parseSelectedStreams(params.stream);
 
-  const [all, userVersion] = await Promise.all([
-    safeListReleases() as Promise<Release[]>,
-    getUserVersion()
-  ]);
+  const all = (await safeListReleases()) as Release[];
 
   // The Editor Releases page is intentionally release-first and defaults to
   // the long-term stable line. Checkbox filters use repeated `stream=` params
   // (e.g. `?stream=lts&stream=beta`) and override the global sidebar filter.
   const filtered = all.filter((r) => releaseMatchesSelectedStreams(r.stream, selectedStreams));
-
-  // Diff "from" defaults to the user's chosen Unity version. Without one,
-  // fall back to the latest active-line stable so the link still does
-  // something useful.
-  const fallbackFrom = all.find((r) => r.stream === "Update/Supported")?.version ?? null;
-  const diffFrom = userVersion ?? fallbackFrom;
-  const diffLabel = userVersion ? "Diff vs yours" : "Diff vs latest";
 
   return (
     <>
@@ -58,7 +47,6 @@ export default async function ReleasesPage({
             <th style={{ width: 180 }}>Stream</th>
             <th style={{ width: 130 }}>Released</th>
             <th>Links</th>
-            <th style={{ width: 120, textAlign: "right" }}>Compare</th>
           </tr>
         </thead>
         <tbody>
@@ -83,21 +71,6 @@ export default async function ReleasesPage({
                     <ExternalLink href={release.release_notes_url}>Markdown</ExternalLink>
                   ) : null}
                 </span>
-              </td>
-              <td style={{ textAlign: "right" }}>
-                {diffFrom && release.version !== diffFrom ? (
-                  <a
-                    className="btn btn--secondary btn--small"
-                    href={`/compare?from=${encodeURIComponent(diffFrom)}&to=${encodeURIComponent(release.version)}`}
-                    title={
-                      userVersion
-                        ? `Diff your version (${userVersion}) → ${release.version}`
-                        : `Diff ${diffFrom} → ${release.version}`
-                    }
-                  >
-                    {diffLabel}
-                  </a>
-                ) : null}
               </td>
             </tr>
           ))}
