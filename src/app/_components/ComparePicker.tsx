@@ -1,6 +1,4 @@
 import React, { type ComponentProps } from "react";
-import { formatReleaseDate } from "@/lib/format-date";
-import { streamLabel } from "@/lib/stream-labels";
 import { submitCompareAction } from "../_actions/compare-submit";
 import { Icon } from "./Icon";
 
@@ -45,7 +43,7 @@ export function ComparePicker({
             </option>
             {releases.map((r) => (
               <option key={r.version} value={r.version}>
-                {versionOptionLabel(r)}
+                {r.version}
               </option>
             ))}
           </select>
@@ -69,7 +67,7 @@ export function ComparePicker({
             </option>
             {releases.map((r) => (
               <option key={r.version} value={r.version}>
-                {versionOptionLabel(r)}
+                {r.version}
               </option>
             ))}
           </select>
@@ -83,12 +81,4 @@ export function ComparePicker({
       {children}
     </>
   );
-}
-
-function versionOptionLabel(release: ReleaseOption): string {
-  const meta = [
-    release.stream ? streamLabel(release.stream) : null,
-    release.release_date ? formatReleaseDate(release.release_date) : null
-  ].filter(Boolean);
-  return meta.length > 0 ? `${release.version} - ${meta.join(" / ")}` : release.version;
 }

@@ -29,6 +29,9 @@ describe("ComparePicker", () => {
     expect(html).toContain('<select name="to"');
     expect(html).not.toContain("<datalist");
     expect(html).not.toContain('list="compare-picker-versions"');
-    expect(html).toContain('<option value="6000.0.74f1"');
+    expect(html).toContain('<option value="6000.0.74f1">6000.0.74f1</option>');
+    expect(html).not.toContain("LTS");
+    expect(html).not.toContain("Supported");
+    expect(html).not.toContain("Apr 29");
   });
 });
