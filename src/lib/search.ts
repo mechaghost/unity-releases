@@ -20,6 +20,14 @@ export type ReleaseNoteSearchFilters = {
   /** Bucket each row as Editor-only or Runtime-impacting based on its
    *  `area` value. Heuristic; see EDITOR_AREAS. Omit for "both". */
   editorScope?: "editor" | "runtime";
+  /**
+   * Regressions-only filter. When set to an ISO date string, drops any
+   * row whose issue_ids array intersects with an issue that first
+   * appeared in a release strictly *before* this date — i.e. only "new
+   * since {date}" issues survive. Pass `range.fromDate` from /compare or
+   * a release's own `release_date` from /releases/[version].
+   */
+  regressionsBefore?: string;
   limit?: number;
   offset?: number;
   order?: "newest" | "section" | "risk" | "source" | "area" | "issue";
@@ -229,6 +237,23 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
     where.push(`area = ANY(${add(EDITOR_AREAS)})`);
   } else if (filters.editorScope === "runtime") {
     where.push(`(area IS NULL OR area <> ALL(${add(EDITOR_AREAS)}))`);
+  }
+
+  if (filters.regressionsBefore) {
+    // "Regressions only": drop rows whose issue_ids appear in any older
+    // release-note item. Issues introduced *in or after* the boundary
+    // date survive. Empty issue_ids never qualify (we can't prove they
+    // weren't pre-existing) — they're dropped too.
+    const dateParam = add(filters.regressionsBefore);
+    where.push(`
+      cardinality(issue_ids) > 0
+      AND NOT EXISTS (
+        SELECT 1
+        FROM release_note_items prev
+        WHERE prev.release_date < ${dateParam}
+          AND prev.issue_ids && release_note_items.issue_ids
+      )
+    `);
   }
 
   return { where, values, add };

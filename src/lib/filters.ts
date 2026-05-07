@@ -54,6 +54,9 @@ export type FilterState = {
    *  versions that exist in the resolved range; otherwise they're ignored. */
   subFromVersion: string;
   subToVersion: string;
+  /** Show only issues introduced in the current range, not carried-forward
+   *  from earlier releases. Page resolves the boundary date. */
+  regressionsOnly: boolean;
   preset: PersonaPreset;
 };
 
@@ -72,6 +75,7 @@ export const EMPTY_FILTERS: FilterState = {
   editorScope: "any",
   subFromVersion: "",
   subToVersion: "",
+  regressionsOnly: false,
   preset: DEFAULT_PERSONA
 };
 
@@ -169,6 +173,7 @@ export function parseFiltersFromParams(
     editorScope,
     subFromVersion: (params.get("sub_from") ?? "").trim(),
     subToVersion: (params.get("sub_to") ?? "").trim(),
+    regressionsOnly: params.get("regressions") === "1",
     preset
   };
 }
@@ -190,6 +195,7 @@ export function serializeFiltersToParams(state: FilterState, into: URLSearchPara
   if (state.editorScope && state.editorScope !== "any") into.set("scope", state.editorScope);
   if (state.subFromVersion) into.set("sub_from", state.subFromVersion);
   if (state.subToVersion) into.set("sub_to", state.subToVersion);
+  if (state.regressionsOnly) into.set("regressions", "1");
   if (state.preset && state.preset !== DEFAULT_PERSONA) into.set("preset", state.preset);
 }
 
@@ -219,7 +225,8 @@ export function hasActiveFilters(state: FilterState): boolean {
     state.hideNoise ||
     state.editorScope !== "any" ||
     state.subFromVersion !== "" ||
-    state.subToVersion !== ""
+    state.subToVersion !== "" ||
+    state.regressionsOnly
   );
 }
 
@@ -233,6 +240,7 @@ export function activeFilterCount(state: FilterState): number {
   if (state.hideNoise) n += 1;
   if (state.editorScope !== "any") n += 1;
   if (state.subFromVersion || state.subToVersion) n += 1;
+  if (state.regressionsOnly) n += 1;
   n += state.lanes.length;
   n += state.risks.length;
   n += state.platforms.length;
@@ -252,7 +260,10 @@ export function activeFilterCount(state: FilterState): number {
  */
 export function filtersToSearchFilters(
   state: FilterState,
-  manifestPackages: readonly string[] = []
+  manifestPackages: readonly string[] = [],
+  /** Page-supplied boundary for the regressions-only filter — earliest
+   *  release_date in the visible scope. The toggle does nothing without it. */
+  regressionsBoundary?: string | Date | null
 ): Pick<
   ReleaseNoteSearchFilters,
   | "q"
@@ -266,6 +277,7 @@ export function filtersToSearchFilters(
   | "pipelines"
   | "hideNoise"
   | "editorScope"
+  | "regressionsBefore"
 > {
   const out: Pick<
     ReleaseNoteSearchFilters,
@@ -280,6 +292,7 @@ export function filtersToSearchFilters(
     | "pipelines"
     | "hideNoise"
     | "editorScope"
+    | "regressionsBefore"
   > = {};
 
   if (state.q) out.q = state.q;
@@ -288,6 +301,13 @@ export function filtersToSearchFilters(
   if (state.hideNoise) out.hideNoise = true;
   if (state.editorScope === "editor" || state.editorScope === "runtime") {
     out.editorScope = state.editorScope;
+  }
+  if (state.regressionsOnly && regressionsBoundary) {
+    const iso =
+      typeof regressionsBoundary === "string"
+        ? regressionsBoundary
+        : regressionsBoundary.toISOString();
+    out.regressionsBefore = iso;
   }
   if (state.platforms.length) out.platform = state.platforms;
   if (state.risks.length) out.riskLevel = state.risks;

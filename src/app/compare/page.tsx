@@ -178,11 +178,6 @@ export default async function ComparePage({
   // User filter state — URL is the source of truth, persona cookie is the
   // first-visit fallback. The drawer applies user changes via router.push.
   const filterState = parseFiltersFromParams(params, presetCookie ?? "balanced");
-  const userSearchFilters = filtersToSearchFilters(filterState, userPackages);
-  if (platform && !userSearchFilters.platform) {
-    // Honor the legacy ?platform= query param for back-compat.
-    userSearchFilters.platform = platform;
-  }
 
   // Compare is independent of the Editor Releases page stream checkboxes.
   // The picker dropdowns include every indexed Unity 6 stream, while the currently
@@ -256,6 +251,18 @@ export default async function ComparePage({
       const [lo, hi] = aIdx <= bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
       effectiveVersions = fullVersions.slice(lo, hi + 1);
     }
+  }
+
+  // Project user filters now that we know the regressions boundary
+  // (earliest release_date in scope) — the toggle is a no-op without it.
+  const userSearchFilters = filtersToSearchFilters(
+    filterState,
+    userPackages,
+    range.fromDate
+  );
+  if (platform && !userSearchFilters.platform) {
+    // Honor the legacy ?platform= query param for back-compat.
+    userSearchFilters.platform = platform;
   }
 
   // Per-lane page numbers come from URL params (`p_<laneId>`, 1-indexed).

@@ -194,6 +194,13 @@ function ChipRow({
       remove: () => onChange({ ...filters, subFromVersion: "", subToVersion: "" })
     });
   }
+  if (filters.regressionsOnly) {
+    chips.push({
+      key: "regressions",
+      label: "Regressions only",
+      remove: () => onChange({ ...filters, regressionsOnly: false })
+    });
+  }
 
   if (chips.length === 0) return <span className="filter-chip-row__placeholder" />;
 

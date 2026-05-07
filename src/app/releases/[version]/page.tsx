@@ -75,10 +75,16 @@ export default async function ReleasePage({
   );
   const filterState = parseFiltersFromParams(urlParams, presetCookie ?? "balanced");
   const userPackages = await getUserPackages();
-  const userSearchFilters = filtersToSearchFilters(filterState, userPackages);
 
-  const [release, allRows, facets] = await Promise.all([
-    safeRelease(decoded),
+  // Resolve the release first so we can pass its date as the regressions
+  // boundary. Then build the search filter and fetch notes.
+  const release = await safeRelease(decoded);
+  const userSearchFilters = filtersToSearchFilters(
+    filterState,
+    userPackages,
+    release?.release_date ?? null
+  );
+  const [allRows, facets] = await Promise.all([
     safeNotes(decoded, userSearchFilters),
     getReleaseRangeFacets([decoded])
   ]);

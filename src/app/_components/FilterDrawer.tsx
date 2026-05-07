@@ -374,6 +374,13 @@ export function FilterDrawer({
               onChange={(checked) => setState({ ...state, hasTracker: checked })}
               label="Has Issue Tracker link"
             />
+            <Toggle
+              checked={state.regressionsOnly}
+              onChange={(checked) =>
+                setState({ ...state, regressionsOnly: checked })
+              }
+              label="Regressions only (issues introduced in this range)"
+            />
           </Section>
         </div>
 
