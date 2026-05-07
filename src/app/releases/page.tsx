@@ -1,10 +1,12 @@
 import { listReleases, listReleaseNoteCounts } from "@/lib/db/repositories";
 import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
+import { paginateItems, type PaginationResult } from "@/lib/pagination";
 import { VersionPill } from "../_components/VersionPill";
 import { Icon } from "../_components/Icon";
 
 export const dynamic = "force-dynamic";
+const RELEASES_PER_PAGE = 50;
 
 type Release = {
   version: string;
@@ -18,12 +20,14 @@ export default async function ReleasesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await searchParams;
+  const params = await searchParams;
 
   const [all, noteCounts] = await Promise.all([
     safeListReleases() as Promise<Release[]>,
     safeListReleaseNoteCounts()
   ]);
+  const pagination = paginateItems(all, firstParam(params.page), RELEASES_PER_PAGE);
+  const releases = pagination.items;
 
   return (
     <>
@@ -54,7 +58,7 @@ export default async function ReleasesPage({
               </tr>
             </thead>
             <tbody>
-              {all.map((release) => {
+              {releases.map((release) => {
                 const noteCount = noteCounts[release.version] ?? 0;
                 return (
                   <tr key={release.version}>
@@ -107,10 +111,61 @@ export default async function ReleasesPage({
               })}
             </tbody>
           </table>
+          <ReleasePagination pagination={pagination} />
         </div>
       )}
     </>
   );
+}
+
+function ReleasePagination({ pagination }: { pagination: PaginationResult<Release> }) {
+  return (
+    <nav className="lane__pagination releases-pagination" aria-label="Editor release pagination">
+      <span className="lane__pagination-status">
+        Showing <strong className="tabnums">{pagination.start.toLocaleString()}</strong>
+        {pagination.start !== pagination.end ? (
+          <>-<strong className="tabnums">{pagination.end.toLocaleString()}</strong></>
+        ) : null}
+        {" of "}
+        <strong className="tabnums">{pagination.totalItems.toLocaleString()}</strong> releases
+      </span>
+      <span className="lane__pagination-controls">
+        {pagination.hasPrev ? (
+          <a className="lane__pagination-btn" href={releasePageHref(pagination.page - 1)} rel="prev">
+            <Icon name="chevron-left" size={14} />
+            Prev
+          </a>
+        ) : (
+          <span className="lane__pagination-btn lane__pagination-btn--disabled" aria-disabled="true">
+            <Icon name="chevron-left" size={14} />
+            Prev
+          </span>
+        )}
+        <span className="lane__pagination-page tabnums">
+          Page {pagination.page} of {pagination.totalPages}
+        </span>
+        {pagination.hasNext ? (
+          <a className="lane__pagination-btn" href={releasePageHref(pagination.page + 1)} rel="next">
+            Next
+            <Icon name="chevron-right" size={14} />
+          </a>
+        ) : (
+          <span className="lane__pagination-btn lane__pagination-btn--disabled" aria-disabled="true">
+            Next
+            <Icon name="chevron-right" size={14} />
+          </span>
+        )}
+      </span>
+    </nav>
+  );
+}
+
+function releasePageHref(page: number): string {
+  return page <= 1 ? "/releases" : `/releases?page=${page}`;
+}
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 async function safeListReleases() {
