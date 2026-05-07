@@ -11,8 +11,8 @@ describe("obsolete filter surfaces", () => {
     expect(comparePage).not.toContain("Top areas");
   });
 
-  test("releases page does not render the stream filter card", () => {
-    expect(releasesPage).not.toContain("ReleaseStreamFilter");
-    expect(releasesPage).not.toContain("selectedStreams");
+  test("releases page keeps the useful stream filter", () => {
+    expect(releasesPage).toContain("ReleaseStreamFilter");
+    expect(releasesPage).toContain("selectedStreams");
   });
 });

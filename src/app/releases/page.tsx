@@ -3,6 +3,7 @@ import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
 import { paginateItems, type PaginationResult } from "@/lib/pagination";
 import { VersionPill } from "../_components/VersionPill";
+import { ReleaseStreamFilter } from "../_components/ReleaseStreamFilter";
 import { Icon } from "../_components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -21,27 +22,33 @@ export default async function ReleasesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const selectedStreams = parseSelectedStreams(params.stream);
 
   const [all, noteCounts] = await Promise.all([
     safeListReleases() as Promise<Release[]>,
     safeListReleaseNoteCounts()
   ]);
-  const pagination = paginateItems(all, firstParam(params.page), RELEASES_PER_PAGE);
+  const filtered = all.filter((r) => releaseMatchesSelectedStreams(r.stream, selectedStreams));
+  const pagination = paginateItems(filtered, firstParam(params.page), RELEASES_PER_PAGE);
   const releases = pagination.items;
 
   return (
     <>
       <section className="page-header">
         <h1>Editor Releases</h1>
-        <p>{all.length.toLocaleString()} Unity 6 releases tracked from official Unity sources.</p>
+        <p>
+          {filtered.length.toLocaleString()} of {all.length.toLocaleString()} Unity 6 releases shown.
+        </p>
       </section>
 
-      {all.length === 0 ? (
+      <ReleaseStreamFilter selected={selectedStreams} />
+
+      {filtered.length === 0 ? (
         <div className="releases-table-wrap">
           <div className="releases-empty-state">
             <Icon name="file-text" size={24} />
-            <h2>No releases indexed yet.</h2>
-            <p>Run ingestion to populate Editor release data.</p>
+            <h2>No releases match this filter.</h2>
+            <p>Try a different stream combination.</p>
           </div>
         </div>
       ) : (
@@ -111,14 +118,20 @@ export default async function ReleasesPage({
               })}
             </tbody>
           </table>
-          <ReleasePagination pagination={pagination} />
+          <ReleasePagination pagination={pagination} selectedStreams={selectedStreams} />
         </div>
       )}
     </>
   );
 }
 
-function ReleasePagination({ pagination }: { pagination: PaginationResult<Release> }) {
+function ReleasePagination({
+  pagination,
+  selectedStreams
+}: {
+  pagination: PaginationResult<Release>;
+  selectedStreams: ReleaseStreamFilterValue[];
+}) {
   return (
     <nav className="lane__pagination releases-pagination" aria-label="Editor release pagination">
       <span className="lane__pagination-status">
@@ -131,7 +144,11 @@ function ReleasePagination({ pagination }: { pagination: PaginationResult<Releas
       </span>
       <span className="lane__pagination-controls">
         {pagination.hasPrev ? (
-          <a className="lane__pagination-btn" href={releasePageHref(pagination.page - 1)} rel="prev">
+          <a
+            className="lane__pagination-btn"
+            href={releasePageHref(pagination.page - 1, selectedStreams)}
+            rel="prev"
+          >
             <Icon name="chevron-left" size={14} />
             Prev
           </a>
@@ -145,7 +162,11 @@ function ReleasePagination({ pagination }: { pagination: PaginationResult<Releas
           Page {pagination.page} of {pagination.totalPages}
         </span>
         {pagination.hasNext ? (
-          <a className="lane__pagination-btn" href={releasePageHref(pagination.page + 1)} rel="next">
+          <a
+            className="lane__pagination-btn"
+            href={releasePageHref(pagination.page + 1, selectedStreams)}
+            rel="next"
+          >
             Next
             <Icon name="chevron-right" size={14} />
           </a>
@@ -160,8 +181,35 @@ function ReleasePagination({ pagination }: { pagination: PaginationResult<Releas
   );
 }
 
-function releasePageHref(page: number): string {
-  return page <= 1 ? "/releases" : `/releases?page=${page}`;
+const RELEASE_STREAMS = ["lts", "update", "beta", "alpha"] as const;
+type ReleaseStreamFilterValue = (typeof RELEASE_STREAMS)[number];
+
+function parseSelectedStreams(raw: string | string[] | undefined): ReleaseStreamFilterValue[] {
+  const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const selected = values
+    .map((value) => value.toLowerCase())
+    .filter((value): value is ReleaseStreamFilterValue =>
+      (RELEASE_STREAMS as readonly string[]).includes(value)
+    );
+  return selected.length > 0 ? Array.from(new Set(selected)) : ["lts"];
+}
+
+function releaseMatchesSelectedStreams(stream: string | null, selected: ReleaseStreamFilterValue[]) {
+  const normalized = (stream ?? "").toLowerCase();
+  if (!normalized) return false;
+  return selected.some((value) => normalized.includes(value));
+}
+
+function releasePageHref(page: number, selectedStreams: ReleaseStreamFilterValue[]): string {
+  const params = new URLSearchParams();
+  for (const stream of selectedStreams) {
+    if (stream !== "lts" || selectedStreams.length > 1) {
+      params.append("stream", stream);
+    }
+  }
+  if (page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return qs ? `/releases?${qs}` : "/releases";
 }
 
 function firstParam(value: string | string[] | undefined): string | undefined {
