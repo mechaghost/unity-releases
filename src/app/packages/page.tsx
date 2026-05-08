@@ -105,7 +105,7 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
             <option value="name_desc">Package Z-A</option>
           </select>
         </label>
-        <button type="submit" className="btn btn--primary btn--small">
+        <button type="submit" className="btn btn--primary">
           Apply
         </button>
       </form>
@@ -158,13 +158,13 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                     {pkg.latest_is_prerelease ? (
                       <span className="chip chip--impact-known_issue">Pre</span>
                     ) : (
-                      <span className="muted" style={{ fontSize: 12 }}>
+                      <span className="muted text-xs">
                         Stable
                       </span>
                     )}
                   </td>
                   <td>
-                    <span className="cluster" style={{ gap: 8 }}>
+                    <span className="cluster">
                       <ExternalLink href={pkg.source_url}>Registry</ExternalLink>
                     </span>
                   </td>

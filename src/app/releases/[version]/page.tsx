@@ -120,7 +120,7 @@ export default async function ReleasePage({
         ) : (
           <p className="muted">Release not yet indexed.</p>
         )}
-        <div className="cluster" style={{ marginTop: 12 }}>
+        <div className="cluster page-meta-row">
           {release ? (
             <>
               <ExternalLink href={release.release_page_url}>Unity release page</ExternalLink>
@@ -128,7 +128,7 @@ export default async function ReleasePage({
                 <ExternalLink href={release.release_notes_url}>Release notes (markdown)</ExternalLink>
               ) : null}
               {release.unity_hub_deep_link ? (
-                <a className="btn btn--primary btn--small" href={release.unity_hub_deep_link}>
+                <a className="btn btn--primary btn--small hide-mobile" href={release.unity_hub_deep_link}>
                   <Icon name="package" size={14} /> Open in Unity Hub
                 </a>
               ) : null}

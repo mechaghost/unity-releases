@@ -25,7 +25,7 @@ export default async function NewsPage() {
         <p>{news.length.toLocaleString()} official Unity blog posts. Click a title to read on unity.com.</p>
       </section>
 
-      <div className="table-wrap"><table className="dense-table">
+      <div className="table-surface"><table className="dense-table">
         <thead>
           <tr>
             <th style={{ width: 130 }}>Date</th>

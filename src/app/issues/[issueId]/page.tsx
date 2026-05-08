@@ -35,7 +35,7 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
             ? "Not mentioned in indexed release notes yet."
             : `Mentioned in ${results.length} release note${results.length === 1 ? "" : "s"}.`}
         </p>
-        <div className="cluster" style={{ marginTop: 12 }}>
+        <div className="cluster page-meta-row">
           <ExternalLink href={trackerUrl} className="link-internal--accent">
             Open on Unity Issue Tracker
           </ExternalLink>
@@ -43,7 +43,7 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
       </section>
 
       {results.length === 0 ? null : (
-        <div className="table-wrap"><table className="dense-table">
+        <div className="table-surface"><table className="dense-table">
           <thead>
             <tr>
               <th style={{ width: 140 }}>Version</th>
@@ -63,7 +63,7 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
                 </td>
                 <td>
                   <span className="muted">{row.section}</span>
-                  {row.area ? <div className="muted" style={{ fontSize: 12 }}>{row.area}</div> : null}
+                  {row.area ? <div className="muted text-xs">{row.area}</div> : null}
                 </td>
                 <td>
                   <RiskBadge level={row.risk_level} />
@@ -72,7 +72,7 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
                   <ImpactPill kind={row.impact_kind} />
                 </td>
                 <td>
-                  <span style={{ color: "var(--text-secondary)" }} title={row.body}>
+                  <span className="text-secondary" title={row.body}>
                     {cleanReleaseNoteText(row.body)}
                   </span>
                 </td>

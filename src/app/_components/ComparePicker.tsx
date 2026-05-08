@@ -39,7 +39,7 @@ export function ComparePicker({
           <span>From</span>
           <select name="from" defaultValue={fromVersion} required>
             <option value="" disabled>
-              Select a version
+              Pick a version
             </option>
             {releases.map((r) => (
               <option key={r.version} value={r.version}>
@@ -63,7 +63,7 @@ export function ComparePicker({
           <span>To</span>
           <select name="to" defaultValue={toVersion} required>
             <option value="" disabled>
-              Select a version
+              Pick a version
             </option>
             {releases.map((r) => (
               <option key={r.version} value={r.version}>

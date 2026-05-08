@@ -401,7 +401,7 @@ export default async function ComparePage({
             </>
           ) : null}
         </p>
-        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+        <p className="muted text-xs">
           {range.includedStreams.length > 0 ? (
             <>
               Scoped to {streamListLabel(range.includedStreams)} on{" "}
