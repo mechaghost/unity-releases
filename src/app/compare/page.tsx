@@ -44,7 +44,7 @@ import { VersionPill } from "../_components/VersionPill";
 import { Icon } from "../_components/Icon";
 import { NoteRow } from "../_components/NoteRow";
 import { LaneCollapseProvider, LaneShell } from "../_components/ReviewLanes";
-import { FilterBar } from "../_components/FilterBar";
+import { FilterChips, FilterTrigger } from "../_components/FilterBar";
 import { ComparePicker } from "../_components/ComparePicker";
 import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
 import { compareToMarkdown } from "@/lib/compare-markdown";
@@ -457,65 +457,61 @@ export default async function ComparePage({
         toVersion={toVersion}
         releases={pickerReleases}
         selectedStreams={selectedStreams}
+        streamRowEnd={
+          <FilterTrigger
+            filters={filterState}
+            facets={facets}
+            manifestPackages={userPackages}
+            savedPresets={savedPresets}
+            versionsInRange={fullVersions}
+            preservedParams={{
+              from: fromVersion,
+              to: toVersion,
+              ...(platform ? { platform } : {})
+            }}
+            basePath="/compare"
+            view="compare"
+          />
+        }
       />
 
-      <section className="page-header">
-        <div className="page-header__title-row">
-          <h1 className="upgrade-guide__title">
-            <VersionPill version={fromVersion} stream={lookupStream(allReleases, fromVersion)} />
-            <span className="upgrade-guide__arrow" aria-hidden="true">→</span>
-            <VersionPill version={toVersion} stream={lookupStream(allReleases, toVersion)} />
-          </h1>
+      {(range.reversed || effectiveVersions.length < fullVersions.length || platform) ? (
+        <section className="page-header">
           {range.reversed ? (
-            <span className="chip chip--reverse" title="The selected To-version is older than the From-version. The page still shows what changes between them.">
-              Reverse direction (downgrade)
-            </span>
+            <div className="page-header__title-row">
+              <span className="chip chip--reverse" title="The selected To-version is older than the From-version. The page still shows what changes between them.">
+                Reverse direction (downgrade)
+              </span>
+            </div>
           ) : null}
-        </div>
-        <p>Changes between these two Unity releases.</p>
-        {(range.includedStreams.length > 0 ||
-          effectiveVersions.length < fullVersions.length ||
-          platform) ? (
-          <p className="muted text-xs">
-            {effectiveVersions.length < fullVersions.length ? (
-              <>
-                Sub-range <strong>{effectiveVersions.length}</strong> of{" "}
-                <strong>{fullVersions.length}</strong>
-                {range.includedStreams.length > 0 || platform ? " · " : null}
-              </>
-            ) : null}
-            {range.includedStreams.length > 0 ? (
-              <>
-                Scoped to {streamListLabel(range.includedStreams)} on{" "}
-                {range.includedMinorLines.length === 1
-                  ? range.includedMinorLines[0]
-                  : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}
-                {platform ? " · " : null}
-              </>
-            ) : null}
-            {platform ? <>platform <code>{platform}</code></> : null}
-          </p>
-        ) : null}
-      </section>
+          {(effectiveVersions.length < fullVersions.length || platform) ? (
+            <p className="muted text-xs">
+              {effectiveVersions.length < fullVersions.length ? (
+                <>
+                  Sub-range <strong>{effectiveVersions.length}</strong> of{" "}
+                  <strong>{fullVersions.length}</strong>
+                  {platform ? " · " : null}
+                </>
+              ) : null}
+              {platform ? <>platform <code>{platform}</code></> : null}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <UpgradeMarkdownCta
         markdown={compareMarkdown}
         filename={`unity-${fromVersion}-to-${toVersion}`}
       />
 
-      <FilterBar
+      <FilterChips
         filters={filterState}
-        facets={facets}
-        manifestPackages={userPackages}
-        savedPresets={savedPresets}
-        versionsInRange={fullVersions}
         preservedParams={{
           from: fromVersion,
           to: toVersion,
           ...(platform ? { platform } : {})
         }}
         basePath="/compare"
-        view="compare"
       />
 
       <LaneCollapseProvider initialCollapsed={initialCollapsed}>
@@ -1021,13 +1017,6 @@ function UpgradeMarkdownCta({
       </div>
     </section>
   );
-}
-
-function lookupStream(
-  releases: { version: string; stream: string | null }[],
-  version: string
-): string | null {
-  return releases.find((r) => r.version === version)?.stream ?? null;
 }
 
 async function safePackageBoundaries(

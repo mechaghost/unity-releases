@@ -1546,6 +1546,22 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   margin-bottom: var(--space-4);
 }
 
+.compare-stream-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.compare-stream-row > .compare-stream-filter {
+  margin-bottom: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.compare-stream-row__end {
+  flex: 0 0 auto;
+}
+
 .compare-stream-filter {
   margin-bottom: var(--space-2);
   align-items: center;

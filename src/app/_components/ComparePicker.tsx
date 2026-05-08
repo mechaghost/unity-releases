@@ -16,6 +16,9 @@ type Props = {
   releases: ReleaseOption[];
   selectedStreams: StreamName[];
   children?: React.ReactNode;
+  /** Optional right-side slot rendered on the streams chip row (e.g. the
+   *  Filter trigger on the active compare view). */
+  streamRowEnd?: React.ReactNode;
   action?: ComponentProps<"form">["action"];
 };
 
@@ -25,6 +28,7 @@ export function ComparePicker({
   releases,
   selectedStreams,
   children,
+  streamRowEnd,
   action = submitCompareAction
 }: Props) {
   const swapHref =
@@ -45,9 +49,14 @@ export function ComparePicker({
         Stream scope sits above the picker so the user picks which Unity
         streams to draw From/To options from before they pick a version.
       */}
-      <Suspense fallback={null}>
-        <CompareStreamFilter selected={selectedStreams} />
-      </Suspense>
+      <div className="compare-stream-row">
+        <Suspense fallback={null}>
+          <CompareStreamFilter selected={selectedStreams} />
+        </Suspense>
+        {streamRowEnd ? (
+          <div className="compare-stream-row__end">{streamRowEnd}</div>
+        ) : null}
+      </div>
       <form className="compare-picker" action={action}>
         <label>
           <span>From</span>

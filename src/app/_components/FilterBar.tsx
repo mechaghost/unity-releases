@@ -31,7 +31,16 @@ type Props = {
   view: "compare" | "release";
 };
 
-export function FilterBar({
+export function FilterBar(props: Props) {
+  return (
+    <div className="filter-bar-row">
+      <FilterChips {...props} />
+      <FilterTrigger {...props} />
+    </div>
+  );
+}
+
+export function FilterTrigger({
   filters,
   facets,
   manifestPackages,
@@ -42,36 +51,21 @@ export function FilterBar({
   view
 }: Props) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
   const count = activeFilterCount(filters);
-
-  function pushState(next: FilterState) {
-    const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(preservedParams)) if (v) params.set(k, v);
-    serializeFiltersToParams(next, params);
-    router.push(`${basePath}?${params.toString()}`);
-  }
-
-  function clearAll() {
-    pushState({ ...EMPTY_FILTERS, preset: filters.preset });
-  }
 
   return (
     <>
-      <div className="filter-bar-row">
-        <ChipRow filters={filters} onChange={pushState} onClearAll={clearAll} />
-        <button
-          type="button"
-          className={`btn btn--secondary btn--small filter-trigger${count > 0 ? " filter-trigger--active" : ""}`}
-          onClick={() => setOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-        >
-          <Icon name="filter" size={14} />
-          Filter
-          {count > 0 ? <span className="filter-trigger__badge tabnums">{count}</span> : null}
-        </button>
-      </div>
+      <button
+        type="button"
+        className={`btn btn--secondary btn--small filter-trigger${count > 0 ? " filter-trigger--active" : ""}`}
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <Icon name="filter" size={14} />
+        Filter
+        {count > 0 ? <span className="filter-trigger__badge tabnums">{count}</span> : null}
+      </button>
 
       <FilterDrawer
         open={open}
@@ -87,6 +81,27 @@ export function FilterBar({
       />
     </>
   );
+}
+
+export function FilterChips({
+  filters,
+  preservedParams,
+  basePath
+}: Pick<Props, "filters" | "preservedParams" | "basePath">) {
+  const router = useRouter();
+
+  function pushState(next: FilterState) {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(preservedParams)) if (v) params.set(k, v);
+    serializeFiltersToParams(next, params);
+    router.push(`${basePath}?${params.toString()}`);
+  }
+
+  function clearAll() {
+    pushState({ ...EMPTY_FILTERS, preset: filters.preset });
+  }
+
+  return <ChipRow filters={filters} onChange={pushState} onClearAll={clearAll} />;
 }
 
 // ─── chips ──────────────────────────────────────────────────────────────
