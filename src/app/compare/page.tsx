@@ -461,59 +461,47 @@ export default async function ComparePage({
 
       <section className="page-header">
         <div className="page-header__title-row">
-          <h1>Upgrade Guide</h1>
+          <h1 className="upgrade-guide__title">
+            <VersionPill version={fromVersion} stream={lookupStream(allReleases, fromVersion)} />
+            <span className="upgrade-guide__arrow" aria-hidden="true">→</span>
+            <VersionPill version={toVersion} stream={lookupStream(allReleases, toVersion)} />
+          </h1>
           {range.reversed ? (
             <span className="chip chip--reverse" title="The selected To-version is older than the From-version. The page still shows what changes between them.">
               Reverse direction (downgrade)
             </span>
           ) : null}
         </div>
-        <p className="upgrade-guide__subhead">
-          Should you move from{" "}
-          <VersionPill version={fromVersion} stream={lookupStream(allReleases, fromVersion)} />{" "}
-          <span className="upgrade-guide__arrow" aria-hidden="true">→</span>{" "}
-          <VersionPill version={toVersion} stream={lookupStream(allReleases, toVersion)} />
-          ? Here&apos;s the decision sheet.
-        </p>
-        <p className="muted">
-          {effectiveVersions.length < fullVersions.length ? (
-            <>
-              Sub-range <strong>{effectiveVersions.length}</strong> of{" "}
-              <strong>{fullVersions.length}</strong> releases ·{" "}
-            </>
-          ) : (
-            <>
-              <strong>{fullVersions.length}</strong>{" "}
-              {fullVersions.length === 1 ? "release" : "releases"} ·{" "}
-            </>
-          )}
-          <strong className="tabnums">{counts.totalNotes.toLocaleString()}</strong> release notes
-          {platform ? (
-            <>
-              {" · platform "}<code>{platform}</code>
-            </>
-          ) : null}
-          {range.includedStreams.length > 0 ? (
-            <>
-              {" · "}scoped to {streamListLabel(range.includedStreams)} on{" "}
-              {range.includedMinorLines.length === 1
-                ? range.includedMinorLines[0]
-                : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}
-            </>
-          ) : null}
-        </p>
+        <p>Changes between these two Unity releases.</p>
+        {(range.includedStreams.length > 0 ||
+          effectiveVersions.length < fullVersions.length ||
+          platform) ? (
+          <p className="muted text-xs">
+            {effectiveVersions.length < fullVersions.length ? (
+              <>
+                Sub-range <strong>{effectiveVersions.length}</strong> of{" "}
+                <strong>{fullVersions.length}</strong>
+                {range.includedStreams.length > 0 || platform ? " · " : null}
+              </>
+            ) : null}
+            {range.includedStreams.length > 0 ? (
+              <>
+                Scoped to {streamListLabel(range.includedStreams)} on{" "}
+                {range.includedMinorLines.length === 1
+                  ? range.includedMinorLines[0]
+                  : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}
+                {platform ? " · " : null}
+              </>
+            ) : null}
+            {platform ? <>platform <code>{platform}</code></> : null}
+          </p>
+        ) : null}
       </section>
-
-      <UpgradeVerdictBanner counts={counts} />
 
       <UpgradeMarkdownCta
         markdown={compareMarkdown}
         filename={`unity-${fromVersion}-to-${toVersion}`}
-        fromVersion={fromVersion}
-        toVersion={toVersion}
       />
-
-      <CompareFactsStrip counts={counts} />
 
       <FilterBar
         filters={filterState}
@@ -985,137 +973,53 @@ function buildLanePageUrl(input: {
   return `/compare?${params.toString()}#lane-${input.laneId}`;
 }
 
-type CompareCounts = {
-  totalNotes: number;
-  byImpact: Record<string, number>;
-  blockerKnownIssues: number;
-};
-
 function CompareEmptyPreview() {
   return (
     <div className="empty-state empty-state--preview">
       <h2>Pick two versions to compare</h2>
       <ul className="empty-state__steps">
         <li>
-          <strong>Upgrade verdict.</strong> Blocker, breaking, and security counts up top.
+          <strong>Lane breakdown.</strong> Every change bucketed by impact — blockers,
+          breaking, security, packages, fixes, and more.
         </li>
         <li>
-          <strong>Lane breakdown.</strong> Every change bucketed by impact.
-        </li>
-        <li>
-          <strong>Markdown brief.</strong> Download it and feed it to Claude, ChatGPT, or Gemini
-          for a project-aware analysis.
+          <strong>Release data export.</strong> Download a structured markdown file and feed
+          it to Claude, ChatGPT, or Gemini for a project-aware analysis.
         </li>
       </ul>
     </div>
   );
 }
 
-function UpgradeVerdictBanner({ counts }: { counts: CompareCounts }) {
-  const blockers = counts.blockerKnownIssues;
-  const breakingApi =
-    (counts.byImpact.breaking_change ?? 0) + (counts.byImpact.api_change ?? 0);
-  const securityInstall =
-    (counts.byImpact.security_related_fix ?? 0) + (counts.byImpact.install_risk ?? 0);
-  const allClear = blockers === 0 && breakingApi === 0 && securityInstall === 0;
-
-  const tone = blockers > 0 ? "warn" : allClear ? "good" : "info";
-
-  return (
-    <section className={`upgrade-verdict upgrade-verdict--${tone}`} aria-label="Upgrade verdict">
-      <div className="upgrade-verdict__metrics">
-        <UpgradeVerdictMetric value={blockers} label={blockers === 1 ? "blocker" : "blockers"} />
-        <UpgradeVerdictMetric value={breakingApi} label="breaking / API" />
-        <UpgradeVerdictMetric value={securityInstall} label="security / install" />
-      </div>
-      <p className="upgrade-verdict__line">
-        {allClear ? (
-          <>
-            <strong>No blockers, no breaking changes.</strong> Looks like a safe upgrade.
-            Skim the package lane and ship it.
-          </>
-        ) : (
-          <>
-            <strong>Read this before you sync your team.</strong> Or download the markdown and
-            let your AI tell you what matters for your project.
-          </>
-        )}
-      </p>
-    </section>
-  );
-}
-
-function UpgradeVerdictMetric({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="upgrade-verdict__metric">
-      <strong className="tabnums">{value.toLocaleString()}</strong>
-      <span>{label}</span>
-    </div>
-  );
-}
-
 function UpgradeMarkdownCta({
   markdown,
-  filename,
-  fromVersion,
-  toVersion
+  filename
 }: {
   markdown: string;
   filename: string;
-  fromVersion: string;
-  toVersion: string;
 }) {
   return (
-    <section className="upgrade-cta" aria-label="Download upgrade brief">
+    <section className="upgrade-cta" aria-label="Download release data">
       <div className="upgrade-cta__copy">
-        <h2 className="upgrade-cta__heading">Hand this to your AI.</h2>
+        <h2 className="upgrade-cta__heading">Release data export</h2>
         <p>
           One structured markdown file with every blocker, breaking change, package bump,
-          regression, and known issue between{" "}
-          <strong className="tabnums">{fromVersion}</strong> and{" "}
-          <strong className="tabnums">{toVersion}</strong>. Paste it into Claude, ChatGPT, or
+          regression, and known issue in this range. Paste it into Claude, ChatGPT, or
           Gemini alongside your project context and ask the questions you actually need
           answered.
-        </p>
-        <p className="upgrade-cta__quote">
-          Your release notes know nothing about your project. Your AI does. Hand it the brief.
         </p>
       </div>
       <div className="upgrade-cta__action">
         <CopyMarkdownButton
           markdown={markdown}
           filename={filename}
-          label="Download upgrade brief (.md)"
+          label="Download Release Data"
         />
         <a className="upgrade-cta__skim" href="#lane-blockers">
-          Or scroll to skim the lanes yourself
+          Or skim the lanes
         </a>
       </div>
     </section>
-  );
-}
-
-function CompareFactsStrip({ counts }: { counts: CompareCounts }) {
-  const items: Array<{ label: string; value: number }> = [
-    { label: "release notes", value: counts.totalNotes },
-    { label: "fixes", value: counts.byImpact.fix ?? 0 },
-    { label: "improvements", value: counts.byImpact.improvement ?? 0 },
-    { label: "features", value: counts.byImpact.feature ?? 0 },
-    { label: "package updates", value: counts.byImpact.package_change ?? 0 }
-  ].filter((i) => i.value > 0);
-
-  if (items.length === 0) return null;
-
-  return (
-    <p className="compare-facts-strip muted" aria-label="Also in this range">
-      <span className="compare-facts-strip__label">Also in this range:</span>
-      {items.map((item, i) => (
-        <span key={item.label} className="compare-facts-strip__item">
-          <strong className="tabnums">{item.value.toLocaleString()}</strong> {item.label}
-          {i < items.length - 1 ? " · " : ""}
-        </span>
-      ))}
-    </p>
   );
 }
 

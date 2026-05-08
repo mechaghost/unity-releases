@@ -2514,15 +2514,13 @@ button.filter-section__head:focus-visible {
   line-height: var(--leading-sm);
 }
 
-/* Upgrade Guide page header — subhead with inline version pills + arrow */
-.upgrade-guide__subhead {
-  display: flex;
+/* Upgrade Guide page header — h1 holds the version-pill range */
+.upgrade-guide__title {
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  margin: var(--space-1) 0 var(--space-2);
-  font-size: var(--text-md);
-  color: var(--text-primary);
+  margin: 0;
 }
 .upgrade-guide__arrow {
   color: var(--text-muted);
@@ -2533,60 +2531,6 @@ button.filter-section__head:focus-visible {
   color: var(--color-caution-fg);
   font-weight: var(--weight-medium);
 }
-
-/* Verdict banner — three big numbers + a one-line read */
-.upgrade-verdict {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-5);
-  padding: var(--space-4) var(--space-5);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-default);
-  background: var(--surface-base);
-  margin-bottom: var(--space-3);
-}
-.upgrade-verdict--warn {
-  border-color: var(--color-caution-fg);
-  background: var(--color-caution-bg);
-}
-.upgrade-verdict--good {
-  border-color: var(--color-success-fg);
-  background: var(--color-success-bg);
-}
-.upgrade-verdict__metrics {
-  display: flex;
-  gap: var(--space-5);
-  flex-wrap: wrap;
-}
-.upgrade-verdict__metric {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.upgrade-verdict__metric strong {
-  font-size: var(--text-2xl);
-  line-height: 1;
-  color: var(--text-primary);
-}
-.upgrade-verdict--warn .upgrade-verdict__metric strong { color: var(--color-caution-fg); }
-.upgrade-verdict--good .upgrade-verdict__metric strong { color: var(--color-success-fg); }
-.upgrade-verdict__metric span {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  text-transform: lowercase;
-  letter-spacing: 0;
-}
-.upgrade-verdict__line {
-  flex: 1 1 280px;
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  line-height: var(--leading-md);
-}
-.upgrade-verdict--warn .upgrade-verdict__line { color: var(--color-caution-fg); }
-.upgrade-verdict--good .upgrade-verdict__line { color: var(--color-success-fg); }
 
 /* Markdown-export CTA — centerpiece card above the lanes */
 .upgrade-cta {
@@ -2618,12 +2562,6 @@ button.filter-section__head:focus-visible {
   line-height: var(--leading-md);
   color: var(--text-primary);
 }
-.upgrade-cta__quote {
-  font-style: italic;
-  color: var(--text-secondary) !important;
-  border-left: 3px solid var(--accent);
-  padding-left: var(--space-3);
-}
 .upgrade-cta__action {
   flex: 0 1 auto;
   display: flex;
@@ -2639,21 +2577,6 @@ button.filter-section__head:focus-visible {
 }
 .upgrade-cta__skim {
   font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-/* "Also in this range" muted strip — replaces the old Diff facts grid for
-   the lanes that aren't decision-driving. */
-.compare-facts-strip {
-  margin: 0 0 var(--space-4);
-  font-size: var(--text-xs);
-  line-height: var(--leading-md);
-}
-.compare-facts-strip__label {
-  margin-right: var(--space-2);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  font-weight: var(--weight-semibold);
   color: var(--text-muted);
 }
 
