@@ -573,6 +573,31 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .chip--issue svg { width: 12px; height: 12px; flex-shrink: 0; }
 
+.chip--issue__id {
+  font-weight: var(--weight-medium);
+}
+.chip--issue__suffix {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid currentColor;
+  opacity: 0.85;
+  font-weight: var(--weight-regular);
+  text-transform: lowercase;
+  letter-spacing: 0;
+}
+.chip--issue[data-status="good"] {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.chip--issue[data-status="warn"] {
+  background: var(--color-caution-bg);
+  color: var(--color-caution-fg);
+}
+[data-theme="dark"] .chip--issue[data-status="good"]:hover { background: color-mix(in srgb, var(--color-success-bg) 80%, white 20%); }
+[data-theme="dark"] .chip--issue[data-status="warn"]:hover { background: color-mix(in srgb, var(--color-caution-bg) 80%, white 20%); }
+.chip--issue[data-status="good"]:hover { background: color-mix(in srgb, var(--color-success-bg) 80%, black 20%); color: var(--color-success-fg); }
+.chip--issue[data-status="warn"]:hover { background: color-mix(in srgb, var(--color-caution-bg) 80%, black 20%); color: var(--color-caution-fg); }
+
 .chip--package {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
@@ -652,6 +677,25 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 
 .chip--risk-info {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+/* issue-status pill — derived from release-note mentions */
+.chip--status-good {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+  font-weight: var(--weight-semibold);
+}
+
+.chip--status-warn {
+  background: var(--color-caution-bg);
+  color: var(--color-caution-fg);
+  font-weight: var(--weight-semibold);
+}
+
+.chip--status-info {
   background: var(--surface-sunken);
   color: var(--text-secondary);
   border-color: var(--border-subtle);
@@ -1500,6 +1544,19 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .stream-checkbox-filter {
   gap: var(--space-2);
   margin-bottom: var(--space-4);
+}
+
+.compare-stream-filter {
+  margin-bottom: var(--space-2);
+  align-items: center;
+}
+.compare-stream-filter__label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  margin-right: var(--space-2);
 }
 
 .filter-bar label.stream-checkbox-filter__option {
@@ -2457,6 +2514,149 @@ button.filter-section__head:focus-visible {
   line-height: var(--leading-sm);
 }
 
+/* Upgrade Guide page header — subhead with inline version pills + arrow */
+.upgrade-guide__subhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+.upgrade-guide__arrow {
+  color: var(--text-muted);
+  font-weight: var(--weight-regular);
+}
+.chip--reverse {
+  background: var(--color-caution-bg);
+  color: var(--color-caution-fg);
+  font-weight: var(--weight-medium);
+}
+
+/* Verdict banner — three big numbers + a one-line read */
+.upgrade-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  background: var(--surface-base);
+  margin-bottom: var(--space-3);
+}
+.upgrade-verdict--warn {
+  border-color: var(--color-caution-fg);
+  background: var(--color-caution-bg);
+}
+.upgrade-verdict--good {
+  border-color: var(--color-success-fg);
+  background: var(--color-success-bg);
+}
+.upgrade-verdict__metrics {
+  display: flex;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+.upgrade-verdict__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.upgrade-verdict__metric strong {
+  font-size: var(--text-2xl);
+  line-height: 1;
+  color: var(--text-primary);
+}
+.upgrade-verdict--warn .upgrade-verdict__metric strong { color: var(--color-caution-fg); }
+.upgrade-verdict--good .upgrade-verdict__metric strong { color: var(--color-success-fg); }
+.upgrade-verdict__metric span {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+  letter-spacing: 0;
+}
+.upgrade-verdict__line {
+  flex: 1 1 280px;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: var(--leading-md);
+}
+.upgrade-verdict--warn .upgrade-verdict__line { color: var(--color-caution-fg); }
+.upgrade-verdict--good .upgrade-verdict__line { color: var(--color-success-fg); }
+
+/* Markdown-export CTA — centerpiece card above the lanes */
+.upgrade-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--accent);
+  background: var(--accent-soft);
+  margin-bottom: var(--space-4);
+}
+.upgrade-cta__copy {
+  flex: 1 1 360px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.upgrade-cta__heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--leading-md);
+  color: var(--accent-soft-fg);
+}
+.upgrade-cta__copy p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-md);
+  color: var(--text-primary);
+}
+.upgrade-cta__quote {
+  font-style: italic;
+  color: var(--text-secondary) !important;
+  border-left: 3px solid var(--accent);
+  padding-left: var(--space-3);
+}
+.upgrade-cta__action {
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  align-self: center;
+}
+.upgrade-cta__action .btn--small {
+  font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-4);
+  height: auto;
+}
+.upgrade-cta__skim {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* "Also in this range" muted strip — replaces the old Diff facts grid for
+   the lanes that aren't decision-driving. */
+.compare-facts-strip {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xs);
+  line-height: var(--leading-md);
+}
+.compare-facts-strip__label {
+  margin-right: var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+}
+
 .compare-picker {
   display: flex;
   align-items: center;
@@ -2519,6 +2719,9 @@ button.filter-section__head:focus-visible {
 
 .compare-picker__go {
   align-self: end;
+  /* Match the 36px height of the From/To selects and the swap button so
+     the picker reads as one row of equal-height controls. */
+  height: 36px;
 }
 
 /* ========================================================================
@@ -2626,6 +2829,43 @@ button.filter-section__head:focus-visible {
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
   margin-bottom: var(--space-2);
+}
+
+/* Compare's default-state preview — short list of what the user gets
+   once they pick a from and to version. Solid border (not dashed) so
+   it reads as a content card rather than a placeholder. */
+.empty-state--preview {
+  text-align: left;
+  border-style: solid;
+  padding: var(--space-5);
+  color: var(--text-primary);
+}
+.empty-state--preview h2 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-lg);
+}
+.empty-state__steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.empty-state__steps li {
+  color: var(--text-secondary);
+  line-height: var(--leading-md);
+  padding-left: var(--space-4);
+  position: relative;
+}
+.empty-state__steps li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+}
+.empty-state__steps strong {
+  color: var(--text-primary);
 }
 
 /* ========================================================================
@@ -3032,9 +3272,15 @@ button.filter-section__head:focus-visible {
        spec §3 (drawer mirrors the desktop sidebar). */
     top: 52px;
     left: 0;
-    bottom: 0;
+    bottom: auto;
     right: auto;
-    height: auto;
+    /* Override the desktop rule: align-self: start + height: 100vh leaves
+       this over-constrained on mobile (iOS Safari ends up honoring
+       bottom: 0 and pinning the drawer near the toolbar so only a sliver
+       shows). Pin height explicitly to the visible viewport instead. */
+    align-self: stretch;
+    height: calc(100vh - 52px);
+    height: calc(100dvh - 52px);
     width: 280px;
     max-width: 85vw;
     transform: translateX(-100%);

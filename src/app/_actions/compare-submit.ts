@@ -25,9 +25,18 @@ export async function submitCompareAction(formData: FormData) {
     });
   }
 
+  // Repeated `stream=` hidden inputs from the picker form preserve the
+  // user's stream scope across a compare submit — the URL is the sole
+  // source of truth for the scope, so we have to round-trip it here.
+  const streams = formData
+    .getAll("stream")
+    .map((s) => String(s).trim())
+    .filter(Boolean);
+
   const params = new URLSearchParams();
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   if (platform) params.set("platform", platform);
+  for (const s of streams) params.append("stream", s);
   redirect(`/compare?${params.toString()}`);
 }

@@ -21,6 +21,7 @@ describe("ComparePicker", () => {
         fromVersion="6000.3.14f1"
         toVersion="6000.4.5f1"
         releases={releases}
+        selectedStreams={["LTS"]}
         action="/compare"
       />
     );
@@ -30,8 +31,17 @@ describe("ComparePicker", () => {
     expect(html).not.toContain("<datalist");
     expect(html).not.toContain('list="compare-picker-versions"');
     expect(html).toContain('<option value="6000.0.74f1">6000.0.74f1</option>');
-    expect(html).not.toContain("LTS");
-    expect(html).not.toContain("Supported");
-    expect(html).not.toContain("Apr 29");
+    // Dropdown options should be the bare version string — no stream label
+    // or release-date crammed into the option text.
+    const optionMatches = html.match(/<option[^>]*>([^<]+)<\/option>/g) ?? [];
+    for (const opt of optionMatches) {
+      expect(opt).not.toMatch(/Supported|Apr \d+/);
+      const isStreamScopeFiltering = opt.includes("Select a version");
+      if (!isStreamScopeFiltering) {
+        // "LTS" can appear in the stream-scope checkbox area, but never
+        // inside a version <option>.
+        expect(opt).not.toContain("LTS");
+      }
+    }
   });
 });

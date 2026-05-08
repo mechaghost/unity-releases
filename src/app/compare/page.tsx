@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import {
   diffRangeCounts,
+  getIssueStatuses,
   getReleaseRangeFacets,
   listReleases,
   packageVersionsAtBoundary,
@@ -8,6 +9,7 @@ import {
   searchReleaseNotesInRange,
   type PackageBoundary
 } from "@/lib/db/repositories";
+import type { IssueStatus } from "@/lib/issue-status";
 import type { ReleaseNoteSearchFilters } from "@/lib/search";
 import {
   aggregateByPackage,
@@ -15,7 +17,10 @@ import {
   groupByVersion,
   type DedupedIssue
 } from "@/lib/diff-grouping";
-import { ALL_STREAMS, streamMatches } from "@/lib/stream-filter";
+import {
+  applyCompareStreamFilter,
+  parseCompareStreamSelection
+} from "@/lib/stream-filter";
 import { streamListLabel } from "@/lib/stream-labels";
 import { getUserPackages } from "@/lib/user-packages";
 import { getUserVersion } from "@/lib/user-version";
@@ -41,6 +46,8 @@ import { NoteRow } from "../_components/NoteRow";
 import { LaneCollapseProvider, LaneShell } from "../_components/ReviewLanes";
 import { FilterBar } from "../_components/FilterBar";
 import { ComparePicker } from "../_components/ComparePicker";
+import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
+import { compareToMarkdown } from "@/lib/compare-markdown";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +56,10 @@ const ROWS_PER_LANE = 25;
 // dedup lanes fetch a generous slice and paginate the deduped result in memory —
 // 1500 rows is enough to surface ~all unique issues in any realistic diff range.
 const FETCH_FOR_DEDUP = 1500;
+// Per-lane cap for the markdown download — we fetch this many rows
+// independently of the on-screen pagination so the file the user hands
+// to an LLM is the full dataset, not just the current page.
+const EXPORT_ROW_LIMIT = 5000;
 
 type ReleaseNoteRow = {
   id: number;
@@ -85,6 +96,10 @@ type LaneDef = (typeof LANE_CATALOG)[LaneId] & {
 
 type LaneSpec = Omit<LaneDef, keyof (typeof LANE_CATALOG)[LaneId]>;
 
+// Lane order is intentional: it reads as a top-down "should I upgrade?"
+// triage. Decision-driving lanes (blockers / breaking / known / security
+// / package) come first; the long-tail lanes (api / fix / improvement /
+// feature / change) follow as supporting material.
 const COMPARE_LANE_SPECS: Partial<Record<LaneId, LaneSpec>> = {
   blockers: {
     mode: "by-issue",
@@ -97,12 +112,6 @@ const COMPARE_LANE_SPECS: Partial<Record<LaneId, LaneSpec>> = {
     searchFilter: { impactKind: "breaking_change" },
     countFrom: (c) => c.byImpact.breaking_change ?? 0,
     emptyMessage: "No breaking changes in this range."
-  },
-  api: {
-    mode: "by-release",
-    searchFilter: { impactKind: "api_change" },
-    countFrom: (c) => c.byImpact.api_change ?? 0,
-    emptyMessage: "No API changes in this range."
   },
   known: {
     mode: "by-issue",
@@ -123,11 +132,17 @@ const COMPARE_LANE_SPECS: Partial<Record<LaneId, LaneSpec>> = {
     countFrom: (c) => c.byImpact.package_change ?? 0,
     emptyMessage: "No package updates."
   },
-  feature: {
+  api: {
     mode: "by-release",
-    searchFilter: { impactKind: "feature" },
-    countFrom: (c) => c.byImpact.feature ?? 0,
-    emptyMessage: "No new features."
+    searchFilter: { impactKind: "api_change" },
+    countFrom: (c) => c.byImpact.api_change ?? 0,
+    emptyMessage: "No API changes in this range."
+  },
+  fix: {
+    mode: "by-release",
+    searchFilter: { impactKind: "fix" },
+    countFrom: (c) => c.byImpact.fix ?? 0,
+    emptyMessage: "No fixes."
   },
   improvement: {
     mode: "by-release",
@@ -135,11 +150,11 @@ const COMPARE_LANE_SPECS: Partial<Record<LaneId, LaneSpec>> = {
     countFrom: (c) => c.byImpact.improvement ?? 0,
     emptyMessage: "No improvements."
   },
-  fix: {
+  feature: {
     mode: "by-release",
-    searchFilter: { impactKind: "fix" },
-    countFrom: (c) => c.byImpact.fix ?? 0,
-    emptyMessage: "No fixes."
+    searchFilter: { impactKind: "feature" },
+    countFrom: (c) => c.byImpact.feature ?? 0,
+    emptyMessage: "No new features."
   },
   change: {
     mode: "by-release",
@@ -148,6 +163,21 @@ const COMPARE_LANE_SPECS: Partial<Record<LaneId, LaneSpec>> = {
     emptyMessage: "No miscellaneous changes."
   }
 };
+
+// Lanes that start collapsed on /compare. The first five lanes (blockers,
+// breaking, known, security, package) carry upgrade-decision signal and
+// stay open by default; the rest are supporting material.
+//
+// Note: `known` (non-blocker known issues) is intentionally collapsed —
+// the list is long and rarely changes the go/no-go answer.
+const COMPARE_DEFAULT_COLLAPSED: LaneId[] = [
+  "known",
+  "api",
+  "fix",
+  "improvement",
+  "feature",
+  "change"
+];
 
 const LANES: LaneDef[] = (Object.entries(COMPARE_LANE_SPECS) as [LaneId, LaneSpec][]).map(
   ([id, spec]) => ({ ...LANE_CATALOG[id], ...spec })
@@ -169,25 +199,28 @@ export default async function ComparePage({
     safeListReleases(),
     getUserPackages()
   ]);
-  const streamFilter = Array.from(ALL_STREAMS);
   const userPackagesSet = new Set(userPackages);
   const fromVersion = (params.get("from") ?? userVersion ?? "").trim();
   const toVersion = (params.get("to") ?? "").trim();
   const platform = (params.get("platform") ?? "").trim();
 
+  // Stream scope is URL-driven only. A shared link with no `?stream=`
+  // params always renders LTS-only so the same URL produces the same
+  // diff for every reader (no cookie influence).
+  const selectedStreams = parseCompareStreamSelection(params.getAll("stream"));
+
   // User filter state — URL is the source of truth, persona cookie is the
   // first-visit fallback. The drawer applies user changes via router.push.
   const filterState = parseFiltersFromParams(params, presetCookie ?? "balanced");
 
-  // Compare is independent of the Editor Releases page stream checkboxes.
-  // The picker dropdowns include every indexed Unity 6 stream, while the currently
-  // selected from/to versions are always included so the user isn't trapped
-  // out of editing a URL-supplied selection.
-  const pickerReleases = allReleases.filter(
-    (r) =>
-      streamMatches(r.stream, streamFilter) ||
-      r.version === fromVersion ||
-      r.version === toVersion
+  // Picker dropdowns are scoped to the user's stream selection but
+  // always force-include the current from/to so a URL-supplied selection
+  // outside the scope can still be edited rather than trapping the user.
+  const pickerReleases = applyCompareStreamFilter(
+    allReleases,
+    selectedStreams,
+    fromVersion,
+    toVersion
   );
 
   if (!fromVersion || !toVersion) {
@@ -196,22 +229,21 @@ export default async function ComparePage({
         fromVersion={fromVersion}
         toVersion={toVersion}
         releases={pickerReleases}
+        selectedStreams={selectedStreams}
       >
-        <div className="empty-state">
-          <h2>Compare two Unity versions</h2>
-          <p>Pick a “from” and a “to” version to see what changed between them — broken down by impact lane.</p>
-        </div>
+        <CompareEmptyPreview />
       </ComparePicker>
     );
   }
 
-  const range = await resolveDiffRange(fromVersion, toVersion, streamFilter);
+  const range = await resolveDiffRange(fromVersion, toVersion, selectedStreams);
   if (!range) {
     return (
       <ComparePicker
         fromVersion={fromVersion}
         toVersion={toVersion}
         releases={pickerReleases}
+        selectedStreams={selectedStreams}
       >
         <div className="empty-state">
           <h2>Versions not found</h2>
@@ -227,12 +259,13 @@ export default async function ComparePage({
         fromVersion={fromVersion}
         toVersion={toVersion}
         releases={pickerReleases}
+        selectedStreams={selectedStreams}
       >
         <div className="empty-state">
           <h2>No releases in range</h2>
           <p>
             Nothing falls between <code>{fromVersion}</code> and <code>{toVersion}</code> in the compare
-            scope ({streamListLabel(streamFilter)}).
+            scope ({streamListLabel(selectedStreams)}).
           </p>
         </div>
       </ComparePicker>
@@ -340,10 +373,17 @@ export default async function ComparePage({
     };
   });
   const lanesWithResults = lanes.filter((lane) => lane.totalCount > 0);
-  // Lanes default to expanded; the user collapses individual ones by
-  // clicking the lane header. State is client-side only — toggling
-  // does not reload the page.
-  const initialCollapsed: string[] = [];
+  // Compare frames the page as an upgrade decision sheet: only the
+  // decision-driving lanes lead expanded. The supporting long-tail
+  // lanes start collapsed so a reader can find the go/no-go signal
+  // without scroll fatigue. The Package lane gets expanded when the
+  // user has a manifest filter on or a non-empty user-package set,
+  // since at that point packages ARE decision-relevant.
+  const collapsedSet = new Set<string>(COMPARE_DEFAULT_COLLAPSED);
+  if (!filterState.manifestOnly && userPackagesSet.size === 0) {
+    collapsedSet.add("package");
+  }
+  const initialCollapsed: string[] = [...collapsedSet];
 
   // Resolve "what package version was shipping at each end of the diff
   // window" so the by-package lane can render `1.10.0 → 1.11.2` next to
@@ -365,23 +405,76 @@ export default async function ComparePage({
     allReleases.map((r) => [r.version, r.stream])
   );
 
+  // Re-query each visible lane WITHOUT pagination so the markdown export
+  // contains the full dataset (the on-screen lanes only fetch one page or
+  // a 1500-row dedup window). Limited per-lane to EXPORT_ROW_LIMIT so a
+  // pathological range can't OOM the request.
+  const exportLaneRowsRaw = await Promise.all(
+    lanesWithResults.map((l) =>
+      safeSearchInRange(effectiveVersions, l.def, userSliceForLanes, EXPORT_ROW_LIMIT)
+    )
+  );
+  const exportLanes = lanesWithResults.map((l, i) => {
+    let rows = exportLaneRowsRaw[i] ?? [];
+    if (l.def.postFilter) rows = rows.filter(l.def.postFilter);
+    if (l.def.id === "package" && userPackagesSet.size > 0 && !filterState.manifestOnly) {
+      rows = rows.filter((row) => (row.package_names ?? []).some((p) => userPackagesSet.has(p)));
+    }
+    return { def: l.def, totalCount: l.totalCount, rows };
+  });
+
+  // Status pills are looked up by issue id on every chip the user can
+  // see, so collect ids from both the on-screen rows and the export
+  // rows in one batch — the export adds blockers/known issues that
+  // weren't on the current page.
+  const visibleIssueIds = uniqueValues(
+    [
+      ...lanesWithResults.flatMap((l) => l.fetchedRows.flatMap((r) => r.issue_ids ?? [])),
+      ...exportLanes.flatMap((l) => l.rows.flatMap((r) => r.issue_ids ?? []))
+    ]
+  );
+  const issueStatuses = await safeIssueStatuses(visibleIssueIds);
+
+  const compareMarkdown = compareToMarkdown({
+    fromVersion,
+    toVersion,
+    reversed: range.reversed,
+    issueStatuses,
+    rowsPerLane: null, // export every row we fetched
+    lanes: exportLanes.map((l) => ({
+      id: l.def.id,
+      title: l.def.title,
+      mode: l.def.mode,
+      rows: l.rows,
+      totalCount: l.totalCount
+    }))
+  });
+
   return (
     <>
       <ComparePicker
         fromVersion={fromVersion}
         toVersion={toVersion}
         releases={pickerReleases}
+        selectedStreams={selectedStreams}
       />
 
       <section className="page-header">
         <div className="page-header__title-row">
-          <h1>{range.reversed ? "Downgrading from" : "Comparing"}</h1>
+          <h1>Upgrade Guide</h1>
+          {range.reversed ? (
+            <span className="chip chip--reverse" title="The selected To-version is older than the From-version. The page still shows what changes between them.">
+              Reverse direction (downgrade)
+            </span>
+          ) : null}
         </div>
-        <div className="compare-versions" aria-label="Version range">
-          <VersionPill version={fromVersion} stream={lookupStream(allReleases, fromVersion)} />
-          <span className="compare-versions__arrow" aria-hidden="true">→</span>
+        <p className="upgrade-guide__subhead">
+          Should you move from{" "}
+          <VersionPill version={fromVersion} stream={lookupStream(allReleases, fromVersion)} />{" "}
+          <span className="upgrade-guide__arrow" aria-hidden="true">→</span>{" "}
           <VersionPill version={toVersion} stream={lookupStream(allReleases, toVersion)} />
-        </div>
+          ? Here&apos;s the decision sheet.
+        </p>
         <p className="muted">
           {effectiveVersions.length < fullVersions.length ? (
             <>
@@ -390,7 +483,7 @@ export default async function ComparePage({
             </>
           ) : (
             <>
-              Spans <strong>{fullVersions.length}</strong>{" "}
+              <strong>{fullVersions.length}</strong>{" "}
               {fullVersions.length === 1 ? "release" : "releases"} ·{" "}
             </>
           )}
@@ -400,23 +493,27 @@ export default async function ComparePage({
               {" · platform "}<code>{platform}</code>
             </>
           ) : null}
-        </p>
-        <p className="muted text-xs">
           {range.includedStreams.length > 0 ? (
             <>
-              Scoped to {streamListLabel(range.includedStreams)} on{" "}
+              {" · "}scoped to {streamListLabel(range.includedStreams)} on{" "}
               {range.includedMinorLines.length === 1
                 ? range.includedMinorLines[0]
-                : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}{" "}
-              in the compare scope.
+                : `${range.includedMinorLines[0]}–${range.includedMinorLines[range.includedMinorLines.length - 1]}`}
             </>
-          ) : (
-            <>No releases are included for this comparison.</>
-          )}
+          ) : null}
         </p>
       </section>
 
-      <CompareFacts counts={counts} />
+      <UpgradeVerdictBanner counts={counts} />
+
+      <UpgradeMarkdownCta
+        markdown={compareMarkdown}
+        filename={`unity-${fromVersion}-to-${toVersion}`}
+        fromVersion={fromVersion}
+        toVersion={toVersion}
+      />
+
+      <CompareFactsStrip counts={counts} />
 
       <FilterBar
         filters={filterState}
@@ -445,6 +542,7 @@ export default async function ComparePage({
                 page={l.page}
                 streamByVersion={streamByVersion}
                 packageBoundaries={packageBoundaries}
+                issueStatuses={issueStatuses}
                 buildPageUrl={(nextPage) =>
                   buildLanePageUrl({
                     fromVersion,
@@ -471,6 +569,7 @@ function Lane({
   page,
   streamByVersion,
   packageBoundaries,
+  issueStatuses,
   buildPageUrl
 }: {
   def: LaneDef;
@@ -479,6 +578,7 @@ function Lane({
   page: number;
   streamByVersion: Map<string, string | null>;
   packageBoundaries: Map<string, PackageBoundary>;
+  issueStatuses: Map<string, IssueStatus>;
   buildPageUrl: (nextPage: number) => string;
 }) {
   return (
@@ -496,15 +596,14 @@ function Lane({
       ) : def.mode === "by-issue" ? (
         <ByIssueLaneBody
           rows={fetchedRows}
-          totalRowCount={totalCount}
           page={page}
           streamByVersion={streamByVersion}
+          issueStatuses={issueStatuses}
           buildPageUrl={buildPageUrl}
         />
       ) : def.mode === "by-package" ? (
         <ByPackageLaneBody
           rows={fetchedRows}
-          totalRowCount={totalCount}
           page={page}
           boundaries={packageBoundaries}
           buildPageUrl={buildPageUrl}
@@ -515,6 +614,7 @@ function Lane({
           totalRowCount={totalCount}
           page={page}
           streamByVersion={streamByVersion}
+          issueStatuses={issueStatuses}
           buildPageUrl={buildPageUrl}
         />
       )}
@@ -589,12 +689,14 @@ function ByReleaseLaneBody({
   totalRowCount,
   page,
   streamByVersion,
+  issueStatuses,
   buildPageUrl
 }: {
   rows: ReleaseNoteRow[];
   totalRowCount: number;
   page: number;
   streamByVersion: Map<string, string | null>;
+  issueStatuses: Map<string, IssueStatus>;
   buildPageUrl: (nextPage: number) => string;
 }) {
   // SQL has already paginated; render exactly what we got. No intra-release
@@ -618,7 +720,7 @@ function ByReleaseLaneBody({
             </span>
           </div>
           {group.rows.map((row) => (
-            <NoteRow key={row.id} row={row} />
+            <NoteRow key={row.id} row={row} issueStatuses={issueStatuses} />
           ))}
         </div>
       ))}
@@ -637,15 +739,15 @@ function ByReleaseLaneBody({
 
 function ByIssueLaneBody({
   rows,
-  totalRowCount,
   page,
   streamByVersion,
+  issueStatuses,
   buildPageUrl
 }: {
   rows: ReleaseNoteRow[];
-  totalRowCount: number;
   page: number;
   streamByVersion: Map<string, string | null>;
+  issueStatuses: Map<string, IssueStatus>;
   buildPageUrl: (nextPage: number) => string;
 }) {
   const deduped = dedupeByIssue(rows);
@@ -654,7 +756,12 @@ function ByIssueLaneBody({
   return (
     <>
       {visible.map((item) => (
-        <DedupedIssueRow key={item.key} item={item} streamByVersion={streamByVersion} />
+        <DedupedIssueRow
+          key={item.key}
+          item={item}
+          streamByVersion={streamByVersion}
+          issueStatuses={issueStatuses}
+        />
       ))}
       <LanePagination
         page={page}
@@ -663,22 +770,31 @@ function ByIssueLaneBody({
         itemNoun={{ singular: "unique issue", plural: "unique issues" }}
         buildPageUrl={buildPageUrl}
       />
-      <div className="lane__footer lane__footer--meta">
-        Across <strong className="tabnums">{totalRowCount.toLocaleString()}</strong> total mentions in this range.
-      </div>
     </>
   );
 }
 
 function DedupedIssueRow({
   item,
-  streamByVersion
+  streamByVersion,
+  issueStatuses
 }: {
   item: DedupedIssue<ReleaseNoteRow>;
   streamByVersion: Map<string, string | null>;
+  issueStatuses: Map<string, IssueStatus>;
 }) {
   const cleanedBody = cleanReleaseNoteText(item.primary.body ?? "");
   const issueLinks = normalizeIssueLinks(item.primary.issue_ids ?? [], item.primary.issue_links_json);
+  // Drop platform entries that case-insensitively duplicate one of the
+  // package chips on the same row. Unity sometimes lists the package id
+  // in both `package_names` and `platforms`, which would render two
+  // identical chips side-by-side.
+  const packageNamesLower = new Set(
+    (item.primary.package_names ?? []).map((p) => p.toLowerCase())
+  );
+  const platforms = (item.primary.platforms ?? []).filter(
+    (plat) => !packageNamesLower.has(plat.toLowerCase())
+  );
   return (
     <article className="row" aria-label={`${item.primary.section} note`}>
       <div className="row__body">
@@ -691,11 +807,16 @@ function DedupedIssueRow({
           {(item.primary.package_names ?? []).slice(0, 2).map((pkg) => (
             <PackagePill name={pkg} key={pkg} />
           ))}
-          {(item.primary.platforms ?? []).slice(0, 4).map((plat) => (
+          {platforms.slice(0, 4).map((plat) => (
             <PlatformPill platform={plat} key={plat} />
           ))}
           {issueLinks.slice(0, 2).map((issue) => (
-            <IssuePill id={issue.id} url={issue.url} key={issue.id} />
+            <IssuePill
+              id={issue.id}
+              url={issue.url}
+              status={issueStatuses.get(issue.id) ?? null}
+              key={issue.id}
+            />
           ))}
         </div>
         <div className="row__seen-in">
@@ -734,13 +855,11 @@ function DedupedIssueRow({
 
 function ByPackageLaneBody({
   rows,
-  totalRowCount,
   page,
   boundaries,
   buildPageUrl
 }: {
   rows: ReleaseNoteRow[];
-  totalRowCount: number;
   page: number;
   boundaries: Map<string, PackageBoundary>;
   buildPageUrl: (nextPage: number) => string;
@@ -832,9 +951,6 @@ function ByPackageLaneBody({
         itemNoun={{ singular: "package", plural: "packages" }}
         buildPageUrl={buildPageUrl}
       />
-      <div className="lane__footer lane__footer--meta">
-        Across <strong className="tabnums">{totalRowCount.toLocaleString()}</strong> total mentions in this range.
-      </div>
     </>
   );
 }
@@ -875,38 +991,131 @@ type CompareCounts = {
   blockerKnownIssues: number;
 };
 
-function CompareFacts({ counts }: { counts: CompareCounts }) {
-  const breaking = counts.byImpact.breaking_change ?? 0;
-  const apiChanges = counts.byImpact.api_change ?? 0;
-  const security = counts.byImpact.security_related_fix ?? 0;
-  const installRisk = counts.byImpact.install_risk ?? 0;
+function CompareEmptyPreview() {
+  return (
+    <div className="empty-state empty-state--preview">
+      <h2>Pick two versions to compare</h2>
+      <ul className="empty-state__steps">
+        <li>
+          <strong>Upgrade verdict.</strong> Blocker, breaking, and security counts up top.
+        </li>
+        <li>
+          <strong>Lane breakdown.</strong> Every change bucketed by impact.
+        </li>
+        <li>
+          <strong>Markdown brief.</strong> Download it and feed it to Claude, ChatGPT, or Gemini
+          for a project-aware analysis.
+        </li>
+      </ul>
+    </div>
+  );
+}
 
-  const facts = [
-    { label: "Release notes", value: counts.totalNotes },
-    { label: "Active known blockers", value: counts.blockerKnownIssues },
-    { label: "Breaking changes", value: breaking },
-    { label: "API changes", value: apiChanges },
-    { label: "Security items", value: security },
-    { label: "Install/platform items", value: installRisk }
-  ];
+function UpgradeVerdictBanner({ counts }: { counts: CompareCounts }) {
+  const blockers = counts.blockerKnownIssues;
+  const breakingApi =
+    (counts.byImpact.breaking_change ?? 0) + (counts.byImpact.api_change ?? 0);
+  const securityInstall =
+    (counts.byImpact.security_related_fix ?? 0) + (counts.byImpact.install_risk ?? 0);
+  const allClear = blockers === 0 && breakingApi === 0 && securityInstall === 0;
+
+  const tone = blockers > 0 ? "warn" : allClear ? "good" : "info";
 
   return (
-    <section className="compare-facts" aria-label="Diff facts">
-      <div className="compare-facts__top">
-        <div className="compare-facts__heading">
-          <Icon name="info" size={18} />
-          <span>Diff facts</span>
-        </div>
+    <section className={`upgrade-verdict upgrade-verdict--${tone}`} aria-label="Upgrade verdict">
+      <div className="upgrade-verdict__metrics">
+        <UpgradeVerdictMetric value={blockers} label={blockers === 1 ? "blocker" : "blockers"} />
+        <UpgradeVerdictMetric value={breakingApi} label="breaking / API" />
+        <UpgradeVerdictMetric value={securityInstall} label="security / install" />
       </div>
-      <div className="compare-facts__grid">
-        {facts.map((fact) => (
-          <div key={fact.label} className="compare-fact">
-            <strong className="tabnums">{fact.value.toLocaleString()}</strong>
-            <span>{fact.label}</span>
-          </div>
-        ))}
+      <p className="upgrade-verdict__line">
+        {allClear ? (
+          <>
+            <strong>No blockers, no breaking changes.</strong> Looks like a safe upgrade.
+            Skim the package lane and ship it.
+          </>
+        ) : (
+          <>
+            <strong>Read this before you sync your team.</strong> Or download the markdown and
+            let your AI tell you what matters for your project.
+          </>
+        )}
+      </p>
+    </section>
+  );
+}
+
+function UpgradeVerdictMetric({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="upgrade-verdict__metric">
+      <strong className="tabnums">{value.toLocaleString()}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function UpgradeMarkdownCta({
+  markdown,
+  filename,
+  fromVersion,
+  toVersion
+}: {
+  markdown: string;
+  filename: string;
+  fromVersion: string;
+  toVersion: string;
+}) {
+  return (
+    <section className="upgrade-cta" aria-label="Download upgrade brief">
+      <div className="upgrade-cta__copy">
+        <h2 className="upgrade-cta__heading">Hand this to your AI.</h2>
+        <p>
+          One structured markdown file with every blocker, breaking change, package bump,
+          regression, and known issue between{" "}
+          <strong className="tabnums">{fromVersion}</strong> and{" "}
+          <strong className="tabnums">{toVersion}</strong>. Paste it into Claude, ChatGPT, or
+          Gemini alongside your project context and ask the questions you actually need
+          answered.
+        </p>
+        <p className="upgrade-cta__quote">
+          Your release notes know nothing about your project. Your AI does. Hand it the brief.
+        </p>
+      </div>
+      <div className="upgrade-cta__action">
+        <CopyMarkdownButton
+          markdown={markdown}
+          filename={filename}
+          label="Download upgrade brief (.md)"
+        />
+        <a className="upgrade-cta__skim" href="#lane-blockers">
+          Or scroll to skim the lanes yourself
+        </a>
       </div>
     </section>
+  );
+}
+
+function CompareFactsStrip({ counts }: { counts: CompareCounts }) {
+  const items: Array<{ label: string; value: number }> = [
+    { label: "release notes", value: counts.totalNotes },
+    { label: "fixes", value: counts.byImpact.fix ?? 0 },
+    { label: "improvements", value: counts.byImpact.improvement ?? 0 },
+    { label: "features", value: counts.byImpact.feature ?? 0 },
+    { label: "package updates", value: counts.byImpact.package_change ?? 0 }
+  ].filter((i) => i.value > 0);
+
+  if (items.length === 0) return null;
+
+  return (
+    <p className="compare-facts-strip muted" aria-label="Also in this range">
+      <span className="compare-facts-strip__label">Also in this range:</span>
+      {items.map((item, i) => (
+        <span key={item.label} className="compare-facts-strip__item">
+          <strong className="tabnums">{item.value.toLocaleString()}</strong> {item.label}
+          {i < items.length - 1 ? " · " : ""}
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -935,6 +1144,37 @@ async function safeListReleases() {
   } catch {
     return [];
   }
+}
+
+async function safeIssueStatuses(ids: string[]): Promise<Map<string, IssueStatus>> {
+  if (ids.length === 0) return new Map();
+  try {
+    return await getIssueStatuses(ids);
+  } catch {
+    return new Map();
+  }
+}
+
+async function safeSearchInRange(
+  versions: string[],
+  def: LaneDef,
+  userSlice: ReleaseNoteSearchFilters,
+  limit: number
+): Promise<ReleaseNoteRow[]> {
+  try {
+    return (await searchReleaseNotesInRange(
+      versions,
+      { ...def.searchFilter, ...userSlice },
+      limit,
+      0
+    )) as ReleaseNoteRow[];
+  } catch {
+    return [];
+  }
+}
+
+function uniqueValues<T>(values: T[]): T[] {
+  return [...new Set(values)];
 }
 
 function toUrlSearchParams(params: Record<string, string | string[] | undefined>): URLSearchParams {

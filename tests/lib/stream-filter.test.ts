@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 import {
   ALL_STREAMS,
+  COMPARE_DEFAULT_STREAMS,
   DEFAULT_STREAMS,
+  applyCompareStreamFilter,
+  parseCompareStreamSelection,
   parseStreamFilterCookie,
   streamMatches,
   type StreamName
@@ -96,3 +99,67 @@ describe("streamMatches", () => {
     expect(streamMatches("LTS ", allowed)).toBe(false);
   });
 });
+
+describe("parseCompareStreamSelection", () => {
+  test("falls back to LTS-only when no ?stream= params are present", () => {
+    expect(parseCompareStreamSelection(undefined)).toEqual(COMPARE_DEFAULT_STREAMS);
+    expect(parseCompareStreamSelection([])).toEqual(["LTS"]);
+  });
+
+  test("parses repeated ?stream= values into a deduped allow-list", () => {
+    expect(parseCompareStreamSelection(["LTS", "beta"])).toEqual(["LTS", "beta"]);
+    expect(parseCompareStreamSelection(["LTS", "LTS", "beta"])).toEqual(["LTS", "beta"]);
+  });
+
+  test("drops unknown streams and keeps the rest", () => {
+    expect(parseCompareStreamSelection(["LTS", "garbage", "alpha"])).toEqual(["LTS", "alpha"]);
+  });
+
+  test("falls back to the default when every value is unknown", () => {
+    // We never want a shared link to render an empty diff just because
+    // the URL was hand-edited with a typo.
+    expect(parseCompareStreamSelection(["garbage", "lts"])).toEqual(["LTS"]);
+  });
+});
+
+describe("applyCompareStreamFilter", () => {
+  const releases = [
+    { version: "6000.0.30f1", stream: "LTS" },
+    { version: "6000.1.0a3", stream: "alpha" },
+    { version: "6000.2.0b1", stream: "beta" },
+    { version: "6000.0.74f1", stream: "LTS" },
+    { version: "6000.0.50f1", stream: "Update/Supported" }
+  ];
+
+  test("keeps releases whose stream is in the allowed set", () => {
+    const out = applyCompareStreamFilter(releases, ["LTS"], "", "");
+    expect(out.map((r) => r.version)).toEqual(["6000.0.30f1", "6000.0.74f1"]);
+  });
+
+  test("force-includes the current from/to even if their stream was excluded", () => {
+    // The user shouldn't get trapped out of editing a URL-supplied selection.
+    const out = applyCompareStreamFilter(
+      releases,
+      ["LTS"],
+      "6000.1.0a3", // alpha — not allowed
+      "6000.2.0b1"  // beta — not allowed
+    );
+    expect(out.map((r) => r.version)).toEqual([
+      "6000.0.30f1",
+      "6000.1.0a3",
+      "6000.2.0b1",
+      "6000.0.74f1"
+    ]);
+  });
+
+  test("returns an empty list when nothing matches and no from/to is set", () => {
+    const out = applyCompareStreamFilter(
+      [{ version: "6000.1.0b1", stream: "beta" }],
+      ["LTS"],
+      "",
+      ""
+    );
+    expect(out).toEqual([]);
+  });
+});
+
