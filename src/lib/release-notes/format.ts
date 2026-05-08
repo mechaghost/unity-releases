@@ -3,6 +3,8 @@ export type IssueLink = {
   url: string;
 };
 
+const TRAILING_ISSUE_IDS_RE = /\s*\(\s*UUM-\d+(?:\s*,\s*UUM-\d+)*\s*\)\s*$/i;
+
 export function cleanReleaseNoteText(body: string): string {
   return body
     .replace(/<br\s*\/?>/gi, " ")
@@ -12,6 +14,8 @@ export function cleanReleaseNoteText(body: string): string {
     .replace(/\\([()])/g, "$1")
     .replace(/^:\s*/, "")
     .replace(/\s+/g, " ")
+    .trim()
+    .replace(TRAILING_ISSUE_IDS_RE, "")
     .trim();
 }
 

@@ -1,6 +1,16 @@
 import { filtersFromSearchParams } from "@/lib/api";
-import { listReleaseNoteFacets, searchReleaseNotes } from "@/lib/db/repositories";
+import {
+  getIssueStatuses,
+  listReleaseNoteFacets,
+  searchReleaseNotes
+} from "@/lib/db/repositories";
 import { cleanReleaseNoteText } from "@/lib/release-notes/format";
+import {
+  issueStatusLabel,
+  issueStatusSuffix,
+  issueStatusTone,
+  type IssueStatus
+} from "@/lib/issue-status";
 import { streamLabel } from "@/lib/stream-labels";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +44,8 @@ export default async function ExplorerPage({
   const total = Number(results[0]?.total_count ?? results.length);
   const grouped = groupByVersion(results);
   const activeFilters = activeFilterLabels(filters);
+  const issueIds = uniqueValues(results.flatMap((r) => r.issue_ids ?? []));
+  const issueStatuses = await safeIssueStatuses(issueIds);
 
   return (
     <div className="workbench">
@@ -250,11 +262,26 @@ export default async function ExplorerPage({
                               {packageName}
                             </a>
                           ))}
-                          {(item.issue_ids ?? []).map((issueId) => (
-                            <a className="chip link-chip" href={`/issues/${encodeURIComponent(issueId)}`} key={issueId}>
-                              {issueId}
-                            </a>
-                          ))}
+                          {(item.issue_ids ?? []).map((issueId) => {
+                            const status = issueStatuses.get(issueId);
+                            const tone =
+                              status && status.kind !== "unknown" ? issueStatusTone(status) : null;
+                            const suffix = status ? issueStatusSuffix(status) : null;
+                            const titleSuffix =
+                              status && status.kind !== "unknown" ? ` — ${issueStatusLabel(status)}` : "";
+                            return (
+                              <a
+                                className="chip chip--issue link-chip"
+                                data-status={tone ?? undefined}
+                                href={`/issues/${encodeURIComponent(issueId)}`}
+                                key={issueId}
+                                title={`${issueId}${titleSuffix}`}
+                              >
+                                <span className="chip--issue__id">{issueId}</span>
+                                {suffix ? <span className="chip--issue__suffix">{suffix}</span> : null}
+                              </a>
+                            );
+                          })}
                           <a href={item.source_url}>Official source</a>
                         </div>
                       </article>
@@ -282,6 +309,19 @@ async function safeSearch(filters: ReturnType<typeof filtersFromSearchParams>) {
   } catch {
     return { results: [] as ReleaseNoteRow[], error: true };
   }
+}
+
+async function safeIssueStatuses(ids: string[]): Promise<Map<string, IssueStatus>> {
+  if (ids.length === 0) return new Map();
+  try {
+    return await getIssueStatuses(ids);
+  } catch {
+    return new Map();
+  }
+}
+
+function uniqueValues<T>(values: T[]): T[] {
+  return [...new Set(values)];
 }
 
 async function safeFacets() {

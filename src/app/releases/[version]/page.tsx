@@ -1,5 +1,11 @@
 import { cookies } from "next/headers";
-import { getRelease, getReleaseRangeFacets, searchReleaseNotes } from "@/lib/db/repositories";
+import {
+  getIssueStatuses,
+  getRelease,
+  getReleaseRangeFacets,
+  searchReleaseNotes
+} from "@/lib/db/repositories";
+import type { IssueStatus } from "@/lib/issue-status";
 import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate } from "@/lib/format-date";
 import { getUserPackages } from "@/lib/user-packages";
@@ -101,6 +107,9 @@ export default async function ReleasePage({
     rows: rows.filter(def.filter)
   }));
 
+  const issueIds = unique(rows.flatMap((r) => r.issue_ids ?? []));
+  const issueStatuses = await safeIssueStatuses(issueIds);
+
   return (
     <>
       <section className="page-header">
@@ -157,7 +166,7 @@ export default async function ReleasePage({
           <LaneCollapseProvider initialCollapsed={initialCollapsed}>
             <div>
               {lanesWithResults.map(({ def, rows }) => (
-                <ReleaseLane key={def.id} def={def} rows={rows} />
+                <ReleaseLane key={def.id} def={def} rows={rows} issueStatuses={issueStatuses} />
               ))}
             </div>
           </LaneCollapseProvider>
@@ -167,7 +176,15 @@ export default async function ReleasePage({
   );
 }
 
-function ReleaseLane({ def, rows }: { def: LaneDef; rows: ReleaseNoteRow[] }) {
+function ReleaseLane({
+  def,
+  rows,
+  issueStatuses
+}: {
+  def: LaneDef;
+  rows: ReleaseNoteRow[];
+  issueStatuses: Map<string, IssueStatus>;
+}) {
   const visible = rows.slice(0, 200);
   return (
     <LaneShell
@@ -182,7 +199,9 @@ function ReleaseLane({ def, rows }: { def: LaneDef; rows: ReleaseNoteRow[] }) {
           None.
         </div>
       ) : (
-        visible.map((row) => <NoteRow key={row.id} row={row} showImpactPill />)
+        visible.map((row) => (
+          <NoteRow key={row.id} row={row} showImpactPill issueStatuses={issueStatuses} />
+        ))
       )}
       {rows.length > visible.length ? (
         <div className="lane__footer">
@@ -200,6 +219,19 @@ async function safeRelease(version: string) {
   } catch {
     return null;
   }
+}
+
+async function safeIssueStatuses(ids: string[]): Promise<Map<string, IssueStatus>> {
+  if (ids.length === 0) return new Map();
+  try {
+    return await getIssueStatuses(ids);
+  } catch {
+    return new Map();
+  }
+}
+
+function unique<T>(values: T[]): T[] {
+  return [...new Set(values)];
 }
 
 async function safeNotes(

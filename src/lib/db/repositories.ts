@@ -7,6 +7,7 @@ import {
 } from "../search";
 import { minorLinesBetween } from "../diff-grouping";
 import { compareUnityVersions } from "../parsers/version";
+import { deriveIssueStatus, type IssueStatus } from "../issue-status";
 import type { FetchedSource } from "../ingest/fetch";
 import type { normalizePackageForStorage } from "../ingest/packages";
 import type { normalizeReleaseForStorage } from "../ingest/releases";
@@ -28,6 +29,44 @@ export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
   const built = buildReleaseNoteSearchQuery(filters);
   const result = await query(built.text, built.values);
   return result.rows;
+}
+
+/**
+ * Resolve current resolution status for a batch of UUM issue ids by
+ * scanning every release-note item that mentions them. Empty input
+ * short-circuits to an empty map.
+ *
+ * Used by pages that render IssuePill chips so each chip can show a
+ * fixed/open/regressed indicator at a glance instead of forcing the
+ * user to click through.
+ */
+export async function getIssueStatuses(
+  issueIds: string[]
+): Promise<Map<string, IssueStatus>> {
+  const result = new Map<string, IssueStatus>();
+  if (issueIds.length === 0) return result;
+
+  const unique = [...new Set(issueIds)];
+  const rows = (
+    await query<{ issue_id: string; version: string; section: string; release_date: string | null }>(
+      `SELECT iid AS issue_id, r.version, r.section, r.release_date
+         FROM release_note_items r,
+              unnest(r.issue_ids) AS iid
+        WHERE iid = ANY($1)`,
+      [unique]
+    )
+  ).rows;
+
+  const grouped = new Map<string, Array<{ version: string; section: string; release_date: string | null }>>();
+  for (const row of rows) {
+    const list = grouped.get(row.issue_id) ?? [];
+    list.push({ version: row.version, section: row.section, release_date: row.release_date });
+    grouped.set(row.issue_id, list);
+  }
+  for (const id of unique) {
+    result.set(id, deriveIssueStatus(grouped.get(id) ?? []));
+  }
+  return result;
 }
 
 export type IngestionFreshness = {

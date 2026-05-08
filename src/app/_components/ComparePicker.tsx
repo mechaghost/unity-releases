@@ -1,6 +1,8 @@
-import React, { type ComponentProps } from "react";
+import React, { Suspense, type ComponentProps } from "react";
 import { submitCompareAction } from "../_actions/compare-submit";
+import { CompareStreamFilter } from "./CompareStreamFilter";
 import { Icon } from "./Icon";
+import type { StreamName } from "@/lib/stream-filter";
 
 type ReleaseOption = {
   version: string;
@@ -12,6 +14,7 @@ type Props = {
   fromVersion: string;
   toVersion: string;
   releases: ReleaseOption[];
+  selectedStreams: StreamName[];
   children?: React.ReactNode;
   action?: ComponentProps<"form">["action"];
 };
@@ -20,12 +23,17 @@ export function ComparePicker({
   fromVersion,
   toVersion,
   releases,
+  selectedStreams,
   children,
   action = submitCompareAction
 }: Props) {
   const swapHref =
     fromVersion && toVersion
-      ? `/compare?from=${encodeURIComponent(toVersion)}&to=${encodeURIComponent(fromVersion)}`
+      ? `/compare?from=${encodeURIComponent(toVersion)}&to=${encodeURIComponent(fromVersion)}${
+          selectedStreams.length > 0
+            ? `&${selectedStreams.map((s) => `stream=${encodeURIComponent(s)}`).join("&")}`
+            : ""
+        }`
       : "";
 
   return (
@@ -33,7 +41,13 @@ export function ComparePicker({
       {/*
         Submitting via server action persists the `from` value as the user's
         saved Unity version — no separate "Your Unity version" widget needed.
+
+        Stream scope sits above the picker so the user picks which Unity
+        streams to draw From/To options from before they pick a version.
       */}
+      <Suspense fallback={null}>
+        <CompareStreamFilter selected={selectedStreams} />
+      </Suspense>
       <form className="compare-picker" action={action}>
         <label>
           <span>From</span>
@@ -72,6 +86,12 @@ export function ComparePicker({
             ))}
           </select>
         </label>
+
+        {/* Round-trip the stream scope through compare-submit so picking
+            new versions doesn't reset the user's stream selection. */}
+        {selectedStreams.map((s) => (
+          <input key={s} type="hidden" name="stream" value={s} />
+        ))}
 
         <button type="submit" className="btn btn--primary compare-picker__go">
           <Icon name="git-compare" size={14} />

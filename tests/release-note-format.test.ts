@@ -16,8 +16,20 @@ describe("release note formatting", () => {
 
   test("removes stray leading punctuation from parsed release notes", () => {
     expect(cleanReleaseNoteText(": Crash on core::base_hash_set (UUM-139722)")).toBe(
-      "Crash on core::base_hash_set (UUM-139722)"
+      "Crash on core::base_hash_set"
     );
+  });
+
+  test("strips trailing (UUM-XXX) suffixes since the issue chip already shows them", () => {
+    expect(
+      cleanReleaseNoteText("Fixed crash when using UIElements in URP with Vulkan. (UUM-100171)")
+    ).toBe("Fixed crash when using UIElements in URP with Vulkan.");
+  });
+
+  test("strips trailing parenthesised lists of issue ids", () => {
+    expect(
+      cleanReleaseNoteText("Editor freezes when opening project (UUM-12345, UUM-67890)")
+    ).toBe("Editor freezes when opening project");
   });
 
   test("normalizes issue tracker links into compact UUM links", () => {

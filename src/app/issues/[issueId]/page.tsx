@@ -4,6 +4,13 @@ import { RiskBadge } from "../../_components/RiskBadge";
 import { ExternalLink } from "../../_components/ExternalLink";
 import { issueTrackerHref } from "../../_components/IssuePill";
 import { cleanReleaseNoteText } from "@/lib/release-notes/format";
+import {
+  deriveIssueStatus,
+  issueStatusLabel,
+  issueStatusTone,
+  type IssueStatus
+} from "@/lib/issue-status";
+import { formatReleaseDate } from "@/lib/format-date";
 
 export const dynamic = "force-dynamic";
 
@@ -23,18 +30,32 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
   const id = decodeURIComponent(issueId);
   const results = (await safeIssue(id)) as Mention[];
   const trackerUrl = issueTrackerHref(id);
+  const status = deriveIssueStatus(results);
 
   return (
     <>
       <section className="page-header">
         <div className="page-header__title-row">
-          <h1 className="tabnums">{id}</h1>
+          <div className="cluster" style={{ alignItems: "center", gap: 12 }}>
+            <h1 className="tabnums">{id}</h1>
+            {status.kind !== "unknown" ? (
+              <span
+                className={`chip chip--status-${issueStatusTone(status)}`}
+                title="Derived from the latest release-note mention indexed locally — Unity's tracker is the source of truth."
+              >
+                {issueStatusLabel(status)}
+              </span>
+            ) : null}
+          </div>
         </div>
         <p>
           {results.length === 0
             ? "Not mentioned in indexed release notes yet."
             : `Mentioned in ${results.length} release note${results.length === 1 ? "" : "s"}.`}
         </p>
+        {status.kind !== "unknown" ? (
+          <p className="muted" style={{ marginTop: 4 }}>{statusDetail(status)}</p>
+        ) : null}
         <div className="cluster" style={{ marginTop: 12 }}>
           <ExternalLink href={trackerUrl} className="link-internal--accent">
             Open on Unity Issue Tracker
@@ -90,5 +111,33 @@ async function safeIssue(issueId: string) {
     return await searchReleaseNotes({ issueId });
   } catch {
     return [];
+  }
+}
+
+function statusDetail(status: IssueStatus): string {
+  switch (status.kind) {
+    case "resolved": {
+      const date = status.releaseDate ? ` (${formatReleaseDate(status.releaseDate)})` : "";
+      const extra =
+        status.additionalFixCount > 0
+          ? `; relisted in ${status.additionalFixCount} later release${status.additionalFixCount === 1 ? "" : "s"}`
+          : "";
+      return `First fixed in ${status.version}${date}${extra}.`;
+    }
+    case "regressed": {
+      const knownDate = status.knownReleaseDate ? ` (${formatReleaseDate(status.knownReleaseDate)})` : "";
+      const fixDate = status.lastFixedReleaseDate ? ` (${formatReleaseDate(status.lastFixedReleaseDate)})` : "";
+      return `Listed as a known issue in ${status.knownVersion}${knownDate} after a fix shipped in ${status.lastFixedVersion}${fixDate}.`;
+    }
+    case "open": {
+      const date = status.releaseDate ? ` (${formatReleaseDate(status.releaseDate)})` : "";
+      return `Listed as a known issue in ${status.version}${date}; no fix in indexed releases yet.`;
+    }
+    case "mentioned": {
+      const date = status.releaseDate ? ` (${formatReleaseDate(status.releaseDate)})` : "";
+      return `Latest mention is in ${status.version} under "${status.section}"${date}.`;
+    }
+    case "unknown":
+      return "";
   }
 }
