@@ -4,6 +4,7 @@ import { getUserPackages } from "@/lib/user-packages";
 import { ExternalLink } from "../_components/ExternalLink";
 import { SidebarUserPackages } from "../_components/SidebarUserPackages";
 import { PackageRowClient } from "../_components/PackageRowClient";
+import { PackagesFilter } from "../_components/PackagesFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -77,46 +78,13 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
         <SidebarUserPackages packages={userPackages} />
       </div>
 
-      <form className="filter-bar packages-filter" method="get" action="/packages">
-        <label>
-          <span>Search</span>
-          <input
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder="Search packages..."
-          />
-        </label>
-        <label>
-          <span>Scope</span>
-          <select name="scope" defaultValue={scope} aria-label="Package scope">
-            <option value="all">All packages</option>
-            <option value="manifest" disabled={userSet.size === 0}>
-              My manifest packages{userSet.size > 0 ? ` (${userSet.size})` : ""}
-            </option>
-          </select>
-        </label>
-        <label>
-          <span>Channel</span>
-          <select name="channel" defaultValue={channel} aria-label="Latest version channel">
-            <option value="all">Stable + prerelease</option>
-            <option value="stable">Stable latest</option>
-            <option value="prerelease">Prerelease latest</option>
-          </select>
-        </label>
-        <label>
-          <span>Sort</span>
-          <select name="sort" defaultValue={sort} aria-label="Package sort order">
-            <option value="updated_desc">Updated newest</option>
-            <option value="updated_asc">Updated oldest</option>
-            <option value="name_asc">Package A-Z</option>
-            <option value="name_desc">Package Z-A</option>
-          </select>
-        </label>
-        <button type="submit" className="btn btn--primary">
-          Apply
-        </button>
-      </form>
+      <PackagesFilter
+        q={q}
+        scope={scope}
+        channel={channel}
+        sort={sort}
+        manifestPackagesCount={userSet.size}
+      />
 
       <div className="packages-results">
         <div className="list-toolbar">

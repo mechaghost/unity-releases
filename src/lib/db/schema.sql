@@ -196,6 +196,38 @@ CREATE TABLE IF NOT EXISTS blog_posts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS resources (
+  id BIGSERIAL PRIMARY KEY,
+  -- Stable identifier from Unity's URL: the `/resources/<slug>` segment.
+  slug TEXT NOT NULL UNIQUE,
+  url TEXT NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
+  og_image TEXT,
+  -- Content-type label as Unity tags it (E-book, Video, Webinar, …).
+  resource_type TEXT,
+  -- Industry tag — Unity uses 'Other' (or NULL) for games content; any
+  -- other value (Automotive, Manufacturing, Retail, Multi …) signals
+  -- enterprise/buyer-pitch content.
+  industry TEXT,
+  topics TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  -- Resources behind a Salesforce form fill ("download to read").
+  is_gated BOOLEAN NOT NULL DEFAULT false,
+  sfdc_form_id TEXT,
+  resource_date DATE,
+  read_duration TEXT,
+  author TEXT,
+  -- Sitemap <lastmod> drives the incremental ingester: only re-fetch
+  -- when this advances beyond the value we already have on file.
+  lastmod TIMESTAMPTZ,
+  body_hash TEXT,
+  raw_metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  source_snapshot_id BIGINT REFERENCES source_snapshots(id),
+  ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS hub_releases (
   id BIGSERIAL PRIMARY KEY,
   version TEXT NOT NULL UNIQUE,
@@ -250,6 +282,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_issue_mentions_issue_release ON issue_men
 CREATE INDEX IF NOT EXISTS idx_package_versions_package_id ON package_versions (package_id);
 CREATE INDEX IF NOT EXISTS idx_content_events_time ON content_events (event_time DESC);
 CREATE INDEX IF NOT EXISTS idx_content_events_type ON content_events (event_type);
+CREATE INDEX IF NOT EXISTS idx_resources_date ON resources (resource_date DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_resources_type ON resources (resource_type);
+CREATE INDEX IF NOT EXISTS idx_resources_industry ON resources (industry);
+CREATE INDEX IF NOT EXISTS idx_resources_gated ON resources (is_gated);
+CREATE INDEX IF NOT EXISTS idx_resources_topics ON resources USING GIN (topics);
 
 CREATE OR REPLACE FUNCTION update_release_note_search_vector()
 RETURNS trigger AS $$

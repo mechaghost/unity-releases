@@ -12,6 +12,7 @@ import type { FetchedSource } from "../ingest/fetch";
 import type { normalizePackageForStorage } from "../ingest/packages";
 import type { normalizeReleaseForStorage } from "../ingest/releases";
 import type { ParsedBlogPost } from "../parsers/rss";
+import type { ParsedResource } from "../ingest/resources";
 
 export type FeedEventRow = {
   id: number;
@@ -994,6 +995,180 @@ export async function upsertBlogPosts(
       { blogPostId: postResult.rows[0].id, sourceSnapshotId, ingestionRunId }
     );
   }
+}
+
+/**
+ * Upsert a parsed resource. Used by the `poll-resources` job; called
+ * once per resource page. The unique key is `slug` so re-runs update
+ * in place.
+ */
+export async function upsertResource(
+  client: PoolClient,
+  resource: ParsedResource,
+  lastmod: string | null,
+  ingestionRunId: number,
+  sourceSnapshotId: number | null
+) {
+  await client.query(
+    `
+      INSERT INTO resources (
+        slug, url, title, summary, og_image, resource_type, industry, topics,
+        is_gated, sfdc_form_id, resource_date, read_duration, author,
+        lastmod, body_hash, raw_metadata_json, source_snapshot_id, ingestion_run_id
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+      ON CONFLICT (slug) DO UPDATE SET
+        url = EXCLUDED.url,
+        title = EXCLUDED.title,
+        summary = EXCLUDED.summary,
+        og_image = EXCLUDED.og_image,
+        resource_type = EXCLUDED.resource_type,
+        industry = EXCLUDED.industry,
+        topics = EXCLUDED.topics,
+        is_gated = EXCLUDED.is_gated,
+        sfdc_form_id = EXCLUDED.sfdc_form_id,
+        resource_date = EXCLUDED.resource_date,
+        read_duration = EXCLUDED.read_duration,
+        author = EXCLUDED.author,
+        lastmod = EXCLUDED.lastmod,
+        body_hash = EXCLUDED.body_hash,
+        raw_metadata_json = EXCLUDED.raw_metadata_json,
+        source_snapshot_id = EXCLUDED.source_snapshot_id,
+        ingestion_run_id = EXCLUDED.ingestion_run_id,
+        updated_at = now()
+    `,
+    [
+      resource.slug,
+      resource.url,
+      resource.title,
+      resource.summary,
+      resource.ogImage,
+      resource.resourceType,
+      resource.industry,
+      resource.topics,
+      resource.isGated,
+      resource.sfdcFormId,
+      resource.resourceDate,
+      resource.readDuration,
+      resource.author,
+      lastmod,
+      resource.bodyHash,
+      resource.rawMetadata,
+      sourceSnapshotId,
+      ingestionRunId
+    ]
+  );
+}
+
+/** Read the slug → (lastmod, body_hash) map so the poller can skip
+ *  pages whose sitemap lastmod hasn't advanced past what we already
+ *  have. Returned in a single round-trip. */
+export async function getResourceFreshness(): Promise<Map<string, { lastmod: string | null; bodyHash: string | null }>> {
+  const result = await query<{ slug: string; lastmod: string | null; body_hash: string | null }>(
+    "SELECT slug, lastmod::text AS lastmod, body_hash FROM resources"
+  );
+  const out = new Map<string, { lastmod: string | null; bodyHash: string | null }>();
+  for (const row of result.rows) {
+    out.set(row.slug, { lastmod: row.lastmod, bodyHash: row.body_hash });
+  }
+  return out;
+}
+
+export type ResourceListFilters = {
+  /** Show case studies / reports / whitepapers (Unity's marketing-narrative
+   *  formats). When false (default) those types are filtered out. */
+  includeMarketing?: boolean;
+  /** Show resources tagged with a non-games industry (Automotive,
+   *  Manufacturing, Retail, Multi …) — Unity's enterprise pitch
+   *  content. When false (default) those rows are filtered out. */
+  includeEnterprise?: boolean;
+  /** Restrict to specific resource types (E-book, Video, …). */
+  types?: string[];
+  /** Free-text search over title + summary. */
+  q?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type ResourceRow = {
+  slug: string;
+  url: string;
+  title: string;
+  summary: string;
+  og_image: string | null;
+  resource_type: string | null;
+  industry: string | null;
+  topics: string[];
+  is_gated: boolean;
+  resource_date: string | null;
+  read_duration: string | null;
+  author: string | null;
+};
+
+/** Resource types that Unity uses for marketing-narrative content
+ *  (customer wins, exec reports, gated whitepapers). Hidden by default. */
+export const RESOURCE_MARKETING_TYPES = ["Case study", "Report", "Whitepaper"];
+
+/**
+ * Read resources for the /resources surface. Two independent toggles
+ * control "fluff": `includeMarketing` lets case studies / reports /
+ * whitepapers through, and `includeEnterprise` lets non-games-industry
+ * rows through. Both default to false so the dev-focused view is the
+ * landing experience.
+ */
+export async function listResources(
+  filters: ResourceListFilters = {}
+): Promise<{ rows: ResourceRow[]; total: number }> {
+  const params: unknown[] = [];
+  const conds: string[] = [];
+
+  if (!filters.includeMarketing) {
+    params.push(RESOURCE_MARKETING_TYPES);
+    conds.push(`(resource_type IS NULL OR resource_type <> ALL($${params.length}::text[]))`);
+  }
+  if (!filters.includeEnterprise) {
+    // Hide non-games industries. NULL or 'Other' = games content; anything
+    // else (Automotive, Manufacturing, Retail, Multi …) is enterprise pitch.
+    conds.push("(industry IS NULL OR industry = 'Other')");
+  }
+
+  if (filters.types && filters.types.length > 0) {
+    params.push(filters.types);
+    conds.push(`resource_type = ANY($${params.length}::text[])`);
+  }
+
+  if (filters.q) {
+    params.push(`%${filters.q.toLowerCase()}%`);
+    conds.push(
+      `(LOWER(title) LIKE $${params.length} OR LOWER(summary) LIKE $${params.length})`
+    );
+  }
+
+  const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
+  const limit = filters.limit ?? 100;
+  const offset = filters.offset ?? 0;
+
+  const totalResult = await query<{ total: string }>(
+    `SELECT COUNT(*)::text AS total FROM resources ${where}`,
+    params
+  );
+  const total = Number(totalResult.rows[0]?.total ?? 0);
+
+  params.push(limit, offset);
+  const result = await query<ResourceRow>(
+    `
+      SELECT slug, url, title, summary, og_image, resource_type, industry,
+             topics, is_gated, resource_date::text AS resource_date,
+             read_duration, author
+      FROM resources
+      ${where}
+      ORDER BY resource_date DESC NULLS LAST, slug
+      LIMIT $${params.length - 1}
+      OFFSET $${params.length}
+    `,
+    params
+  );
+  return { rows: result.rows, total };
 }
 
 async function upsertContentEvent(

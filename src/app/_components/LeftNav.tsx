@@ -34,6 +34,12 @@ const NAV: NavItem[] = [
     match: (pathname) => pathname === "/packages"
   },
   {
+    href: "/resources",
+    label: "Resources",
+    icon: "file-text",
+    match: (pathname) => pathname === "/resources"
+  },
+  {
     href: "/news",
     label: "News",
     icon: "newspaper",

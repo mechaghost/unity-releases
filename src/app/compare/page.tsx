@@ -896,7 +896,7 @@ function buildLanePageUrl(input: {
 function LandingIntro() {
   return (
     <section className="page-header landing-intro">
-      <h1 className="landing-intro__title">Unity 6 release &amp; upgrade intelligence</h1>
+      <h1 className="landing-intro__title">Upgrade Intelligence</h1>
       <p>
         Pick two Unity editor versions and see every blocker, breaking change, API
         change, package bump, and known issue between them — bucketed into lanes,
