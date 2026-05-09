@@ -1,1 +1,1 @@
-export { default, dynamic } from "./releases/page";
+export { default, dynamic } from "./compare/page";

@@ -13,19 +13,19 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   {
+    // Compare is the landing page — `/` re-exports the compare route, and
+    // the active-state matcher catches both URLs so the nav highlight
+    // tracks correctly whether you arrived via `/` or `/compare`.
     href: "/",
-    label: "Editor Releases",
-    icon: "file-text",
-    match: (pathname) => pathname === "/" || pathname === "/releases" || pathname.startsWith("/releases/")
+    label: "Upgrade Intelligence",
+    icon: "git-compare",
+    match: (pathname) => pathname === "/" || pathname === "/compare"
   },
   {
-    // Promoted to a top-level entry — this is the product's killer
-    // feature and the team review unanimously called out that hiding
-    // it under a sub-nav was the wrong call.
-    href: "/compare",
-    label: "Compare versions",
-    icon: "git-compare",
-    match: (pathname) => pathname === "/compare"
+    href: "/releases",
+    label: "Editor Releases",
+    icon: "file-text",
+    match: (pathname) => pathname === "/releases" || pathname.startsWith("/releases/")
   },
   {
     href: "/packages",
@@ -53,7 +53,8 @@ export function LeftNav() {
   return (
     <nav className="lnav" id="primary-nav" aria-label="Primary">
       <a href="/" className="lnav__brand">
-        Unity Releases
+        <span className="lnav__brand-name">Unity Releases</span>
+        <span className="lnav__brand-tagline">Unity 6 release &amp; upgrade intel</span>
       </a>
       <div className="lnav__sections">
         {NAV.map((item) => {

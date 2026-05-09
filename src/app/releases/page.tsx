@@ -43,7 +43,11 @@ export default async function ReleasesPage({
       <section className="page-header">
         <h1>Editor Releases</h1>
         <p>
-          {filtered.length.toLocaleString()} of {all.length.toLocaleString()} Unity 6 releases shown.
+          Every Unity 6 editor release indexed across the supported, beta, and
+          alpha streams. Click a version for its lane-bucketed release notes, or
+          use <a href="/">Upgrade Intelligence</a> to diff two of them.{" "}
+          {filtered.length.toLocaleString()} of {all.length.toLocaleString()}{" "}
+          shown.
         </p>
       </section>
 

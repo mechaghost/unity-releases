@@ -22,7 +22,12 @@ export default async function NewsPage() {
         <div className="page-header__title-row">
           <h1>News</h1>
         </div>
-        <p>{news.length.toLocaleString()} official Unity blog posts. Click a title to read on unity.com.</p>
+        <p>
+          Mirror of the official Unity blog. Secondary to release intelligence —
+          included so you can see Unity-side announcements without leaving the
+          site. {news.length.toLocaleString()} posts indexed; click a title to
+          read it on unity.com.
+        </p>
       </section>
 
       <div className="table-surface"><table className="dense-table">

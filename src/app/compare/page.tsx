@@ -225,14 +225,17 @@ export default async function ComparePage({
 
   if (!fromVersion || !toVersion) {
     return (
-      <ComparePicker
-        fromVersion={fromVersion}
-        toVersion={toVersion}
-        releases={pickerReleases}
-        selectedStreams={selectedStreams}
-      >
-        <CompareEmptyPreview />
-      </ComparePicker>
+      <>
+        <LandingIntro />
+        <ComparePicker
+          fromVersion={fromVersion}
+          toVersion={toVersion}
+          releases={pickerReleases}
+          selectedStreams={selectedStreams}
+        >
+          <CompareEmptyPreview />
+        </ComparePicker>
+      </>
     );
   }
 
@@ -969,20 +972,37 @@ function buildLanePageUrl(input: {
   return `/compare?${params.toString()}#lane-${input.laneId}`;
 }
 
+function LandingIntro() {
+  return (
+    <section className="page-header landing-intro">
+      <h1 className="landing-intro__title">Unity 6 release &amp; upgrade intelligence</h1>
+      <p>
+        Pick two Unity editor versions and see every blocker, breaking change, API
+        change, package bump, and known issue between them — bucketed into lanes,
+        filterable, and exportable as markdown for an LLM. Built for Unity developers
+        deciding when (and whether) to upgrade.
+      </p>
+      <p className="landing-intro__provenance">
+        Independent project, not affiliated with Unity Technologies. Data is
+        ingested from Unity&apos;s public editor release pages, package registry,
+        and blog. See the <a href="/faq">FAQ</a> for sources, cadence, and how the
+        impact lanes are derived.
+      </p>
+    </section>
+  );
+}
+
 function CompareEmptyPreview() {
   return (
     <div className="empty-state empty-state--preview">
       <h2>Pick two versions to compare</h2>
-      <ul className="empty-state__steps">
-        <li>
-          <strong>Lane breakdown.</strong> Every change bucketed by impact — blockers,
-          breaking, security, packages, fixes, and more.
-        </li>
-        <li>
-          <strong>Release data export.</strong> Download a structured markdown file and feed
-          it to Claude, ChatGPT, or Gemini for a project-aware analysis.
-        </li>
-      </ul>
+      <p className="empty-state__lead">
+        Choose your current Unity version on the left and a candidate upgrade target
+        on the right. The result is a single page covering every release in between,
+        bucketed into lanes — known blockers, breaking changes, API changes, security,
+        package bumps, regressions, and fixes — plus a downloadable markdown export
+        of the full dataset for LLM analysis.
+      </p>
     </div>
   );
 }
@@ -997,12 +1017,12 @@ function UpgradeMarkdownCta({
   return (
     <section className="upgrade-cta" aria-label="Download release data">
       <div className="upgrade-cta__copy">
-        <h2 className="upgrade-cta__heading">Release data export</h2>
+        <h2 className="upgrade-cta__heading">Markdown export for LLMs</h2>
         <p>
-          One structured markdown file with every blocker, breaking change, package bump,
-          regression, and known issue in this range. Paste it into Claude, ChatGPT, or
-          Gemini alongside your project context and ask the questions you actually need
-          answered.
+          One structured markdown file containing every row in scope — the full
+          dataset, not just the current page. Paste it into Claude, ChatGPT, or
+          Gemini alongside your project context for a project-aware upgrade
+          assessment.
         </p>
       </div>
       <div className="upgrade-cta__action">
