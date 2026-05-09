@@ -1926,6 +1926,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   justify-content: space-between;
   gap: var(--space-3);
   margin-bottom: var(--space-2);
+  flex-wrap: wrap;
 }
 .compare-stream-row > .compare-stream-filter {
   margin-bottom: 0;
@@ -1934,6 +1935,42 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 .compare-stream-row__end {
   flex: 0 0 auto;
+}
+
+/* On narrow viewports, drop the streams form to its own line and let
+   the filter button stretch full-width so it stays a thumb-sized
+   target instead of floating off-canvas next to wrapped chips. The
+   STREAMS label also gets pushed to its own row above the chips so
+   the chip pills line up flush-left. */
+@media (max-width: 640px) {
+  .compare-stream-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .compare-stream-row__end {
+    width: 100%;
+  }
+  .compare-stream-row__end .filter-trigger {
+    width: 100%;
+    height: 40px;
+    font-size: var(--text-base);
+  }
+  .filter-bar-row .filter-trigger {
+    width: 100%;
+    height: 40px;
+    font-size: var(--text-base);
+    margin-left: 0;
+  }
+  .filter-bar-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  /* Force the "STREAMS" label onto its own row, with the chips
+     wrapping flush-left below it. */
+  .compare-stream-filter__label {
+    flex-basis: 100%;
+    margin-right: 0;
+  }
 }
 
 .compare-stream-filter {
@@ -2301,29 +2338,49 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   flex-shrink: 0;
 }
 
+/* Filter trigger — gets accent treatment so people stop missing it.
+   Tinted accent fill at rest, solid accent fill once filters are active. */
 .filter-trigger {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  white-space: nowrap;
-}
-
-.filter-trigger__badge {
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: var(--accent-fg, #fff);
-  font-size: var(--text-2xs);
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+  font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--easing-standard),
+    border-color var(--duration-fast) var(--easing-standard),
+    color var(--duration-fast) var(--easing-standard);
 }
-
+.filter-trigger:hover {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.filter-trigger:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+/* Active state: solid accent — unmistakable that filtering is on. */
 .filter-trigger--active {
+  background: var(--accent);
   border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+.filter-trigger--active:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.filter-trigger__label {
+  /* tabnums on the active count so "Filter · 12" doesn't jiggle. */
+  font-variant-numeric: tabular-nums;
 }
 
 .filter-chip-row {

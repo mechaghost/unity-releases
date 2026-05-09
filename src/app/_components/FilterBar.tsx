@@ -57,14 +57,18 @@ export function FilterTrigger({
     <>
       <button
         type="button"
-        className={`btn btn--secondary btn--small filter-trigger${count > 0 ? " filter-trigger--active" : ""}`}
+        className={`filter-trigger${count > 0 ? " filter-trigger--active" : ""}`}
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
         <Icon name="filter" size={14} />
-        Filter
-        {count > 0 ? <span className="filter-trigger__badge tabnums">{count}</span> : null}
+        <span className="filter-trigger__label">
+          {count > 0 ? `Filter · ${count}` : "Filter"}
+        </span>
+        {count > 0 ? (
+          <span className="visually-hidden">{count} active filter{count === 1 ? "" : "s"}</span>
+        ) : null}
       </button>
 
       <FilterDrawer
