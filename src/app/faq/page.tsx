@@ -268,6 +268,53 @@ const SECTIONS: Section[] = [
     ]
   },
   {
+    id: "llms",
+    title: "Use with an LLM",
+    items: [
+      {
+        id: "llm-endpoint",
+        question: "How do I point Claude / ChatGPT / Gemini at this site?",
+        answer: (
+          <>
+            <p>
+              Hand the LLM a URL of the form{" "}
+              <code>https://unityreleases.com/compare.md?from=&lt;from&gt;&amp;to=&lt;to&gt;</code>
+              {" "}— for example{" "}
+              <a href="/compare.md?from=6000.0.50f1&to=6000.0.74f1">
+                /compare.md?from=6000.0.50f1&amp;to=6000.0.74f1
+              </a>
+              . The endpoint returns the full upgrade diff as
+              {" "}<code>text/markdown</code>, bucketed into the same lanes you
+              see on screen, with issue-tracker links and status suffixes on
+              every issue ID. Any tool that can fetch a URL — Claude&apos;s
+              WebFetch, ChatGPT browsing,{" "}<code>curl</code>, an MCP server —
+              can ingest it directly. No auth, no rate-limit games.
+            </p>
+            <p>
+              Optional: append <code>&amp;stream=beta</code> (repeatable) to
+              widen the in-between releases beyond LTS. See{" "}
+              <a href="/llms.txt">/llms.txt</a> for the full LLM-facing
+              manifest of this site.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "llm-button",
+        question: "What does the Markdown export button download?",
+        answer: (
+          <>
+            The same body the <code>/compare.md</code> endpoint serves —
+            a complete, lane-bucketed diff between the two versions, not
+            just the rows currently visible on the page. Filenames follow
+            the pattern <code>unity-&lt;from&gt;-to-&lt;to&gt;-upgrade.md</code>
+            so they sort sensibly when you keep a folder of them.
+          </>
+        )
+      }
+    ]
+  },
+  {
     id: "contact",
     title: "Help & contact",
     items: [
