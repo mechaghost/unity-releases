@@ -27,6 +27,19 @@ import { FilterBar } from "../../_components/FilterBar";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({
+  params
+}: {
+  params: Promise<{ version: string }>;
+}) {
+  const { version } = await params;
+  return {
+    title: `Unity ${version} release notes`,
+    description: `Lane-bucketed release notes for Unity ${version} — known blockers, breaking changes, API changes, security fixes, package bumps, and other notable changes parsed from Unity's official release notes.`,
+    alternates: { canonical: `/releases/${encodeURIComponent(version)}` }
+  };
+}
+
 type ReleaseNoteRow = NoteRowData & {
   version: string;
   source_url: string;

@@ -3,6 +3,13 @@ import { ExternalLink } from "../_components/ExternalLink";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "News",
+  description:
+    "Mirror of the official Unity blog — secondary to release intelligence, included so you can see Unity-side announcements without leaving the site.",
+  alternates: { canonical: "/news" }
+};
+
 type FeedEvent = {
   id: number;
   title: string;

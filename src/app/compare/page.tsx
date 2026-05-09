@@ -52,6 +52,36 @@ import { compareToMarkdown } from "@/lib/compare-markdown";
 export const dynamic = "force-dynamic";
 
 const ROWS_PER_LANE = 25;
+
+export async function generateMetadata({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const from = firstStringParam(params.from);
+  const to = firstStringParam(params.to);
+  if (from && to) {
+    return {
+      title: `Unity ${from} → ${to} upgrade diff`,
+      description: `Every blocker, breaking change, API change, package bump, and known issue between Unity ${from} and ${to} — bucketed by impact, with a markdown export for LLM analysis.`,
+      alternates: { canonical: `/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` }
+    };
+  }
+  // Empty state: let the root layout's default title win so `/` (which
+  // re-exports this page) shows "Unity Releases — Unity 6 release & upgrade
+  // intelligence" instead of a doubled-up tagline.
+  return {
+    description:
+      "Pick two Unity 6 editor versions and see every blocker, breaking change, API change, package bump, and known issue between them, bucketed into lanes and exportable as markdown for an LLM.",
+    alternates: { canonical: "/compare" }
+  };
+}
+
+function firstStringParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
 // by-release lanes paginate via SQL OFFSET, so we only fetch the page we render.
 // dedup lanes fetch a generous slice and paginate the deduped result in memory —
 // 1500 rows is enough to surface ~all unique issues in any realistic diff range.

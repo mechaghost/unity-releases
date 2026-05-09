@@ -1,7 +1,8 @@
 export const metadata = {
-  title: "FAQ — Unity Releases",
+  title: "FAQ",
   description:
-    "Where Unity Releases data comes from, how often it updates, what the impact lanes and risk levels mean, and the standard not-affiliated-with-Unity disclaimer."
+    "Where Unity Releases data comes from, how often it updates, what the impact lanes and risk levels mean, and the standard not-affiliated-with-Unity disclaimer.",
+  alternates: { canonical: "/faq" }
 };
 
 type QA = { id: string; question: React.ReactNode; answer: React.ReactNode };

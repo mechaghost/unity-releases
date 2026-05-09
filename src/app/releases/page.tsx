@@ -15,6 +15,13 @@ import { Icon } from "../_components/Icon";
 export const dynamic = "force-dynamic";
 const RELEASES_PER_PAGE = 50;
 
+export const metadata = {
+  title: "Editor Releases",
+  description:
+    "Every Unity 6 editor release indexed across the supported, beta, and alpha streams. Click a version for its lane-bucketed release notes, or diff two versions in Upgrade Intelligence.",
+  alternates: { canonical: "/releases" }
+};
+
 type Release = {
   version: string;
   stream: string | null;

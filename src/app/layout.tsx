@@ -1,4 +1,5 @@
 import { Suspense, type ReactNode } from "react";
+import type { Metadata, Viewport } from "next";
 import "./styles.css";
 import { LeftNav } from "./_components/LeftNav";
 import { MobileNavToggle } from "./_components/MobileNavToggle";
@@ -6,10 +7,72 @@ import { NoFlashScript } from "./_components/NoFlashScript";
 import { UserVersionDialog, type DialogRelease } from "./_components/UserVersionDialog";
 import { listReleases } from "@/lib/db/repositories";
 import { getUserVersion } from "@/lib/user-version";
+import { siteUrl } from "@/lib/site";
 
-export const metadata = {
-  title: "Unity Releases",
-  description: "Unity 6 editor release, package, and release-note intelligence."
+const SITE_NAME = "Unity Releases";
+const SITE_TAGLINE = "Unity 6 release & upgrade intelligence";
+const SITE_DESCRIPTION =
+  "Diff any two Unity 6 editor versions. Every blocker, breaking change, API change, package bump, and known issue — bucketed by impact and exportable as markdown for an LLM. Independent project, not affiliated with Unity Technologies.";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()),
+  title: {
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    template: `%s — ${SITE_NAME}`
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "Unity 6",
+    "Unity release notes",
+    "Unity editor releases",
+    "Unity upgrade guide",
+    "Unity blockers",
+    "Unity breaking changes",
+    "Unity packages",
+    "Unity LTS",
+    "Unity beta",
+    "Unity changelog diff"
+  ],
+  authors: [{ name: "Mechaghost" }],
+  creator: "Mechaghost",
+  publisher: "Mechaghost",
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1
+    }
+  },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    locale: "en_US"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION
+  },
+  category: "technology"
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFFEFC" },
+    { media: "(prefers-color-scheme: dark)", color: "#121719" }
+  ],
+  colorScheme: "light dark",
+  width: "device-width",
+  initialScale: 1
 };
 
 type ReleaseRow = { version: string; stream: string | null };

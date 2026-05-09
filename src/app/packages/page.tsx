@@ -6,6 +6,13 @@ import { SidebarUserPackages } from "../_components/SidebarUserPackages";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Packages",
+  description:
+    "Latest versions and release histories for tracked official Unity packages — Input System, Addressables, URP, HDRP, Cinemachine, Burst, and more — sourced from the Unity package registry.",
+  alternates: { canonical: "/packages" }
+};
+
 type PackageRow = {
   name: string;
   display_name: string | null;
