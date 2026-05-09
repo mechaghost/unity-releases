@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const VERSION_CAP = 50;
+const PACKAGE_NAME_RE = /^com\.unity\.[a-z0-9][a-z0-9._-]{0,120}$/;
 
 /**
  * GET /api/packages/<name>/versions
@@ -19,13 +20,22 @@ export async function GET(
   context: { params: Promise<{ name: string }> }
 ) {
   const { name } = await context.params;
-  if (!name) {
+  let packageName: string;
+  try {
+    packageName = decodeURIComponent(name ?? "").trim();
+  } catch {
+    return NextResponse.json({ error: "invalid-name" }, { status: 400 });
+  }
+  if (!packageName) {
     return NextResponse.json({ error: "missing-name" }, { status: 400 });
+  }
+  if (!PACKAGE_NAME_RE.test(packageName)) {
+    return NextResponse.json({ error: "invalid-name" }, { status: 400 });
   }
 
   let result: Awaited<ReturnType<typeof getPackage>>;
   try {
-    result = await getPackage(name);
+    result = await getPackage(packageName);
   } catch {
     return NextResponse.json({ error: "lookup-failed" }, { status: 500 });
   }

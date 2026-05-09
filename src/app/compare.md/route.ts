@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { buildCompareMarkdownExport } from "@/lib/compare-export";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 /**
  * GET /compare.md?from=<version>&to=<version>[&stream=<stream>]
@@ -14,16 +14,17 @@ export const revalidate = 0;
  *
  * Status codes:
  * - 200 — markdown body
- * - 400 — required params missing
+ * - 400 — required params missing, invalid version shape, or range too wide
  * - 404 — version unknown OR no releases between the two versions
  *         in the requested stream scope
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const result = await buildCompareMarkdownExport(searchParams);
+  const cacheKey = normalizedCacheKey(searchParams);
+  const result = await cachedCompareMarkdownExport(cacheKey);
 
   if (!result.ok) {
-    const status = result.error === "missing-versions" ? 400 : 404;
+    const status = isBadRequestError(result.error) ? 400 : 404;
     return new NextResponse(`# Error\n\n${result.message}\n`, {
       status,
       headers: textHeaders()
@@ -52,4 +53,28 @@ function textHeaders(): Record<string, string> {
     // stale cache window is fine.
     "cache-control": "public, max-age=300, s-maxage=300, stale-while-revalidate=86400"
   };
+}
+
+function isBadRequestError(error: string): boolean {
+  return (
+    error === "missing-versions" ||
+    error === "invalid-versions" ||
+    error === "range-too-wide"
+  );
+}
+
+function cachedCompareMarkdownExport(cacheKey: string) {
+  return unstable_cache(
+    () => buildCompareMarkdownExport(new URLSearchParams(cacheKey)),
+    ["compare-markdown-export", cacheKey],
+    { revalidate: 300 }
+  )();
+}
+
+function normalizedCacheKey(searchParams: URLSearchParams): string {
+  return new URLSearchParams(
+    [...searchParams.entries()].sort(([ak, av], [bk, bv]) =>
+      ak === bk ? av.localeCompare(bv) : ak.localeCompare(bk)
+    )
+  ).toString();
 }

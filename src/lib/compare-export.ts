@@ -6,8 +6,13 @@ import type { IssueStatus } from "@/lib/issue-status";
 
 export type CompareExportError =
   | "missing-versions"
+  | "invalid-versions"
   | "range-not-found"
-  | "empty-range";
+  | "empty-range"
+  | "range-too-wide";
+
+const UNITY_6_COMPARE_VERSION_RE = /^6000\.\d+\.\d+[abf]\d+$/;
+const MAX_COMPARE_EXPORT_VERSIONS = 200;
 
 export type CompareExportResult =
   | {
@@ -53,6 +58,15 @@ export async function buildCompareMarkdownExport(
     };
   }
 
+  if (!UNITY_6_COMPARE_VERSION_RE.test(fromVersion) || !UNITY_6_COMPARE_VERSION_RE.test(toVersion)) {
+    return {
+      ok: false,
+      error: "invalid-versions",
+      message:
+        "`from` and `to` must be Unity 6 editor versions like 6000.0.50f1, 6000.1.0b4, or 6000.2.0a1."
+    };
+  }
+
   const selectedStreams = parseCompareStreamSelection(params.getAll("stream"));
   const range = await resolveDiffRange(fromVersion, toVersion, selectedStreams);
   if (!range) {
@@ -67,6 +81,13 @@ export async function buildCompareMarkdownExport(
       ok: false,
       error: "empty-range",
       message: `No releases between "${fromVersion}" and "${toVersion}" in this stream scope.`
+    };
+  }
+  if (range.versions.length > MAX_COMPARE_EXPORT_VERSIONS) {
+    return {
+      ok: false,
+      error: "range-too-wide",
+      message: `This compare range includes ${range.versions.length} releases. Please request ${MAX_COMPARE_EXPORT_VERSIONS} or fewer releases.`
     };
   }
 

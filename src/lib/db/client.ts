@@ -27,7 +27,8 @@ export function getPool(): Pool {
 
   pool ??= new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: 5,
+    max: 15,
+    statement_timeout: 8000,
     ssl: poolSslConfig()
   });
 
