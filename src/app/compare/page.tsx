@@ -903,12 +903,6 @@ function LandingIntro() {
         filterable, and exportable as markdown for an LLM. Built for Unity developers
         deciding when (and whether) to upgrade.
       </p>
-      <p className="landing-intro__provenance">
-        Independent project, not affiliated with Unity Technologies. Data is
-        ingested from Unity&apos;s public editor release pages, package registry,
-        and blog. See the <a href="/faq">FAQ</a> for sources, cadence, and how the
-        impact lanes are derived.
-      </p>
     </section>
   );
 }

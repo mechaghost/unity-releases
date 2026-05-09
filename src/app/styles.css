@@ -1055,6 +1055,366 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .dense-table tr:hover td { background: var(--surface-overlay); }
 
+/* ========================================================================
+   Package row → release-notes dialog
+   ------------------------------------------------------------------------
+   The whole row on /packages is clickable: it opens an Apple-style
+   negative-space dialog showing per-version changelogs for that
+   package. The chevron at the row end is the visible affordance; the
+   row's hover state (inherited from .dense-table) signals "clickable."
+   Links inside the row keep their own click handler — see
+   PackageRowClient for the target-closest check.
+   ======================================================================== */
+
+.packages-row {
+  cursor: pointer;
+}
+.packages-row__caret {
+  width: 36px;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0 var(--space-2) !important;
+}
+.packages-row__caret-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 120ms cubic-bezier(0.2, 0.8, 0.2, 1), color 120ms;
+}
+.packages-row:hover .packages-row__caret-btn,
+.packages-row__caret-btn:hover {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+}
+.packages-row__caret-btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ── dialog ───────────────────────────────────────────────────────── */
+
+/* Tokens are scoped to .pkg-dialog so adopting the Apple negative-space
+   palette here doesn't spill into the rest of the site. The card sits
+   on a dimmed backdrop, has no border, and uses tonal contrast +
+   shadow instead of a hairline outline. */
+.pkg-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: pkgDialogFade 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pkg-dialog {
+  --pkg-radius: 14px;
+  --pkg-card: var(--surface-raised);
+  --pkg-text: var(--text-primary);
+  --pkg-secondary: var(--text-secondary);
+  --pkg-muted: var(--text-muted);
+  --pkg-inset: var(--surface-sunken);
+  --pkg-hover: var(--surface-overlay);
+  --pkg-shadow: 0 18px 48px rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.06);
+
+  background: var(--pkg-card);
+  color: var(--pkg-text);
+  border-radius: var(--pkg-radius);
+  box-shadow: var(--pkg-shadow);
+  width: min(720px, 100%);
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pkgDialogRise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pkg-dialog__backdrop,
+  .pkg-dialog {
+    animation: none;
+  }
+}
+
+@keyframes pkgDialogFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pkgDialogRise {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to   { opacity: 1; transform: none; }
+}
+
+.pkg-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+.pkg-dialog__heading {
+  min-width: 0;
+}
+.pkg-dialog__title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--pkg-text);
+}
+.pkg-dialog__sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--pkg-muted);
+}
+.pkg-dialog__sub code {
+  font-size: 12px;
+  background: var(--pkg-inset);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.pkg-dialog__close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pkg-muted);
+  cursor: pointer;
+  transition: background 120ms cubic-bezier(0.2, 0.8, 0.2, 1), color 120ms;
+}
+.pkg-dialog__close:hover {
+  background: var(--pkg-hover);
+  color: var(--pkg-text);
+}
+.pkg-dialog__close:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.pkg-dialog__body {
+  padding: 0 var(--space-4) var(--space-4);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pkg-dialog__registry {
+  margin: 0;
+  font-size: 13px;
+  color: var(--pkg-secondary);
+  word-break: break-all;
+}
+.pkg-dialog__registry a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+.pkg-dialog__registry a:hover {
+  text-decoration: underline;
+}
+
+.pkg-dialog__count {
+  margin: 0;
+  font-size: 12px;
+  color: var(--pkg-muted);
+}
+
+.pkg-dialog__error,
+.pkg-dialog__empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--pkg-secondary);
+  padding: var(--space-4);
+  background: var(--pkg-inset);
+  border-radius: 10px;
+}
+
+/* ── version list ─────────────────────────────────────────────────── */
+
+.pkg-dialog__versions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pkg-version {
+  background: var(--pkg-inset);
+  border-radius: 12px;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pkg-version__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.pkg-version__num {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pkg-text);
+  letter-spacing: -0.005em;
+}
+.pkg-version__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--pkg-muted);
+  flex-wrap: wrap;
+}
+.pkg-version__pre {
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.pkg-version__compat {
+  color: var(--pkg-secondary);
+}
+
+.pkg-version__changelog {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--pkg-text);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Headings inside a rendered changelog. We demote heading levels so the
+   dialog's own h2/h3 outrank them; tighter weight here keeps section
+   labels (Added / Changed / Fixed / …) parseable without shouting. */
+.pkg-version__changelog .md-heading {
+  margin: var(--space-2) 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pkg-text);
+  letter-spacing: 0;
+}
+.pkg-version__changelog .md-heading:first-child {
+  margin-top: 0;
+}
+
+.pkg-version__changelog .md-paragraph {
+  margin: 0;
+  word-wrap: break-word;
+}
+
+.pkg-version__changelog .md-list {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pkg-version__changelog .md-list li {
+  word-wrap: break-word;
+}
+
+.pkg-version__changelog .md-quote {
+  margin: 0;
+  padding: 4px 12px;
+  border-left: 2px solid var(--border-default);
+  color: var(--pkg-secondary);
+}
+
+.pkg-version__changelog .md-code {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-overlay);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--pkg-text);
+}
+
+.pkg-version__changelog .md-inline-code {
+  background: var(--surface-overlay);
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.pkg-version__changelog a {
+  color: var(--text-link);
+  text-decoration: none;
+  word-break: break-word;
+}
+.pkg-version__changelog a:hover {
+  text-decoration: underline;
+}
+.pkg-version__no-notes {
+  margin: 0;
+  font-size: 13px;
+  color: var(--pkg-muted);
+  font-style: italic;
+}
+
+/* ── skeleton (loading state) ─────────────────────────────────────── */
+
+.pkg-version--skeleton {
+  pointer-events: none;
+}
+.pkg-skeleton-line {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--pkg-hover) 0%,
+    var(--surface-overlay) 50%,
+    var(--pkg-hover) 100%
+  );
+  background-size: 200% 100%;
+  animation: pkgShimmer 1.4s linear infinite;
+  width: 100%;
+}
+.pkg-skeleton-line + .pkg-skeleton-line {
+  margin-top: 6px;
+}
+.pkg-skeleton-line--short { width: 30%; }
+.pkg-skeleton-line--mid   { width: 70%; }
+.pkg-skeleton-line--tiny  { width: 18%; height: 10px; }
+
+@keyframes pkgShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pkg-skeleton-line { animation: none; }
+}
+
 .dense-table--no-sticky th { position: static; }
 
 /* Desktop releases table: a contained 6-column list that fills the
@@ -2954,14 +3314,6 @@ button.filter-section__head:focus-visible {
 }
 .landing-intro p {
   max-width: 76ch;
-}
-.landing-intro__provenance {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-top: var(--space-2);
-}
-.landing-intro__provenance a {
-  color: var(--text-link);
 }
 
 /* ========================================================================

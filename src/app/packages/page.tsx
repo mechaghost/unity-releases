@@ -3,6 +3,7 @@ import { listPackages } from "@/lib/db/repositories";
 import { getUserPackages } from "@/lib/user-packages";
 import { ExternalLink } from "../_components/ExternalLink";
 import { SidebarUserPackages } from "../_components/SidebarUserPackages";
+import { PackageRowClient } from "../_components/PackageRowClient";
 
 export const dynamic = "force-dynamic";
 
@@ -144,11 +145,17 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                 </th>
                 <th style={{ width: 120 }}>Channel</th>
                 <th style={{ width: 120 }}>Links</th>
+                <th aria-label="Open release notes" style={{ width: 36 }} />
               </tr>
             </thead>
             <tbody>
               {filtered.map((pkg) => (
-                <tr key={pkg.name}>
+                <PackageRowClient
+                  key={pkg.name}
+                  packageName={pkg.name}
+                  displayName={pkg.display_name}
+                  registryUrl={pkg.source_url}
+                >
                   <td>
                     <strong>{pkg.display_name ?? pkg.name}</strong>
                     <div className="muted package-table__name">{pkg.name}</div>
@@ -175,7 +182,7 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                       <ExternalLink href={pkg.source_url}>Registry</ExternalLink>
                     </span>
                   </td>
-                </tr>
+                </PackageRowClient>
               ))}
             </tbody>
           </table>
