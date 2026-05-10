@@ -101,14 +101,18 @@
   --color-info-bg:    #242A2D; --color-info-fg:    #BCC5C8;
   --color-success-bg: #1F3027; --color-success-fg: #A9D3B6;
 
-  --surface-base:    #121719;
+  /* Surface scale: keep sunken as the page background and lift the
+     base/card surface clear above it so cards read as elevated. The
+     prior values (sunken→base = 3 RGB units) were too tight; cards
+     blended into the page and made body copy hard to scan. */
+  --surface-base:    #1A2024;
   --surface-sunken:  #0F1315;
-  --surface-raised:  #181E21;
-  --surface-overlay: #20282B;
+  --surface-raised:  #232A2E;
+  --surface-overlay: #2D353A;
 
-  --border-subtle:  #252B2D;
-  --border-default: #30383B;
-  --border-strong:  #444D50;
+  --border-subtle:  #2C3336;
+  --border-default: #3A4347;
+  --border-strong:  #4F595D;
   --border-focus:   var(--azure-300);
 
   --text-primary:    #ECE8DF;
@@ -135,14 +139,17 @@
     --color-info-bg:    #242A2D; --color-info-fg:    #BCC5C8;
     --color-success-bg: #1F3027; --color-success-fg: #A9D3B6;
 
-    --surface-base:    #121719;
+    /* Same surface bump as the explicit dark theme above — keep these
+       two blocks in lock-step so OS-default and toggle-preference dark
+       modes look identical. */
+    --surface-base:    #1A2024;
     --surface-sunken:  #0F1315;
-    --surface-raised:  #181E21;
-    --surface-overlay: #20282B;
+    --surface-raised:  #232A2E;
+    --surface-overlay: #2D353A;
 
-    --border-subtle:  #252B2D;
-    --border-default: #30383B;
-    --border-strong:  #444D50;
+    --border-subtle:  #2C3336;
+    --border-default: #3A4347;
+    --border-strong:  #4F595D;
     --border-focus:   var(--azure-300);
 
     --text-primary:    #ECE8DF;
