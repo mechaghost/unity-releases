@@ -75,7 +75,7 @@ export async function generateMetadata({
     const mdHref = `/compare.md?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
     return {
       title: `Unity ${from} → ${to} upgrade diff`,
-      description: `Every blocker, breaking change, API change, package bump, and known issue between Unity ${from} and ${to} — bucketed by impact, with a markdown export for LLM analysis.`,
+      description: `Every blocker, breaking change, API change, package bump, and known issue between Unity ${from} and ${to} - bucketed by impact, with a markdown export for LLM analysis.`,
       alternates: {
         canonical: `/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
         // Advertise the markdown twin so LLM-crawling tools can find it
@@ -85,7 +85,7 @@ export async function generateMetadata({
     };
   }
   // Empty state: let the root layout's default title win so `/` (which
-  // re-exports this page) shows "Unity Releases — Unity 6 release & upgrade
+  // re-exports this page) shows "Unity Releases - Unity 6 release & upgrade
   // intelligence" instead of a doubled-up tagline.
   return {
     description:
@@ -99,7 +99,7 @@ function firstStringParam(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 // by-release lanes paginate via SQL OFFSET, so we only fetch the page we render.
-// dedup lanes fetch a generous slice and paginate the deduped result in memory —
+// dedup lanes fetch a generous slice and paginate the deduped result in memory -
 // 1500 rows is enough to surface ~all unique issues in any realistic diff range.
 const FETCH_FOR_DEDUP = 1500;
 
@@ -129,7 +129,7 @@ export default async function ComparePage({
   // diff for every reader (no cookie influence).
   const selectedStreams = parseCompareStreamSelection(params.getAll("stream"));
 
-  // User filter state — URL is the source of truth, persona cookie is the
+  // User filter state - URL is the source of truth, persona cookie is the
   // first-visit fallback. The drawer applies user changes via router.push.
   const filterState = parseFiltersFromParams(params, presetCookie ?? "balanced");
 
@@ -210,7 +210,7 @@ export default async function ComparePage({
   }
 
   // Project user filters now that we know the regressions boundary
-  // (earliest release_date in scope) — the toggle is a no-op without it.
+  // (earliest release_date in scope) - the toggle is a no-op without it.
   const userSearchFilters = filtersToSearchFilters(
     filterState,
     userPackages,
@@ -239,7 +239,7 @@ export default async function ComparePage({
   // impactKind/riskLevel that defines the lane bucket; user filters narrow
   // within it (search text, platforms, packages, manifest, hasTracker, …).
   // We strip impactKind/riskLevel from the user filters because the lane
-  // already pins those — letting the user re-narrow them via the drawer is
+  // already pins those - letting the user re-narrow them via the drawer is
   // handled at the lane-selection level (laneIdSelection above).
   const userSliceForLanes = { ...userSearchFilters };
   delete userSliceForLanes.impactKind;
@@ -249,7 +249,7 @@ export default async function ComparePage({
     Object.keys(userSliceForLanes).length > 0 || laneIdSelection !== null;
 
   // Aggregate counts. Without user filters, the cheap range aggregate is
-  // accurate. With them, we'd need filtered per-lane counts — handled below
+  // accurate. With them, we'd need filtered per-lane counts - handled below
   // via the SQL window's total_count instead of an extra round-trip.
   const [counts, facets, ...laneRowsArr] = await Promise.all([
     diffRangeCounts(effectiveVersions, platform || undefined),
@@ -348,7 +348,7 @@ export default async function ComparePage({
 
   // Status pills are looked up by issue id on every chip the user can
   // see, so collect ids from both the on-screen rows and the export
-  // rows in one batch — the export adds blockers/known issues that
+  // rows in one batch - the export adds blockers/known issues that
   // weren't on the current page.
   const visibleIssueIds = uniqueValues(
     [
@@ -608,7 +608,7 @@ function ByReleaseLaneBody({
   buildPageUrl: (nextPage: number) => string;
 }) {
   // SQL has already paginated; render exactly what we got. No intra-release
-  // dedup here — across pages it would silently drop rows the user is
+  // dedup here - across pages it would silently drop rows the user is
   // expecting to see for that page index.
   const groups = groupByVersion(rows);
   return (
@@ -899,7 +899,7 @@ function LandingIntro() {
       <h1 className="landing-intro__title">Upgrade Intelligence</h1>
       <p>
         Pick two Unity editor versions and see every blocker, breaking change, API
-        change, package bump, and known issue between them — bucketed into lanes,
+        change, package bump, and known issue between them - bucketed into lanes,
         filterable, and exportable as markdown for an LLM. Built for Unity developers
         deciding when (and whether) to upgrade.
       </p>
@@ -914,8 +914,8 @@ function CompareEmptyPreview() {
       <p className="empty-state__lead">
         Choose your current Unity version on the left and a candidate upgrade target
         on the right. The result is a single page covering every release in between,
-        bucketed into lanes — known blockers, breaking changes, API changes, security,
-        package bumps, regressions, and fixes — plus a downloadable markdown export
+        bucketed into lanes - known blockers, breaking changes, API changes, security,
+        package bumps, regressions, and fixes - plus a downloadable markdown export
         of the full dataset for LLM analysis.
       </p>
     </div>
@@ -929,7 +929,7 @@ function UpgradeMarkdownCta({
 }: {
   markdown: string;
   filename: string;
-  /** Absolute URL of the equivalent `/compare.md` endpoint — gives an
+  /** Absolute URL of the equivalent `/compare.md` endpoint - gives an
    *  LLM tool a single-fetch entry point instead of a paste step. */
   llmUrl: string;
 }) {
@@ -938,7 +938,7 @@ function UpgradeMarkdownCta({
       <div className="upgrade-cta__copy">
         <h2 className="upgrade-cta__heading">Markdown export for LLMs</h2>
         <p>
-          One structured markdown file containing every row in scope — the full
+          One structured markdown file containing every row in scope - the full
           dataset, not just the current page. Download it and paste, or hand
           your LLM the URL below and let it fetch the file directly.
         </p>

@@ -94,7 +94,7 @@ export function issueStatusLabel(status: IssueStatus): string {
   }
 }
 
-/** Compact inline form for chip suffixes — no leading separator. */
+/** Compact inline form for chip suffixes - no leading separator. */
 export function issueStatusSuffix(status: IssueStatus): string | null {
   switch (status.kind) {
     case "resolved":

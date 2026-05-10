@@ -23,7 +23,7 @@ function titleize(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-// Impact kinds we hide from row chips — they're either too vague to act on
+// Impact kinds we hide from row chips - they're either too vague to act on
 // or duplicate other signals on the row (the lane header already tells you
 // it's an install risk in the install-risk lane, etc.).
 const HIDDEN_IMPACT_KINDS = new Set(["install_risk"]);

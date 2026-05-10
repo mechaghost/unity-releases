@@ -164,7 +164,7 @@ describe("diffRangeCounts", () => {
     expect(impactSql).toContain("$2 = ANY(platforms)");
     expect(impactParams).toEqual([["v1"], "WebGL"]);
 
-    // Platform breakdown query never filters by the same platform — it
+    // Platform breakdown query never filters by the same platform - it
     // reports counts for ALL platforms in the range so the dropdown can
     // populate.
     const [platformSql, platformParams] = mocks.query.mock.calls[2];

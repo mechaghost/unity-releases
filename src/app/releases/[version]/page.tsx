@@ -35,7 +35,7 @@ export async function generateMetadata({
   const { version } = await params;
   return {
     title: `Unity ${version} release notes`,
-    description: `Lane-bucketed release notes for Unity ${version} — known blockers, breaking changes, API changes, security fixes, package bumps, and other notable changes parsed from Unity's official release notes.`,
+    description: `Lane-bucketed release notes for Unity ${version} - known blockers, breaking changes, API changes, security fixes, package bumps, and other notable changes parsed from Unity's official release notes.`,
     alternates: { canonical: `/releases/${encodeURIComponent(version)}` }
   };
 }

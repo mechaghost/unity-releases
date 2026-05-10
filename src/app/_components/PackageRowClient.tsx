@@ -16,7 +16,7 @@ type Props = {
 
 /**
  * Wraps one package <tr> with click-to-open dialog behavior. The row
- * itself stays a plain semantic table row — no role override, since
+ * itself stays a plain semantic table row - no role override, since
  * `role="button"` on a <tr> makes browsers stop applying table-cell
  * layout to its children. The focusable + keyboard-activatable
  * affordance lives in a <button> inside the chevron cell; the row's

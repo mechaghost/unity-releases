@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { listReleases } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
 
-// Sitemap is regenerated at most once an hour — release pages change
+// Sitemap is regenerated at most once an hour - release pages change
 // when new versions ship and when notes get reparsed.
 export const revalidate = 3600;
 

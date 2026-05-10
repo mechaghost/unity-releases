@@ -8,8 +8,8 @@
  *   npm run check:packages
  *
  * Exit code:
- *   0 — nothing missing
- *   1 — at least one untracked package surfaced
+ *   0 - nothing missing
+ *   1 - at least one untracked package surfaced
  *
  * The script is read-only and prints a sortable list grouped by mention
  * count so it's obvious which gaps actually matter.
@@ -24,7 +24,7 @@ const MIN_MENTIONS_TO_REPORT = 1;
  * Patterns that aren't real registry packages and would create noise in
  * the report:
  * - `com.unity.modules.*` are built-in editor modules, not registry
- *   entries — they ship with Unity itself and have no /packages page.
+ *   entries - they ship with Unity itself and have no /packages page.
  */
 const IGNORE_PREFIXES = ["com.unity.modules."];
 

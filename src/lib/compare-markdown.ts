@@ -26,7 +26,7 @@ export type CompareMarkdownInput = {
   issueStatuses?: Map<string, IssueStatus>;
   /**
    * Cap entries per lane so the output stays pasteable. Pass `null` (or
-   * a non-positive number) to emit every row — used by the full-export
+   * a non-positive number) to emit every row - used by the full-export
    * download where the consumer wants a complete dataset for an LLM.
    * Defaults to 50 (good for in-page previews / quick paste).
    */
@@ -68,7 +68,7 @@ export function compareToMarkdown(input: CompareMarkdownInput): string {
 
 /**
  * Returns a number that callers compare against `lane.rows.length` to
- * decide whether to print "N more not shown" — when this equals
+ * decide whether to print "N more not shown" - when this equals
  * `lane.rows.length`, no truncation message is emitted.
  */
 function appendLaneBullets(
@@ -160,5 +160,5 @@ function issueSuffix(
   const link = `[${id}](${ISSUE_TRACKER}/${id.toLowerCase()})`;
   const status = statuses?.get(id);
   const suffix = status ? issueStatusSuffix(status) : null;
-  return suffix ? ` — ${link} (${suffix})` : ` — ${link}`;
+  return suffix ? ` - ${link} (${suffix})` : ` - ${link}`;
 }

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "News",
   description:
-    "Mirror of the official Unity blog — secondary to release intelligence, included so you can see Unity-side announcements without leaving the site.",
+    "Mirror of the official Unity blog - secondary to release intelligence, included so you can see Unity-side announcements without leaving the site.",
   alternates: { canonical: "/news" }
 };
 
@@ -30,7 +30,7 @@ export default async function NewsPage() {
           <h1>News</h1>
         </div>
         <p>
-          Mirror of the official Unity blog. Secondary to release intelligence —
+          Mirror of the official Unity blog. Secondary to release intelligence -
           included so you can see Unity-side announcements without leaving the
           site. {news.length.toLocaleString()} posts indexed; click a title to
           read it on unity.com.

@@ -61,7 +61,7 @@ describe("minorLinesBetween", () => {
   });
 
   test("falls back to the two endpoints when majors differ", () => {
-    // We don't try to enumerate across majors — Unity's major bumps
+    // We don't try to enumerate across majors - Unity's major bumps
     // (5000 → 6000) carry too much breakage to claim a numerical path.
     expect(minorLinesBetween("5000.10", "6000.0")).toEqual(["5000.10", "6000.0"]);
   });
@@ -169,7 +169,7 @@ describe("dedupeByIssue", () => {
 
   test("keeps issue-id entries separate from body-hash entries with the same body", () => {
     // A row with an issue id and a row with the same body but no id are
-    // *not* the same fact — Unity sometimes restates an issue without
+    // *not* the same fact - Unity sometimes restates an issue without
     // the id and we'd rather show both than hide one.
     const result = dedupeByIssue([
       row({

@@ -7,7 +7,7 @@ export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
 /**
- * 32×32 PNG favicon — accent-tinted square with a bold "U" wordmark.
+ * 32×32 PNG favicon - accent-tinted square with a bold "U" wordmark.
  * Served at `/icon` with a content-hash filename; Next.js wires the
  * <link rel="icon"> tag automatically.
  */

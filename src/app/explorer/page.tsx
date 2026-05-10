@@ -268,7 +268,7 @@ export default async function ExplorerPage({
                               status && status.kind !== "unknown" ? issueStatusTone(status) : null;
                             const suffix = status ? issueStatusSuffix(status) : null;
                             const titleSuffix =
-                              status && status.kind !== "unknown" ? ` — ${issueStatusLabel(status)}` : "";
+                              status && status.kind !== "unknown" ? ` - ${issueStatusLabel(status)}` : "";
                             return (
                               <a
                                 className="chip chip--issue link-chip"

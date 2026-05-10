@@ -50,7 +50,7 @@ export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
     : `${row.section} note`;
   // Unity occasionally fills `area` with a literal package id like
   // `com.unity.sentis`. The package chip already renders that, so the
-  // area chip would just duplicate it — fall back to the section label
+  // area chip would just duplicate it - fall back to the section label
   // when area looks like a package id.
   const rawArea = row.area;
   const areaLabel =

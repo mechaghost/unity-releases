@@ -96,12 +96,12 @@ export default async function ReleasesPage({
                     </td>
                     <td data-label="Stream">
                       <span className="release-stream">
-                        {streamLabel(release.stream) || "—"}
+                        {streamLabel(release.stream) || "-"}
                       </span>
                     </td>
                     <td data-label="Released">
                       <span className="muted">
-                        {release.release_date ? formatReleaseDate(release.release_date) : "—"}
+                        {release.release_date ? formatReleaseDate(release.release_date) : "-"}
                       </span>
                     </td>
                     <td data-label="Age">

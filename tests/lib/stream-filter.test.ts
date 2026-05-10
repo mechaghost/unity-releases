@@ -93,7 +93,7 @@ describe("streamMatches", () => {
   });
 
   test("respects exact casing", () => {
-    // Same reasoning as parseStreamFilterCookie — matching needs to be
+    // Same reasoning as parseStreamFilterCookie - matching needs to be
     // strict so we don't drift from Unity's canonical stream casing.
     expect(streamMatches("lts", allowed)).toBe(false);
     expect(streamMatches("LTS ", allowed)).toBe(false);
@@ -141,8 +141,8 @@ describe("applyCompareStreamFilter", () => {
     const out = applyCompareStreamFilter(
       releases,
       ["LTS"],
-      "6000.1.0a3", // alpha — not allowed
-      "6000.2.0b1"  // beta — not allowed
+      "6000.1.0a3", // alpha - not allowed
+      "6000.2.0b1"  // beta - not allowed
     );
     expect(out.map((r) => r.version)).toEqual([
       "6000.0.30f1",

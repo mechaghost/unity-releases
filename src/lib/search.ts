@@ -23,7 +23,7 @@ export type ReleaseNoteSearchFilters = {
   /**
    * Regressions-only filter. When set to an ISO date string, drops any
    * row whose issue_ids array intersects with an issue that first
-   * appeared in a release strictly *before* this date — i.e. only "new
+   * appeared in a release strictly *before* this date - i.e. only "new
    * since {date}" issues survive. Pass `range.fromDate` from /compare or
    * a release's own `release_date` from /releases/[version].
    */
@@ -199,7 +199,7 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
 
   if (filters.hasTracker) {
     // A "tracker link" is any non-empty issue_links_json array OR any populated
-    // issue_ids array — the parser populates whichever it can.
+    // issue_ids array - the parser populates whichever it can.
     where.push(
       "((jsonb_typeof(issue_links_json) = 'array' AND jsonb_array_length(issue_links_json) > 0) OR cardinality(issue_ids) > 0)"
     );
@@ -208,7 +208,7 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
   if (filters.pipelines && filters.pipelines.length > 0) {
     // Render-pipeline scope: each selected pipeline contributes an OR clause
     // that matches by `area` value or by `package_names` prefix. Multiple
-    // pipelines OR together — selecting URP and HDRP gives "either".
+    // pipelines OR together - selecting URP and HDRP gives "either".
     const orParts: string[] = [];
     for (const id of filters.pipelines) {
       const def = PIPELINE_DEFINITIONS[id];
@@ -243,7 +243,7 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
     // "Regressions only": drop rows whose issue_ids appear in any older
     // release-note item. Issues introduced *in or after* the boundary
     // date survive. Empty issue_ids never qualify (we can't prove they
-    // weren't pre-existing) — they're dropped too.
+    // weren't pre-existing) - they're dropped too.
     const dateParam = add(filters.regressionsBefore);
     where.push(`
       cardinality(issue_ids) > 0

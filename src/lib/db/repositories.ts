@@ -75,7 +75,7 @@ export type IngestionFreshness = {
   sourceType: string;
   /** Most recent successful ingestion (or null if never). */
   lastSuccessAt: string | null;
-  /** Most recent run regardless of status — distinguishes "never" from "stale". */
+  /** Most recent run regardless of status - distinguishes "never" from "stale". */
   lastRunAt: string | null;
   /** Hours since lastSuccessAt; Infinity if never. */
   hoursSinceLastSuccess: number;
@@ -135,10 +135,10 @@ export type DiffRangeBounds = {
  *
  * Two filters are applied to avoid bringing in noise that wouldn't matter
  * for an upgrade decision:
- *   1. **Stream filter** — caller-supplied. The compare page passes the
+ *   1. **Stream filter** - caller-supplied. The compare page passes the
  *      user's sidebar checkboxes here so the entire app honors the same
  *      "what streams am I tracking?" preference.
- *   2. **Minor-line filter** — only include minor lines on the path from
+ *   2. **Minor-line filter** - only include minor lines on the path from
  *      `from` to `to` (so a 6000.3 → 6000.5 diff doesn't pick up 6000.6
  *      alphas that happened to ship during the same calendar window).
  *
@@ -1079,7 +1079,7 @@ export type ResourceListFilters = {
    *  formats). When false (default) those types are filtered out. */
   includeMarketing?: boolean;
   /** Show resources tagged with a non-games industry (Automotive,
-   *  Manufacturing, Retail, Multi …) — Unity's enterprise pitch
+   *  Manufacturing, Retail, Multi …) - Unity's enterprise pitch
    *  content. When false (default) those rows are filtered out. */
   includeEnterprise?: boolean;
   /** Restrict to specific resource types (E-book, Video, …). */

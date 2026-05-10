@@ -4,9 +4,9 @@ import type { LaneVariant } from "@/app/_components/ReviewLanes";
  * Canonical metadata for the impact lanes used by both the diff view
  * (`/compare`) and the per-release view (`/releases/[version]`).
  *
- * Each page still owns its own data-fetch shape — compare drives SQL
+ * Each page still owns its own data-fetch shape - compare drives SQL
  * filters and pagination, release-detail filters already-fetched rows
- * client-side — but the lane *identity* (title, color, default state,
+ * client-side - but the lane *identity* (title, color, default state,
  * which impact pill to show in the header) lives here so the two pages
  * can never drift apart.
  */

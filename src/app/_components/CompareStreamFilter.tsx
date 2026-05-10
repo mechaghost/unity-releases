@@ -21,7 +21,7 @@ type Props = {
  * Checkbox row above the From/To picker on /compare. Mirrors the
  * /releases stream filter visually but renders a fixed four-bucket
  * taxonomy (LTS / Supported / Beta / Alpha) and submits via GET so the
- * URL stays the sole source of truth — bookmarks and shared links
+ * URL stays the sole source of truth - bookmarks and shared links
  * always render the same scope.
  *
  * Hidden inputs preserve every other URL param except `stream`, so a

@@ -10,7 +10,7 @@ let pool: Pool | null = null;
  *
  * Set `PGSSL_NO_VERIFY=1` (or anything truthy) when running locally
  * against the public proxy to relax the verify check for that one
- * connection only — without leaning on the global
+ * connection only - without leaning on the global
  * `NODE_TLS_REJECT_UNAUTHORIZED` escape hatch.
  */
 function poolSslConfig() {

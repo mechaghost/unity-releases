@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS resources (
   og_image TEXT,
   -- Content-type label as Unity tags it (E-book, Video, Webinar, …).
   resource_type TEXT,
-  -- Industry tag — Unity uses 'Other' (or NULL) for games content; any
+  -- Industry tag - Unity uses 'Other' (or NULL) for games content; any
   -- other value (Automotive, Manufacturing, Retail, Multi …) signals
   -- enterprise/buyer-pitch content.
   industry TEXT,

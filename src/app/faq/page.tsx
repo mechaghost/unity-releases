@@ -25,8 +25,8 @@ const SECTIONS: Section[] = [
             </a>
             . &ldquo;Unity&rdquo; and the Unity logo are trademarks of Unity
             Technologies. This site only ingests and surfaces information that
-            Unity already publishes publicly. For anything authoritative —
-            licensing, support, official roadmaps — go to{" "}
+            Unity already publishes publicly. For anything authoritative -
+            licensing, support, official roadmaps - go to{" "}
             <a href="https://unity.com" target="_blank" rel="noopener noreferrer">
               unity.com
             </a>
@@ -39,7 +39,7 @@ const SECTIONS: Section[] = [
         question: "Which Unity versions are tracked?",
         answer: (
           <>
-            Unity 6 only — the <code>6000.x</code> stream. Pre-Unity-6 versions
+            Unity 6 only - the <code>6000.x</code> stream. Pre-Unity-6 versions
             (the 2019/2020/2021/2022/2023 LTS lines) are out of scope.
           </>
         )
@@ -63,7 +63,7 @@ const SECTIONS: Section[] = [
                 and the markdown release-notes file each one links to. We follow
                 the redirect to the actual version page (e.g.{" "}
                 <code>whats-new/6000.3.14f1</code>) and parse the release notes
-                into individual line items — version, area, platform tags,
+                into individual line items - version, area, platform tags,
                 impact, risk, issue IDs, package names.
               </li>
               <li>
@@ -73,7 +73,7 @@ const SECTIONS: Section[] = [
                 dist-tags, and Unity-version compatibility ranges. The list of
                 packages is hand-curated in{" "}
                 <code>src/lib/ingest/unity-packages.ts</code> because Unity
-                doesn&apos;t publish a registry-listing endpoint —{" "}
+                doesn&apos;t publish a registry-listing endpoint -{" "}
                 <code>npm run check:packages</code> finds new ones in release
                 notes that aren&apos;t in the list yet.
               </li>
@@ -93,9 +93,9 @@ const SECTIONS: Section[] = [
         answer: (
           <>
             <ul>
-              <li>Editor releases — every 12 hours.</li>
-              <li>Packages — every 12 hours.</li>
-              <li>Blog news — daily at 5 AM UTC.</li>
+              <li>Editor releases - every 12 hours.</li>
+              <li>Packages - every 12 hours.</li>
+              <li>Blog news - daily at 5 AM UTC.</li>
             </ul>
             So on any given day the editor and package data is at most ~12
             hours stale. Health and last-success timestamps per source are at{" "}
@@ -118,34 +118,34 @@ const SECTIONS: Section[] = [
             <code>src/lib/classification.ts</code> into one impact bucket:
             <ul>
               <li>
-                <strong>Active known blockers</strong> — known issues with risk
+                <strong>Active known blockers</strong> - known issues with risk
                 level <em>blocker</em>, i.e. things Unity itself flagged as
                 shipping-stoppers.
               </li>
               <li>
-                <strong>Other known issues</strong> — known issues that aren&apos;t
+                <strong>Other known issues</strong> - known issues that aren&apos;t
                 blockers (caution / review level).
               </li>
               <li>
-                <strong>Breaking changes</strong> — anything Unity calls a
+                <strong>Breaking changes</strong> - anything Unity calls a
                 breaking change or that the parser detects as one (deny-listed
                 terms in the body).
               </li>
               <li>
-                <strong>API changes</strong> — public scripting API surface
+                <strong>API changes</strong> - public scripting API surface
                 changed (signature, rename, removal, new namespace).
               </li>
               <li>
-                <strong>Security &amp; install impact</strong> — security fixes
+                <strong>Security &amp; install impact</strong> - security fixes
                 and install/platform risks combined.
               </li>
               <li>
-                <strong>Package updates</strong> — note pertains to a Unity
+                <strong>Package updates</strong> - note pertains to a Unity
                 package version bump.
               </li>
               <li>
                 <strong>Features / Improvements / Fixes / Other changes</strong>{" "}
-                — straightforward.
+                - straightforward.
               </li>
             </ul>
             The classifier is regex- and keyword-driven, not perfect. If a row
@@ -162,23 +162,23 @@ const SECTIONS: Section[] = [
             A second axis on top of impact:
             <ul>
               <li>
-                <strong>Blocker</strong> — Unity-flagged as a shipping-stopper,
+                <strong>Blocker</strong> - Unity-flagged as a shipping-stopper,
                 or the parser detected blocker keywords (crash, data loss,
                 certification-blocking).
               </li>
               <li>
-                <strong>Caution</strong> — meaningful regression, some platforms
+                <strong>Caution</strong> - meaningful regression, some platforms
                 broken, install-time issue.
               </li>
               <li>
-                <strong>Review</strong> — needs a human eyeball: API surface
+                <strong>Review</strong> - needs a human eyeball: API surface
                 changed, package versioning shifted, build pipeline twitched.
               </li>
               <li>
-                <strong>Info</strong> — the rest.
+                <strong>Info</strong> - the rest.
               </li>
             </ul>
-            The risk axis is independent of the lane axis — a row in the Fixes
+            The risk axis is independent of the lane axis - a row in the Fixes
             lane can still be Caution if the underlying problem was bad.
           </>
         )
@@ -196,8 +196,8 @@ const SECTIONS: Section[] = [
           <>
             Filters the visible rows down to issues whose ID first appears in
             the current range (<code>/compare</code>) or in this exact release
-            (<code>/releases/[version]</code>). Carry-forward issues — known
-            problems that existed before this window — get hidden. The boundary
+            (<code>/releases/[version]</code>). Carry-forward issues - known
+            problems that existed before this window - get hidden. The boundary
             comes from the earliest <code>release_date</code> in scope; the SQL
             asks &ldquo;does this issue ID appear in any older release?&rdquo;
             and drops it if so.
@@ -232,7 +232,7 @@ const SECTIONS: Section[] = [
               sessions.
             </p>
             <p>
-              <strong>Saved presets</strong> are user-named filter combos —
+              <strong>Saved presets</strong> are user-named filter combos -
               think &ldquo;Switch cert prep&rdquo; or &ldquo;URP only&rdquo;.
               Save the current filter state under a name; clicking the chip
               re-applies it later. Capped at 10 per view, stored in a
@@ -244,11 +244,11 @@ const SECTIONS: Section[] = [
       {
         id: "release-button",
         question:
-          "The Editor Releases page filters default to 6.3 LTS and 6.0 LTS — how do I see beta or alpha?",
+          "The Editor Releases page filters default to 6.3 LTS and 6.0 LTS - how do I see beta or alpha?",
         answer: (
           <>
             The pill row at the top has Supported, Beta, and Alpha checkboxes.
-            Tick whichever streams you want — the URL updates to{" "}
+            Tick whichever streams you want - the URL updates to{" "}
             <code>?stream=…</code> so you can paste the filtered view to a
             teammate.
           </>
@@ -259,7 +259,7 @@ const SECTIONS: Section[] = [
         question: "Can I share a filtered view as a link?",
         answer: (
           <>
-            Yes — every filter is encoded in the URL. The whole URL is
+            Yes - every filter is encoded in the URL. The whole URL is
             shareable, bookmarkable, and round-trips back into the drawer
             state.
           </>
@@ -279,15 +279,15 @@ const SECTIONS: Section[] = [
             <p>
               Hand the LLM a URL of the form{" "}
               <code>https://unityreleases.com/compare.md?from=&lt;from&gt;&amp;to=&lt;to&gt;</code>
-              {" "}— for example{" "}
+              {" "}- for example{" "}
               <a href="/compare.md?from=6000.0.50f1&to=6000.0.74f1">
                 /compare.md?from=6000.0.50f1&amp;to=6000.0.74f1
               </a>
               . The endpoint returns the full upgrade diff as
               {" "}<code>text/markdown</code>, bucketed into the same lanes you
               see on screen, with issue-tracker links and status suffixes on
-              every issue ID. Any tool that can fetch a URL — Claude&apos;s
-              WebFetch, ChatGPT browsing,{" "}<code>curl</code>, an MCP server —
+              every issue ID. Any tool that can fetch a URL - Claude&apos;s
+              WebFetch, ChatGPT browsing,{" "}<code>curl</code>, an MCP server -
               can ingest it directly. No auth, no rate-limit games.
             </p>
             <p>
@@ -304,7 +304,7 @@ const SECTIONS: Section[] = [
         question: "What does the Markdown export button download?",
         answer: (
           <>
-            The same body the <code>/compare.md</code> endpoint serves —
+            The same body the <code>/compare.md</code> endpoint serves -
             a complete, lane-bucketed diff between the two versions, not
             just the rows currently visible on the page. Filenames follow
             the pattern <code>unity-&lt;from&gt;-to-&lt;to&gt;-upgrade.md</code>

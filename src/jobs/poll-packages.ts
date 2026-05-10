@@ -8,7 +8,7 @@ async function ingestOne(packageName: string): Promise<"ingested" | "missing" | 
   const sourceUrl = `https://packages.unity.com/${packageName}`;
   const fetched = await fetchText(sourceUrl);
 
-  // 404s are common — the registry has no listing endpoint, so the
+  // 404s are common - the registry has no listing endpoint, so the
   // hand-curated UNITY_OFFICIAL_PACKAGES list will inevitably reference
   // a few packages that have moved or been retired. Skip without failing
   // the run.

@@ -44,7 +44,7 @@ export function ComparePicker({
     <>
       {/*
         Submitting via server action persists the `from` value as the user's
-        saved Unity version — no separate "Your Unity version" widget needed.
+        saved Unity version - no separate "Your Unity version" widget needed.
 
         Stream scope sits above the picker so the user picks which Unity
         streams to draw From/To options from before they pick a version.

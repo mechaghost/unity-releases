@@ -12,7 +12,7 @@ export const dynamic = "force-static";
  * LLM-readable resources live.
  *
  * Most importantly, it documents the `/compare.md` endpoint that
- * returns a structured upgrade diff in markdown — the single most
+ * returns a structured upgrade diff in markdown - the single most
  * useful thing an LLM can fetch from this site.
  */
 export async function GET() {
@@ -22,7 +22,7 @@ export async function GET() {
 > Independent release-first intelligence hub for Unity 6.
 > Diff any two Unity editor versions, see every blocker, breaking change,
 > API change, package bump, and known issue between them, bucketed by
-> impact. Not affiliated with Unity Technologies — data is ingested from
+> impact. Not affiliated with Unity Technologies - data is ingested from
 > Unity's public editor release pages, package registry, and blog.
 
 ## What this site is for
@@ -46,11 +46,11 @@ ${origin}/compare.md?from=6000.0.50f1&to=6000.0.74f1
 \`\`\`
 
 Required query parameters:
-- \`from\` — the source Unity editor version (e.g. \`6000.0.50f1\`)
-- \`to\` — the target Unity editor version (e.g. \`6000.0.74f1\`)
+- \`from\` - the source Unity editor version (e.g. \`6000.0.50f1\`)
+- \`to\` - the target Unity editor version (e.g. \`6000.0.74f1\`)
 
 Optional query parameters:
-- \`stream\` — restrict in-between releases to a stream. Repeatable.
+- \`stream\` - restrict in-between releases to a stream. Repeatable.
   Values: \`LTS\`, \`Update/Supported\`, \`beta\`, \`alpha\`. Defaults to
   \`LTS\` if omitted.
 
@@ -62,31 +62,31 @@ status suffixes (\`open\`, \`fixed in 6000.x.y\`) on every issue ID.
 
 If you only need an upgrade summary, this endpoint is the right
 starting point. If you need version metadata or a per-release view,
-hit the HTML pages below — they render the same data with more
+hit the HTML pages below - they render the same data with more
 filtering UI.
 
 ## Pages (HTML)
 
-- [Upgrade Intelligence](${origin}/) — the home page. Pick two versions
+- [Upgrade Intelligence](${origin}/) - the home page. Pick two versions
   to diff. Same data as \`/compare.md\` rendered with filtering UI.
-- [Editor Releases](${origin}/releases) — every indexed Unity 6 editor
+- [Editor Releases](${origin}/releases) - every indexed Unity 6 editor
   release across the supported, beta, and alpha streams.
-- [Per-release notes](${origin}/releases/6000.0.74f1) — replace the
+- [Per-release notes](${origin}/releases/6000.0.74f1) - replace the
   version segment with any indexed release; the body shows lane-bucketed
   release notes for that single release.
-- [Packages](${origin}/packages) — latest versions of tracked official
+- [Packages](${origin}/packages) - latest versions of tracked official
   Unity packages (Input System, Addressables, URP, HDRP, Cinemachine,
   Burst, etc.) with release histories.
-- [News](${origin}/news) — mirror of the official Unity blog. Secondary
+- [News](${origin}/news) - mirror of the official Unity blog. Secondary
   to release intelligence; included for completeness.
-- [FAQ](${origin}/faq) — explanations of the impact lanes, risk levels,
+- [FAQ](${origin}/faq) - explanations of the impact lanes, risk levels,
   data sources, refresh cadence, and filter semantics.
 
 ## Operational
 
 - [Sitemap](${origin}/sitemap.xml)
 - [Robots](${origin}/robots.txt)
-- [Health](${origin}/api/health) — JSON: data freshness per source
+- [Health](${origin}/api/health) - JSON: data freshness per source
 
 ## Conventions
 
@@ -102,8 +102,8 @@ filtering UI.
 
 This site is not affiliated with, endorsed by, or sponsored by Unity
 Technologies. "Unity" and the Unity logo are trademarks of Unity
-Technologies. For anything authoritative — licensing, support, official
-roadmaps — see [unity.com](https://unity.com).
+Technologies. For anything authoritative - licensing, support, official
+roadmaps - see [unity.com](https://unity.com).
 `;
 
   return new NextResponse(body, {

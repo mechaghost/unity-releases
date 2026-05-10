@@ -139,7 +139,7 @@
     --color-info-bg:    #242A2D; --color-info-fg:    #BCC5C8;
     --color-success-bg: #1F3027; --color-success-fg: #A9D3B6;
 
-    /* Same surface bump as the explicit dark theme above — keep these
+    /* Same surface bump as the explicit dark theme above - keep these
        two blocks in lock-step so OS-default and toggle-preference dark
        modes look identical. */
     --surface-base:    #1A2024;
@@ -273,7 +273,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .muted { color: var(--text-muted); }
 .text-secondary { color: var(--text-secondary); }
 
-/* Visibility utility — Unity Hub deep links and similar desktop-only
+/* Visibility utility - Unity Hub deep links and similar desktop-only
    actions should disappear below the mobile breakpoint. */
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }
@@ -703,7 +703,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   border-color: var(--border-subtle);
 }
 
-/* issue-status pill — derived from release-note mentions */
+/* issue-status pill - derived from release-note mentions */
 .chip--status-good {
   background: var(--color-success-bg);
   color: var(--color-success-fg);
@@ -722,7 +722,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   border-color: var(--border-subtle);
 }
 
-/* version pill — anchor-like */
+/* version pill - anchor-like */
 .chip--version {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -1069,7 +1069,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
    negative-space dialog showing per-version changelogs for that
    package. The chevron at the row end is the visible affordance; the
    row's hover state (inherited from .dense-table) signals "clickable."
-   Links inside the row keep their own click handler — see
+   Links inside the row keep their own click handler - see
    PackageRowClient for the target-closest check.
    ======================================================================== */
 
@@ -1426,7 +1426,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 /* Desktop releases table: a contained 6-column list that fills the
    1200px content column. Headers are sticky and sentence-case. The row
-   itself reads as a list with hairline dividers — see spec §4.
+   itself reads as a list with hairline dividers - see spec §4.
    Mobile overrides this in @media (max-width: 1024px) */
 .releases-table-wrap {
   max-width: none;
@@ -1436,7 +1436,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   overflow: hidden;
 }
 
-/* Generic surfaced table wrapper for /news and /issues — matches the
+/* Generic surfaced table wrapper for /news and /issues - matches the
    contained list look used on /releases and /packages. */
 .table-surface {
   background: var(--surface-base);
@@ -1449,7 +1449,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   border-radius: 0;
 }
 
-/* Meta-action row sitting just below a .page-header — used on
+/* Meta-action row sitting just below a .page-header - used on
    /issues/[id] and /releases/[version] for "open external page" links. */
 .page-meta-row { margin-top: var(--space-3); }
 
@@ -1577,7 +1577,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 
 /* Empty state rendered inside the contained .releases-table-wrap so the
-   user always sees a single contained surface — not a bare background. */
+   user always sees a single contained surface - not a bare background. */
 .releases-empty-state {
   display: flex;
   flex-direction: column;
@@ -1846,7 +1846,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   flex-wrap: wrap;
 }
 
-/* Comparing version range — pill → arrow → pill, kept on its own line
+/* Comparing version range - pill → arrow → pill, kept on its own line
    below the h1 so the arrow doesn't drift mid-wrap when the row gets tight. */
 .compare-versions {
   display: inline-flex;
@@ -2345,7 +2345,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   flex-shrink: 0;
 }
 
-/* Filter trigger — gets accent treatment so people stop missing it.
+/* Filter trigger - gets accent treatment so people stop missing it.
    Tinted accent fill at rest, solid accent fill once filters are active. */
 .filter-trigger {
   display: inline-flex;
@@ -2375,7 +2375,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   outline: 2px solid var(--border-focus);
   outline-offset: 2px;
 }
-/* Active state: solid accent — unmistakable that filtering is on. */
+/* Active state: solid accent - unmistakable that filtering is on. */
 .filter-trigger--active {
   background: var(--accent);
   border-color: var(--accent);
@@ -2612,7 +2612,7 @@ button.filter-section__head:focus-visible {
 }
 
 .filter-section[data-collapsed="true"] .filter-section__head {
-  /* No subtle treatment here — collapse is the default state. */
+  /* No subtle treatment here - collapse is the default state. */
 }
 
 .filter-section__body {
@@ -3039,7 +3039,7 @@ button.filter-section__head:focus-visible {
   line-height: var(--leading-sm);
 }
 
-/* Upgrade Guide page header — h1 holds the version-pill range */
+/* Upgrade Guide page header - h1 holds the version-pill range */
 .upgrade-guide__title {
   display: inline-flex;
   flex-wrap: wrap;
@@ -3057,7 +3057,7 @@ button.filter-section__head:focus-visible {
   font-weight: var(--weight-medium);
 }
 
-/* Markdown-export CTA — centerpiece card above the lanes */
+/* Markdown-export CTA - centerpiece card above the lanes */
 .upgrade-cta {
   display: flex;
   flex-wrap: wrap;
@@ -3323,7 +3323,7 @@ button.filter-section__head:focus-visible {
   margin-bottom: var(--space-2);
 }
 
-/* Compare's default-state preview — short list of what the user gets
+/* Compare's default-state preview - short list of what the user gets
    once they pick a from and to version. Solid border (not dashed) so
    it reads as a content card rather than a placeholder. */
 .empty-state--preview {
@@ -3366,7 +3366,7 @@ button.filter-section__head:focus-visible {
   line-height: var(--leading-md);
 }
 
-/* Landing intro — sits above the compare picker on `/`, framing what
+/* Landing intro - sits above the compare picker on `/`, framing what
    the site is for first-time visitors. */
 .landing-intro__title {
   font-size: var(--text-2xl);
@@ -3855,7 +3855,7 @@ button.filter-section__head:focus-visible {
   .releases-table tbody { display: block; }
 
   /* Two-line row, three columns:
-       col 1: Stream | col 2: Age (bottom line) — Version spans 1+2 on top.
+       col 1: Stream | col 2: Age (bottom line) - Version spans 1+2 on top.
        col 3: Actions (vertically centered, spans both rows).
      Spec §4: min-height 64px, padding space-3 / space-4, hairline divider
      between rows, last row has no bottom border. */
@@ -3923,7 +3923,7 @@ button.filter-section__head:focus-visible {
     align-self: center;
   }
 
-  /* Hide the absolute Released date and Notes status — they don't fit the
+  /* Hide the absolute Released date and Notes status - they don't fit the
      two-line mobile row. We surface the relative date (Age) and stream
      instead, per spec §4 ("LTS · 12 days ago"). */
   .releases-table td[data-label="Released"],
@@ -3931,7 +3931,7 @@ button.filter-section__head:focus-visible {
     display: none;
   }
 
-  /* Bottom line: stream label, dot separator, relative date — all muted xs. */
+  /* Bottom line: stream label, dot separator, relative date - all muted xs. */
   .releases-table td[data-label="Stream"] {
     grid-column: 1;
     grid-row: 2;
@@ -4043,7 +4043,7 @@ button.filter-section__head:focus-visible {
 .table-wrap > .dense-table { border: 0; border-radius: 0; }
 
 /* ========================================================================
-   Resources hub — /resources
+   Resources hub - /resources
    ------------------------------------------------------------------------
    The page reuses the existing `page-header`, `filter-bar`,
    `stream-checkbox-filter__option`, `chip`, and `list-toolbar` patterns

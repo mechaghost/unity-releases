@@ -13,7 +13,7 @@ import {
   withIngestionTransaction
 } from "../lib/db/repositories";
 
-// Be polite — we're crawling 700+ pages off a CDN. 6 in flight is well
+// Be polite - we're crawling 700+ pages off a CDN. 6 in flight is well
 // under the implicit limit a Sanity-backed Next.js site can absorb.
 const CONCURRENCY = 6;
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -90,7 +90,7 @@ async function fetchHtmlWithTimeout(url: string, ms: number): Promise<string> {
 }
 
 /** Run `worker(item)` over `items` with at most `n` in-flight at once.
- *  Errors inside a worker bubble up — the caller catches them above. */
+ *  Errors inside a worker bubble up - the caller catches them above. */
 async function runWithConcurrency<T>(
   items: T[],
   n: number,

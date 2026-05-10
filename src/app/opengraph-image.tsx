@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 export const dynamic = "force-static";
 
 export const alt =
-  "Unity Releases — Unity 6 release & upgrade intelligence. Diff editor versions, see blockers, breaking changes, and known issues bucketed by impact.";
+  "Unity Releases - Unity 6 release & upgrade intelligence. Diff editor versions, see blockers, breaking changes, and known issues bucketed by impact.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -81,7 +81,7 @@ export default function OpenGraphImage() {
           }}
         >
           Diff any two Unity editor versions. Every blocker, breaking change,
-          API change, and known issue — bucketed by impact and exportable as
+          API change, and known issue - bucketed by impact and exportable as
           markdown for an LLM.
         </div>
 
@@ -104,7 +104,7 @@ export default function OpenGraphImage() {
               borderRadius: 2
             }}
           />
-          unityreleases.com — independent project, not affiliated with Unity
+          unityreleases.com - independent project, not affiliated with Unity
           Technologies
         </div>
       </div>

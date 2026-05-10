@@ -13,9 +13,9 @@ export const revalidate = 300;
  * browser. The endpoint is documented in /llms.txt and /faq.
  *
  * Status codes:
- * - 200 — markdown body
- * - 400 — required params missing, invalid version shape, or range too wide
- * - 404 — version unknown OR no releases between the two versions
+ * - 200 - markdown body
+ * - 400 - required params missing, invalid version shape, or range too wide
+ * - 404 - version unknown OR no releases between the two versions
  *         in the requested stream scope
  */
 export async function GET(request: Request) {
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       ...textHeaders(),
       // `inline` so an LLM-tool fetch reads the body; the filename
       // hints to a browser save-as dialog if a human hits the URL
-      // directly. No `attachment` — we want this previewable.
+      // directly. No `attachment` - we want this previewable.
       "content-disposition": `inline; filename="${filename}"`
     }
   });
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 function textHeaders(): Record<string, string> {
   return {
     "content-type": "text/markdown; charset=utf-8",
-    // 5 minutes at the CDN, longer at private caches — release data
+    // 5 minutes at the CDN, longer at private caches - release data
     // updates at most every 12 hours via the editor poller, so a
     // stale cache window is fine.
     "cache-control": "public, max-age=300, s-maxage=300, stale-while-revalidate=86400"

@@ -15,7 +15,7 @@ type Props = {
  * (`ReleaseStreamFilter`): a single `.filter-bar` form that auto-
  * submits on change so dropdown picks feel immediate, with the search
  * box debounced 300ms so a typing burst produces one navigation. No
- * "Apply" button — the form just submits whenever state changes.
+ * "Apply" button - the form just submits whenever state changes.
  */
 export function PackagesFilter({ q: initialQ, scope, channel, sort, manifestPackagesCount }: Props) {
   const formRef = useRef<HTMLFormElement>(null);

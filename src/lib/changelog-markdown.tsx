@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
  *
  * Returns React nodes (not an HTML string) so we never have to use
  * `dangerouslySetInnerHTML` and never have to sanitize. Anything we
- * don't recognise renders as plain text — including raw HTML, which
+ * don't recognise renders as plain text - including raw HTML, which
  * is a feature, not a bug.
  *
  * `[text][ref]` reference links and full CommonMark are intentionally
@@ -29,7 +29,7 @@ export function renderChangelog(input: string): ReactNode[] {
       continue;
     }
 
-    // Fenced code block — gobble until the closing fence (or EOF).
+    // Fenced code block - gobble until the closing fence (or EOF).
     const fenceMatch = /^```(.*)$/.exec(trimmed);
     if (fenceMatch) {
       const buf: string[] = [];
@@ -44,7 +44,7 @@ export function renderChangelog(input: string): ReactNode[] {
       continue;
     }
 
-    // Heading — 1 to 6 leading hashes.
+    // Heading - 1 to 6 leading hashes.
     const headingMatch = /^(#{1,6})\s+(.*)$/.exec(trimmed);
     if (headingMatch) {
       blocks.push({
@@ -56,7 +56,7 @@ export function renderChangelog(input: string): ReactNode[] {
       continue;
     }
 
-    // Unordered list — every consecutive line starting with `- ` or `* `.
+    // Unordered list - every consecutive line starting with `- ` or `* `.
     if (/^[-*]\s+/.test(trimmed)) {
       const items: string[] = [];
       while (i < lines.length) {
@@ -64,7 +64,7 @@ export function renderChangelog(input: string): ReactNode[] {
         if (t === "") break;
         const m = /^[-*]\s+(.*)$/.exec(t);
         if (!m) {
-          // Continuation line — append to the previous item with a space
+          // Continuation line - append to the previous item with a space
           // separator so wrapped bullet text doesn't split into a new
           // paragraph.
           if (items.length > 0) items[items.length - 1] += " " + t;
@@ -78,7 +78,7 @@ export function renderChangelog(input: string): ReactNode[] {
       continue;
     }
 
-    // Ordered list — every consecutive line starting with `<n>. `.
+    // Ordered list - every consecutive line starting with `<n>. `.
     if (/^\d+\.\s+/.test(trimmed)) {
       const items: string[] = [];
       while (i < lines.length) {
@@ -97,7 +97,7 @@ export function renderChangelog(input: string): ReactNode[] {
       continue;
     }
 
-    // Blockquote — every consecutive line starting with `>`.
+    // Blockquote - every consecutive line starting with `>`.
     if (/^>\s?/.test(trimmed)) {
       const buf: string[] = [];
       while (i < lines.length && /^>\s?/.test(lines[i].trim())) {
@@ -108,7 +108,7 @@ export function renderChangelog(input: string): ReactNode[] {
       continue;
     }
 
-    // Paragraph — every consecutive non-blank, non-special line.
+    // Paragraph - every consecutive non-blank, non-special line.
     const buf: string[] = [];
     while (i < lines.length) {
       const t = lines[i].trim();
@@ -143,7 +143,7 @@ function renderBlock(block: Block, key: number): ReactNode {
   switch (block.kind) {
     case "heading": {
       // Demote one level so dialog/document headings (h2/h3) outrank
-      // the rendered changelog (h4+). Cap at h6 — semantic deepest.
+      // the rendered changelog (h4+). Cap at h6 - semantic deepest.
       const levelTag: keyof React.JSX.IntrinsicElements =
         (`h${Math.min(6, block.level + 3)}` as keyof React.JSX.IntrinsicElements);
       const Tag = levelTag as "h4" | "h5" | "h6";
@@ -192,7 +192,7 @@ function renderBlock(block: Block, key: number): ReactNode {
 
 /**
  * Inline pass: replace ``code``, [text](url), **bold**, *italic*.
- * Order matters — code first so back-tick contents aren't re-parsed.
+ * Order matters - code first so back-tick contents aren't re-parsed.
  */
 function renderInline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -219,7 +219,7 @@ function renderInline(text: string): ReactNode[] {
           </a>
         );
       } else {
-        // Render the original markdown for unsafe URLs — never a
+        // Render the original markdown for unsafe URLs - never a
         // clickable link to javascript:, file:, etc.
         out.push(matched);
       }

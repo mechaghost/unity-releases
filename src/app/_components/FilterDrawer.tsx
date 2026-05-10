@@ -73,7 +73,7 @@ export function FilterDrawer({
   const initialSerialized = useRef<string>(JSON.stringify(initial));
 
   // Reset internal state to whatever the server reported whenever the drawer
-  // opens — guarantees the form mirrors the active URL state, not a stale
+  // opens - guarantees the form mirrors the active URL state, not a stale
   // edit from a previous open.
   useEffect(() => {
     if (open) {
@@ -263,7 +263,7 @@ export function FilterDrawer({
                 </select>
               </div>
               <p className="filter-section__hint">
-                Narrow the diff window to a slice — useful when bisecting which
+                Narrow the diff window to a slice - useful when bisecting which
                 patch introduced a regression you've already shipped past.
               </p>
             </Section>
@@ -323,7 +323,7 @@ export function FilterDrawer({
               />
               {facets.areas.length > 60 ? (
                 <p className="filter-section__hint">
-                  Showing top 60 of {facets.areas.length} areas — use Search above
+                  Showing top 60 of {facets.areas.length} areas - use Search above
                   to narrow.
                 </p>
               ) : null}
@@ -375,7 +375,7 @@ export function FilterDrawer({
             />
             {facets.packages.length > 50 ? (
               <p className="filter-section__hint">
-                Showing top 50 of {facets.packages.length} packages — use Search above
+                Showing top 50 of {facets.packages.length} packages - use Search above
                 to narrow.
               </p>
             ) : null}
@@ -561,7 +561,7 @@ function Section({
   title: string;
   hint?: string;
   /** How many filters in this section are currently active. Drives both
-   *  the badge next to the title and the section's initial open state —
+   *  the badge next to the title and the section's initial open state -
    *  sections with active filters expand by default; the rest start
    *  collapsed so the drawer doesn't overwhelm. */
   count?: number;

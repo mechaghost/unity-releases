@@ -67,7 +67,7 @@ function useLaneCollapse() {
 
 /**
  * Wraps a lane section so its body collapses without re-rendering the
- * whole page. The whole header is the toggle — click anywhere on it to
+ * whole page. The whole header is the toggle - click anywhere on it to
  * hide/unhide the body. Title left, count right, no extra controls.
  */
 export function LaneShell({

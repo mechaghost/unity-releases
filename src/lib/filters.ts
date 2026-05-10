@@ -255,13 +255,13 @@ export function activeFilterCount(state: FilterState): number {
  *
  *  `manifestPackages` comes from the user's saved manifest cookie (see
  *  getUserPackages). When `manifestOnly` is on, we intersect the explicit
- *  package selection with the manifest list — or, if no explicit selection
+ *  package selection with the manifest list - or, if no explicit selection
  *  was made, fall back to "every package in the manifest".
  */
 export function filtersToSearchFilters(
   state: FilterState,
   manifestPackages: readonly string[] = [],
-  /** Page-supplied boundary for the regressions-only filter — earliest
+  /** Page-supplied boundary for the regressions-only filter - earliest
    *  release_date in the visible scope. The toggle does nothing without it. */
   regressionsBoundary?: string | Date | null
 ): Pick<
@@ -328,7 +328,7 @@ export function filtersToSearchFilters(
       ? Array.from(manifestPackages)
       : pkgs.filter((p) => manifestPackages.includes(p));
     // If the intersection is empty, the user asked for packages they don't
-    // have in their manifest — fall back to manifest only so the result set
+    // have in their manifest - fall back to manifest only so the result set
     // doesn't accidentally include everything.
     if (pkgs.length === 0) pkgs = Array.from(manifestPackages);
   }
@@ -410,7 +410,7 @@ export function savedPresetToState(preset: SavedPreset): FilterState {
   return parseFiltersFromParams(params);
 }
 
-/** Build a SavedPreset from the current FilterState — strips the preset
+/** Build a SavedPreset from the current FilterState - strips the preset
  *  field (saved presets are persona-agnostic) and re-uses the standard
  *  serializer so the qs round-trips cleanly. */
 export function stateToSavedPreset(name: string, state: FilterState): SavedPreset {

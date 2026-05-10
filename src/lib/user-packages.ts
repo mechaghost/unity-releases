@@ -34,7 +34,7 @@ export function parseManifestInput(raw: string): string[] {
       return [...out].sort();
     }
   } catch {
-    /* not JSON — fall through */
+    /* not JSON - fall through */
   }
 
   // Fall back to a delimiter-separated list.

@@ -6,7 +6,7 @@ import { sha256 } from "./hash";
  * Unity's resources index is a client-rendered Next.js shell, so we can't
  * scrape it directly. Each individual `/resources/<slug>` page IS server-
  * rendered and inlines a Sanity-shaped JSON payload via `__next_f.push`
- * chunks — the structured fields (type, topics, vertical, date, isGated,
+ * chunks - the structured fields (type, topics, vertical, date, isGated,
  * etc.) live there, escaped as `\"key\":\"value\"`.
  *
  * The full resources sitemap is at https://unity.com/resources/sitemap.xml
@@ -18,7 +18,7 @@ import { sha256 } from "./hash";
 export const SITEMAP_URL = "https://unity.com/resources/sitemap.xml";
 
 export type SitemapEntry = {
-  /** Absolute resource URL — `https://unity.com/resources/<slug>`. */
+  /** Absolute resource URL - `https://unity.com/resources/<slug>`. */
   url: string;
   /** Last-modified timestamp from the sitemap, ISO string. */
   lastmod: string | null;
@@ -27,7 +27,7 @@ export type SitemapEntry = {
 /**
  * Pull every English `/resources/<slug>` URL out of the resources
  * sitemap. We deliberately skip locale-prefixed copies (`/fr/`, `/cn/`,
- * etc.) — they exist as `<xhtml:link>` alternates within each `<url>`
+ * etc.) - they exist as `<xhtml:link>` alternates within each `<url>`
  * block and would only duplicate content if ingested.
  */
 export function parseResourcesSitemap(xml: string): SitemapEntry[] {
@@ -103,7 +103,7 @@ export function parseResourcePage(
   // the document belong to the site header nav and would label every
   // resource "Mango Header Navigation" if we pulled them naively. We
   // scan for the seo prefix, then read the next title/description fields
-  // — Sanity always emits them in that order.
+  // - Sanity always emits them in that order.
   const seoIndex = html.indexOf('\\"seo\\":{');
   let seoTitle: string | null = null;
   let seoDescription: string | null = null;
@@ -146,7 +146,7 @@ function extractSlug(url: string): string | null {
 }
 
 /** First match for `\"<field>\":{\"label\":\"...\"}`. Used for type,
- *  vertical, readDuration — single-label container fields. */
+ *  vertical, readDuration - single-label container fields. */
 function firstLabel(html: string, field: string): string | null {
   const re = new RegExp(`\\\\\"${escapeRegex(field)}\\\\\":\\{\\\\\"label\\\\\":\\\\\"([^"\\\\]+)\\\\\"\\}`);
   const m = re.exec(html);
@@ -154,7 +154,7 @@ function firstLabel(html: string, field: string): string | null {
 }
 
 /** First `\"<field>\":[ {\"label\":\"a\"},{\"label\":\"b\"} ]` array.
- *  Used for topics + tags — short label lists. */
+ *  Used for topics + tags - short label lists. */
 function collectFirstLabels(html: string, field: string): string[] {
   const re = new RegExp(`\\\\\"${escapeRegex(field)}\\\\\":\\[(.*?)\\]`);
   const m = re.exec(html);
@@ -176,7 +176,7 @@ function firstString(html: string, field: string): string | null {
 }
 
 /** First image URL from a Sanity CDN reference. We prefer the larger
- *  hero image (1200x630 share size when present) — pages often link a
+ *  hero image (1200x630 share size when present) - pages often link a
  *  72×72 favicon first, so we scan all matches and pick the widest. */
 function firstImageUrl(html: string): string | null {
   const RE = /https:\/\/cdn\.sanity\.io\/images\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/[A-Za-z0-9]+-(\d+)x(\d+)\.[A-Za-z0-9]+/g;

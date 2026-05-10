@@ -12,13 +12,13 @@ import { siteUrl } from "@/lib/site";
 const SITE_NAME = "Unity Releases";
 const SITE_TAGLINE = "Unity 6 release & upgrade intelligence";
 const SITE_DESCRIPTION =
-  "Diff any two Unity 6 editor versions. Every blocker, breaking change, API change, package bump, and known issue — bucketed by impact and exportable as markdown for an LLM. Independent project, not affiliated with Unity Technologies.";
+  "Diff any two Unity 6 editor versions. Every blocker, breaking change, API change, package bump, and known issue - bucketed by impact and exportable as markdown for an LLM. Independent project, not affiliated with Unity Technologies.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: {
-    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
-    template: `%s — ${SITE_NAME}`
+    default: `${SITE_NAME} - ${SITE_TAGLINE}`,
+    template: `%s - ${SITE_NAME}`
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
@@ -52,14 +52,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
-    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    title: `${SITE_NAME} - ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
     url: "/",
     locale: "en_US"
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    title: `${SITE_NAME} - ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION
   },
   category: "technology"

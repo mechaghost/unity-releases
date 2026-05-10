@@ -1,7 +1,7 @@
 /**
  * Curated list of official Unity packages tracked by the package poller.
  *
- * Unity's package registry (https://packages.unity.com/) is lookup-only —
+ * Unity's package registry (https://packages.unity.com/) is lookup-only -
  * `/-/all` and `/-/v1/search` both 404, so there is no programmatic
  * discovery endpoint. This list is the canonical source until Unity ships
  * one.

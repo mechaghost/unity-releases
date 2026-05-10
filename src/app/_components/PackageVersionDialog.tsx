@@ -31,7 +31,7 @@ type LoadState =
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** Package name (e.g. com.unity.inputsystem) — keys the API fetch. */
+  /** Package name (e.g. com.unity.inputsystem) - keys the API fetch. */
   packageName: string;
   /** Display label fallback while the API request is in flight. */
   displayName: string | null;
@@ -63,7 +63,7 @@ export function PackageVersionDialog({
 
   useEffect(() => setMounted(true), []);
 
-  // Lazy fetch — only hit the API the first time the dialog is opened
+  // Lazy fetch - only hit the API the first time the dialog is opened
   // for this package. Re-opening reuses the cached result; switching to
   // a different package resets the state.
   useEffect(() => {
@@ -114,7 +114,7 @@ export function PackageVersionDialog({
         e.preventDefault();
         onClose();
       } else if (e.key === "Tab") {
-        // Lightweight focus trap — keep Tab cycling within the dialog.
+        // Lightweight focus trap - keep Tab cycling within the dialog.
         const root = dialogRef.current;
         if (!root) return;
         const focusables = root.querySelectorAll<HTMLElement>(

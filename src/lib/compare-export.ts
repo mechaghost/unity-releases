@@ -34,13 +34,13 @@ export type CompareExportResult =
  * renders, intended for non-browser consumers (LLMs, scripts, CI).
  *
  * Honoured query params:
- * - `from` / `to` (required) — Unity editor versions to diff
- * - `stream` (optional, repeatable) — restrict the in-between releases
+ * - `from` / `to` (required) - Unity editor versions to diff
+ * - `stream` (optional, repeatable) - restrict the in-between releases
  *   to specific streams (`LTS`, `Update/Supported`, `beta`, `alpha`).
  *   When omitted, behaves like the UI default (LTS-only).
  *
  * Cookies, persona presets, manifest filters, and other URL filters
- * are deliberately ignored — the same URL must always produce the same
+ * are deliberately ignored - the same URL must always produce the same
  * markdown so callers can cache, paste, and share it.
  */
 export async function buildCompareMarkdownExport(

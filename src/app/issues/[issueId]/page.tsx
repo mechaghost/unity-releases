@@ -41,7 +41,7 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
             {status.kind !== "unknown" ? (
               <span
                 className={`chip chip--status-${issueStatusTone(status)}`}
-                title="Derived from the latest release-note mention indexed locally — Unity's tracker is the source of truth."
+                title="Derived from the latest release-note mention indexed locally - Unity's tracker is the source of truth."
               >
                 {issueStatusLabel(status)}
               </span>

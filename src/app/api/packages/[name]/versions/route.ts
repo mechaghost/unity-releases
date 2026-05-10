@@ -12,7 +12,7 @@ const PACKAGE_NAME_RE = /^com\.unity\.[a-z0-9][a-z0-9._-]{0,120}$/;
  *
  * Returns the most recent versions of a single Unity package along with
  * their changelogs. Used by the on-screen Package row dialog to lazy-
- * load notes only when the user clicks a row — eager-loading every
+ * load notes only when the user clicks a row - eager-loading every
  * package's full version history would balloon the /packages payload.
  */
 export async function GET(

@@ -13,7 +13,7 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   {
-    // Compare is the landing page — `/` re-exports the compare route, and
+    // Compare is the landing page - `/` re-exports the compare route, and
     // the active-state matcher catches both URLs so the nav highlight
     // tracks correctly whether you arrived via `/` or `/compare`.
     href: "/",

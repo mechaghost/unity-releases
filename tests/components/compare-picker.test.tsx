@@ -31,7 +31,7 @@ describe("ComparePicker", () => {
     expect(html).not.toContain("<datalist");
     expect(html).not.toContain('list="compare-picker-versions"');
     expect(html).toContain('<option value="6000.0.74f1">6000.0.74f1</option>');
-    // Dropdown options should be the bare version string — no stream label
+    // Dropdown options should be the bare version string - no stream label
     // or release-date crammed into the option text.
     const optionMatches = html.match(/<option[^>]*>([^<]+)<\/option>/g) ?? [];
     for (const opt of optionMatches) {

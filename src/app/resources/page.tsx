@@ -48,7 +48,7 @@ export default async function ResourcesPage({
         <p>
           Unity ebooks, videos, webinars, podcasts, and dev articles. Marketing
           (case studies, reports, whitepapers) and enterprise content
-          (non-games industries) are hidden by default — toggle them below to
+          (non-games industries) are hidden by default - toggle them below to
           see the full library.
         </p>
       </section>

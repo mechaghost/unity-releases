@@ -26,7 +26,7 @@ export async function submitCompareAction(formData: FormData) {
   }
 
   // Repeated `stream=` hidden inputs from the picker form preserve the
-  // user's stream scope across a compare submit — the URL is the sole
+  // user's stream scope across a compare submit - the URL is the sole
   // source of truth for the scope, so we have to round-trip it here.
   const streams = formData
     .getAll("stream")

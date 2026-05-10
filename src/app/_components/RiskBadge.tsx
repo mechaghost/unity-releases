@@ -10,7 +10,7 @@ export function riskLabel(value?: string | null) {
 }
 
 // Risk levels we render as chips. "review" and "info" are skipped because
-// they tell the reader nothing they can't infer from the impact pill — the
+// they tell the reader nothing they can't infer from the impact pill - the
 // noise was crowding the actionable rows.
 const RENDERED_RISK_LEVELS = new Set(["blocker", "caution"]);
 

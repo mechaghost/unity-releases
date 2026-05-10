@@ -13,7 +13,7 @@ type Props = {
 /**
  * Copies the canonical `/compare.md` URL to the clipboard so the reader
  * can paste it into a Claude / ChatGPT / Gemini conversation. The LLM
- * fetches the markdown directly — no manual download + paste step.
+ * fetches the markdown directly - no manual download + paste step.
  */
 export function CopyLlmUrlButton({ url }: Props) {
   const [state, setState] = useState<"idle" | "copied" | "error">("idle");

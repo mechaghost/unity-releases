@@ -2,7 +2,7 @@
  * Lane configuration shared between the on-screen `/compare` view and
  * the LLM-facing `/compare.md` export. Centralising it here keeps the
  * markdown export and the rendered page reading from the exact same set
- * of lane definitions — when a new lane is added, it shows up in both
+ * of lane definitions - when a new lane is added, it shows up in both
  * surfaces automatically.
  */
 import { searchReleaseNotesInRange } from "@/lib/db/repositories";
@@ -37,7 +37,7 @@ export type LaneDef = (typeof LANE_CATALOG)[LaneId] & {
 
 type LaneSpec = Omit<LaneDef, keyof (typeof LANE_CATALOG)[LaneId]>;
 
-// Per-lane cap for the markdown download — fetched independently of the
+// Per-lane cap for the markdown download - fetched independently of the
 // on-screen pagination so the file an LLM consumes is the full dataset,
 // not just the current page. Bounded so a pathological range can't OOM
 // the request.

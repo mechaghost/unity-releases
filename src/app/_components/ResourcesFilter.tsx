@@ -16,7 +16,7 @@ type Props = {
  * filter (`ReleaseStreamFilter`): a single `.filter-bar` form that
  * auto-submits on change so checkbox toggles feel immediate. The
  * search box debounces 300ms so a typing burst produces one
- * navigation, not one per keystroke. No "Apply" button — the form
+ * navigation, not one per keystroke. No "Apply" button - the form
  * just submits whenever state changes.
  */
 export function ResourcesFilter({
@@ -54,7 +54,7 @@ export function ResourcesFilter({
       action="/resources"
       aria-label="Resource filter"
       onChange={(e) => {
-        // Skip auto-submit for the text input — the debounced effect
+        // Skip auto-submit for the text input - the debounced effect
         // above handles it; firing on every keystroke would thrash the
         // router.
         const target = e.target as HTMLElement;
@@ -119,7 +119,7 @@ export function ResourcesFilter({
       <label
         className="stream-checkbox-filter__option"
         data-checked={includeEnterprise ? "true" : undefined}
-        title="Non-games industries — Automotive, Manufacturing, Retail, Multi"
+        title="Non-games industries - Automotive, Manufacturing, Retail, Multi"
       >
         <input
           type="checkbox"
