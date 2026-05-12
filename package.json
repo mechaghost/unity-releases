@@ -13,6 +13,7 @@
     "db:migrate": "tsx src/jobs/migrate.ts",
     "ingest:backfill": "tsx src/jobs/backfill-unity6.ts",
     "ingest:editor": "tsx src/jobs/poll-editor.ts",
+    "ingest:legacy-lts": "tsx src/jobs/poll-legacy-lts.ts",
     "ingest:packages": "tsx src/jobs/poll-packages.ts",
     "ingest:news": "tsx src/jobs/poll-news.ts",
     "ingest:resources": "tsx src/jobs/poll-resources.ts",

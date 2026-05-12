@@ -18,7 +18,7 @@ const RELEASES_PER_PAGE = 50;
 export const metadata = {
   title: "Editor Releases",
   description:
-    "Every Unity 6 editor release indexed across the supported, beta, and alpha streams. Click a version for its lane-bucketed release notes, or diff two versions in Upgrade Intelligence.",
+    "Every indexed Unity editor release — Unity 6 by default, plus the 2022 / 2021 / 2020 / 2019 LTS lines when their chips are ticked. Click a version for its lane-bucketed release notes, or diff two versions in Upgrade Intelligence.",
   alternates: { canonical: "/releases" }
 };
 
@@ -50,9 +50,11 @@ export default async function ReleasesPage({
       <section className="page-header">
         <h1>Editor Releases</h1>
         <p>
-          Every Unity 6 editor release indexed across the supported, beta, and
-          alpha streams. Click a version for its lane-bucketed release notes, or
-          use <a href="/">Upgrade Intelligence</a> to diff two of them.{" "}
+          Every indexed Unity editor release. Unity 6 LTS is shown by default;
+          tick a chip to add Supported / Beta / Alpha or the legacy LTS lines
+          (2019.4, 2020.3, 2021.3, 2022.3). Click a version for its
+          lane-bucketed release notes, or use{" "}
+          <a href="/">Upgrade Intelligence</a> to diff two of them.{" "}
           {filtered.length.toLocaleString()} of {all.length.toLocaleString()}{" "}
           shown.
         </p>

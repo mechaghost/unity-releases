@@ -19,12 +19,33 @@ beforeEach(() => {
 });
 
 describe("buildCompareMarkdownExport", () => {
-  test("rejects non-Unity-6 editor version shapes before querying", async () => {
+  test("rejects malformed editor version shapes before querying", async () => {
+    const result = await buildCompareMarkdownExport(
+      new URLSearchParams({ from: "foo.bar.baz", to: "6000.0.74f1" })
+    );
+
+    expect(result).toMatchObject({ ok: false, error: "invalid-versions" });
+    expect(mocks.resolveDiffRange).not.toHaveBeenCalled();
+  });
+
+  test("rejects pre-Unity-6 versions outside the indexed LTS lines", async () => {
+    // 2018 is older than our indexed legacy LTS range (2019-2022) so
+    // the regex should still reject it even though its shape is
+    // otherwise well-formed.
+    const result = await buildCompareMarkdownExport(
+      new URLSearchParams({ from: "2018.4.36f1", to: "2018.4.40f1" })
+    );
+
+    expect(result).toMatchObject({ ok: false, error: "invalid-versions" });
+    expect(mocks.resolveDiffRange).not.toHaveBeenCalled();
+  });
+
+  test("rejects cross-major comparisons before any DB work", async () => {
     const result = await buildCompareMarkdownExport(
       new URLSearchParams({ from: "2022.3.50f1", to: "6000.0.74f1" })
     );
 
-    expect(result).toMatchObject({ ok: false, error: "invalid-versions" });
+    expect(result).toMatchObject({ ok: false, error: "cross-major" });
     expect(mocks.resolveDiffRange).not.toHaveBeenCalled();
   });
 

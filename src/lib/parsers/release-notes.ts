@@ -122,6 +122,11 @@ type Block =
   | { type: "section"; title: string }
   | { type: "bullet"; body: string };
 
+// Markdown bullets in Unity release notes use either `-` (Unity 6) or
+// `*` (legacy 2019-2022 LTS). Match either so the parser yields the
+// same shape regardless of major version.
+const BULLET_PREFIX_RE = /^\s*[-*]\s+/;
+
 function splitIntoBlocks(markdown: string): Block[] {
   const blocks: Block[] = [];
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
@@ -129,7 +134,7 @@ function splitIntoBlocks(markdown: string): Block[] {
 
   const flushBullet = () => {
     if (bullet.length) {
-      blocks.push({ type: "bullet", body: bullet.join("\n").replace(/^\s*-\s*/, "").trim() });
+      blocks.push({ type: "bullet", body: bullet.join("\n").replace(/^\s*[-*]\s*/, "").trim() });
       bullet = [];
     }
   };
@@ -145,7 +150,7 @@ function splitIntoBlocks(markdown: string): Block[] {
       continue;
     }
 
-    if (/^\s*-\s+/.test(line)) {
+    if (BULLET_PREFIX_RE.test(line)) {
       flushBullet();
       bullet.push(line);
       continue;

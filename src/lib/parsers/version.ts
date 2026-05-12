@@ -53,10 +53,18 @@ export function parseUnityVersion(version: string): ParsedUnityVersion {
  * Officially-announced LTS minor lines per major.
  *
  * Unity 6: 6000.0, 6000.3, and 6000.7 are LTS. The minor lines in
- * between are Update/Supported releases. Future LTS lines should be
- * appended here once Unity announces them.
+ * between are Update/Supported releases.
+ *
+ * Pre-Unity-6: only the LTS branch of each major (e.g. 2022.3, 2021.3,
+ * 2020.3, 2019.4) is in scope. Non-LTS lines (2019.1/2/3, 2020.1/2,
+ * etc.) are not tracked since they're long-EOL and produce no
+ * upgrade-decision signal for current users.
  */
 const LTS_MINOR_LINES_BY_MAJOR: Record<number, ReadonlySet<number>> = {
+  2019: new Set([4]),
+  2020: new Set([3]),
+  2021: new Set([3]),
+  2022: new Set([3]),
   6000: new Set([0, 3, 7])
 };
 

@@ -7,11 +7,15 @@ import type { IssueStatus } from "@/lib/issue-status";
 export type CompareExportError =
   | "missing-versions"
   | "invalid-versions"
+  | "cross-major"
   | "range-not-found"
   | "empty-range"
   | "range-too-wide";
 
-const UNITY_6_COMPARE_VERSION_RE = /^6000\.\d+\.\d+[abf]\d+$/;
+// Editor-version shape we accept. Tight enough to reject random query
+// strings, loose enough to allow indexed legacy LTS lines (2019.4,
+// 2020.3, 2021.3, 2022.3) alongside Unity 6 (6000.X.Y).
+const COMPARE_VERSION_RE = /^(2019|2020|2021|2022|6000)\.\d+\.\d+[abf]\d+$/;
 const MAX_COMPARE_EXPORT_VERSIONS = 200;
 
 export type CompareExportResult =
@@ -58,12 +62,27 @@ export async function buildCompareMarkdownExport(
     };
   }
 
-  if (!UNITY_6_COMPARE_VERSION_RE.test(fromVersion) || !UNITY_6_COMPARE_VERSION_RE.test(toVersion)) {
+  if (!COMPARE_VERSION_RE.test(fromVersion) || !COMPARE_VERSION_RE.test(toVersion)) {
     return {
       ok: false,
       error: "invalid-versions",
       message:
-        "`from` and `to` must be Unity 6 editor versions like 6000.0.50f1, 6000.1.0b4, or 6000.2.0a1."
+        "`from` and `to` must be indexed Unity editor versions — for example 6000.0.50f1, 6000.1.0b4, 2022.3.40f1, or 2021.3.45f1."
+    };
+  }
+
+  // Cross-major comparisons (e.g. 2022.3.x → 6000.0.x) mix release-note
+  // sets from independent product lines and produce noisy, misleading
+  // diffs. Reject them at the validator so callers get a clear error
+  // instead of a 200-row dump of unrelated changelogs.
+  const fromMajor = fromVersion.slice(0, fromVersion.indexOf("."));
+  const toMajor = toVersion.slice(0, toVersion.indexOf("."));
+  if (fromMajor !== toMajor) {
+    return {
+      ok: false,
+      error: "cross-major",
+      message:
+        `Compare is scoped to a single Unity major line at a time (got ${fromMajor}.x → ${toMajor}.x). Pick two versions from the same major (e.g. both 2022.3.x or both 6000.x.y).`
     };
   }
 

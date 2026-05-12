@@ -3,7 +3,14 @@ export const RELEASE_FILTERS = [
   { value: "6000.0-lts", label: "6.0 LTS" },
   { value: "update", label: "Supported" },
   { value: "beta", label: "Beta" },
-  { value: "alpha", label: "Alpha" }
+  { value: "alpha", label: "Alpha" },
+  // Legacy LTS lines, off by default. Each chip only shows the
+  // canonical .X LTS minor of its major (2022.3, 2021.3, 2020.3,
+  // 2019.4) — non-LTS branches are not indexed.
+  { value: "2022.3-lts", label: "2022 LTS" },
+  { value: "2021.3-lts", label: "2021 LTS" },
+  { value: "2020.3-lts", label: "2020 LTS" },
+  { value: "2019.4-lts", label: "2019 LTS" }
 ] as const;
 
 export type ReleaseFilterValue = (typeof RELEASE_FILTERS)[number]["value"];
@@ -47,6 +54,14 @@ export function releaseMatchesSelectedFilters(
         return normalizedStream.includes("lts") && release.version.startsWith("6000.0.");
       case "6000.3-lts":
         return normalizedStream.includes("lts") && release.version.startsWith("6000.3.");
+      case "2022.3-lts":
+        return normalizedStream.includes("lts") && release.version.startsWith("2022.3.");
+      case "2021.3-lts":
+        return normalizedStream.includes("lts") && release.version.startsWith("2021.3.");
+      case "2020.3-lts":
+        return normalizedStream.includes("lts") && release.version.startsWith("2020.3.");
+      case "2019.4-lts":
+        return normalizedStream.includes("lts") && release.version.startsWith("2019.4.");
       case "update":
         return normalizedStream.includes("update") || normalizedStream.includes("supported");
       case "beta":

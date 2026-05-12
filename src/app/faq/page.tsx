@@ -39,8 +39,27 @@ const SECTIONS: Section[] = [
         question: "Which Unity versions are tracked?",
         answer: (
           <>
-            Unity 6 only - the <code>6000.x</code> stream. Pre-Unity-6 versions
-            (the 2019/2020/2021/2022/2023 LTS lines) are out of scope.
+            <p>
+              Unity 6 ({" "}<code>6000.x</code>) is the primary focus. The LTS
+              minor lines (<code>6000.0</code>, <code>6000.3</code>) get pinned
+              by default; <strong>Supported</strong>, <strong>Beta</strong>,
+              and <strong>Alpha</strong> chips reveal the rest of the Unity 6
+              stream.
+            </p>
+            <p>
+              Legacy LTS lines are also indexed for upgrade planning:{" "}
+              <code>2022.3</code>, <code>2021.3</code>, <code>2020.3</code>,
+              and <code>2019.4</code>. They appear on{" "}
+              <a href="/releases">Editor Releases</a> when their chip is
+              ticked, and they can be diffed against each other within the
+              same major (e.g. 2022.3.10 → 2022.3.40). Cross-major diffs (a
+              legacy LTS to Unity 6) are intentionally rejected — release
+              notes don't line up across major-version boundaries.
+            </p>
+            <p>
+              Pre-2019 lines and non-LTS branches of legacy years (e.g.
+              2022.1) are not indexed.
+            </p>
           </>
         )
       }
