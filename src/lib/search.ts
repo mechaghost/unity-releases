@@ -153,16 +153,24 @@ export function buildReleaseNoteWhereForVersions(
   versions: string[],
   filters: ReleaseNoteSearchFilters,
   limit: number,
-  offset: number = 0
+  offset: number = 0,
+  options: { includeTotalCount?: boolean } = {}
 ): SqlQuery {
   const { where, values, add } = buildReleaseNoteWhere(filters);
   where.push(`version = ANY(${add(versions)})`);
   const limitParam = add(limit);
   const offsetClause = offset > 0 ? `OFFSET ${add(offset)}` : "";
+  // The `COUNT(*) OVER()` window forces Postgres to compute the full
+  // unfiltered-by-limit match set in the same query before applying
+  // LIMIT. For the common case where the caller already has the count
+  // from the cheap `diffRangeCounts` aggregate (no user-narrowed
+  // filters), the window does ~10× the work for a number we don't need.
+  // Callers explicitly opt in via `includeTotalCount: true`.
+  const projection = options.includeTotalCount ? "*, COUNT(*) OVER() AS total_count" : "*";
 
   return {
     text: `
-      SELECT *, COUNT(*) OVER() AS total_count
+      SELECT ${projection}
       FROM release_note_items
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY release_date DESC NULLS LAST, source_order ASC

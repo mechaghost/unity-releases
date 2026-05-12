@@ -49,10 +49,8 @@ import { ComparePicker } from "../_components/ComparePicker";
 import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
 import { CopyLlmUrlButton } from "../_components/CopyLlmUrlButton";
 import { siteUrl } from "@/lib/site";
-import { compareToMarkdown } from "@/lib/compare-markdown";
 import {
   COMPARE_DEFAULT_COLLAPSED,
-  EXPORT_ROW_LIMIT,
   LANES,
   safeSearchInRange,
   type LaneDef,
@@ -297,11 +295,16 @@ export default async function ComparePage({
       const page = lanePages[lane.id];
       const offset = lane.mode === "by-release" ? (page - 1) * ROWS_PER_LANE : 0;
       const limit = lane.mode === "by-release" ? ROWS_PER_LANE : FETCH_FOR_DEDUP;
+      // Only ask Postgres for COUNT(*) OVER() when we'll actually use
+      // the SQL total. With no user filters, `diffRangeCounts` already
+      // has authoritative numbers via the cheap aggregate; the window
+      // would force a full match-set materialization for nothing.
       return searchReleaseNotesInRange(
         effectiveVersions,
         { ...lane.searchFilter, ...userSliceForLanes },
         limit,
-        offset
+        offset,
+        { includeTotalCount: filtersWereNarrowed }
       ) as Promise<Array<ReleaseNoteRow & { total_count?: string | number }>>;
     })
   ]);
@@ -367,50 +370,16 @@ export default async function ComparePage({
     allReleases.map((r) => [r.version, r.stream])
   );
 
-  // Re-query each visible lane WITHOUT pagination so the markdown export
-  // contains the full dataset (the on-screen lanes only fetch one page or
-  // a 1500-row dedup window). Limited per-lane to EXPORT_ROW_LIMIT so a
-  // pathological range can't OOM the request.
-  const exportLaneRowsRaw = await Promise.all(
-    lanesWithResults.map((l) =>
-      safeSearchInRange(effectiveVersions, l.def, userSliceForLanes, EXPORT_ROW_LIMIT)
-    )
-  );
-  const exportLanes = lanesWithResults.map((l, i) => {
-    let rows = exportLaneRowsRaw[i] ?? [];
-    if (l.def.postFilter) rows = rows.filter(l.def.postFilter);
-    if (l.def.id === "package" && userPackagesSet.size > 0 && !filterState.manifestOnly) {
-      rows = rows.filter((row) => (row.package_names ?? []).some((p) => userPackagesSet.has(p)));
-    }
-    return { def: l.def, totalCount: l.totalCount, rows };
-  });
-
-  // Status pills are looked up by issue id on every chip the user can
-  // see, so collect ids from both the on-screen rows and the export
-  // rows in one batch - the export adds blockers/known issues that
-  // weren't on the current page.
+  // Issue-status pills only need the visible rows now. The full
+  // markdown export used to be pre-rendered here (it required a second
+  // lane fan-out at EXPORT_ROW_LIMIT rows each), but the download
+  // button now lazy-fetches /compare.md on click. That endpoint is
+  // route-cached so repeat clicks are free, and the page render skips
+  // ~10 SQL queries per visit.
   const visibleIssueIds = uniqueValues(
-    [
-      ...lanesWithResults.flatMap((l) => l.fetchedRows.flatMap((r) => r.issue_ids ?? [])),
-      ...exportLanes.flatMap((l) => l.rows.flatMap((r) => r.issue_ids ?? []))
-    ]
+    lanesWithResults.flatMap((l) => l.fetchedRows.flatMap((r) => r.issue_ids ?? []))
   );
   const issueStatuses = await safeIssueStatuses(visibleIssueIds);
-
-  const compareMarkdown = compareToMarkdown({
-    fromVersion,
-    toVersion,
-    reversed: range.reversed,
-    issueStatuses,
-    rowsPerLane: null, // export every row we fetched
-    lanes: exportLanes.map((l) => ({
-      id: l.def.id,
-      title: l.def.title,
-      mode: l.def.mode,
-      rows: l.rows,
-      totalCount: l.totalCount
-    }))
-  });
 
   return (
     <>
@@ -462,8 +431,8 @@ export default async function ComparePage({
       ) : null}
 
       <UpgradeMarkdownCta
-        markdown={compareMarkdown}
         filename={`unity-${fromVersion}-to-${toVersion}-${range.reversed ? "downgrade" : "upgrade"}`}
+        downloadUrl={`/compare.md?from=${encodeURIComponent(fromVersion)}&to=${encodeURIComponent(toVersion)}`}
         llmUrl={`${siteUrl()}/compare.md?from=${encodeURIComponent(fromVersion)}&to=${encodeURIComponent(toVersion)}`}
       />
 
@@ -962,12 +931,15 @@ function CompareEmptyPreview() {
 }
 
 function UpgradeMarkdownCta({
-  markdown,
   filename,
+  downloadUrl,
   llmUrl
 }: {
-  markdown: string;
   filename: string;
+  /** Relative URL the Download button hits on click. /compare.md is
+   *  route-cached so repeat clicks are free, and the page render no
+   *  longer has to pre-build the markdown for every visitor. */
+  downloadUrl: string;
   /** Absolute URL of the equivalent `/compare.md` endpoint - gives an
    *  LLM tool a single-fetch entry point instead of a paste step. */
   llmUrl: string;
@@ -988,7 +960,7 @@ function UpgradeMarkdownCta({
       </div>
       <div className="upgrade-cta__action">
         <CopyMarkdownButton
-          markdown={markdown}
+          url={downloadUrl}
           filename={filename}
           label="Download Release Data"
         />

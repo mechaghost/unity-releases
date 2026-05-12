@@ -4,8 +4,12 @@ import { useState } from "react";
 import { Icon } from "./Icon";
 
 type Props = {
-  /** Pre-rendered markdown the button hands the user as a .md download. */
-  markdown: string;
+  /** Absolute or relative URL to fetch the markdown from. We use this
+   *  instead of a pre-rendered string so the on-screen /compare page
+   *  doesn't have to re-run the 10-lane fan-out (at EXPORT_ROW_LIMIT
+   *  rows each) on every page load just to feed this button. The URL
+   *  hits /compare.md which is route-cached at the CDN. */
+  url: string;
   /** Filename (without extension) for the downloaded file. */
   filename: string;
   /** Optional label override. */
@@ -13,29 +17,35 @@ type Props = {
 };
 
 /**
- * Downloads a server-built markdown snapshot as a .md file. Used on the
- * compare page so a reader can save the diff for upgrade notes, attach
- * it to a PR, or paste it into Slack without retyping.
+ * Downloads the markdown export by fetching /compare.md on click. The
+ * markdown is built server-side once per (from,to,stream) tuple and
+ * cached at the route layer, so repeat clicks are free. Bytes only
+ * cross the wire when the user actually wants the file — pre-rendering
+ * it for everyone burned ~10 SQL queries per page load.
  */
 export function CopyMarkdownButton({
-  markdown,
+  url,
   filename,
   label = "Download markdown"
 }: Props) {
-  const [state, setState] = useState<"idle" | "downloaded" | "error">("idle");
+  const [state, setState] = useState<"idle" | "loading" | "downloaded" | "error">("idle");
 
-  function download() {
+  async function download() {
+    setState("loading");
     try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
       const safeName = sanitizeFilename(filename) || "compare";
-      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
+      const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = blobUrl;
       a.download = `${safeName}.md`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
       setState("downloaded");
       window.setTimeout(() => setState("idle"), 1800);
     } catch {
@@ -45,12 +55,21 @@ export function CopyMarkdownButton({
   }
 
   const text =
-    state === "downloaded"
+    state === "loading"
+      ? "Building…"
+      : state === "downloaded"
       ? "Downloaded!"
       : state === "error"
       ? "Download failed"
       : label;
-  const icon = state === "downloaded" ? "check" : state === "error" ? "x" : "file-text";
+  const icon =
+    state === "loading"
+      ? "file-text"
+      : state === "downloaded"
+      ? "check"
+      : state === "error"
+      ? "x"
+      : "file-text";
 
   return (
     <button
@@ -58,6 +77,7 @@ export function CopyMarkdownButton({
       className="btn btn--small"
       data-state={state}
       onClick={download}
+      disabled={state === "loading"}
       aria-live="polite"
     >
       <Icon name={icon} size={14} />

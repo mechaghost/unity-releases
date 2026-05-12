@@ -310,10 +310,11 @@ export async function searchReleaseNotesInRange(
   versions: string[],
   filters: ReleaseNoteSearchFilters,
   limit = 5000,
-  offset = 0
+  offset = 0,
+  options: { includeTotalCount?: boolean } = {}
 ) {
   if (versions.length === 0) return [];
-  const built = buildReleaseNoteWhereForVersions(versions, filters, limit, offset);
+  const built = buildReleaseNoteWhereForVersions(versions, filters, limit, offset, options);
   const result = await query(built.text, built.values);
   return result.rows;
 }
