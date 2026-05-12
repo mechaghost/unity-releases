@@ -7,7 +7,6 @@ import type { IssueStatus } from "@/lib/issue-status";
 export type CompareExportError =
   | "missing-versions"
   | "invalid-versions"
-  | "cross-major"
   | "range-not-found"
   | "empty-range"
   | "range-too-wide";
@@ -71,20 +70,13 @@ export async function buildCompareMarkdownExport(
     };
   }
 
-  // Cross-major comparisons (e.g. 2022.3.x → 6000.0.x) mix release-note
-  // sets from independent product lines and produce noisy, misleading
-  // diffs. Reject them at the validator so callers get a clear error
-  // instead of a 200-row dump of unrelated changelogs.
-  const fromMajor = fromVersion.slice(0, fromVersion.indexOf("."));
-  const toMajor = toVersion.slice(0, toVersion.indexOf("."));
-  if (fromMajor !== toMajor) {
-    return {
-      ok: false,
-      error: "cross-major",
-      message:
-        `Compare is scoped to a single Unity major line at a time (got ${fromMajor}.x → ${toMajor}.x). Pick two versions from the same major (e.g. both 2022.3.x or both 6000.x.y).`
-    };
-  }
+  // Cross-major diffs (e.g. 2022.3.x → 6000.0.x) are allowed — the
+  // 2022 LTS → Unity 6 jump is the upgrade decision most legacy-LTS
+  // users actually care about. The output mixes release-note sets from
+  // independent product lines, so callers should expect noisy lane
+  // contents, but the data IS useful for upgrade planning. The
+  // MAX_COMPARE_EXPORT_VERSIONS guard below still rejects pathologically
+  // wide ranges so a 2019.4.x → 6000.5.x query can't fan out infinitely.
 
   const selectedStreams = parseCompareStreamSelection(params.getAll("stream"));
   const range = await resolveDiffRange(fromVersion, toVersion, selectedStreams);

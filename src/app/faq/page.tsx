@@ -51,10 +51,11 @@ const SECTIONS: Section[] = [
               <code>2022.3</code>, <code>2021.3</code>, <code>2020.3</code>,
               and <code>2019.4</code>. They appear on{" "}
               <a href="/releases">Editor Releases</a> when their chip is
-              ticked, and they can be diffed against each other within the
-              same major (e.g. 2022.3.10 → 2022.3.40). Cross-major diffs (a
-              legacy LTS to Unity 6) are intentionally rejected — release
-              notes don't line up across major-version boundaries.
+              ticked, and they can be diffed against each other or against
+              Unity 6 — picking a 2022.3.x → 6000.x diff is fine if you're
+              evaluating the jump. Lane contents on cross-major diffs mix
+              release notes from two independent product lines, so expect
+              noisier output than a within-major diff.
             </p>
             <p>
               Pre-2019 lines and non-LTS branches of legacy years (e.g.

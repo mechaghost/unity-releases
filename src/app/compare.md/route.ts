@@ -59,7 +59,6 @@ function isBadRequestError(error: string): boolean {
   return (
     error === "missing-versions" ||
     error === "invalid-versions" ||
-    error === "cross-major" ||
     error === "range-too-wide"
   );
 }

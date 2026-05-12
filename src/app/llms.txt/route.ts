@@ -20,25 +20,26 @@ export async function GET() {
   const body = `# Unity Releases
 
 > Independent release-first intelligence hub for Unity editor releases.
-> Diff any two Unity editor versions within the same major line, see
-> every blocker, breaking change, API change, package bump, and known
-> issue between them, bucketed by impact. Not affiliated with Unity
-> Technologies - data is ingested from Unity's public editor release
-> pages, package registry, and blog.
+> Diff any two Unity editor versions, see every blocker, breaking
+> change, API change, package bump, and known issue between them,
+> bucketed by impact. Not affiliated with Unity Technologies - data is
+> ingested from Unity's public editor release pages, package registry,
+> and blog.
 
 ## What this site is for
 
 A Unity developer (or an LLM helping one) deciding whether and when to
 upgrade. Unity 6 (\`6000.x\`) is the primary focus; the legacy LTS
 lines \`2022.3\`, \`2021.3\`, \`2020.3\`, and \`2019.4\` are also indexed
-for upgrade planning within those majors. The primary surface is a
-lane-bucketed diff between two versions; secondary surfaces list the
-underlying releases, packages, and Unity blog posts.
+for upgrade planning, including the cross-major jump from any of those
+to Unity 6. The primary surface is a lane-bucketed diff between two
+versions; secondary surfaces list the underlying releases, packages,
+and Unity blog posts.
 
-Cross-major diffs (e.g. a 2022.3 version to a 6000.x version) are
-intentionally rejected with a 400 response — release notes don't line
-up across major-version boundaries, so the result wouldn't be
-meaningful. Stay within a single major per request.
+Cross-major diffs (e.g. \`2022.3.50f1\` → \`6000.0.74f1\`) are allowed
+because that's the upgrade decision most legacy-LTS users care about,
+but the lane contents will mix release notes from two independent
+product lines, so the output is noisier than a within-major diff.
 
 ## Markdown endpoint for LLMs
 
@@ -57,8 +58,8 @@ Required query parameters:
 - \`from\` - the source Unity editor version (e.g. \`6000.0.50f1\` or
   \`2022.3.40f1\`). Must be an indexed version on Unity 6 or one of the
   legacy LTS lines (2019.4, 2020.3, 2021.3, 2022.3).
-- \`to\` - the target Unity editor version. Must share its major with
-  \`from\` — cross-major requests return a 400.
+- \`to\` - the target Unity editor version. Same constraints as \`from\`;
+  same-major or cross-major diffs are both supported.
 
 Optional query parameters:
 - \`stream\` - restrict in-between releases to a stream. Repeatable.

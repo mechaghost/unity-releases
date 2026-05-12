@@ -40,15 +40,6 @@ describe("buildCompareMarkdownExport", () => {
     expect(mocks.resolveDiffRange).not.toHaveBeenCalled();
   });
 
-  test("rejects cross-major comparisons before any DB work", async () => {
-    const result = await buildCompareMarkdownExport(
-      new URLSearchParams({ from: "2022.3.50f1", to: "6000.0.74f1" })
-    );
-
-    expect(result).toMatchObject({ ok: false, error: "cross-major" });
-    expect(mocks.resolveDiffRange).not.toHaveBeenCalled();
-  });
-
   test("rejects overly wide ranges before lane fan-out", async () => {
     mocks.resolveDiffRange.mockResolvedValueOnce({
       reversed: false,
