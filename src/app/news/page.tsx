@@ -1,5 +1,6 @@
 import { listFeedEventsByType } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
+import { NewsRowClient } from "../_components/NewsRowClient";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,7 @@ export default async function NewsPage() {
         </thead>
         <tbody>
           {news.map((event) => (
-            <tr key={event.stable_guid}>
+            <NewsRowClient key={event.stable_guid} href={event.source_url}>
               <td>
                 <span className="muted tabnums">{formatDate(event.event_time)}</span>
               </td>
@@ -55,7 +56,7 @@ export default async function NewsPage() {
                   {event.title}
                 </ExternalLink>
               </td>
-            </tr>
+            </NewsRowClient>
           ))}
         </tbody>
       </table></div>
