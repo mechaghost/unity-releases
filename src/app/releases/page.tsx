@@ -152,7 +152,7 @@ function ReleasePagination({
   selectedFilters: ReleaseFilterValue[];
 }) {
   return (
-    <nav className="lane__pagination releases-pagination" aria-label="Editor release pagination">
+    <nav className="lane__pagination" aria-label="Editor release pagination">
       <span className="lane__pagination-status">
         Showing <strong className="tabnums">{pagination.start.toLocaleString()}</strong>
         {pagination.start !== pagination.end ? (
