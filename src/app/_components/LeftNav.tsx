@@ -28,6 +28,12 @@ const NAV: NavItem[] = [
     match: (pathname) => pathname === "/releases" || pathname.startsWith("/releases/")
   },
   {
+    href: "/explorer",
+    label: "Search Notes",
+    icon: "search",
+    match: (pathname) => pathname === "/explorer"
+  },
+  {
     href: "/packages",
     label: "Packages",
     icon: "package",
