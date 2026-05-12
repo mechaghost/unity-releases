@@ -1,10 +1,9 @@
-import { fetchText, DEFAULT_USER_AGENT } from "../lib/ingest/fetch";
-import { sha256 } from "../lib/ingest/hash";
+import { fetchText } from "../lib/ingest/fetch";
+import { fetchHtmlWithRetry, runWithConcurrency } from "../lib/ingest/runner";
 import {
   parseResourcePage,
   parseResourcesSitemap,
-  SITEMAP_URL,
-  type SitemapEntry
+  SITEMAP_URL
 } from "../lib/ingest/resources";
 import {
   getResourceFreshness,
@@ -17,6 +16,7 @@ import {
 // under the implicit limit a Sanity-backed Next.js site can absorb.
 const CONCURRENCY = 6;
 const REQUEST_TIMEOUT_MS = 20_000;
+const MAX_RETRIES = 2;
 const MAX_PER_RUN = Number(process.env.RESOURCES_MAX_PER_RUN ?? 1500);
 
 async function main() {
@@ -40,9 +40,12 @@ async function main() {
     let stats = { fetched: 0, parsed: 0, skipped404: 0, errors: 0 };
     await runWithConcurrency(todo, CONCURRENCY, async (entry) => {
       try {
-        const html = await fetchHtmlWithTimeout(entry.url, REQUEST_TIMEOUT_MS);
+        const fetched = await fetchHtmlWithRetry(entry.url, {
+          timeoutMs: REQUEST_TIMEOUT_MS,
+          retries: MAX_RETRIES
+        });
         stats.fetched += 1;
-        const parsed = parseResourcePage(html, entry.url, entry.lastmod);
+        const parsed = parseResourcePage(fetched.text, entry.url, entry.lastmod);
         if (!parsed) {
           stats.skipped404 += 1;
           return;
@@ -69,49 +72,6 @@ function slugFromUrl(url: string): string {
   const m = /\/resources\/([^/?#]+)/.exec(url);
   return m ? m[1] : url;
 }
-
-async function fetchHtmlWithTimeout(url: string, ms: number): Promise<string> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), ms);
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "user-agent": process.env.INGESTION_USER_AGENT ?? DEFAULT_USER_AGENT,
-        accept: "text/html,*/*"
-      },
-      redirect: "follow",
-      signal: controller.signal
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    return await res.text();
-  } finally {
-    clearTimeout(id);
-  }
-}
-
-/** Run `worker(item)` over `items` with at most `n` in-flight at once.
- *  Errors inside a worker bubble up - the caller catches them above. */
-async function runWithConcurrency<T>(
-  items: T[],
-  n: number,
-  worker: (item: T) => Promise<void>
-): Promise<void> {
-  const queue = items.slice();
-  const inflight: Promise<void>[] = [];
-  for (let i = 0; i < n; i += 1) inflight.push(loop());
-  await Promise.all(inflight);
-
-  async function loop() {
-    while (queue.length > 0) {
-      const item = queue.shift()!;
-      await worker(item);
-    }
-  }
-}
-
-// Touch sha256 to keep the import for callers that may want
-// per-resource hashing in the future; lint would otherwise flag it.
-void sha256;
 
 main().catch((error) => {
   console.error(error);

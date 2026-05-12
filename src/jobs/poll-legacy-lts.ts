@@ -13,7 +13,8 @@
  *
  * Concurrency 4 / 20s timeout / 3 retries on 5xx, polite to Unity.
  */
-import { fetchText, type FetchedSource } from "../lib/ingest/fetch";
+import { fetchText } from "../lib/ingest/fetch";
+import { fetchHtmlWithRetry, runWithConcurrency } from "../lib/ingest/runner";
 import { normalizeReleaseForStorage } from "../lib/ingest/releases";
 import { extractReleasePageMetadata } from "../lib/parsers/release-page";
 import { isLtsMinorLine, parseUnityVersion } from "../lib/parsers/version";
@@ -58,7 +59,7 @@ async function main() {
 
     await runWithConcurrency(todo, CONCURRENCY, async (entry) => {
       try {
-        const page = await fetchHtmlWithRetry(entry.url);
+        const page = await fetchHtmlWithRetry(entry.url, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
         stats.fetched += 1;
         const sourceSnapshotId = await recordSourceSnapshot(client, "editor_release_page", page);
         const metadata = extractReleasePageMetadata(page.text, page.finalUrl);
@@ -67,7 +68,7 @@ async function main() {
         let releaseNotesMarkdown = page.text;
         if (metadata.releaseNotesUrl) {
           try {
-            const notes = await fetchHtmlWithRetry(metadata.releaseNotesUrl);
+            const notes = await fetchHtmlWithRetry(metadata.releaseNotesUrl, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
             notesSnapshotId = await recordSourceSnapshot(client, "editor_release_notes", notes);
             releaseNotesMarkdown = notes.text;
           } catch {
@@ -122,54 +123,6 @@ function safeParseVersion(version: string): ReturnType<typeof parseUnityVersion>
     return parseUnityVersion(version);
   } catch {
     return null;
-  }
-}
-
-async function fetchHtmlWithRetry(url: string): Promise<FetchedSource> {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-    try {
-      const fetched = await Promise.race([
-        fetchText(url),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`timeout for ${url}`)), REQUEST_TIMEOUT_MS)
-        )
-      ]);
-      if (fetched.status >= 500 || fetched.status === 429) {
-        throw new Error(`HTTP ${fetched.status} for ${url}`);
-      }
-      if (fetched.status >= 400) {
-        // 4xx other than 429 means the page is gone permanently — don't
-        // retry. Caller catches and logs.
-        throw new Error(`HTTP ${fetched.status} for ${url}`);
-      }
-      return fetched;
-    } catch (err) {
-      lastErr = err;
-      if (attempt < MAX_RETRIES) {
-        // Exponential backoff: 300ms, 900ms.
-        await new Promise((r) => setTimeout(r, 300 * Math.pow(3, attempt)));
-      }
-    }
-  }
-  throw lastErr;
-}
-
-async function runWithConcurrency<T>(
-  items: T[],
-  n: number,
-  worker: (item: T) => Promise<void>
-): Promise<void> {
-  const queue = items.slice();
-  const inflight: Promise<void>[] = [];
-  for (let i = 0; i < n; i += 1) inflight.push(loop());
-  await Promise.all(inflight);
-
-  async function loop() {
-    while (queue.length > 0) {
-      const item = queue.shift()!;
-      await worker(item);
-    }
   }
 }
 
