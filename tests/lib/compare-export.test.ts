@@ -40,20 +40,17 @@ describe("buildCompareMarkdownExport", () => {
     expect(mocks.resolveDiffRange).not.toHaveBeenCalled();
   });
 
-  test("rejects overly wide ranges before lane fan-out", async () => {
-    mocks.resolveDiffRange.mockResolvedValueOnce({
-      reversed: false,
-      includedStreams: ["LTS"],
-      includedMinorLines: ["6000.0"],
-      versions: Array.from({ length: 201 }, (_, i) => `6000.0.${i}f1`)
-    });
-
+  test("accepts patch-channel (p) versions on legacy LTS lines", async () => {
+    // 2020.3.48p1 etc. are valid Unity LTS patch releases. The regex
+    // must accept `[abfp]`, not just `[abf]`.
     const result = await buildCompareMarkdownExport(
-      new URLSearchParams({ from: "6000.0.1f1", to: "6000.0.201f1" })
+      new URLSearchParams({ from: "2020.3.48p1", to: "2020.3.49p1" })
     );
 
-    expect(result).toMatchObject({ ok: false, error: "range-too-wide" });
-    expect(mocks.searchReleaseNotesInRange).not.toHaveBeenCalled();
-    expect(mocks.getIssueStatuses).not.toHaveBeenCalled();
+    // Rejected on resolveDiffRange (mock returns undefined) — but the
+    // regex check must pass first, so the failure should be
+    // `range-not-found`, not `invalid-versions`.
+    expect(result).toMatchObject({ ok: false, error: "range-not-found" });
+    expect(mocks.resolveDiffRange).toHaveBeenCalledTimes(1);
   });
 });

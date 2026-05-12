@@ -8,14 +8,14 @@ export type CompareExportError =
   | "missing-versions"
   | "invalid-versions"
   | "range-not-found"
-  | "empty-range"
-  | "range-too-wide";
+  | "empty-range";
 
 // Editor-version shape we accept. Tight enough to reject random query
 // strings, loose enough to allow indexed legacy LTS lines (2019.4,
-// 2020.3, 2021.3, 2022.3) alongside Unity 6 (6000.X.Y).
-const COMPARE_VERSION_RE = /^(2019|2020|2021|2022|6000)\.\d+\.\d+[abf]\d+$/;
-const MAX_COMPARE_EXPORT_VERSIONS = 200;
+// 2020.3, 2021.3, 2022.3) alongside Unity 6 (6000.X.Y). Patch-channel
+// (`p`) is included because Unity shipped patch releases on the
+// 2019/2020 LTS lines (e.g. `2020.3.48p1`).
+const COMPARE_VERSION_RE = /^(2019|2020|2021|2022|6000)\.\d+\.\d+[abfp]\d+$/;
 
 export type CompareExportResult =
   | {
@@ -74,9 +74,16 @@ export async function buildCompareMarkdownExport(
   // 2022 LTS → Unity 6 jump is the upgrade decision most legacy-LTS
   // users actually care about. The output mixes release-note sets from
   // independent product lines, so callers should expect noisy lane
-  // contents, but the data IS useful for upgrade planning. The
-  // MAX_COMPARE_EXPORT_VERSIONS guard below still rejects pathologically
-  // wide ranges so a 2019.4.x → 6000.5.x query can't fan out infinitely.
+  // contents, but the data IS useful for upgrade planning.
+  //
+  // There is intentionally no upper bound on `range.versions.length`
+  // here. `/compare.md` is the LLM-facing surface and "fully featured"
+  // means a single fetch returns the full diff even for legacy-LTS →
+  // Unity 6 jumps (~400 versions). The 8s `statement_timeout` on the
+  // DB pool and the `EXPORT_ROW_LIMIT=5000` cap per lane act as the
+  // floor-level safety net against pathological queries. The on-screen
+  // /compare HTML page caps at 500 versions separately, because its
+  // render path is ~5x more expensive per row than the markdown emit.
 
   const selectedStreams = parseCompareStreamSelection(params.getAll("stream"));
   const range = await resolveDiffRange(fromVersion, toVersion, selectedStreams);
@@ -92,13 +99,6 @@ export async function buildCompareMarkdownExport(
       ok: false,
       error: "empty-range",
       message: `No releases between "${fromVersion}" and "${toVersion}" in this stream scope.`
-    };
-  }
-  if (range.versions.length > MAX_COMPARE_EXPORT_VERSIONS) {
-    return {
-      ok: false,
-      error: "range-too-wide",
-      message: `This compare range includes ${range.versions.length} releases. Please request ${MAX_COMPARE_EXPORT_VERSIONS} or fewer releases.`
     };
   }
 

@@ -176,6 +176,45 @@ export default async function ComparePage({
     );
   }
 
+  // Width cap on the HTML render path. The /compare.md endpoint is
+  // intentionally uncapped (it's the LLM-facing "full dataset" surface
+  // and a single fetch ~400 versions wide is the whole point), but the
+  // on-screen view runs each lane query twice (paginated + export) and
+  // adds facet aggregates + count aggregates on top — ~5x the per-row
+  // cost of emitting markdown. 500 covers any realistic upgrade
+  // decision (2019.4 → Unity 6 spans ~305 LTS releases) while keeping
+  // the page from melting under cross-major mega-ranges.
+  const MAX_HTML_COMPARE_VERSIONS = 500;
+  if (range.versions.length > MAX_HTML_COMPARE_VERSIONS) {
+    return (
+      <ComparePicker
+        fromVersion={fromVersion}
+        toVersion={toVersion}
+        releases={pickerReleases}
+        selectedStreams={selectedStreams}
+      >
+        <div className="empty-state">
+          <h2>Range too wide for the on-screen view</h2>
+          <p>
+            This selection covers <strong>{range.versions.length.toLocaleString()}</strong> in-between releases.
+            The HTML page caps at {MAX_HTML_COMPARE_VERSIONS} for performance. Two ways to get the diff:
+          </p>
+          <ul className="empty-state__steps">
+            <li>
+              <strong>Fetch the markdown directly</strong> from{" "}
+              <code>/compare.md?from={fromVersion}&amp;to={toVersion}</code> — that endpoint has
+              no width cap and is the right tool for full-dataset / LLM use.
+            </li>
+            <li>
+              <strong>Narrow the range</strong> using a stream chip (LTS only typically halves
+              the version count), the sub-range slider, or by picking versions on the same major.
+            </li>
+          </ul>
+        </div>
+      </ComparePicker>
+    );
+  }
+
   if (range.versions.length === 0) {
     return (
       <ComparePicker
