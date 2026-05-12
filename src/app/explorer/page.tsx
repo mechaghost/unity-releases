@@ -53,7 +53,7 @@ export default async function ExplorerPage({
         <div>
           <h1>Release Notes</h1>
           <p className="muted">
-            Search Unity 6 release notes by version, issue, subsystem, package, platform, and upgrade risk.
+            Search every indexed Unity release note by version, issue, subsystem, package, platform, and upgrade risk.
           </p>
         </div>
         <div className="stat-strip" aria-label="Search summary">
@@ -222,7 +222,7 @@ export default async function ExplorerPage({
                 ))}
               </div>
             ) : (
-              <p className="muted">Showing the latest indexed Unity 6 notes.</p>
+              <p className="muted">Showing the latest indexed release notes.</p>
             )}
           </div>
 

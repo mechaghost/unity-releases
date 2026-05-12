@@ -89,7 +89,7 @@ export async function generateMetadata({
   // intelligence" instead of a doubled-up tagline.
   return {
     description:
-      "Pick two Unity 6 editor versions and see every blocker, breaking change, API change, package bump, and known issue between them, bucketed into lanes and exportable as markdown for an LLM.",
+      "Pick two Unity editor versions in the same major (Unity 6 or the 2019–2022 LTS lines) and see every blocker, breaking change, API change, package bump, and known issue between them, bucketed into lanes and exportable as markdown for an LLM.",
     alternates: { canonical: "/compare" }
   };
 }
@@ -156,6 +156,35 @@ export default async function ComparePage({
           <CompareEmptyPreview />
         </ComparePicker>
       </>
+    );
+  }
+
+  // Cross-major diffs (e.g. 2022.3.x → 6000.0.x) mix release-note sets
+  // from independent product lines and produce noisy, misleading
+  // results. /compare.md guards this at the validator; the HTML page
+  // surfaces an explicit empty-state instead of silently rendering a
+  // garbage diff. See `tests/lib/compare-export.test.ts` for the
+  // matching API-side test.
+  const fromMajor = fromVersion.slice(0, fromVersion.indexOf("."));
+  const toMajor = toVersion.slice(0, toVersion.indexOf("."));
+  if (fromMajor !== toMajor) {
+    return (
+      <ComparePicker
+        fromVersion={fromVersion}
+        toVersion={toVersion}
+        releases={pickerReleases}
+        selectedStreams={selectedStreams}
+      >
+        <div className="empty-state">
+          <h2>Same-major comparisons only</h2>
+          <p>
+            Pick two versions from the same Unity major. Diffing across major
+            lines (e.g. <code>{fromMajor}.x</code> → <code>{toMajor}.x</code>)
+            mixes release notes from independent product lines, so the result
+            wouldn’t be meaningful.
+          </p>
+        </div>
+      </ComparePicker>
     );
   }
 

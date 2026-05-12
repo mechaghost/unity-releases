@@ -19,18 +19,26 @@ export async function GET() {
   const origin = siteUrl();
   const body = `# Unity Releases
 
-> Independent release-first intelligence hub for Unity 6.
-> Diff any two Unity editor versions, see every blocker, breaking change,
-> API change, package bump, and known issue between them, bucketed by
-> impact. Not affiliated with Unity Technologies - data is ingested from
-> Unity's public editor release pages, package registry, and blog.
+> Independent release-first intelligence hub for Unity editor releases.
+> Diff any two Unity editor versions within the same major line, see
+> every blocker, breaking change, API change, package bump, and known
+> issue between them, bucketed by impact. Not affiliated with Unity
+> Technologies - data is ingested from Unity's public editor release
+> pages, package registry, and blog.
 
 ## What this site is for
 
 A Unity developer (or an LLM helping one) deciding whether and when to
-upgrade between Unity 6 editor versions. The primary surface is a
+upgrade. Unity 6 (\`6000.x\`) is the primary focus; the legacy LTS
+lines \`2022.3\`, \`2021.3\`, \`2020.3\`, and \`2019.4\` are also indexed
+for upgrade planning within those majors. The primary surface is a
 lane-bucketed diff between two versions; secondary surfaces list the
 underlying releases, packages, and Unity blog posts.
+
+Cross-major diffs (e.g. a 2022.3 version to a 6000.x version) are
+intentionally rejected with a 400 response — release notes don't line
+up across major-version boundaries, so the result wouldn't be
+meaningful. Stay within a single major per request.
 
 ## Markdown endpoint for LLMs
 
@@ -46,8 +54,11 @@ ${origin}/compare.md?from=6000.0.50f1&to=6000.0.74f1
 \`\`\`
 
 Required query parameters:
-- \`from\` - the source Unity editor version (e.g. \`6000.0.50f1\`)
-- \`to\` - the target Unity editor version (e.g. \`6000.0.74f1\`)
+- \`from\` - the source Unity editor version (e.g. \`6000.0.50f1\` or
+  \`2022.3.40f1\`). Must be an indexed version on Unity 6 or one of the
+  legacy LTS lines (2019.4, 2020.3, 2021.3, 2022.3).
+- \`to\` - the target Unity editor version. Must share its major with
+  \`from\` — cross-major requests return a 400.
 
 Optional query parameters:
 - \`stream\` - restrict in-between releases to a stream. Repeatable.
@@ -69,8 +80,10 @@ filtering UI.
 
 - [Upgrade Intelligence](${origin}/) - the home page. Pick two versions
   to diff. Same data as \`/compare.md\` rendered with filtering UI.
-- [Editor Releases](${origin}/releases) - every indexed Unity 6 editor
-  release across the supported, beta, and alpha streams.
+- [Editor Releases](${origin}/releases) - every indexed Unity editor
+  release. Unity 6 LTS is shown by default; the chip row reveals
+  Supported / Beta / Alpha plus the 2022, 2021, 2020, and 2019 LTS
+  lines.
 - [Per-release notes](${origin}/releases/6000.0.74f1) - replace the
   version segment with any indexed release; the body shows lane-bucketed
   release notes for that single release.
