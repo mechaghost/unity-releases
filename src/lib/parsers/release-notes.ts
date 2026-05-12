@@ -48,6 +48,14 @@ type ParseReleaseNotesOptions = {
 };
 
 const HEADING_RE = /^(#{3,4})\s+(.+)$/;
+// Bold-only sub-headings — Unity uses these for sub-sections inside a
+// "Packages updated" or "API changes" block, e.g.
+//   `**Packages added**`
+//   `**Packages deprecated**`
+// They sit on their own line with no surrounding bullet syntax. Treat
+// them as section-equivalent markers so the classifier can route the
+// items beneath them (e.g. deprecated packages → breaking_change).
+const BOLD_HEADING_RE = /^\s*\*\*([^*][^*\n]{0,60}?)\*\*\s*$/;
 const ISSUE_LINK_RE = /\[(UUM-\d+)\]\((https?:\/\/[^)]+)\)/g;
 const ISSUE_ID_RE = /\bUUM-\d+\b/g;
 const PACKAGE_RE = /\bcom\.unity\.[a-z0-9.-]+\b/g;
@@ -144,6 +152,20 @@ function splitIntoBlocks(markdown: string): Block[] {
     if (heading) {
       flushBullet();
       const normalized = normalizeHeading(heading[2]);
+      if (normalized) {
+        blocks.push({ type: "section", title: normalized });
+      }
+      continue;
+    }
+
+    // Bold-only sub-headings (`**Packages deprecated**`, etc.) emit a
+    // section block too. We skip these when the bold text looks like
+    // inline emphasis on a bullet — the regex requires the line to be
+    // a bold token and nothing else.
+    const boldHeading = line.match(BOLD_HEADING_RE);
+    if (boldHeading && !BULLET_PREFIX_RE.test(line)) {
+      flushBullet();
+      const normalized = normalizeHeading(boldHeading[1]);
       if (normalized) {
         blocks.push({ type: "section", title: normalized });
       }

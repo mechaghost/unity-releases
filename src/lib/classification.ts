@@ -90,12 +90,47 @@ export function classifyImpact(section: string, body: string): ImpactKind {
     return "known_issue";
   }
 
+  // `**Packages deprecated**` / `Packages removed` sub-sections inside
+  // a "Package Changes" block: these are real breaking changes (a
+  // package the user might depend on is going away). The parser surfaces
+  // these as their own section thanks to the bold-heading rule, so we
+  // route them here before the generic package_change fall-through.
+  if (
+    normalizedSection === "packages deprecated" ||
+    normalizedSection === "packages removed" ||
+    normalizedSection === "packages obsoleted"
+  ) {
+    return "breaking_change";
+  }
+
   if (normalizedSection === "package changes" || normalizedSection === "packages updated") {
+    // Even at the parent section level, run the deny-listed breaking
+    // detector — a stray "no longer supported" line in a package-bump
+    // bullet should outrank the generic package_change classification.
+    return isBreakingChange(body) ? "breaking_change" : "package_change";
+  }
+
+  if (
+    normalizedSection === "packages added" ||
+    normalizedSection === "packages new"
+  ) {
     return "package_change";
   }
 
   if (normalizedSection === "api changes") {
     return isBreakingChange(body) ? "breaking_change" : "api_change";
+  }
+
+  // Bumped minimum macOS / Visual Studio / Android SDK / Xcode versions
+  // are real upgrade risk — the user has to update their toolchain
+  // before this release will install. Without this branch the rows
+  // were classified `unknown` and routed to no lane.
+  if (
+    normalizedSection === "system requirements" ||
+    normalizedSection === "system requirements changes" ||
+    normalizedSection === "platform requirements"
+  ) {
+    return "install_risk";
   }
 
   if (SECURITY_RE.test(body)) {
@@ -149,6 +184,15 @@ export function classifyRisk(section: string, impactKind: ImpactKind, body: stri
     impactKind === "security_related_fix" ||
     impactKind === "install_risk"
   ) {
+    return "review";
+  }
+
+  // Fixes that specifically resolve crashes, data loss, corruption, or
+  // "cannot open" failures are higher-signal than ordinary fixes —
+  // they're the rows a user shopping for an upgrade target wants
+  // surfaced. Promote them from `info` to `review` so they show up in
+  // the upgrade-decision lane instead of getting buried.
+  if (impactKind === "fix" && BLOCKER_RE.test(body)) {
     return "review";
   }
 

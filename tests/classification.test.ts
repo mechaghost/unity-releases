@@ -15,11 +15,25 @@ describe("Unity release note classification", () => {
     );
   });
 
-  test("does not mark crash fixes as active blockers", () => {
-    const impact = classifyImpact("Fixes", "WebGL: Fixed crash when entering play mode");
+  test("elevates crash fixes to review but never to blocker", () => {
+    // Fixes that resolve a crash / data loss / corruption are higher-signal
+    // than ordinary fixes; they should land in the upgrade-review lane
+    // (`review`) so an upgrader can see what was un-broken in this version.
+    // They must NOT escalate further to `blocker` — blocker is reserved
+    // for active known issues, not "issue we just fixed."
+    const body = "WebGL: Fixed crash when entering play mode";
+    const impact = classifyImpact("Fixes", body);
 
     expect(impact).toBe("fix");
-    expect(classifyRisk("Fixes", impact, "WebGL: Fixed crash when entering play mode")).toBe("info");
+    expect(classifyRisk("Fixes", impact, body)).toBe("review");
+  });
+
+  test("leaves ordinary fixes at info risk", () => {
+    const body = "Editor: Tweaked an icon size in the inspector header.";
+    const impact = classifyImpact("Fixes", body);
+
+    expect(impact).toBe("fix");
+    expect(classifyRisk("Fixes", impact, body)).toBe("info");
   });
 
   test("classifies improvements, features, and changes sections", () => {
