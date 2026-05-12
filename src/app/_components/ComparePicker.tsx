@@ -3,6 +3,7 @@ import { submitCompareAction } from "../_actions/compare-submit";
 import { CompareStreamFilter } from "./CompareStreamFilter";
 import { Icon } from "./Icon";
 import type { StreamName } from "@/lib/stream-filter";
+import { compareUnityVersions, parseUnityVersion } from "@/lib/parsers/version";
 
 type ReleaseOption = {
   version: string;
@@ -22,6 +23,40 @@ type Props = {
   action?: ComponentProps<"form">["action"];
 };
 
+/**
+ * Group label shown on each <optgroup> in the From/To dropdowns. Major
+ * lines are presented in DESC version order (Unity 6 first, then the
+ * legacy LTS lines newest-to-oldest), and inside each group the
+ * versions sort by `compareUnityVersions` DESC so a `6000.5.0b6`
+ * appears before `6000.4.5f1` and well above `6000.0.x`. Without the
+ * grouping the picker is a flat list of 400+ options interleaved by
+ * release date, which is unreadable.
+ */
+function majorLabel(major: number): string {
+  if (major === 6000) return "Unity 6";
+  return `Unity ${major} LTS`;
+}
+
+function groupReleasesByMajor(releases: ReleaseOption[]): Array<[number, ReleaseOption[]]> {
+  const groups = new Map<number, ReleaseOption[]>();
+  for (const release of releases) {
+    let major: number;
+    try {
+      major = parseUnityVersion(release.version).major;
+    } catch {
+      continue;
+    }
+    const bucket = groups.get(major) ?? [];
+    bucket.push(release);
+    groups.set(major, bucket);
+  }
+  for (const bucket of groups.values()) {
+    bucket.sort((a, b) => compareUnityVersions(b.version, a.version));
+  }
+  // Major DESC: 6000 first, then 2022, 2021, 2020, 2019.
+  return [...groups.entries()].sort(([a], [b]) => b - a);
+}
+
 export function ComparePicker({
   fromVersion,
   toVersion,
@@ -31,6 +66,7 @@ export function ComparePicker({
   streamRowEnd,
   action = submitCompareAction
 }: Props) {
+  const groupedReleases = groupReleasesByMajor(releases);
   const swapHref =
     fromVersion && toVersion
       ? `/compare?from=${encodeURIComponent(toVersion)}&to=${encodeURIComponent(fromVersion)}${
@@ -64,10 +100,14 @@ export function ComparePicker({
             <option value="" disabled>
               Pick a version
             </option>
-            {releases.map((r) => (
-              <option key={r.version} value={r.version}>
-                {r.version}
-              </option>
+            {groupedReleases.map(([major, items]) => (
+              <optgroup key={major} label={majorLabel(major)}>
+                {items.map((r) => (
+                  <option key={r.version} value={r.version}>
+                    {r.version}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
@@ -88,10 +128,14 @@ export function ComparePicker({
             <option value="" disabled>
               Pick a version
             </option>
-            {releases.map((r) => (
-              <option key={r.version} value={r.version}>
-                {r.version}
-              </option>
+            {groupedReleases.map(([major, items]) => (
+              <optgroup key={major} label={majorLabel(major)}>
+                {items.map((r) => (
+                  <option key={r.version} value={r.version}>
+                    {r.version}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
