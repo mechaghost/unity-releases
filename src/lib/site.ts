@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 /**
  * Canonical absolute origin for the site, used for `metadataBase`,
  * Open Graph URLs, sitemap entries, and robots.txt.
@@ -13,4 +15,51 @@ export function siteUrl(): string {
   // Strip trailing slash so callers can confidently concatenate with
   // a leading-slash path.
   return raw.replace(/\/+$/, "");
+}
+
+export const SITE_NAME = "Unity Releases";
+export const SITE_TAGLINE = "Unity 6 release & upgrade intelligence";
+export const SITE_DESCRIPTION =
+  "Diff any two Unity 6 editor versions. Every blocker, breaking change, API change, package bump, and known issue - bucketed by impact and exportable as markdown for an LLM. Independent project, not affiliated with Unity Technologies.";
+
+/**
+ * Build per-page Open Graph + Twitter metadata so each route surfaces
+ * its own title/description/url when shared on Slack, Discord, X, etc.
+ *
+ * The root layout's default OG image is inherited automatically when
+ * the page's metadata doesn't specify one - Next.js merges OG fields
+ * shallowly across the layout/page boundary.
+ */
+export function pageSocialMetadata(opts: {
+  title: string;
+  description: string;
+  path: string;
+}): Pick<Metadata, "openGraph" | "twitter"> {
+  const fullTitle = `${opts.title} - ${SITE_NAME}`;
+  const url = `${siteUrl()}${opts.path}`;
+  return {
+    openGraph: {
+      title: fullTitle,
+      description: opts.description,
+      url,
+      type: "website",
+      siteName: SITE_NAME,
+      locale: "en_US"
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fullTitle,
+      description: opts.description
+    }
+  };
+}
+
+/**
+ * Serialize a JSON-LD payload for use inside a `<script type="application/ld+json">`
+ * via `dangerouslySetInnerHTML`. Replaces every `<` with `<` so a
+ * release-note body or user-supplied param can never close the surrounding
+ * `</script>` tag.
+ */
+export function jsonLdString(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
 }

@@ -49,7 +49,7 @@ import { ComparePicker } from "../_components/ComparePicker";
 import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
 import { parseUnityVersion } from "@/lib/parsers/version";
 import { CopyLlmUrlButton } from "../_components/CopyLlmUrlButton";
-import { siteUrl } from "@/lib/site";
+import { pageSocialMetadata, siteUrl } from "@/lib/site";
 import {
   COMPARE_DEFAULT_COLLAPSED,
   LANES,
@@ -72,24 +72,30 @@ export async function generateMetadata({
   const to = firstStringParam(params.to);
   if (from && to) {
     const mdHref = `/compare.md?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    const title = `Unity ${from} → ${to} upgrade diff`;
+    const description = `Every blocker, breaking change, API change, package bump, and known issue between Unity ${from} and ${to} - bucketed by impact, with a markdown export for LLM analysis.`;
+    const path = `/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
     return {
-      title: `Unity ${from} → ${to} upgrade diff`,
-      description: `Every blocker, breaking change, API change, package bump, and known issue between Unity ${from} and ${to} - bucketed by impact, with a markdown export for LLM analysis.`,
+      title,
+      description,
       alternates: {
-        canonical: `/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        canonical: path,
         // Advertise the markdown twin so LLM-crawling tools can find it
         // from the HTML page without needing /llms.txt first.
         types: { "text/markdown": mdHref }
-      }
+      },
+      ...pageSocialMetadata({ title, description, path })
     };
   }
   // Empty state: let the root layout's default title win so `/` (which
   // re-exports this page) shows "Unity Releases - Unity 6 release & upgrade
   // intelligence" instead of a doubled-up tagline.
+  const description =
+    "Pick any two Unity editor versions — from Unity 6 or the 2019–2022 LTS lines, same major or across them — and see every blocker, breaking change, API change, package bump, and known issue between them, bucketed into lanes and exportable as markdown for an LLM.";
   return {
-    description:
-      "Pick any two Unity editor versions — from Unity 6 or the 2019–2022 LTS lines, same major or across them — and see every blocker, breaking change, API change, package bump, and known issue between them, bucketed into lanes and exportable as markdown for an LLM.",
-    alternates: { canonical: "/compare" }
+    description,
+    alternates: { canonical: "/compare" },
+    ...pageSocialMetadata({ title: "Compare Unity versions", description, path: "/compare" })
   };
 }
 

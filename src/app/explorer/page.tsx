@@ -7,14 +7,22 @@ import {
 import { type IssueStatus } from "@/lib/issue-status";
 import { streamLabel } from "@/lib/stream-labels";
 import { NoteRow, type NoteRowData } from "../_components/NoteRow";
+import { pageSocialMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
+const EXPLORER_DESCRIPTION =
+  "Faceted search across every indexed Unity release-note row — filter by version, issue, subsystem, package, platform, and upgrade risk.";
+
 export const metadata = {
   title: "Release Notes Search",
-  description:
-    "Faceted search across every indexed Unity release-note row — filter by version, issue, subsystem, package, platform, and upgrade risk.",
-  alternates: { canonical: "/explorer" }
+  description: EXPLORER_DESCRIPTION,
+  alternates: { canonical: "/explorer" },
+  ...pageSocialMetadata({
+    title: "Release Notes Search",
+    description: EXPLORER_DESCRIPTION,
+    path: "/explorer"
+  })
 };
 
 type ReleaseNoteRow = {

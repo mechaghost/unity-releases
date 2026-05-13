@@ -24,6 +24,7 @@ import { Icon } from "../../_components/Icon";
 import { NoteRow, type NoteRowData } from "../../_components/NoteRow";
 import { LaneCollapseProvider, LaneShell } from "../../_components/ReviewLanes";
 import { FilterBar } from "../../_components/FilterBar";
+import { jsonLdString, pageSocialMetadata, siteUrl, SITE_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +34,14 @@ export async function generateMetadata({
   params: Promise<{ version: string }>;
 }) {
   const { version } = await params;
+  const title = `Unity ${version} release notes`;
+  const description = `Lane-bucketed release notes for Unity ${version} - known blockers, breaking changes, API changes, security fixes, package bumps, and other notable changes parsed from Unity's official release notes.`;
+  const path = `/releases/${encodeURIComponent(version)}`;
   return {
-    title: `Unity ${version} release notes`,
-    description: `Lane-bucketed release notes for Unity ${version} - known blockers, breaking changes, API changes, security fixes, package bumps, and other notable changes parsed from Unity's official release notes.`,
-    alternates: { canonical: `/releases/${encodeURIComponent(version)}` }
+    title,
+    description,
+    alternates: { canonical: path },
+    ...pageSocialMetadata({ title, description, path })
   };
 }
 
@@ -123,8 +128,38 @@ export default async function ReleasePage({
   const issueIds = unique(rows.flatMap((r) => r.issue_ids ?? []));
   const issueStatuses = await safeIssueStatuses(issueIds);
 
+  // JSON-LD describing this release as a TechArticle about a specific
+  // Unity Editor version. Helps Google build rich results for the
+  // release-notes search query that drives most organic traffic.
+  const releaseJsonLd = jsonLdString({
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: `Unity ${decoded} release notes`,
+    description: `Lane-bucketed release notes for Unity ${decoded} - known blockers, breaking changes, API changes, security fixes, package bumps, and other notable changes parsed from Unity's official release notes.`,
+    url: `${siteUrl()}/releases/${encodeURIComponent(decoded)}`,
+    ...(release?.release_date
+      ? { datePublished: new Date(release.release_date).toISOString() }
+      : {}),
+    about: {
+      "@type": "SoftwareApplication",
+      name: "Unity Editor",
+      softwareVersion: decoded,
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Windows, macOS, Linux"
+    },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: siteUrl()
+    }
+  });
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: releaseJsonLd }}
+      />
       <section className="page-header">
         <div className="page-header__title-row">
           <h1>

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { listReleases } from "@/lib/db/repositories";
+import { listReleases, listTopIssueIds } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
 
 // Sitemap is regenerated at most once an hour - release pages change
@@ -7,6 +7,8 @@ import { siteUrl } from "@/lib/site";
 export const revalidate = 3600;
 
 type ReleaseRow = { version: string; release_date: string | Date | null };
+
+const TOP_ISSUE_LIMIT = 500;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = siteUrl();
@@ -39,5 +41,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8
   }));
 
-  return [...staticEntries, ...releaseEntries];
+  // Top-mentioned issues are valuable SEO targets - people search for
+  // UUM-xxxxx when they hit a problem. Cap at TOP_ISSUE_LIMIT so the
+  // sitemap stays well under search engines' 50,000-URL limit and
+  // doesn't drown the more important release pages.
+  let topIssues: string[] = [];
+  try {
+    topIssues = await listTopIssueIds(TOP_ISSUE_LIMIT);
+  } catch {
+    topIssues = [];
+  }
+  const issueEntries: MetadataRoute.Sitemap = topIssues.map((id) => ({
+    url: `${origin}/issues/${encodeURIComponent(id)}`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: 0.5
+  }));
+
+  return [...staticEntries, ...releaseEntries, ...issueEntries];
 }

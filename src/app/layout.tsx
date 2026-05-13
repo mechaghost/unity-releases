@@ -7,12 +7,12 @@ import { NoFlashScript } from "./_components/NoFlashScript";
 import { UserVersionDialog, type DialogRelease } from "./_components/UserVersionDialog";
 import { listReleases } from "@/lib/db/repositories";
 import { getUserVersion } from "@/lib/user-version";
-import { siteUrl } from "@/lib/site";
-
-const SITE_NAME = "Unity Releases";
-const SITE_TAGLINE = "Unity 6 release & upgrade intelligence";
-const SITE_DESCRIPTION =
-  "Diff any two Unity 6 editor versions. Every blocker, breaking change, API change, package bump, and known issue - bucketed by impact and exportable as markdown for an LLM. Independent project, not affiliated with Unity Technologies.";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TAGLINE,
+  siteUrl
+} from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),

@@ -1,8 +1,13 @@
+import { pageSocialMetadata } from "@/lib/site";
+
+const FAQ_DESCRIPTION =
+  "Where Unity Releases data comes from, how often it updates, what the impact lanes and risk levels mean, and the standard not-affiliated-with-Unity disclaimer.";
+
 export const metadata = {
   title: "FAQ",
-  description:
-    "Where Unity Releases data comes from, how often it updates, what the impact lanes and risk levels mean, and the standard not-affiliated-with-Unity disclaimer.",
-  alternates: { canonical: "/faq" }
+  description: FAQ_DESCRIPTION,
+  alternates: { canonical: "/faq" },
+  ...pageSocialMetadata({ title: "FAQ", description: FAQ_DESCRIPTION, path: "/faq" })
 };
 
 type QA = { id: string; question: React.ReactNode; answer: React.ReactNode };

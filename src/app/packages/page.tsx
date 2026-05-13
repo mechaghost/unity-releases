@@ -5,14 +5,22 @@ import { ExternalLink } from "../_components/ExternalLink";
 import { SidebarUserPackages } from "../_components/SidebarUserPackages";
 import { PackageRowClient } from "../_components/PackageRowClient";
 import { PackagesFilter } from "../_components/PackagesFilter";
+import { pageSocialMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
+const PACKAGES_DESCRIPTION =
+  "Latest versions and release histories for tracked official Unity packages - Input System, Addressables, URP, HDRP, Cinemachine, Burst, and more - sourced from the Unity package registry.";
+
 export const metadata = {
   title: "Packages",
-  description:
-    "Latest versions and release histories for tracked official Unity packages - Input System, Addressables, URP, HDRP, Cinemachine, Burst, and more - sourced from the Unity package registry.",
-  alternates: { canonical: "/packages" }
+  description: PACKAGES_DESCRIPTION,
+  alternates: { canonical: "/packages" },
+  ...pageSocialMetadata({
+    title: "Packages",
+    description: PACKAGES_DESCRIPTION,
+    path: "/packages"
+  })
 };
 
 type PackageRow = {

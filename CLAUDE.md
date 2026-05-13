@@ -88,13 +88,13 @@ mention count. Add the ones worth tracking to the list and re-run
 
 Primary navigation (sidebar on desktop, drawer on mobile):
 
-- `/` - redirects to `/releases`
+- `/` - serves the compare view (re-exports `/compare/page`)
 - `/releases` - editor release index, paginated, with stream filter
 - `/releases/[version]` - release detail with lane-bucketed parsed notes
 - `/compare?from=X&to=Y` - diff view, lane-bucketed, with sub-range slider
-- `/packages` - package index (sortable)
-- `/packages/[name]` - package detail
+- `/packages` - package index (sortable; no per-package page yet, only `/api/packages/[name]`)
 - `/news` - official Unity blog feed
+- `/resources` - Unity 6 ebooks/videos/webinars/podcasts/articles, marketing+enterprise filtered out by default
 - `/faq` - source list + not-affiliated-with-Unity disclaimer
 - `/explorer` - global release-note workbench (faceted search)
 - `/upgrade` - upgrade review lanes
@@ -127,9 +127,10 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 162 tests across parsers,
-classification, search SQL, lane logic, ingestion normalization,
-filter state round-trips, server actions, and component renderers.
+`npm test` runs the full Vitest suite — 226 tests across 32 files
+covering parsers, classification, search SQL, lane logic, ingestion
+normalization, filter state round-trips, server actions, component
+renderers, SEO metadata, and sitemap shape.
 
 Run `npm run typecheck` + `npm test` before committing anything
 non-trivial. Both must pass.

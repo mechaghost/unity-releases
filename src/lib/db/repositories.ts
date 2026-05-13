@@ -655,6 +655,24 @@ export async function getRelease(version: string) {
   return result.rows[0] ?? null;
 }
 
+/** Top issue ids by mention count, used by the sitemap so search
+ *  engines can discover the most-referenced `/issues/UUM-xxxxx` pages
+ *  without crawling every release page first. Ordered by mention
+ *  count desc, then by issue id for a stable build output. */
+export async function listTopIssueIds(limit = 500): Promise<string[]> {
+  const result = await query<{ issue_id: string }>(
+    `
+      SELECT issue_id
+      FROM issue_mentions
+      GROUP BY issue_id
+      ORDER BY COUNT(*) DESC, issue_id ASC
+      LIMIT $1
+    `,
+    [limit]
+  );
+  return result.rows.map((r) => r.issue_id);
+}
+
 /** Map of release version → parsed-note-item count, used by the desktop
  *  releases table to render a "Parsed · N entries" status column without
  *  N+1 queries. Versions with no parsed notes are omitted. */

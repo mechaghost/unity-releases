@@ -8,6 +8,7 @@ import {
   releasePageHref,
   type ReleaseFilterValue
 } from "@/lib/release-page-filter";
+import { pageSocialMetadata } from "@/lib/site";
 import { VersionPill } from "../_components/VersionPill";
 import { ReleaseStreamFilter } from "../_components/ReleaseStreamFilter";
 import { Icon } from "../_components/Icon";
@@ -15,11 +16,18 @@ import { Icon } from "../_components/Icon";
 export const dynamic = "force-dynamic";
 const RELEASES_PER_PAGE = 50;
 
+const RELEASES_DESCRIPTION =
+  "Every indexed Unity editor release — Unity 6 by default, plus the 2022 / 2021 / 2020 / 2019 LTS lines when their chips are ticked. Click a version for its lane-bucketed release notes, or diff two versions in Upgrade Intelligence.";
+
 export const metadata = {
   title: "Editor Releases",
-  description:
-    "Every indexed Unity editor release — Unity 6 by default, plus the 2022 / 2021 / 2020 / 2019 LTS lines when their chips are ticked. Click a version for its lane-bucketed release notes, or diff two versions in Upgrade Intelligence.",
-  alternates: { canonical: "/releases" }
+  description: RELEASES_DESCRIPTION,
+  alternates: { canonical: "/releases" },
+  ...pageSocialMetadata({
+    title: "Editor Releases",
+    description: RELEASES_DESCRIPTION,
+    path: "/releases"
+  })
 };
 
 type Release = {

@@ -1,14 +1,18 @@
 import { listFeedEventsByType } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
 import { NewsRowClient } from "../_components/NewsRowClient";
+import { pageSocialMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
+const NEWS_DESCRIPTION =
+  "Mirror of the official Unity blog - secondary to release intelligence, included so you can see Unity-side announcements without leaving the site.";
+
 export const metadata = {
   title: "News",
-  description:
-    "Mirror of the official Unity blog - secondary to release intelligence, included so you can see Unity-side announcements without leaving the site.",
-  alternates: { canonical: "/news" }
+  description: NEWS_DESCRIPTION,
+  alternates: { canonical: "/news" },
+  ...pageSocialMetadata({ title: "News", description: NEWS_DESCRIPTION, path: "/news" })
 };
 
 type FeedEvent = {

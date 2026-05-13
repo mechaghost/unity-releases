@@ -1,14 +1,22 @@
 import { listResources, type ResourceRow } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
 import { ResourcesFilter } from "../_components/ResourcesFilter";
+import { pageSocialMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
+const RESOURCES_DESCRIPTION =
+  "Unity 6 ebooks, videos, webinars, podcasts, and dev articles, with the marketing/enterprise content filtered out by default. Pulled from Unity's public resources hub.";
+
 export const metadata = {
   title: "Resources",
-  description:
-    "Unity 6 ebooks, videos, webinars, podcasts, and dev articles, with the marketing/enterprise content filtered out by default. Pulled from Unity's public resources hub.",
-  alternates: { canonical: "/resources" }
+  description: RESOURCES_DESCRIPTION,
+  alternates: { canonical: "/resources" },
+  ...pageSocialMetadata({
+    title: "Resources",
+    description: RESOURCES_DESCRIPTION,
+    path: "/resources"
+  })
 };
 
 const KNOWN_TYPES = ["E-book", "Video", "Webinar", "Podcast", "Article", "Tutorial"] as const;

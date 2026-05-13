@@ -18,8 +18,27 @@ import {
   resolveActiveMajor,
   uniqueMajorsDesc
 } from "@/lib/issue-page-scope";
+import { pageSocialMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params
+}: {
+  params: Promise<{ issueId: string }>;
+}) {
+  const { issueId } = await params;
+  const id = decodeURIComponent(issueId);
+  const title = `${id} - Unity release-note mentions`;
+  const description = `Every indexed Unity release-note row that mentions ${id} - with derived resolution status, impact, and risk across the editor versions where it appears.`;
+  const path = `/issues/${encodeURIComponent(id)}`;
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    ...pageSocialMetadata({ title, description, path })
+  };
+}
 
 type Mention = {
   id: number;
