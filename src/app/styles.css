@@ -816,15 +816,6 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .explorer-filter > a {
   min-width: 0;
 }
-/* Force bottom-align on the action elements. The form also carries the
- * `.filter-bar` class, whose `align-items: center` rule lives later in
- * this file and silently wins over `.explorer-filter`'s `align-items:
- * end`. The Clear link already has its own `align-self: end`; the
- * Search submit needs the same so it bottom-aligns with the input row
- * instead of sitting 9px short. */
-.explorer-filter > button[type="submit"] {
-  align-self: end;
-}
 .explorer-filter label:first-child {
   /* The free-text search input gets two slots so it has room to breathe. */
   grid-column: span 2;
@@ -1797,7 +1788,13 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
-  align-items: center;
+  /* Bottom-align children so labelled inputs (span + 32px field stacked
+   * vertically, ~50px total) and bare chips / buttons (32px) share the
+   * same baseline at the foot of the row. With `center` the bare items
+   * floated ~9px above the input row on /packages, /resources, /releases,
+   * and /explorer because the row height is dictated by the taller
+   * labelled fields. */
+  align-items: end;
 }
 
 .filter-bar select,
@@ -2987,7 +2984,10 @@ button.filter-section__head:focus-visible {
 
 .compare-picker {
   display: flex;
-  align-items: center;
+  /* Same reasoning as `.filter-bar` — keep the From / To dropdowns bottom-
+   * aligned with the bare swap arrow + Compare submit so all four sit on
+   * one baseline. */
+  align-items: end;
   gap: var(--space-3);
   background: var(--surface-base);
   border: 1px solid var(--border-default);
