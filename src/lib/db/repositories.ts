@@ -203,7 +203,10 @@ export async function resolveDiffRange(
   const lower = fromTime <= toTime ? fromDate : toDate;
   const upper = fromTime <= toTime ? toDate : fromDate;
 
-  const includedMinorLines = minorLinesBetween(fromRow.minor_line, toRow.minor_line);
+  const includedMinorLines = await minorLinesBetweenAcrossMajors(
+    fromRow.minor_line,
+    toRow.minor_line
+  );
 
   // If the sidebar has unchecked everything we still need a non-empty
   // ANY() argument; an empty array would make the query return no rows.
@@ -250,6 +253,64 @@ export async function resolveDiffRange(
     includedStreams: allowedStreams,
     includedMinorLines
   };
+}
+
+/**
+ * Cross-major-aware extension of `minorLinesBetween`. Within a single
+ * major it defers to the pure helper. Across majors (e.g. 2019.4 →
+ * 2022.3) it queries the DB for every distinct minor_line that exists
+ * inside the major range so the diff naturally walks through 2020.3
+ * and 2021.3 instead of skipping them. Falls back to the bare
+ * endpoint pair if anything fails to parse.
+ */
+async function minorLinesBetweenAcrossMajors(
+  fromMinor: string,
+  toMinor: string
+): Promise<string[]> {
+  const parse = (s: string) => {
+    const [maj, min] = s.split(".").map((n) => Number(n));
+    return { maj, min };
+  };
+  const a = parse(fromMinor);
+  const b = parse(toMinor);
+  if (!Number.isFinite(a.maj) || !Number.isFinite(b.maj)) {
+    return [fromMinor, toMinor];
+  }
+  if (a.maj === b.maj) {
+    return minorLinesBetween(fromMinor, toMinor);
+  }
+  const lo = Math.min(a.maj, b.maj);
+  const hi = Math.max(a.maj, b.maj);
+  // major_line is TEXT; cast to int for a numeric BETWEEN. Sort by
+  // (major::int, second-segment::int) so the returned list is in
+  // canonical newest-major-first / lowest-minor-first order. Order
+  // doesn't matter for the SQL `= ANY()` filter, but the result also
+  // feeds the `includedMinorLines` value on DiffRangeBounds which is
+  // visible in UI metadata, and sorting keeps it stable.
+  const rows = (
+    await query<{ minor_line: string }>(
+      `
+        SELECT DISTINCT minor_line
+        FROM unity_releases
+        WHERE major_line::int BETWEEN $1 AND $2
+      `,
+      [lo, hi]
+    )
+  ).rows;
+  // Sort in JS — Postgres rejects ORDER BY expressions outside the
+  // DISTINCT projection.
+  const lines = rows
+    .map((r) => r.minor_line)
+    .sort((a, b) => {
+      const ap = a.split(".").map((n) => Number(n));
+      const bp = b.split(".").map((n) => Number(n));
+      return (bp[0] - ap[0]) || (ap[1] - bp[1]);
+    });
+  // Guarantee the endpoints are present even if for some reason the DB
+  // query missed them (shouldn't happen, but cheap insurance).
+  if (!lines.includes(fromMinor)) lines.push(fromMinor);
+  if (!lines.includes(toMinor)) lines.push(toMinor);
+  return lines;
 }
 
 export type PackageBoundary = {
