@@ -64,7 +64,18 @@ export default async function ExplorerPage({
   const grouped = groupByVersion(results);
   const activeFilters = activeFilterLabels(filters);
   const issueIds = uniqueValues(results.flatMap((r) => r.issue_ids ?? []));
-  const issueStatuses = await safeIssueStatuses(issueIds);
+  // Scope issue-status derivation to the majors actually present in the
+  // result set. Without this, a UUM-xxxxx mentioned only on a 2019.4
+  // row would still get tagged "fixed in 6000.3.0b1" if Unity shipped
+  // the fix exclusively on the Unity 6 line — misleading for a user
+  // who's filtered to 2019/2020/2021/2022 results. Same scoping rule
+  // /compare uses, just derived from `results` instead of `range.versions`.
+  const relevantMajors = new Set<number>(
+    results
+      .map((r) => Number(r.version.slice(0, r.version.indexOf("."))))
+      .filter((n) => Number.isFinite(n))
+  );
+  const issueStatuses = await safeIssueStatuses(issueIds, relevantMajors);
 
   return (
     <>
@@ -272,10 +283,13 @@ async function safeSearch(filters: ReturnType<typeof filtersFromSearchParams>) {
   }
 }
 
-async function safeIssueStatuses(ids: string[]): Promise<Map<string, IssueStatus>> {
+async function safeIssueStatuses(
+  ids: string[],
+  relevantMajors?: ReadonlySet<number>
+): Promise<Map<string, IssueStatus>> {
   if (ids.length === 0) return new Map();
   try {
-    return await getIssueStatuses(ids);
+    return await getIssueStatuses(ids, { relevantMajors });
   } catch {
     return new Map();
   }

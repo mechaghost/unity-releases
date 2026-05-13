@@ -70,7 +70,10 @@ Response: \`text/markdown; charset=utf-8\`. The body is bucketed into
 lanes (Active known blockers, Breaking changes, Other known issues,
 Security & install impact, Package updates, API changes, Fixes,
 Improvements, Features, Other changes), with issue-tracker links and
-status suffixes (\`open\`, \`fixed in 6000.x.y\`) on every issue ID.
+status suffixes (\`open\`, \`fixed in 6000.x.y\`) on every issue ID. Each
+per-release bullet carries the release date inline, e.g.
+\`- **6000.0.74f1** (2026-04-29) Fixed editor crash on launch\`, so
+chronology is available without a second lookup.
 
 If you only need an upgrade summary, this endpoint is the right
 starting point. If you need version metadata or a per-release view,

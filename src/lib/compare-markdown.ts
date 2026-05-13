@@ -101,7 +101,9 @@ function appendLaneBullets(
           break;
         }
         seen.add(pkg);
-        lines.push(`- \`${pkg}\` updated in ${row.version}`);
+        lines.push(
+          `- \`${pkg}\` updated in ${row.version}${dateSuffix(row.release_date)}`
+        );
         usedThisRow = true;
       }
       if (usedThisRow) consumedRows += 1;
@@ -149,7 +151,24 @@ function formatReleaseBullet(
 ): string {
   const text = cleanReleaseNoteText(row.body ?? "");
   const id = (row.issue_ids ?? [])[0];
-  return `- **${row.version}** ${text}${issueSuffix(id, statuses)}`;
+  return `- **${row.version}**${dateSuffix(row.release_date)} ${text}${issueSuffix(id, statuses)}`;
+}
+
+/**
+ * `(YYYY-MM-DD) ` style suffix on bullets so LLM consumers don't have to
+ * issue a second query against /releases to learn when a version shipped.
+ * Returns an empty string when the date is missing — older imports occasionally
+ * lack one and we'd rather omit the suffix than render `(null)`.
+ */
+function dateSuffix(date: string | Date | null | undefined): string {
+  if (!date) return "";
+  const iso =
+    date instanceof Date
+      ? date.toISOString().slice(0, 10)
+      : typeof date === "string"
+        ? date.slice(0, 10)
+        : "";
+  return iso ? ` (${iso})` : "";
 }
 
 function issueSuffix(

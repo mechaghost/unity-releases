@@ -108,7 +108,33 @@ describe("compareToMarkdown", () => {
         }
       ]
     });
-    expect(md).toContain("- **6000.0.74f1** Fixed editor crash on launch");
+    expect(md).toContain("- **6000.0.74f1** (2026-04-29) Fixed editor crash on launch");
+  });
+
+  test("omits the date suffix when release_date is null", () => {
+    const md = compareToMarkdown({
+      fromVersion: "6000.0.43f1",
+      toVersion: "6000.0.74f1",
+      issueStatuses: noStatuses,
+      lanes: [
+        {
+          id: "fix",
+          title: "Fixes",
+          mode: "by-release",
+          totalCount: 1,
+          rows: [
+            {
+              version: "6000.0.74f1",
+              body: "Fixed something",
+              issue_ids: [],
+              release_date: null
+            }
+          ]
+        }
+      ]
+    });
+    expect(md).toContain("- **6000.0.74f1** Fixed something");
+    expect(md).not.toMatch(/\(\)/);
   });
 
   test("renders by-package lanes as one bullet per unique package", () => {
@@ -141,8 +167,8 @@ describe("compareToMarkdown", () => {
         }
       ]
     });
-    expect(md).toContain("- `com.unity.inputsystem` updated in 6000.0.74f1");
-    expect(md).toContain("- `com.unity.addressables` updated in 6000.0.74f1");
+    expect(md).toContain("- `com.unity.inputsystem` updated in 6000.0.74f1 (2026-04-29)");
+    expect(md).toContain("- `com.unity.addressables` updated in 6000.0.74f1 (2026-04-29)");
     // Same package mentioned again should not produce a duplicate bullet.
     expect(md.match(/com\.unity\.inputsystem/g)?.length).toBe(1);
   });

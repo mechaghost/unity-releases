@@ -326,13 +326,25 @@ export type PackageBoundary = {
 /**
  * For a list of package names, resolve the package_version that was the
  * "latest available" at each end of the diff window. Lets the package
- * lane show "Input System: 1.10.0 → 1.11.2" instead of just the count of
- * Editor-side mentions.
+ * lane show "Input System: 1.10.0 → 1.11.2" instead of just the count
+ * of Editor-side mentions.
+ *
+ * The optional `fromEditorMinor` / `toEditorMinor` arguments thread the
+ * picker's actual editor minor lines (e.g. "2022.3", "6000.3") through
+ * so the boundary query can exclude package_versions whose minimum
+ * `unity_compatibility` is higher than the editor's minor. Without
+ * this filter, a 2022.3 → 6000.3 diff renders maintenance patches that
+ * happened to be published most recently (e.g. cinemachine 2.10.7 on
+ * 2022.3) over the modern line (3.x) for the Unity 6 boundary — i.e.
+ * a misleading downgrade arrow. The tuple comparison `(major, minor)`
+ * is numeric so it survives minor ≥ 10 ("6000.10" vs "6000.2" beats
+ * a lexical compare).
  */
 export async function packageVersionsAtBoundary(
   packageNames: string[],
   fromDate: string | Date,
-  toDate: string | Date
+  toDate: string | Date,
+  options: { fromEditorMinor?: string | null; toEditorMinor?: string | null } = {}
 ): Promise<Map<string, PackageBoundary>> {
   const out = new Map<string, PackageBoundary>();
   if (packageNames.length === 0) return out;
@@ -342,6 +354,20 @@ export async function packageVersionsAtBoundary(
   const toIso = toDate instanceof Date ? toDate.toISOString() : new Date(toDate).toISOString();
   const lower = fromIso < toIso ? fromIso : toIso;
   const upper = fromIso < toIso ? toIso : fromIso;
+
+  // SQL fragment: keep package_versions whose declared minimum
+  // unity_compatibility is ≤ the supplied editor minor line. NULL
+  // compatibility is permissive (legacy registry entries). Empty
+  // editor minor (caller didn't pass one) becomes a no-op TRUE.
+  const compatPredicate = (editorParam: string) => `
+    (pv.unity_compatibility IS NULL OR ${editorParam}::text = '' OR (
+      (SPLIT_PART(pv.unity_compatibility, '.', 1))::int,
+      (NULLIF(SPLIT_PART(pv.unity_compatibility, '.', 2), ''))::int
+    ) <= (
+      (SPLIT_PART(${editorParam}, '.', 1))::int,
+      (NULLIF(SPLIT_PART(${editorParam}, '.', 2), ''))::int
+    ))
+  `;
 
   const result = await query<{
     name: string;
@@ -353,10 +379,16 @@ export async function packageVersionsAtBoundary(
       SELECT
         p.name,
         (SELECT version FROM package_versions pv
-          WHERE pv.package_id = p.id AND pv.published_at IS NOT NULL AND pv.published_at <= $2::timestamptz
+          WHERE pv.package_id = p.id
+            AND pv.published_at IS NOT NULL
+            AND pv.published_at <= $2::timestamptz
+            AND ${compatPredicate("$4")}
           ORDER BY pv.published_at DESC LIMIT 1) AS from_version,
         (SELECT version FROM package_versions pv
-          WHERE pv.package_id = p.id AND pv.published_at IS NOT NULL AND pv.published_at <= $3::timestamptz
+          WHERE pv.package_id = p.id
+            AND pv.published_at IS NOT NULL
+            AND pv.published_at <= $3::timestamptz
+            AND ${compatPredicate("$5")}
           ORDER BY pv.published_at DESC LIMIT 1) AS to_version,
         (SELECT COUNT(*)::text FROM package_versions pv
           WHERE pv.package_id = p.id
@@ -366,7 +398,7 @@ export async function packageVersionsAtBoundary(
       FROM packages p
       WHERE p.name = ANY($1::text[])
     `,
-    [packageNames, lower, upper]
+    [packageNames, lower, upper, options.fromEditorMinor ?? "", options.toEditorMinor ?? ""]
   );
 
   for (const row of result.rows) {

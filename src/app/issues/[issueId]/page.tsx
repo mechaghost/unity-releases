@@ -25,11 +25,37 @@ type Mention = {
   release_date: string | null;
 };
 
-export default async function IssuePage({ params }: { params: Promise<{ issueId: string }> }) {
+export default async function IssuePage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ issueId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { issueId } = await params;
   const id = decodeURIComponent(issueId);
-  const results = (await safeIssue(id)) as Mention[];
+  const allResults = (await safeIssue(id)) as Mention[];
   const trackerUrl = issueTrackerHref(id);
+  const sp = (await searchParams) ?? {};
+  const requestedMajor = parseMajorParam(sp.major);
+  // Available scope chips are the majors this issue actually has mentions in.
+  // The default scope is "all" (mirrors the prior behaviour) — picking a chip
+  // re-derives the status, which is what fixes the "fixed in 6000.3.0b1" badge
+  // showing up for a user still on 2019/2020/2021/2022 LTS where Unity has
+  // not backported the fix. Same idea as the relevantMajors filter on
+  // /compare's issueStatus map, just exposed as a chip row here.
+  const availableMajors = uniqueSorted(
+    allResults
+      .map((r) => majorOf(r.version))
+      .filter((n): n is number => n !== null)
+  );
+  const activeMajor =
+    requestedMajor !== null && availableMajors.includes(requestedMajor)
+      ? requestedMajor
+      : null;
+  const results = activeMajor === null
+    ? allResults
+    : allResults.filter((r) => majorOf(r.version) === activeMajor);
   const status = deriveIssueStatus(results);
 
   return (
@@ -50,11 +76,42 @@ export default async function IssuePage({ params }: { params: Promise<{ issueId:
         </div>
         <p>
           {results.length === 0
-            ? "Not mentioned in indexed release notes yet."
-            : `Mentioned in ${results.length} release note${results.length === 1 ? "" : "s"}.`}
+            ? activeMajor === null
+              ? "Not mentioned in indexed release notes yet."
+              : `Not mentioned in any indexed ${majorLabel(activeMajor)} release.`
+            : activeMajor === null
+              ? `Mentioned in ${results.length} release note${results.length === 1 ? "" : "s"}.`
+              : `Mentioned in ${results.length} ${majorLabel(activeMajor)} release note${results.length === 1 ? "" : "s"}.`}
         </p>
         {status.kind !== "unknown" ? (
           <p className="muted text-xs">{statusDetail(status)}</p>
+        ) : null}
+        {availableMajors.length > 1 ? (
+          <div
+            className="stream-checkbox-filter"
+            role="group"
+            aria-label="Scope by Unity major"
+            style={{ marginTop: 12 }}
+          >
+            <a
+              href={`/issues/${encodeURIComponent(id)}`}
+              className={`stream-checkbox-filter__option${activeMajor === null ? " stream-checkbox-filter__option--checked" : ""}`}
+            >
+              All ({allResults.length})
+            </a>
+            {availableMajors.map((m) => {
+              const count = allResults.filter((r) => majorOf(r.version) === m).length;
+              return (
+                <a
+                  key={m}
+                  href={`/issues/${encodeURIComponent(id)}?major=${m}`}
+                  className={`stream-checkbox-filter__option${activeMajor === m ? " stream-checkbox-filter__option--checked" : ""}`}
+                >
+                  {majorLabel(m)} ({count})
+                </a>
+              );
+            })}
+          </div>
         ) : null}
         <div className="cluster page-meta-row">
           <ExternalLink href={trackerUrl} className="link-internal--accent">
@@ -112,6 +169,28 @@ async function safeIssue(issueId: string) {
   } catch {
     return [];
   }
+}
+
+function majorOf(version: string): number | null {
+  const dot = version.indexOf(".");
+  if (dot < 0) return null;
+  const n = Number(version.slice(0, dot));
+  return Number.isFinite(n) ? n : null;
+}
+
+function uniqueSorted(values: number[]): number[] {
+  return [...new Set(values)].sort((a, b) => b - a);
+}
+
+function majorLabel(major: number): string {
+  return major === 6000 ? "Unity 6" : `Unity ${major} LTS`;
+}
+
+function parseMajorParam(value: string | string[] | undefined): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
 
 function statusDetail(status: IssueStatus): string {

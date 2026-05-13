@@ -47,6 +47,7 @@ import { LaneCollapseProvider, LaneShell } from "../_components/ReviewLanes";
 import { FilterChips, FilterTrigger } from "../_components/FilterBar";
 import { ComparePicker } from "../_components/ComparePicker";
 import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
+import { parseUnityVersion } from "@/lib/parsers/version";
 import { CopyLlmUrlButton } from "../_components/CopyLlmUrlButton";
 import { siteUrl } from "@/lib/site";
 import {
@@ -361,9 +362,20 @@ export default async function ComparePage({
         )
       )
     : [];
+  // Thread the picker's editor minor lines into the boundary query so
+  // package_versions that target a HIGHER editor than the boundary get
+  // filtered out (e.g. a hypothetical `com.foo` v2 with compat
+  // "6000.3" won't get picked for the 2022.3 boundary just because it
+  // was published more recently). See `packageVersionsAtBoundary` for
+  // the tuple-comparison details.
+  const fromMinorLine = safeMinorLineOf(fromVersion);
+  const toMinorLine = safeMinorLineOf(toVersion);
   const packageBoundaries =
     packageNames.length > 0 && range.fromDate && range.toDate
-      ? await safePackageBoundaries(packageNames, range.fromDate, range.toDate)
+      ? await safePackageBoundaries(packageNames, range.fromDate, range.toDate, {
+          fromEditorMinor: fromMinorLine,
+          toEditorMinor: toMinorLine
+        })
       : new Map<string, PackageBoundary>();
 
   const streamByVersion = new Map<string, string | null>(
@@ -986,12 +998,22 @@ function UpgradeMarkdownCta({
 async function safePackageBoundaries(
   packageNames: string[],
   fromDate: string | Date,
-  toDate: string | Date
+  toDate: string | Date,
+  options?: { fromEditorMinor?: string | null; toEditorMinor?: string | null }
 ): Promise<Map<string, PackageBoundary>> {
   try {
-    return await packageVersionsAtBoundary(packageNames, fromDate, toDate);
+    return await packageVersionsAtBoundary(packageNames, fromDate, toDate, options ?? {});
   } catch {
     return new Map();
+  }
+}
+
+function safeMinorLineOf(version: string): string | null {
+  try {
+    const { major, minor } = parseUnityVersion(version);
+    return `${major}.${minor}`;
+  } catch {
+    return null;
   }
 }
 
