@@ -816,6 +816,15 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .explorer-filter > a {
   min-width: 0;
 }
+/* Force bottom-align on the action elements. The form also carries the
+ * `.filter-bar` class, whose `align-items: center` rule lives later in
+ * this file and silently wins over `.explorer-filter`'s `align-items:
+ * end`. The Clear link already has its own `align-self: end`; the
+ * Search submit needs the same so it bottom-aligns with the input row
+ * instead of sitting 9px short. */
+.explorer-filter > button[type="submit"] {
+  align-self: end;
+}
 .explorer-filter label:first-child {
   /* The free-text search input gets two slots so it has room to breathe. */
   grid-column: span 2;
