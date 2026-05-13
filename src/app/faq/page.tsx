@@ -75,16 +75,24 @@ const SECTIONS: Section[] = [
         question: "Where does the data come from?",
         answer: (
           <>
-            Three public Unity sources, all polled on a schedule:
+            Five public Unity sources, all polled on a schedule:
             <ul>
               <li>
-                <strong>Editor releases:</strong> the three landing pages at{" "}
+                <strong>Editor releases (Unity 6):</strong> the three landing
+                pages at{" "}
                 <code>unity.com/releases/editor/{"{latest,beta,alpha}"}</code>{" "}
                 and the markdown release-notes file each one links to. We follow
                 the redirect to the actual version page (e.g.{" "}
                 <code>whats-new/6000.3.14f1</code>) and parse the release notes
                 into individual line items - version, area, platform tags,
                 impact, risk, issue IDs, package names.
+              </li>
+              <li>
+                <strong>Legacy LTS editor releases:</strong> per-year sitemaps
+                under <code>unity.com/releases/sitemap/{"{year}"}.xml</code>{" "}
+                feed the 2019.4 / 2020.3 / 2021.3 / 2022.3 LTS lines. Same
+                parser, same line-item shape as Unity 6, so a cross-major diff
+                returns one homogeneous result set.
               </li>
               <li>
                 <strong>Packages:</strong> for each tracked official package, we
@@ -96,6 +104,12 @@ const SECTIONS: Section[] = [
                 doesn&apos;t publish a registry-listing endpoint -{" "}
                 <code>npm run check:packages</code> finds new ones in release
                 notes that aren&apos;t in the list yet.
+              </li>
+              <li>
+                <strong>Resources:</strong> <code>unity.com/resources</code> -
+                whitepapers, e-books, case studies, and the on-demand video
+                library. Indexed for the <a href="/resources">Resources</a>{" "}
+                page; not classified into release-note lanes.
               </li>
               <li>
                 <strong>News:</strong> the official Unity blog RSS feed at{" "}
@@ -112,14 +126,22 @@ const SECTIONS: Section[] = [
         question: "How often does the data refresh?",
         answer: (
           <>
-            <ul>
-              <li>Editor releases - every 12 hours.</li>
-              <li>Packages - every 12 hours.</li>
-              <li>Blog news - daily at 5 AM UTC.</li>
-            </ul>
-            So on any given day the editor and package data is at most ~12
-            hours stale. Health and last-success timestamps per source are at{" "}
-            <a href="/api/health">/api/health</a>.
+            <p>
+              Editor releases and packages are polled on a several-hour cadence;
+              resources and news poll less frequently because the upstream
+              changes far less often. The exact intervals are configured at the
+              deploy layer (Railway crons) rather than in the app, so the
+              authoritative answer is always the live{" "}
+              <a href="/api/health">/api/health</a> endpoint - it reports each
+              source&apos;s last-success timestamp and hours-since-success, with
+              a <code>stale</code> flag that flips when nothing has succeeded
+              for the better part of a month.
+            </p>
+            <p>
+              Legacy LTS releases are bundled into the same{" "}
+              <code>editor_release</code> ingestion bucket as Unity 6 - one
+              health entry covers both.
+            </p>
           </>
         )
       }
@@ -200,6 +222,211 @@ const SECTIONS: Section[] = [
             </ul>
             The risk axis is independent of the lane axis - a row in the Fixes
             lane can still be Caution if the underlying problem was bad.
+          </>
+        )
+      }
+    ]
+  },
+  {
+    id: "pages",
+    title: "Pages & views",
+    items: [
+      {
+        id: "page-upgrade",
+        question: "What is Upgrade Intelligence (the homepage)?",
+        answer: (
+          <>
+            <p>
+              The main diff view. Pick two Unity editor versions in the From /
+              To dropdowns and the page lane-buckets every release-note line
+              item shipped between them - blockers, breaking changes, known
+              issues, security &amp; install impact, package updates, API
+              changes, fixes, improvements, features, other changes. Each lane
+              has its own row count, pagination, and (where useful) deduplication
+              behaviour.
+            </p>
+            <p>
+              Cross-major diffs work too - 2022.3.50f1 → 6000.3.14f1 is a
+              legitimate question and we answer it. Lane contents on
+              cross-major ranges interleave release notes from two product
+              lines, so the row count is high and the noise is real, but the
+              data is correct.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "page-releases",
+        question: "What does Editor Releases show?",
+        answer: (
+          <>
+            Every indexed Unity editor release in a paginated table. The chip
+            row at the top defaults to <code>6.3 LTS</code> +{" "}
+            <code>6.0 LTS</code> - tick Supported / Beta / Alpha or the legacy
+            LTS chips (2022.3 / 2021.3 / 2020.3 / 2019.4) to widen the list.
+            Each row links to the per-release detail page; the external-link
+            icon opens the official Unity release page in a new tab.
+          </>
+        )
+      },
+      {
+        id: "page-release-detail",
+        question: "What does /releases/[version] show?",
+        answer: (
+          <>
+            The same lane-bucketed view as Upgrade Intelligence, but for a
+            single release rather than a range. Useful when you want to read
+            one release&apos;s notes end-to-end (e.g. &ldquo;what landed in
+            6000.0.74f1?&rdquo;) without the noise of every version above and
+            below it.
+          </>
+        )
+      },
+      {
+        id: "page-explorer",
+        question: "What is Search Notes (/explorer)?",
+        answer: (
+          <>
+            Free-form faceted search across every indexed release-note row.
+            Filter by full-text query, version, minor line, stream, section,
+            area, platform, impact, risk, package, or issue ID. Returns
+            grouped-by-version results. This is the right page when you have a
+            specific symptom or term in mind and don&apos;t care which release
+            window it falls into.
+          </>
+        )
+      },
+      {
+        id: "page-packages",
+        question: "What does Packages show?",
+        answer: (
+          <>
+            Sortable table of every tracked official Unity package (Input
+            System, Addressables, URP, HDRP, Cinemachine, Burst, and the rest
+            of the curated allowlist). Each row links to the package detail
+            page, which lists every indexed version with publish date and
+            Unity-version compatibility range.
+          </>
+        )
+      },
+      {
+        id: "page-resources",
+        question: "What does Resources show?",
+        answer: (
+          <>
+            Mirror of <code>unity.com/resources</code> - whitepapers, e-books,
+            case studies, video sessions. The chip row at the top filters by
+            resource type. Secondary to release intelligence; included because
+            the resources index is otherwise easy to lose track of and some of
+            the documents are useful for upgrade planning.
+          </>
+        )
+      },
+      {
+        id: "page-issues",
+        question: "What does /issues/[issueId] show?",
+        answer: (
+          <>
+            <p>
+              Every release-note that mentions a given Unity issue ID (e.g.{" "}
+              <a href="/issues/UUM-113215">/issues/UUM-113215</a>) along with
+              the derived status chip (Open / Fixed / Regressed). When the
+              issue has mentions across multiple Unity majors, a chip row lets
+              you scope the table by major - picking <em>Unity 2022 LTS</em>{" "}
+              hides 6000.x mentions and re-derives the status from just the
+              2022.3 entries. That&apos;s how a user on 2022.3 sees
+              &ldquo;known issue&rdquo; while a user on Unity 6 sees
+              &ldquo;fixed&rdquo; for the same underlying ID.
+            </p>
+            <p>
+              The Open on Unity Issue Tracker link goes to Unity&apos;s own
+              tracker, which is the source of truth - the status chip is just
+              what the locally indexed release notes imply.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "page-news",
+        question: "What does News show?",
+        answer: (
+          <>
+            Mirror of <code>unity.com/blog/rss</code>. Secondary to release
+            intelligence and not classified into lanes - mostly here so a
+            search across the site can find a relevant blog post about
+            something the release notes don&apos;t fully explain.
+          </>
+        )
+      }
+    ]
+  },
+  {
+    id: "scope",
+    title: "Cross-scope behaviour",
+    items: [
+      {
+        id: "issue-status-by-view",
+        question:
+          "Why does the same issue look 'open' on one page and 'fixed' on another?",
+        answer: (
+          <>
+            <p>
+              Issue-status chips are scoped to the major lines visible in the
+              current view. The same underlying issue can correctly read
+              differently across pages:
+            </p>
+            <ul>
+              <li>
+                On <a href="/">Upgrade Intelligence</a>, the status reflects
+                only the majors covered by your <code>from</code> →{" "}
+                <code>to</code> range. A 2019.4.40f1 → 2022.3.50f1 diff won&apos;t
+                tag an issue as <em>fixed in 6000.3.0b1</em>, because the user
+                can&apos;t reach the Unity 6 fix without a separate major
+                upgrade.
+              </li>
+              <li>
+                On <a href="/explorer">Search Notes</a>, the status reflects
+                whichever majors are present in the current result set. Filter
+                to <code>minorLine=2022.3</code> and a 6000.x fix likewise gets
+                dropped from the derivation.
+              </li>
+              <li>
+                On <a href="/issues/UUM-113215">/issues/[issueId]</a>, the
+                default is &ldquo;All majors&rdquo; (the global status). Pick a
+                major chip to re-scope.
+              </li>
+              <li>
+                On a single-release page (<code>/releases/[version]</code>),
+                the status is global. You&apos;re looking at one specific
+                release; the chip just tells you whether Unity has shipped a
+                fix anywhere in the indexed history.
+              </li>
+            </ul>
+            <p>
+              The behaviour is intentional - a 6000.3 fix that won&apos;t
+              backport to 2019/2020/2021/2022 LTS isn&apos;t a fix for a user
+              on legacy LTS, and it would be misleading to display it as one.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "package-boundary",
+        question:
+          "Why does the package lane sometimes show what looks like a downgrade?",
+        answer: (
+          <>
+            Package-lane &ldquo;From&rdquo; / &ldquo;To&rdquo; values are
+            constrained to package versions declared compatible with the
+            corresponding editor minor line (via the registry&apos;s{" "}
+            <code>unity</code> field). On a cross-major diff like 2022.3 →
+            6000.3 that means each boundary picks the latest package version
+            its editor side actually supports - which is occasionally a
+            lower-numbered version on one side than the other because Unity
+            maintains separate package branches per LTS line (cinemachine 2.x
+            for 2022, 3.x for Unity 6, both still getting maintenance patches).
+            It looks like a downgrade in version numbers but represents a
+            forward move along distinct package families.
           </>
         )
       }
@@ -306,13 +533,20 @@ const SECTIONS: Section[] = [
               . The endpoint returns the full upgrade diff as
               {" "}<code>text/markdown</code>, bucketed into the same lanes you
               see on screen, with issue-tracker links and status suffixes on
-              every issue ID. Any tool that can fetch a URL - Claude&apos;s
-              WebFetch, ChatGPT browsing,{" "}<code>curl</code>, an MCP server -
-              can ingest it directly. No auth, no rate-limit games.
+              every issue ID. Every per-release bullet carries the release date
+              inline -{" "}
+              <code>
+                - **6000.0.74f1** (2026-04-29) Fixed editor crash on launch
+              </code>{" "}
+              - so the LLM has chronology without a second lookup. Any tool
+              that can fetch a URL - Claude&apos;s WebFetch, ChatGPT browsing,{" "}
+              <code>curl</code>, an MCP server - can ingest it directly. No
+              auth, no rate-limit games.
             </p>
             <p>
               Optional: append <code>&amp;stream=beta</code> (repeatable) to
-              widen the in-between releases beyond LTS. See{" "}
+              widen the in-between releases beyond LTS. Cross-major diffs
+              (2022.3.x → 6000.x) are supported. See{" "}
               <a href="/llms.txt">/llms.txt</a> for the full LLM-facing
               manifest of this site.
             </p>
