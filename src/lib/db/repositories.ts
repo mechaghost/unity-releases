@@ -42,7 +42,8 @@ export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
  * user to click through.
  */
 export async function getIssueStatuses(
-  issueIds: string[]
+  issueIds: string[],
+  options: { relevantMajors?: ReadonlySet<number> } = {}
 ): Promise<Map<string, IssueStatus>> {
   const result = new Map<string, IssueStatus>();
   if (issueIds.length === 0) return result;
@@ -59,7 +60,19 @@ export async function getIssueStatuses(
   ).rows;
 
   const grouped = new Map<string, Array<{ version: string; section: string; release_date: string | null }>>();
+  const { relevantMajors } = options;
   for (const row of rows) {
+    // Optional scope filter: drop mentions whose major isn't reachable
+    // from the caller's context. The compare page passes the set of
+    // majors covered by the diff range so a fix in 6000.3.0b1 doesn't
+    // tag a 2022.3 issue as "resolved" when the user can't reach Unity
+    // 6 without a major upgrade. The single-release-detail page omits
+    // this filter and keeps the global mention history.
+    if (relevantMajors) {
+      const majorStr = row.version.slice(0, row.version.indexOf("."));
+      const major = Number(majorStr);
+      if (!Number.isFinite(major) || !relevantMajors.has(major)) continue;
+    }
     const list = grouped.get(row.issue_id) ?? [];
     list.push({ version: row.version, section: row.section, release_date: row.release_date });
     grouped.set(row.issue_id, list);

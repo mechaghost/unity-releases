@@ -379,7 +379,18 @@ export default async function ComparePage({
   const visibleIssueIds = uniqueValues(
     lanesWithResults.flatMap((l) => l.fetchedRows.flatMap((r) => r.issue_ids ?? []))
   );
-  const issueStatuses = await safeIssueStatuses(visibleIssueIds);
+  // Scope issue-status derivation to the majors actually covered by
+  // the diff. A fix shipped in 6000.3.0b1 should NOT show "fixed" on a
+  // known-issue row inside a 2019.4 → 2022.3 diff, because that fix
+  // isn't reachable without a major upgrade. Building the set from
+  // `effectiveVersions` keeps the chip honest for cross-major diffs
+  // too (e.g. 2022.3 → 6000.5 includes both majors).
+  const relevantMajors = new Set<number>(
+    effectiveVersions
+      .map((v) => Number(v.slice(0, v.indexOf("."))))
+      .filter((n) => Number.isFinite(n))
+  );
+  const issueStatuses = await safeIssueStatuses(visibleIssueIds, relevantMajors);
 
   return (
     <>
@@ -992,10 +1003,13 @@ async function safeListReleases() {
   }
 }
 
-async function safeIssueStatuses(ids: string[]): Promise<Map<string, IssueStatus>> {
+async function safeIssueStatuses(
+  ids: string[],
+  relevantMajors?: ReadonlySet<number>
+): Promise<Map<string, IssueStatus>> {
   if (ids.length === 0) return new Map();
   try {
-    return await getIssueStatuses(ids);
+    return await getIssueStatuses(ids, { relevantMajors });
   } catch {
     return new Map();
   }

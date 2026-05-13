@@ -118,10 +118,20 @@ export async function buildCompareMarkdownExport(
 
   // Resolve issue statuses (open / closed / fixed) for every issue id
   // mentioned, so the markdown can suffix `[fixed in 6000.x.y]` etc.
+  // Scope to majors covered by the diff so a fix in an unreachable
+  // major doesn't get tagged "fixed" — e.g. UUM-113215 is fixed in
+  // 6000.3.0b1 but stays a known issue for the 2019/2020/2021/2022
+  // LTS lines, so a 2019.4 → 2022.3 diff renders it as open, not
+  // resolved.
   const issueIds = uniqueValues(
     exportLanes.flatMap((l) => l.rows.flatMap((r) => r.issue_ids ?? []))
   );
-  const issueStatuses = await safeIssueStatuses(issueIds);
+  const relevantMajors = new Set<number>(
+    range.versions
+      .map((v) => Number(v.slice(0, v.indexOf("."))))
+      .filter((n) => Number.isFinite(n))
+  );
+  const issueStatuses = await safeIssueStatuses(issueIds, relevantMajors);
 
   const markdown = compareToMarkdown({
     fromVersion,
@@ -148,10 +158,13 @@ export async function buildCompareMarkdownExport(
   };
 }
 
-async function safeIssueStatuses(ids: string[]): Promise<Map<string, IssueStatus>> {
+async function safeIssueStatuses(
+  ids: string[],
+  relevantMajors?: ReadonlySet<number>
+): Promise<Map<string, IssueStatus>> {
   if (ids.length === 0) return new Map();
   try {
-    return await getIssueStatuses(ids);
+    return await getIssueStatuses(ids, { relevantMajors });
   } catch {
     return new Map();
   }
