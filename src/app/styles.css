@@ -3900,40 +3900,47 @@ button.filter-section__head:focus-visible {
 /* Three sections (artifacts, freshness, traffic), each a stack of    */
 /* number cards plus an optional breakdown list. No bespoke chart     */
 /* libs - everything is plain HTML on top of the existing surfaces.   */
+/*                                                                    */
+/* Spacing notes:                                                     */
+/* - 32px between sections (--space-8) gives a clear visual rest.    */
+/* - The first section's 24px (--space-6) margin-top is intentional;  */
+/*   it preserves the gap from .page-header, which already has 20px  */
+/*   margin-bottom. The space scale only has 6/8/10/12 - there's no  */
+/*   --space-7, so don't reach for it.                                */
 /* ------------------------------------------------------------------ */
 .stats-section {
   margin-top: var(--space-6);
 }
 .stats-section + .stats-section {
-  margin-top: var(--space-7);
+  margin-top: var(--space-8);
 }
 .stats-section h2 {
   font-size: var(--text-lg);
   font-weight: 600;
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
 }
 .stats-section > p {
   color: var(--text-muted);
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-5);
   max-width: 60ch;
 }
 .stats-section__footnote {
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 .stats-card {
   border: 1px solid var(--border-subtle);
   background: var(--surface-base);
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 .stats-card__value {
   font-size: var(--text-2xl);
@@ -3951,16 +3958,16 @@ button.filter-section__head:focus-visible {
 }
 
 .stats-breakdown {
-  margin-top: var(--space-5);
+  margin-top: var(--space-6);
   border: 1px solid var(--border-subtle);
   background: var(--surface-base);
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
 }
 .stats-breakdown__title {
   font-size: var(--text-sm);
   font-weight: 600;
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3978,7 +3985,7 @@ button.filter-section__head:focus-visible {
   justify-content: space-between;
   align-items: baseline;
   gap: var(--space-3);
-  padding: var(--space-1) 0;
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--border-subtle);
 }
 .stats-breakdown__row:last-child {
