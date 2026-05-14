@@ -58,12 +58,22 @@ Important scripts:
 
 ```bash
 npm run db:migrate
+npm run ingest:all       # runs every ingest job in sequence (Railway cron uses this)
 npm run ingest:editor
 npm run ingest:packages
+npm run ingest:legacy-lts
 npm run ingest:news
+npm run ingest:resources
 npm run ingest:backfill
 npm run check:packages   # surfaces com.unity.* mentioned in release notes but not in the curated list
 ```
+
+Production ingestion is one mega-cron on Railway running
+`npm run ingest:all` twice a day (00:00 + 12:00 UTC). The orchestrator
+lives in `src/jobs/poll-all.ts` and shells out to each
+`npm run ingest:*` in sequence. A per-job failure logs and continues
+so a flaky news endpoint can't block fresh package data; the run
+exits non-zero at the end so Railway flags it as failed.
 
 Current local database was populated from real Unity sources:
 
@@ -127,10 +137,10 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 226 tests across 32 files
+`npm test` runs the full Vitest suite — 234 tests across 33 files
 covering parsers, classification, search SQL, lane logic, ingestion
 normalization, filter state round-trips, server actions, component
-renderers, SEO metadata, and sitemap shape.
+renderers, SEO metadata, sitemap shape, and the cron orchestrator.
 
 Run `npm run typecheck` + `npm test` before committing anything
 non-trivial. Both must pass.

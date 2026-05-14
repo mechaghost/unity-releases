@@ -17,6 +17,7 @@
     "ingest:packages": "tsx src/jobs/poll-packages.ts",
     "ingest:news": "tsx src/jobs/poll-news.ts",
     "ingest:resources": "tsx src/jobs/poll-resources.ts",
+    "ingest:all": "tsx src/jobs/poll-all.ts",
     "health:ingest": "tsx src/jobs/health.ts",
     "check:packages": "tsx src/jobs/check-missing-packages.ts"
   },
