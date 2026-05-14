@@ -7,7 +7,7 @@ const analytics = vi.hoisted(() => ({
   recordEvent: vi.fn(async () => {})
 }));
 
-vi.mock("@/lib/analytics", () => ({
+vi.mock("@/lib/analytics-server", () => ({
   recordPageView: analytics.recordPageView,
   recordEvent: analytics.recordEvent
 }));

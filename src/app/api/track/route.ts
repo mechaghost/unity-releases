@@ -1,4 +1,4 @@
-import { recordEvent, recordPageView } from "@/lib/analytics";
+import { recordEvent, recordPageView } from "@/lib/analytics-server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

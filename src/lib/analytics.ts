@@ -1,13 +1,11 @@
-import { query } from "./db/client";
-
 /**
- * Self-hosted analytics helpers. Designed to be best-effort: a failure
- * to write a row should never break the surrounding render or action.
- * The /stats page is the only consumer of this data.
+ * Edge-safe analytics helpers. ZERO non-Edge imports allowed - this
+ * file is loaded by `src/middleware.ts` which runs in the Edge runtime
+ * and can't tolerate Node-only deps (pg, crypto, fs, etc).
  *
- * We deliberately don't store any identifier (IP, UA, cookie) - the
- * tables hold path + timestamp only. If we ever want unique-visitor
- * estimates we can add a hashed (ip + daily salt) column later.
+ * DB-touching helpers (recordPageView, recordEvent) live in
+ * `analytics-server.ts` and are only loaded by route handlers running
+ * in the Node runtime.
  */
 
 /** Paths we never track even if a request hits them. */
@@ -65,42 +63,4 @@ export function normalizePath(rawPath: string): string {
   }
   if (!path.startsWith("/")) path = `/${path}`;
   return path;
-}
-
-export async function recordPageView(path: string): Promise<void> {
-  const normalized = normalizePath(path);
-  if (!shouldTrackPath(normalized)) return;
-  try {
-    await query("INSERT INTO page_views (path) VALUES ($1)", [normalized]);
-  } catch (err) {
-    // Analytics never breaks the request path.
-    console.error(
-      JSON.stringify({
-        event: "analytics_pageview_failed",
-        error: err instanceof Error ? err.message : String(err),
-        path: normalized
-      })
-    );
-  }
-}
-
-export async function recordEvent(
-  eventType: string,
-  options: { path?: string; metadata?: Record<string, unknown> } = {}
-): Promise<void> {
-  const { path, metadata } = options;
-  try {
-    await query(
-      "INSERT INTO site_events (event_type, event_path, metadata) VALUES ($1, $2, $3)",
-      [eventType, path ? normalizePath(path) : null, JSON.stringify(metadata ?? {})]
-    );
-  } catch (err) {
-    console.error(
-      JSON.stringify({
-        event: "analytics_event_failed",
-        error: err instanceof Error ? err.message : String(err),
-        eventType
-      })
-    );
-  }
 }
