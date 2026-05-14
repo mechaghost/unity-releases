@@ -20,6 +20,7 @@ The user wants functionality tested first. Visual polish can come later, but inf
 - Railway deploys from the `release` branch.
 - If the user says `release`, treat that as updating/pushing the `release` branch for Railway deployment, not a GitHub release/tag.
 - Avoid force-pushing or rewriting history unless explicitly approved.
+- **Always verify the site after a deploy. Never depend on the user to flag breakage.** After every `release` push, wait for Railway to finish building, then probe `/`, `/stats`, `/releases`, and `/api/health` for 200s. If anything 5xxs, pull `railway logs --service unity-releases`, find the root cause, fix it, and push another release in the same session. Common breakage classes: middleware bundle pulling in Node-only deps (Edge runtime can't load `pg`/`crypto`); schema changes that haven't been migrated with `railway run npm run db:migrate`; server-only modules imported into client components. The post-deploy probe is a hard requirement, not a courtesy.
 
 ## Local Development
 
