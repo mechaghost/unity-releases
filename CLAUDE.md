@@ -105,12 +105,27 @@ Primary navigation (sidebar on desktop, drawer on mobile):
 - `/packages` - package index (sortable; no per-package page yet, only `/api/packages/[name]`)
 - `/news` - official Unity blog feed
 - `/resources` - Unity 6 ebooks/videos/webinars/podcasts/articles, marketing+enterprise filtered out by default
+- `/stats` - tracked-artifact counts, ingestion freshness, and traffic (self-hosted analytics, no third-party services)
 - `/faq` - source list + not-affiliated-with-Unity disclaimer
 - `/explorer` - global release-note workbench (faceted search)
 - `/upgrade` - upgrade review lanes
 - `/issues/[issueId]` - every release-note that mentions a UUM-xxxxx
 
 Do not put `/api/health` back in primary navigation.
+
+## Analytics
+
+Self-hosted: pageviews land in the `page_views` table via an Edge
+middleware that fire-and-forgets a POST to `/api/track`. Server-side
+events (filter applies, compare loads, copy-to-LLM clicks) land in
+`site_events` via `recordEvent()` from `src/lib/analytics.ts`. No IPs,
+UAs, or cookies are stored - the goal is volume signal, not visitor
+fingerprinting. The `/stats` page reads these tables. Bots are
+filtered at the middleware via user-agent regex.
+
+After any schema change, run `npm run db:migrate` against prod with
+the Railway DATABASE_URL (`railway run npm run db:migrate` works from
+any worktree).
 
 ## Filter system
 
@@ -137,10 +152,11 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 234 tests across 33 files
+`npm test` runs the full Vitest suite — 252 tests across 35 files
 covering parsers, classification, search SQL, lane logic, ingestion
 normalization, filter state round-trips, server actions, component
-renderers, SEO metadata, sitemap shape, and the cron orchestrator.
+renderers, SEO metadata, sitemap shape, the cron orchestrator, and
+the analytics middleware + tracking route.
 
 Run `npm run typecheck` + `npm test` before committing anything
 non-trivial. Both must pass.

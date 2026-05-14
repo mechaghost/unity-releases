@@ -307,3 +307,28 @@ DROP TRIGGER IF EXISTS trg_release_note_items_search_vector ON release_note_item
 CREATE TRIGGER trg_release_note_items_search_vector
 BEFORE INSERT OR UPDATE ON release_note_items
 FOR EACH ROW EXECUTE FUNCTION update_release_note_search_vector();
+
+-- Lightweight self-hosted analytics. We deliberately do NOT store IPs,
+-- user-agent strings, or any other identifier. The whole point is to
+-- count pageviews + UX interactions for the public /stats page without
+-- introducing a vendor dependency or a GDPR surface. If we ever need
+-- unique-visitor estimates we can add a hashed (ip + day-salt) column
+-- later; for now we trade that granularity for being radically simple
+-- to operate.
+CREATE TABLE IF NOT EXISTS page_views (
+  id BIGSERIAL PRIMARY KEY,
+  path TEXT NOT NULL,
+  viewed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_page_views_viewed_at ON page_views (viewed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_page_views_path_time ON page_views (path, viewed_at DESC);
+
+CREATE TABLE IF NOT EXISTS site_events (
+  id BIGSERIAL PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  event_path TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_site_events_occurred_at ON site_events (occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_site_events_type_time ON site_events (event_type, occurred_at DESC);

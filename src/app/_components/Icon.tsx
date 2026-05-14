@@ -26,6 +26,7 @@ export type IconName =
   | "newspaper"
   | "git-compare"
   | "link"
+  | "bar-chart"
   | "file-text";
 
 const PATHS: Record<IconName, string> = {
@@ -54,6 +55,7 @@ const PATHS: Record<IconName, string> = {
   newspaper: "M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2 M18 14h-8 M15 18h-5 M10 6h8v4h-8z",
   "git-compare": "M6 6m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0 M18 18m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0 M13 6h3a2 2 0 0 1 2 2v7 M11 18H8a2 2 0 0 1-2-2V9",
   link: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71 M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71",
+  "bar-chart": "M3 3v18h18 M7 16V10 M12 16V6 M17 16v-3",
   "file-text": "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8"
 };
 

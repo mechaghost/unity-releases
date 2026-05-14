@@ -52,6 +52,12 @@ const NAV: NavItem[] = [
     match: (pathname) => pathname === "/news"
   },
   {
+    href: "/stats",
+    label: "Stats",
+    icon: "bar-chart",
+    match: (pathname) => pathname === "/stats"
+  },
+  {
     href: "/faq",
     label: "FAQ",
     icon: "info",

@@ -655,6 +655,162 @@ export async function getRelease(version: string) {
   return result.rows[0] ?? null;
 }
 
+export type ArtifactStats = {
+  /** Total Unity editor versions indexed. */
+  editorReleases: number;
+  /** Editor releases bucketed by stream (LTS/STABLE/BETA/ALPHA). */
+  editorReleasesByStream: Array<{ stream: string; count: number }>;
+  /** Total parsed release-note rows across every version. */
+  releaseNoteItems: number;
+  /** Distinct UUM issue ids mentioned in release notes. */
+  trackedIssues: number;
+  /** Curated packages in the catalogue. */
+  trackedPackages: number;
+  /** Total package versions across all curated packages. */
+  packageVersions: number;
+  /** Unity blog/news posts mirrored. */
+  newsPosts: number;
+  /** Unity 6 resources (ebooks/videos/etc) mirrored. */
+  resources: number;
+  /** Most recent editor release date - "latest tracked" for the stats hero. */
+  latestReleaseDate: string | null;
+  /** Most recent editor version (string, e.g. "6000.3.15f1"). */
+  latestReleaseVersion: string | null;
+};
+
+/** One-shot aggregation of "what does this site actually track?" Reads
+ *  every artifact table in a single query bundle so the /stats page
+ *  doesn't pay the latency of 8 round-trips. */
+export async function getArtifactStats(): Promise<ArtifactStats> {
+  const result = await query<{
+    editor_releases: string;
+    release_note_items: string;
+    tracked_issues: string;
+    tracked_packages: string;
+    package_versions: string;
+    news_posts: string;
+    resources: string;
+    latest_release_date: string | null;
+    latest_release_version: string | null;
+  }>(`
+    SELECT
+      (SELECT COUNT(*) FROM unity_releases)                                AS editor_releases,
+      (SELECT COUNT(*) FROM release_note_items)                            AS release_note_items,
+      (SELECT COUNT(DISTINCT issue_id) FROM issue_mentions)                AS tracked_issues,
+      (SELECT COUNT(*) FROM packages)                                      AS tracked_packages,
+      (SELECT COUNT(*) FROM package_versions)                              AS package_versions,
+      (SELECT COUNT(*) FROM content_events WHERE event_type = 'blog_post') AS news_posts,
+      (SELECT COUNT(*) FROM resources)                                     AS resources,
+      (SELECT MAX(release_date) FROM unity_releases)                       AS latest_release_date,
+      (SELECT version FROM unity_releases
+        ORDER BY release_date DESC NULLS LAST, version DESC LIMIT 1)       AS latest_release_version
+  `);
+
+  const streamRows = await query<{ stream: string; count: string }>(`
+    SELECT stream, COUNT(*)::bigint AS count
+    FROM unity_releases
+    GROUP BY stream
+    ORDER BY COUNT(*) DESC
+  `);
+
+  const row = result.rows[0] ?? null;
+  if (!row) {
+    return emptyArtifactStats();
+  }
+
+  return {
+    editorReleases: Number(row.editor_releases),
+    editorReleasesByStream: streamRows.rows.map((r) => ({
+      stream: r.stream,
+      count: Number(r.count)
+    })),
+    releaseNoteItems: Number(row.release_note_items),
+    trackedIssues: Number(row.tracked_issues),
+    trackedPackages: Number(row.tracked_packages),
+    packageVersions: Number(row.package_versions),
+    newsPosts: Number(row.news_posts),
+    resources: Number(row.resources),
+    latestReleaseDate: row.latest_release_date,
+    latestReleaseVersion: row.latest_release_version
+  };
+}
+
+function emptyArtifactStats(): ArtifactStats {
+  return {
+    editorReleases: 0,
+    editorReleasesByStream: [],
+    releaseNoteItems: 0,
+    trackedIssues: 0,
+    trackedPackages: 0,
+    packageVersions: 0,
+    newsPosts: 0,
+    resources: 0,
+    latestReleaseDate: null,
+    latestReleaseVersion: null
+  };
+}
+
+export type TrafficStats = {
+  /** Total pageviews in each rolling window. */
+  pageViews24h: number;
+  pageViews7d: number;
+  pageViews30d: number;
+  /** Top paths by view count in the last 7 days. */
+  topPaths7d: Array<{ path: string; views: number }>;
+  /** Total events recorded across all kinds in the last 30 days. */
+  events30d: number;
+  /** Event counts by type in the last 30 days. */
+  eventsByType30d: Array<{ eventType: string; count: number }>;
+};
+
+/** Pulls site traffic + interaction stats. Returns zeros for any
+ *  window with no data so the /stats page can render cleanly on a
+ *  fresh deploy. */
+export async function getTrafficStats(): Promise<TrafficStats> {
+  const totals = await query<{
+    views_24h: string;
+    views_7d: string;
+    views_30d: string;
+    events_30d: string;
+  }>(`
+    SELECT
+      (SELECT COUNT(*) FROM page_views  WHERE viewed_at   > now() - INTERVAL '1 day')   AS views_24h,
+      (SELECT COUNT(*) FROM page_views  WHERE viewed_at   > now() - INTERVAL '7 days')  AS views_7d,
+      (SELECT COUNT(*) FROM page_views  WHERE viewed_at   > now() - INTERVAL '30 days') AS views_30d,
+      (SELECT COUNT(*) FROM site_events WHERE occurred_at > now() - INTERVAL '30 days') AS events_30d
+  `);
+
+  const top = await query<{ path: string; views: string }>(`
+    SELECT path, COUNT(*)::bigint AS views
+    FROM page_views
+    WHERE viewed_at > now() - INTERVAL '7 days'
+    GROUP BY path
+    ORDER BY views DESC, path ASC
+    LIMIT 15
+  `);
+
+  const byType = await query<{ event_type: string; count: string }>(`
+    SELECT event_type, COUNT(*)::bigint AS count
+    FROM site_events
+    WHERE occurred_at > now() - INTERVAL '30 days'
+    GROUP BY event_type
+    ORDER BY count DESC, event_type ASC
+  `);
+
+  const row = totals.rows[0];
+  return {
+    pageViews24h: Number(row?.views_24h ?? 0),
+    pageViews7d: Number(row?.views_7d ?? 0),
+    pageViews30d: Number(row?.views_30d ?? 0),
+    topPaths7d: top.rows.map((r) => ({ path: r.path, views: Number(r.views) })),
+    events30d: Number(row?.events_30d ?? 0),
+    eventsByType30d: byType.rows.map((r) => ({
+      eventType: r.event_type,
+      count: Number(r.count)
+    }))
+  };
+}
+
 /** Top issue ids by mention count, used by the sitemap so search
  *  engines can discover the most-referenced `/issues/UUM-xxxxx` pages
  *  without crawling every release page first. Ordered by mention
