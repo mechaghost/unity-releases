@@ -54,7 +54,10 @@ export function PackageEditorMatrix({
         cells = package version changed between consecutive editors.
       </p>
       <div className="viz-scroll">
-        <table className="viz-matrix">
+        <table
+          className="viz-matrix"
+          aria-label={`Editor by package compatibility matrix: ${rows.length} editor releases by ${packages.length} curated packages`}
+        >
           <thead>
             <tr>
               <th className="viz-matrix__editor">Editor</th>

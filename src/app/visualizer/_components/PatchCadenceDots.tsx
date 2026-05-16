@@ -1,5 +1,8 @@
 import { scaleTime } from "@visx/scale";
 import type { PatchCadencePoint } from "@/lib/visualizer";
+import { HoverInfo } from "@/app/_components/HoverInfo";
+import { streamLabel } from "@/lib/stream-labels";
+import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
 
 /**
  * Date-axis dot plot per release stream. One row per stream
@@ -50,7 +53,14 @@ export function PatchCadenceDots({ points }: { points: PatchCadencePoint[] }) {
         quiet. Hover a dot for the version + date.
       </p>
       <div className="viz-scroll">
-        <svg viewBox={`0 0 ${width} ${height}`} width="100%" preserveAspectRatio="xMidYMid meet">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          width="100%"
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label={`Patch cadence dot plot across ${streams.length} release stream${streams.length === 1 ? "" : "s"} for the last ${points.length} releases`}
+        >
+          <title>Patch cadence per release stream</title>
           {/* month ticks */}
           {xScale.ticks(8).map((tick) => (
             <g key={tick.toISOString()}>
@@ -86,15 +96,43 @@ export function PatchCadenceDots({ points }: { points: PatchCadencePoint[] }) {
                   {stream}
                 </text>
                 {dots.map((d) => (
-                  <a key={d.version} href={`/releases/${encodeURIComponent(d.version)}`}>
-                    <title>{`${d.version} · ${d.releaseDate.slice(0, 10)}`}</title>
-                    <circle
-                      cx={margin.left + xScale(new Date(d.releaseDate))}
-                      cy={y}
-                      r={3.5}
-                      className={`viz-dot viz-dot--${stream.toLowerCase()}`}
-                    />
-                  </a>
+                  <HoverInfo
+                    key={d.version}
+                    asChild
+                    title={
+                      <>
+                        {d.version}
+                        {d.stream ? (
+                          <span className="muted"> · {streamLabel(d.stream)}</span>
+                        ) : null}
+                      </>
+                    }
+                    body={
+                      <>
+                        <p>
+                          Released <strong>{formatReleaseDate(d.releaseDate)}</strong>{" "}
+                          <span className="muted">({formatRelativeDate(d.releaseDate)})</span>
+                        </p>
+                        <p className="muted">
+                          Minor line: <code>{d.minorLine}</code>
+                        </p>
+                      </>
+                    }
+                    footer={
+                      <a href={`/releases/${encodeURIComponent(d.version)}`}>
+                        Open release detail →
+                      </a>
+                    }
+                  >
+                    <a href={`/releases/${encodeURIComponent(d.version)}`}>
+                      <circle
+                        cx={margin.left + xScale(new Date(d.releaseDate))}
+                        cy={y}
+                        r={3.5}
+                        className={`viz-dot viz-dot--${stream.toLowerCase()}`}
+                      />
+                    </a>
+                  </HoverInfo>
                 ))}
               </g>
             );

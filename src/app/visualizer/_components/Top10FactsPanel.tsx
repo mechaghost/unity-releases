@@ -1,4 +1,5 @@
 import type { VersionFact } from "@/lib/visualizer";
+import { HoverInfo } from "@/app/_components/HoverInfo";
 
 export function Top10FactsPanel({ facts }: { facts: VersionFact[] }) {
   if (facts.length === 0) {
@@ -23,9 +24,19 @@ export function Top10FactsPanel({ facts }: { facts: VersionFact[] }) {
                 fact.value
               )}
             </div>
-            <div className="viz-facts__formula" title={fact.formula}>
-              {fact.formula}
-            </div>
+            <HoverInfo
+              title={fact.label}
+              body={
+                <>
+                  <p className="muted">How this number is computed:</p>
+                  <p>
+                    <code>{fact.formula}</code>
+                  </p>
+                </>
+              }
+            >
+              <div className="viz-facts__formula">{fact.formula}</div>
+            </HoverInfo>
           </li>
         ))}
       </ol>

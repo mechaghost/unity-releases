@@ -1,5 +1,6 @@
 import { scaleTime } from "@visx/scale";
 import type { IssueLifespan } from "@/lib/visualizer";
+import { HoverInfo } from "@/app/_components/HoverInfo";
 
 /**
  * Per-issue horizontal lifespan bars. x = release_date. Each row is one
@@ -55,7 +56,14 @@ export function IssueLifespanLines({ issues }: { issues: IssueLifespan[] }) {
         to drill in.
       </p>
       <div className="viz-scroll">
-        <svg viewBox={`0 0 ${width} ${height}`} width="100%" preserveAspectRatio="xMinYMid meet">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          width="100%"
+          preserveAspectRatio="xMinYMid meet"
+          role="img"
+          aria-label={`Lifespan bars for ${filtered.length} long-living Unity issues, sorted by days-open descending`}
+        >
+          <title>Issue lifespan — introduced → fixed</title>
           {/* axis ticks */}
           {xScale.ticks(6).map((tick) => {
             const x = margin.left + xScale(tick);
@@ -88,29 +96,63 @@ export function IssueLifespanLines({ issues }: { issues: IssueLifespan[] }) {
               .join(" ");
             const days = issue.daysOpen != null ? Math.floor(issue.daysOpen) : null;
             return (
-              <g key={issue.issueId}>
-                <a href={`/issues/${encodeURIComponent(issue.issueId)}`}>
-                  <text
-                    x={margin.left - 8}
-                    y={y + rowH / 2}
-                    dominantBaseline="middle"
-                    textAnchor="end"
-                    className="viz-lifespan-label"
-                  >
-                    {issue.issueId}
-                  </text>
-                  <title>{`${issue.issueId}${issue.area ? ` · ${issue.area}` : ""} · ${days != null ? `${days}d ` : ""}${issue.introducedVersion ?? "?"} → ${issue.fixedVersion ?? "open"}`}</title>
-                  <rect
-                    x={x1}
-                    y={y + 3}
-                    width={Math.max(2, x2 - x1)}
-                    height={rowH - 6}
-                    rx={2}
-                    ry={2}
-                    className={classes}
-                  />
-                </a>
-              </g>
+              <HoverInfo
+                key={issue.issueId}
+                asChild
+                title={issue.issueId}
+                body={
+                  <>
+                    <p>
+                      <strong>
+                        {issue.fixedDate ? "Fixed" : "Still open"}
+                      </strong>
+                      {days != null ? ` after ${days} day${days === 1 ? "" : "s"}` : ""}
+                    </p>
+                    <p>
+                      Introduced in <code>{issue.introducedVersion ?? "?"}</code>
+                      {issue.fixedVersion ? (
+                        <> · fixed in <code>{issue.fixedVersion}</code></>
+                      ) : (
+                        <> · no fix in indexed releases yet</>
+                      )}
+                    </p>
+                    {issue.area ? (
+                      <p className="muted">Area: {issue.area}</p>
+                    ) : null}
+                    {issue.hadBlocker ? (
+                      <p className="muted">Flagged blocker risk in at least one mention.</p>
+                    ) : null}
+                  </>
+                }
+                footer={
+                  <a href={`/issues/${encodeURIComponent(issue.issueId)}`}>
+                    See every mention of {issue.issueId} →
+                  </a>
+                }
+              >
+                <g>
+                  <a href={`/issues/${encodeURIComponent(issue.issueId)}`}>
+                    <text
+                      x={margin.left - 8}
+                      y={y + rowH / 2}
+                      dominantBaseline="middle"
+                      textAnchor="end"
+                      className="viz-lifespan-label"
+                    >
+                      {issue.issueId}
+                    </text>
+                    <rect
+                      x={x1}
+                      y={y + 3}
+                      width={Math.max(2, x2 - x1)}
+                      height={rowH - 6}
+                      rx={2}
+                      ry={2}
+                      className={classes}
+                    />
+                  </a>
+                </g>
+              </HoverInfo>
             );
           })}
         </svg>

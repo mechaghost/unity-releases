@@ -82,7 +82,14 @@ export function DecayCurve({ versions }: { versions: VersionAggregate[] }) {
         patch. A line trending down across patches = the branch is stabilizing.
       </p>
       <div className="viz-scroll">
-        <svg viewBox={`0 0 ${width} ${height}`} width="100%" preserveAspectRatio="xMidYMid meet">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          width="100%"
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label={`Known-issue count per release over time, charted as ${lines.length} branch line${lines.length === 1 ? "" : "s"}`}
+        >
+          <title>Known-issues per release, by branch</title>
           <Group left={margin.left} top={margin.top}>
             {/* grid */}
             {yScale.ticks(5).map((tick) => (
@@ -142,11 +149,22 @@ export function DecayCurve({ versions }: { versions: VersionAggregate[] }) {
   );
 }
 
+// Six-line palette aligned with the site's azure/earth/blocker token
+// system. Earlier the chart used vivid Tailwind colors which clashed
+// with every other surface and accidentally implied semantic meaning
+// (red = bad?) that the curve doesn't carry. These six tokens come
+// from the existing design-token scale; no new color decisions.
 const PALETTE = [
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899"
+  "#347F8E", // azure-500
+  "#587AA0", // review color (steel)
+  "#4D8A66", // success / green
+  "#A0783B", // caution / amber
+  "#7D786F", // gray-500 — neutral mid-line
+  "#A45A5A"  // blocker / red
 ];
+
+/** Inline `<style>` injects CSS variable values for each line so the
+ *  legend swatch and the line are guaranteed to match without
+ *  re-encoding the hex everywhere. Falls back to the PALETTE array
+ *  above when consumed directly by stroke/fill props. */
+export const DECAY_LINE_PALETTE = PALETTE;

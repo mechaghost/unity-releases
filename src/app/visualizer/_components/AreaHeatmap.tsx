@@ -71,7 +71,10 @@ export function AreaHeatmap({
           width="100%"
           preserveAspectRatio="xMinYMid meet"
           style={{ maxHeight: height + 16, display: "block" }}
+          role="img"
+          aria-label={`Breaking-change heatmap: ${rows.length} subsystem rows by ${visibleVersions.length} recent versions`}
         >
+          <title>Breaking-change heatmap by domain</title>
           {/* version column headers (rotated) */}
           {visibleVersions.map((v, i) => {
             const x = padding + labelW + i * cellW + cellW / 2;
