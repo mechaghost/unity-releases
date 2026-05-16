@@ -233,6 +233,176 @@ const SECTIONS: Section[] = [
     ]
   },
   {
+    id: "build-score",
+    title: "Build score & Upgrade score",
+    items: [
+      {
+        id: "what-is-build-score",
+        question: "What is the Build score?",
+        answer: (
+          <>
+            <p>
+              A 0–100 composite per Unity release that summarizes six
+              normalized sub-metrics into one number. Higher is better; 100
+              is the best position, 0 the worst. It appears on{" "}
+              <a href="/releases">Editor Releases</a> (sortable column),{" "}
+              <a href="/releases/6000.0.32f1">each release detail page</a>{" "}
+              (header badge), and on{" "}
+              <a href="/visualizer">Release Visualizer</a> (best/worst
+              leaderboard).
+            </p>
+            <p>
+              The six sub-metrics roll up into three groups: <strong>upgrade
+              risk</strong> (50% — breaking surface, blocker rate, mobile
+              issue rate), <strong>net cleanup</strong> (30% — fix density
+              and the fixes/known-issues delta vs the prior patch), and{" "}
+              <strong>live debt</strong> (20% — known-issue rate users live
+              with after upgrading). Click <em>How this number is
+              computed</em> on any badge for the full per-metric table.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "score-cohort",
+        question: "What does “cohort” mean on a Build score?",
+        answer: (
+          <>
+            <p>
+              Each release is scored against the population of releases in
+              the same <strong>stream</strong> — LTS releases are
+              percentile-ranked against other LTS releases, Beta against
+              Beta, Alpha against Alpha. The cohort name and size show up
+              under the badge (e.g. <code>cohort: LTS (72)</code>) so the
+              comparison is visible.
+            </p>
+            <p>
+              If a stream has too few peers (fewer than 8 releases) the
+              score falls back to the global <code>ALL</code> cohort. This
+              matters mostly for fresh streams; once a stream accumulates
+              eight patches it scores against itself. The cohort baseline
+              is recomputed per request from current data — no frozen
+              snapshots yet, so an old release&apos;s score can shift
+              slightly as new releases land.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "score-math",
+        question: "How is the score computed?",
+        answer: (
+          <>
+            <p>
+              For each sub-metric: compute the raw ratio per release
+              (e.g. <code>breaking + api_change / total_notes</code>),
+              winsorize at the cohort&apos;s 95th percentile (so a
+              mega-release doesn&apos;t crush everyone else&apos;s scores),
+              apply <code>log1p</code> to compress remaining skew, then
+              convert to a percentile rank within the cohort. For
+              metrics where higher raw is worse (breaking, blockers,
+              known-issues), the percentile is flipped to{" "}
+              <code>100 − percentile</code>. Sub-scores combine into the
+              composite via weighted arithmetic mean.
+            </p>
+            <p>
+              There&apos;s <strong>no blocker cap</strong> or other
+              categorical override — Unity&apos;s blocker labelling is
+              inconsistent enough that a hard cap would drift with their
+              tagging discipline rather than actual release quality. The
+              blocker rate already costs 15% of the composite directly.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "score-confidence",
+        question: "What does the “provisional” pill on a score mean?",
+        answer: (
+          <>
+            <p>
+              The score is confidence-weighted toward the cohort median
+              for releases with sparse data. A release with fewer than 20
+              parsed notes gets blended proportionally: a 10-note release
+              is 50% raw + 50% median. Below 5 parsed notes the score
+              isn&apos;t shown at all (it would just be noise).
+            </p>
+            <p>
+              The pill goes away once the release has enough data. Users
+              don&apos;t see a fake-precision &ldquo;87/100&rdquo; off
+              three notes; they see &ldquo;— / 100, insufficient data&rdquo;
+              instead, or a provisional badge with the confidence ratio in
+              the hover.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "what-is-upgrade-score",
+        question:
+          "What is the Upgrade score on Upgrade Intelligence (/compare)?",
+        answer: (
+          <>
+            <p>
+              The diff-window equivalent of the Build score. Where Build
+              score answers &ldquo;how does this single release compare to
+              its peers?&rdquo;, Upgrade score answers &ldquo;how does the
+              aggregate of every patch between <code>from</code> and{" "}
+              <code>to</code> compare to single-release peers?&rdquo;
+            </p>
+            <p>
+              There is no organic cohort of past diffs to score against —
+              two arbitrary diffs span different lengths, streams, and
+              calendar windows. So the Upgrade score treats the diff as a
+              <em> virtual aggregate release</em>: sum the counts across
+              every release in the window, compute the same per-note
+              rates, and score against the global single-release
+              population. The expander on the card explains this caveat
+              inline; the trajectory chart below the score recovers what
+              the aggregate hides.
+            </p>
+            <p>
+              The <strong>net-fix-delta</strong> sub-score has a special
+              reinterpretation on diffs: bookend delta (<code>to.netFix −
+              from.netFix</code> normalized by total notes), so the score
+              reflects how the destination patch&apos;s net-fix position
+              compares to the starting patch&apos;s.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "score-trajectory",
+        question:
+          "What does the trajectory chart + “Lowest-scoring patches” list show?",
+        answer: (
+          <>
+            <p>
+              An aggregate Upgrade score number compresses 30 patches into
+              one — useful at a glance, but it hides whether the branch
+              was steadily improving, steadily degrading, or had a V-shape
+              with a rough middle. The <strong>trajectory</strong>{" "}
+              sparkline plots each individual patch&apos;s build score in
+              chronological order so the shape of the upgrade is visible:
+              a rising line = each patch scored better than the previous;
+              a falling line = the branch destabilized across this
+              upgrade.
+            </p>
+            <p>
+              The <strong>lowest-scoring patches</strong> list calls out
+              the bottom 3 individual scores in the window, each labelled
+              with the group that dragged it down (upgrade risk, net
+              cleanup, or live debt). It answers &ldquo;where specifically
+              should my QA budget go?&rdquo; — if a particular patch in
+              the middle is what dragged the aggregate down, it&apos;s the
+              one to canary-test.
+            </p>
+          </>
+        )
+      }
+    ]
+  },
+  {
     id: "pages",
     title: "Pages & views",
     items: [
@@ -284,6 +454,63 @@ const SECTIONS: Section[] = [
             one release&apos;s notes end-to-end (e.g. &ldquo;what landed in
             6000.0.74f1?&rdquo;) without the noise of every version above and
             below it.
+          </>
+        )
+      },
+      {
+        id: "page-visualizer",
+        question: "What is the Release Visualizer (/visualizer)?",
+        answer: (
+          <>
+            <p>
+              A visual read on the corpus rather than a row-by-row list.
+              Seven charts stacked vertically, each one answering a
+              different question:
+            </p>
+            <ul>
+              <li>
+                <strong>Stability heat strip</strong> — one cell per Unity
+                6+ release, colored by net-fix score (
+                <code>fixes − known_issues</code>) with a mobile-blocker
+                dot. Reads like a stock chart.
+              </li>
+              <li>
+                <strong>Best &amp; worst Build scores</strong> — top-5 and
+                bottom-5 releases by composite score.
+              </li>
+              <li>
+                <strong>Known-issues per release, by branch</strong> — one
+                line per minor_line; lets you see whether a branch is
+                converging.
+              </li>
+              <li>
+                <strong>Breaking-change heatmap by domain</strong> — rows
+                are curated subsystems (Rendering, Scripting, Mobile, XR,
+                …), columns are recent versions. Cells link into the
+                lane-filtered release page.
+              </li>
+              <li>
+                <strong>Issue lifespan — introduced → fixed</strong> —
+                horizontal bars for the 30 longest-living UUM issues.
+              </li>
+              <li>
+                <strong>Editor × package compatibility</strong> — matrix
+                of which package versions shipped with each recent editor
+                release.
+              </li>
+              <li>
+                <strong>Patch cadence</strong> — dot plot per release
+                stream over the last 18 months.
+              </li>
+            </ul>
+            <p>
+              The domain filter chips at the top pin every chart to one
+              subsystem; the Top-10 facts panel on the side surfaces
+              dynamic SQL-driven highlights (longest-open blocker,
+              fastest fix turnaround, biggest breaking patch, etc.). The
+              trust rail at the bottom names every formula and the last
+              ingestion timestamps.
+            </p>
           </>
         )
       },
