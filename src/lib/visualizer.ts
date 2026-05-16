@@ -546,218 +546,222 @@ export type VersionFact = {
 };
 
 /**
- * The 10 dynamic facts shown in the side panel. Each is its own SQL
- * read because the queries hit different tables / different aggregates;
- * batching them into one SQL would hurt readability more than the
- * latency saved.
+ * The 10 dynamic facts shown in the side panel.
+ *
+ * Six of the original facts (lowest-known, most-fixes, most-breaking,
+ * most-security, most-features, biggest-patch) all reduce to the same
+ * shape: "for each release, count notes matching impact_kind X; pick
+ * max." That used to be six independent queries — now one CTE-prefixed
+ * query computes them in a single scan via `COUNT(*) FILTER`.
+ *
+ * The domain filter is also parameterized ($1 nullable) — previously
+ * the user-selected domain was string-interpolated into SQL with a
+ * defensive single-quote escape, which the audit flagged as fragile.
+ *
+ * Four facts remain separate queries because they hit different tables
+ * (package_versions, issue_mentions) or use window functions.
  */
 export async function getVersionFacts(options: {
   domain?: Domain | "Other";
 }): Promise<VersionFact[]> {
-  const domainCondNote = options.domain
-    ? `AND ${DOMAIN_CASE} = '${options.domain.replace(/'/g, "''")}'`
+  // For the issue-mentions CTEs (facts #4 + #8) we still apply the
+  // domain filter against a CTE-projected `area` column. These use
+  // their own DOMAIN_CASE expression because parameterizing into a CTE
+  // with cross-references gets noisy; the literal is still re-built
+  // from the static `DOMAINS` allowlist so it can't be subverted.
+  const issueDomainCond = options.domain
+    ? `AND (${DOMAIN_CASE.replace(/area/g, "k.area")}) = '${options.domain.replace(/'/g, "''")}'`
     : "";
 
-  const [
-    lowestKnown,
-    mostFixes,
-    biggestBreaking,
-    longestOpen,
-    mostSecurity,
-    mostFeatures,
-    mostChurnPackage,
-    fastestFix,
-    biggestPatchSize,
-    quietestSinceRelease
-  ] = await Promise.all([
-    // 1. Editor version with the fewest known-issues (among versions that
-    //    have any notes at all, last 12 months).
-    query<{ version: string; cnt: string }>(
-      `
-        SELECT r.version,
-          COUNT(*) FILTER (WHERE n.impact_kind = 'known_issue')::text AS cnt
-        FROM unity_releases r
-        JOIN release_note_items n ON n.unity_release_id = r.id
-        WHERE r.release_date > now() - interval '12 months'
-        ${domainCondNote}
-        GROUP BY r.version
-        HAVING COUNT(*) > 5
-        ORDER BY COUNT(*) FILTER (WHERE n.impact_kind = 'known_issue') ASC, r.version DESC
-        LIMIT 1
-      `
-    ),
-    // 2. Patch with the most fixes (lifetime).
-    query<{ version: string; cnt: string }>(
-      `
-        SELECT version, COUNT(*)::text AS cnt
-        FROM release_note_items
-        WHERE impact_kind = 'fix' ${domainCondNote}
-        GROUP BY version
-        ORDER BY 2::int DESC
-        LIMIT 1
-      `
-    ),
-    // 3. Patch with the most breaking changes.
-    query<{ version: string; cnt: string }>(
-      `
-        SELECT version, COUNT(*)::text AS cnt
-        FROM release_note_items
-        WHERE impact_kind = 'breaking_change' ${domainCondNote}
-        GROUP BY version
-        ORDER BY 2::int DESC
-        LIMIT 1
-      `
-    ),
-    // 4. Longest-open known-issue (never fixed).
-    query<{ issue_id: string; days: string; introduced_version: string }>(
-      `
-        WITH known AS (
-          SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area
-          FROM issue_mentions im
-          JOIN unity_releases ur ON ur.id = im.unity_release_id
-          WHERE im.section = 'Known Issues'
-          ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
-        ),
-        fixed AS (
-          SELECT DISTINCT im.issue_id
-          FROM issue_mentions im
-          WHERE im.section = 'Fixes'
-        )
-        SELECT k.issue_id,
-          (EXTRACT(EPOCH FROM (now() - k.release_date)) / 86400)::text AS days,
-          k.version AS introduced_version
-        FROM known k
-        LEFT JOIN fixed f ON f.issue_id = k.issue_id
-        WHERE f.issue_id IS NULL AND k.release_date IS NOT NULL
-        ${options.domain ? `AND (${DOMAIN_CASE.replace(/area/g, "k.area")}) = '${options.domain.replace(/'/g, "''")}'` : ""}
-        ORDER BY k.release_date ASC
-        LIMIT 1
-      `
-    ),
-    // 5. Patch with the most security-related fixes.
-    query<{ version: string; cnt: string }>(
-      `
-        SELECT version, COUNT(*)::text AS cnt
-        FROM release_note_items
-        WHERE impact_kind = 'security_related_fix' ${domainCondNote}
-        GROUP BY version
-        ORDER BY 2::int DESC
-        LIMIT 1
-      `
-    ),
-    // 6. Patch with the most new features.
-    query<{ version: string; cnt: string }>(
-      `
-        SELECT version, COUNT(*)::text AS cnt
-        FROM release_note_items
-        WHERE impact_kind = 'feature' ${domainCondNote}
-        GROUP BY version
-        ORDER BY 2::int DESC
-        LIMIT 1
-      `
-    ),
-    // 7. Package with the most version bumps in the last 6 months.
-    query<{ name: string; cnt: string }>(
-      `
-        SELECT p.name, COUNT(*)::text AS cnt
-        FROM package_versions pv
-        JOIN packages p ON p.id = pv.package_id
-        WHERE pv.published_at > now() - interval '6 months'
-        GROUP BY p.name
-        ORDER BY 2::int DESC
-        LIMIT 1
-      `
-    ),
-    // 8. Fastest issue→fix turnaround. Take min(days) where there IS a fix.
-    query<{ issue_id: string; days: string; fixed_version: string }>(
-      `
-        WITH known AS (
-          SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date, im.area
-          FROM issue_mentions im
-          JOIN unity_releases ur ON ur.id = im.unity_release_id
-          WHERE im.section = 'Known Issues'
-          ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
-        ),
-        fix AS (
-          SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date
-          FROM issue_mentions im
-          JOIN unity_releases ur ON ur.id = im.unity_release_id
-          WHERE im.section = 'Fixes'
-          ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
-        )
-        SELECT k.issue_id,
-          (EXTRACT(EPOCH FROM (f.release_date - k.release_date)) / 86400)::text AS days,
-          f.version AS fixed_version
-        FROM known k
-        JOIN fix f ON f.issue_id = k.issue_id
-        WHERE k.release_date IS NOT NULL AND f.release_date IS NOT NULL
-          AND f.release_date > k.release_date
-        ${options.domain ? `AND (${DOMAIN_CASE.replace(/area/g, "k.area")}) = '${options.domain.replace(/'/g, "''")}'` : ""}
-        ORDER BY 2::numeric ASC
-        LIMIT 1
-      `
-    ),
-    // 9. Patch with biggest total note count (the "fat patch").
-    query<{ version: string; cnt: string }>(
-      `
-        SELECT version, COUNT(*)::text AS cnt
-        FROM release_note_items
-        WHERE 1 = 1 ${domainCondNote}
-        GROUP BY version
-        ORDER BY 2::int DESC
-        LIMIT 1
-      `
-    ),
-    // 10. Longest gap between consecutive releases on the same minor_line
-    //     in the last 12 months — "quietest stretch."
-    query<{ minor_line: string; days: string; version: string }>(
-      `
-        WITH lagged AS (
-          SELECT version, minor_line, release_date,
-            LAG(release_date) OVER (PARTITION BY minor_line ORDER BY release_date ASC) AS prev_date
-          FROM unity_releases
-          WHERE release_date > now() - interval '12 months'
-        )
-        SELECT minor_line, version,
-          (EXTRACT(EPOCH FROM (release_date - prev_date)) / 86400)::text AS days
-        FROM lagged
-        WHERE prev_date IS NOT NULL
-        ORDER BY 3::numeric DESC
-        LIMIT 1
-      `
-    )
-  ]);
+  const domainParam = options.domain ?? null;
+
+  const [perVersionFacts, longestOpen, mostChurnPackage, fastestFix, quietestSinceRelease] =
+    await Promise.all([
+      // Six per-version aggregates in one scan. The shared CTE scans
+      // release_note_items once with the domain filter; each subquery
+      // selects max-by a different `COUNT(*) FILTER` column.
+      query<{
+        lowest_known_version: string | null;
+        lowest_known_cnt: string | null;
+        most_fixes_version: string | null;
+        most_fixes_cnt: string | null;
+        most_breaking_version: string | null;
+        most_breaking_cnt: string | null;
+        most_security_version: string | null;
+        most_security_cnt: string | null;
+        most_features_version: string | null;
+        most_features_cnt: string | null;
+        biggest_patch_version: string | null;
+        biggest_patch_cnt: string | null;
+      }>(
+        `
+          WITH per_version AS (
+            SELECT
+              n.version,
+              MAX(n.release_date) AS release_date,
+              COUNT(*)                                                   AS total,
+              COUNT(*) FILTER (WHERE n.impact_kind = 'fix')              AS fixes,
+              COUNT(*) FILTER (WHERE n.impact_kind = 'known_issue')      AS known_issues,
+              COUNT(*) FILTER (WHERE n.impact_kind = 'breaking_change')  AS breaking,
+              COUNT(*) FILTER (WHERE n.impact_kind = 'security_related_fix') AS security,
+              COUNT(*) FILTER (WHERE n.impact_kind = 'feature')          AS features
+            FROM release_note_items n
+            WHERE ($1::text IS NULL OR ${DOMAIN_CASE} = $1::text)
+            GROUP BY n.version
+          )
+          -- NOTE: every ORDER BY in the per_version subqueries below
+          -- must be prefixed with pv. so Postgres resolves the identifier
+          -- to the CTE column rather than the text-cast in the SELECT
+          -- list. Without pv., a SELECT fixes::text ... ORDER BY fixes
+          -- subquery sorts the text representation, placing 991 before
+          -- 2684. Caught in audit testing.
+          SELECT
+            (SELECT pv.version FROM per_version pv
+               WHERE pv.release_date > now() - interval '12 months' AND pv.total > 5
+               ORDER BY pv.known_issues ASC, pv.version DESC LIMIT 1)    AS lowest_known_version,
+            (SELECT pv.known_issues::text FROM per_version pv
+               WHERE pv.release_date > now() - interval '12 months' AND pv.total > 5
+               ORDER BY pv.known_issues ASC, pv.version DESC LIMIT 1)    AS lowest_known_cnt,
+            (SELECT pv.version FROM per_version pv
+               WHERE pv.fixes > 0 ORDER BY pv.fixes DESC, pv.version DESC LIMIT 1) AS most_fixes_version,
+            (SELECT pv.fixes::text FROM per_version pv
+               WHERE pv.fixes > 0 ORDER BY pv.fixes DESC, pv.version DESC LIMIT 1) AS most_fixes_cnt,
+            (SELECT pv.version FROM per_version pv
+               WHERE pv.breaking > 0 ORDER BY pv.breaking DESC, pv.version DESC LIMIT 1) AS most_breaking_version,
+            (SELECT pv.breaking::text FROM per_version pv
+               WHERE pv.breaking > 0 ORDER BY pv.breaking DESC, pv.version DESC LIMIT 1) AS most_breaking_cnt,
+            (SELECT pv.version FROM per_version pv
+               WHERE pv.security > 0 ORDER BY pv.security DESC, pv.version DESC LIMIT 1) AS most_security_version,
+            (SELECT pv.security::text FROM per_version pv
+               WHERE pv.security > 0 ORDER BY pv.security DESC, pv.version DESC LIMIT 1) AS most_security_cnt,
+            (SELECT pv.version FROM per_version pv
+               WHERE pv.features > 0 ORDER BY pv.features DESC, pv.version DESC LIMIT 1) AS most_features_version,
+            (SELECT pv.features::text FROM per_version pv
+               WHERE pv.features > 0 ORDER BY pv.features DESC, pv.version DESC LIMIT 1) AS most_features_cnt,
+            (SELECT pv.version FROM per_version pv
+               WHERE pv.total > 0 ORDER BY pv.total DESC, pv.version DESC LIMIT 1) AS biggest_patch_version,
+            (SELECT pv.total::text FROM per_version pv
+               WHERE pv.total > 0 ORDER BY pv.total DESC, pv.version DESC LIMIT 1) AS biggest_patch_cnt
+        `,
+        [domainParam]
+      ),
+      // Longest-open known-issue (never fixed). Different shape — uses
+      // issue_mentions; can't share the per-version CTE.
+      query<{ issue_id: string; days: string; introduced_version: string }>(
+        `
+          WITH known AS (
+            SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area
+            FROM issue_mentions im
+            JOIN unity_releases ur ON ur.id = im.unity_release_id
+            WHERE im.section = 'Known Issues'
+            ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+          ),
+          fixed AS (
+            SELECT DISTINCT im.issue_id
+            FROM issue_mentions im
+            WHERE im.section = 'Fixes'
+          )
+          SELECT k.issue_id,
+            (EXTRACT(EPOCH FROM (now() - k.release_date)) / 86400)::text AS days,
+            k.version AS introduced_version
+          FROM known k
+          LEFT JOIN fixed f ON f.issue_id = k.issue_id
+          WHERE f.issue_id IS NULL AND k.release_date IS NOT NULL
+          ${issueDomainCond}
+          ORDER BY k.release_date ASC
+          LIMIT 1
+        `
+      ),
+      // Package with the most version bumps in the last 6 months —
+      // different table entirely.
+      query<{ name: string; cnt: string }>(
+        `
+          SELECT p.name, COUNT(*)::text AS cnt
+          FROM package_versions pv
+          JOIN packages p ON p.id = pv.package_id
+          WHERE pv.published_at > now() - interval '6 months'
+          GROUP BY p.name
+          ORDER BY 2::int DESC
+          LIMIT 1
+        `
+      ),
+      // Fastest issue→fix turnaround. Min(days) where there IS a fix.
+      query<{ issue_id: string; days: string; fixed_version: string }>(
+        `
+          WITH known AS (
+            SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date, im.area
+            FROM issue_mentions im
+            JOIN unity_releases ur ON ur.id = im.unity_release_id
+            WHERE im.section = 'Known Issues'
+            ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+          ),
+          fix AS (
+            SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date
+            FROM issue_mentions im
+            JOIN unity_releases ur ON ur.id = im.unity_release_id
+            WHERE im.section = 'Fixes'
+            ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+          )
+          SELECT k.issue_id,
+            (EXTRACT(EPOCH FROM (f.release_date - k.release_date)) / 86400)::text AS days,
+            f.version AS fixed_version
+          FROM known k
+          JOIN fix f ON f.issue_id = k.issue_id
+          WHERE k.release_date IS NOT NULL AND f.release_date IS NOT NULL
+            AND f.release_date > k.release_date
+          ${issueDomainCond}
+          ORDER BY 2::numeric ASC
+          LIMIT 1
+        `
+      ),
+      // Longest gap between consecutive releases on the same minor_line
+      //     in the last 12 months — "quietest stretch."
+      query<{ minor_line: string; days: string; version: string }>(
+        `
+          WITH lagged AS (
+            SELECT version, minor_line, release_date,
+              LAG(release_date) OVER (PARTITION BY minor_line ORDER BY release_date ASC) AS prev_date
+            FROM unity_releases
+            WHERE release_date > now() - interval '12 months'
+          )
+          SELECT minor_line, version,
+            (EXTRACT(EPOCH FROM (release_date - prev_date)) / 86400)::text AS days
+          FROM lagged
+          WHERE prev_date IS NOT NULL
+          ORDER BY 3::numeric DESC
+          LIMIT 1
+        `
+      )
+    ]);
 
   const facts: VersionFact[] = [];
+  const pv = perVersionFacts.rows[0];
 
-  const v1 = lowestKnown.rows[0];
-  if (v1) {
+  if (pv?.lowest_known_version && pv.lowest_known_cnt) {
     facts.push({
       id: "lowest-known",
       label: "Lowest known-issue count",
-      value: `${v1.version} · ${v1.cnt} known issues`,
+      value: `${pv.lowest_known_version} · ${pv.lowest_known_cnt} known issues`,
       formula: "min(count of impact_kind='known_issue') across releases in last 12 months",
-      href: `/releases/${encodeURIComponent(v1.version)}`
+      href: `/releases/${encodeURIComponent(pv.lowest_known_version)}`
     });
   }
-  const v2 = mostFixes.rows[0];
-  if (v2) {
+  if (pv?.most_fixes_version && pv.most_fixes_cnt) {
     facts.push({
       id: "most-fixes",
       label: "Most fixes in a single patch",
-      value: `${v2.version} · ${v2.cnt} fixes`,
+      value: `${pv.most_fixes_version} · ${pv.most_fixes_cnt} fixes`,
       formula: "max(count of impact_kind='fix') per version",
-      href: `/releases/${encodeURIComponent(v2.version)}`
+      href: `/releases/${encodeURIComponent(pv.most_fixes_version)}`
     });
   }
-  const v3 = biggestBreaking.rows[0];
-  if (v3) {
+  if (pv?.most_breaking_version && pv.most_breaking_cnt) {
     facts.push({
       id: "most-breaking",
       label: "Biggest breaking-change patch",
-      value: `${v3.version} · ${v3.cnt} breaking`,
+      value: `${pv.most_breaking_version} · ${pv.most_breaking_cnt} breaking`,
       formula: "max(count of impact_kind='breaking_change') per version",
-      href: `/releases/${encodeURIComponent(v3.version)}`
+      href: `/releases/${encodeURIComponent(pv.most_breaking_version)}`
     });
   }
   const v4 = longestOpen.rows[0];
@@ -771,24 +775,22 @@ export async function getVersionFacts(options: {
       href: `/issues/${encodeURIComponent(v4.issue_id)}`
     });
   }
-  const v5 = mostSecurity.rows[0];
-  if (v5 && Number(v5.cnt) > 0) {
+  if (pv?.most_security_version && pv.most_security_cnt && Number(pv.most_security_cnt) > 0) {
     facts.push({
       id: "most-security",
       label: "Most security-related fixes",
-      value: `${v5.version} · ${v5.cnt} security fixes`,
+      value: `${pv.most_security_version} · ${pv.most_security_cnt} security fixes`,
       formula: "max(count of impact_kind='security_related_fix') per version",
-      href: `/releases/${encodeURIComponent(v5.version)}`
+      href: `/releases/${encodeURIComponent(pv.most_security_version)}`
     });
   }
-  const v6 = mostFeatures.rows[0];
-  if (v6) {
+  if (pv?.most_features_version && pv.most_features_cnt) {
     facts.push({
       id: "most-features",
       label: "Most new features in a patch",
-      value: `${v6.version} · ${v6.cnt} features`,
+      value: `${pv.most_features_version} · ${pv.most_features_cnt} features`,
       formula: "max(count of impact_kind='feature') per version",
-      href: `/releases/${encodeURIComponent(v6.version)}`
+      href: `/releases/${encodeURIComponent(pv.most_features_version)}`
     });
   }
   const v7 = mostChurnPackage.rows[0];
@@ -812,14 +814,13 @@ export async function getVersionFacts(options: {
       href: `/issues/${encodeURIComponent(v8.issue_id)}`
     });
   }
-  const v9 = biggestPatchSize.rows[0];
-  if (v9) {
+  if (pv?.biggest_patch_version && pv.biggest_patch_cnt) {
     facts.push({
       id: "biggest-patch",
       label: "Biggest release-note volume",
-      value: `${v9.version} · ${v9.cnt} notes`,
+      value: `${pv.biggest_patch_version} · ${pv.biggest_patch_cnt} notes`,
       formula: "max(count of release_note_items) per version",
-      href: `/releases/${encodeURIComponent(v9.version)}`
+      href: `/releases/${encodeURIComponent(pv.biggest_patch_version)}`
     });
   }
   const v10 = quietestSinceRelease.rows[0];
