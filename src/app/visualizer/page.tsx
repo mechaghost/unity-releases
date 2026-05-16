@@ -23,7 +23,7 @@ import { BuildScoreLeaderboard } from "./_components/BuildScoreLeaderboard";
 import { DecayCurve } from "./_components/DecayCurve";
 import { DomainFilterChips } from "./_components/DomainFilterChips";
 import { IssueLifespanLines } from "./_components/IssueLifespanLines";
-import { PackageEditorMatrix } from "./_components/PackageEditorMatrix";
+import { PackageDriftLog } from "./_components/PackageDriftLog";
 import { PatchCadenceDots } from "./_components/PatchCadenceDots";
 import { StabilityHeatStrip } from "./_components/StabilityHeatStrip";
 import { Top10FactsPanel } from "./_components/Top10FactsPanel";
@@ -143,7 +143,7 @@ export default async function VisualizerPage({
           <DecayCurve versions={versions} />
           <AreaHeatmap cells={heatmapCells} versions={versions} />
           <IssueLifespanLines issues={lifespans} />
-          <PackageEditorMatrix rows={matrix.rows} packages={matrix.packages} />
+          <PackageDriftLog rows={matrix.rows} packages={matrix.packages} />
           <PatchCadenceDots points={cadence} />
         </div>
         <div className="viz-side">
@@ -221,7 +221,10 @@ async function safeHeatmap(versions: string[]): Promise<AreaHeatmapCell[]> {
 
 async function safeMatrix(): Promise<{ rows: PackageMatrixRow[]; packages: string[] }> {
   try {
-    return await getPackageEditorMatrix({ editorLimit: 14 });
+    // 30 rows so the drift log surfaces enough change events to be
+    // useful — most editor releases don't bump curated packages, so a
+    // smaller window mostly shows "no changes" rows.
+    return await getPackageEditorMatrix({ editorLimit: 30 });
   } catch (err) {
     console.error("[visualizer] getPackageEditorMatrix failed:", err);
     return { rows: [], packages: [] };

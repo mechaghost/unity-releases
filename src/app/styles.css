@@ -4154,11 +4154,9 @@ button.filter-section__head:focus-visible {
 .viz-legend-swatch--red     { background: #A45A5A; }
 .viz-legend-swatch--neutral { background: var(--gray-300); }
 .viz-legend-swatch--blocker { background: #b3382f; }
-/* Mirrors `.viz-matrix__cell--changed` exactly: same bg, same
-   left-anchored accent border, no all-around outline. Keeps the
-   legend and the table cells reading as the same visual treatment
-   in both light and dark modes. */
-.viz-legend-swatch--change  { background: var(--accent-soft); border-left: 2px solid var(--accent); }
+/* `.viz-legend-swatch--change` retired alongside the package matrix
+   when it was replaced with the package-drift log — no longer
+   referenced by any component. */
 .viz-legend-swatch--heat-1  { background: #E6F1EA; }
 .viz-legend-swatch--heat-2  { background: #B7D9C5; }
 .viz-legend-swatch--heat-3  { background: #7DAD92; }
@@ -4306,35 +4304,90 @@ button.filter-section__head:focus-visible {
   fill: var(--text-secondary);
 }
 
-/* Package matrix ------------------------------------------------------- */
-.viz-matrix {
-  border-collapse: collapse;
-  width: 100%;
+/* Package drift log -------------------------------------------------- */
+.viz-package-drift {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.viz-package-drift__entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.viz-package-drift__entry:last-child { border-bottom: 0; padding-bottom: 0; }
+/* Empty / baseline rows are single-line — collapse the vertical
+   rhythm so a run of no-change patches doesn't visually shout. */
+.viz-package-drift__entry--empty,
+.viz-package-drift__entry--baseline {
+  padding-bottom: var(--space-1);
+}
+.viz-package-drift__inline-note {
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+.viz-package-drift__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.viz-package-drift__date {
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+}
+.viz-package-drift__changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.viz-package-drift__change {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(80px, auto) 16px minmax(80px, auto);
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
 }
-.viz-matrix th,
-.viz-matrix td {
-  text-align: left;
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-  white-space: nowrap;
+.viz-package-drift__change:hover { background: var(--surface-sunken); }
+.viz-package-drift__pkg {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
-.viz-matrix th {
+.viz-package-drift__from {
+  font-family: var(--font-mono);
   color: var(--text-muted);
-  font-weight: 500;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
 }
-.viz-matrix__editor { font-family: var(--font-mono); font-weight: 600; }
-.viz-matrix__date   { color: var(--text-muted); font-family: var(--font-mono); }
-.viz-matrix__cell   { font-family: var(--font-mono); }
-.viz-matrix__cell--changed {
-  background: var(--accent-soft);
-  color: var(--accent-soft-fg);
-  border-left: 2px solid var(--accent);
+.viz-package-drift__arrow {
+  color: var(--text-muted);
+  text-align: center;
 }
-.viz-matrix__pkg { font-size: var(--text-xs); }
+.viz-package-drift__to {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 560px) {
+  .viz-package-drift__change {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+  .viz-package-drift__arrow { display: none; }
+  .viz-package-drift__from::before { content: "from "; color: var(--text-muted); }
+  .viz-package-drift__to::before   { content: "to ";   color: var(--text-muted); }
+}
 
 /* Patch cadence dots --------------------------------------------------- */
 .viz-dot           { transition: r var(--duration-fast) var(--easing-standard); }

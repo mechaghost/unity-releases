@@ -494,9 +494,11 @@ const SECTIONS: Section[] = [
                 horizontal bars for the 30 longest-living UUM issues.
               </li>
               <li>
-                <strong>Editor × package compatibility</strong> — matrix
-                of which package versions shipped with each recent editor
-                release.
+                <strong>Package drift between editor releases</strong> —
+                chronological log showing only the curated packages whose
+                version changed between consecutive editor releases.
+                Empty entries indicate &ldquo;no curated package changes
+                from prior editor.&rdquo;
               </li>
               <li>
                 <strong>Patch cadence</strong> — dot plot per release
