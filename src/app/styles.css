@@ -4139,7 +4139,11 @@ button.filter-section__head:focus-visible {
 .viz-legend-swatch--red     { background: #A45A5A; }
 .viz-legend-swatch--neutral { background: var(--gray-300); }
 .viz-legend-swatch--blocker { background: #b3382f; }
-.viz-legend-swatch--change  { background: var(--accent-soft); border: 1px solid var(--accent); }
+/* Mirrors `.viz-matrix__cell--changed` exactly: same bg, same
+   left-anchored accent border, no all-around outline. Keeps the
+   legend and the table cells reading as the same visual treatment
+   in both light and dark modes. */
+.viz-legend-swatch--change  { background: var(--accent-soft); border-left: 2px solid var(--accent); }
 .viz-legend-swatch--heat-1  { background: #E6F1EA; }
 .viz-legend-swatch--heat-2  { background: #B7D9C5; }
 .viz-legend-swatch--heat-3  { background: #7DAD92; }
@@ -4661,6 +4665,10 @@ button.filter-section__head:focus-visible {
 @media (max-width: 720px) {
   .viz-leaderboard { grid-template-columns: 1fr; }
 }
+/* `min-width: 0` lets grid columns shrink past their content's intrinsic
+   width — protects long version strings or unbroken compact-badge bars
+   from blowing out the grid track. */
+.viz-leaderboard__col { min-width: 0; }
 .viz-leaderboard__heading {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
