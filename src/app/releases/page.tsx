@@ -1,4 +1,4 @@
-import { listReleases, listReleaseNoteCounts } from "@/lib/db/repositories";
+import { listReleases } from "@/lib/db/repositories";
 import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
 import { paginateItems, type PaginationResult } from "@/lib/pagination";
@@ -50,12 +50,16 @@ export default async function ReleasesPage({
   const selectedFilters = parseSelectedReleaseFilters(params.stream);
   const sortKey = parseReleaseSortKey(params.sort);
 
-  const [all, noteCounts, scoreInputs] = await Promise.all([
+  const [all, scoreInputs] = await Promise.all([
     safeListReleases() as Promise<Release[]>,
-    safeListReleaseNoteCounts(),
     safeScoreInputs()
   ]);
   const { results: scoreResults } = scoreAllReleases(scoreInputs);
+  // Note counts come straight from the cached score-inputs (which run a
+  // single GROUP BY on release_note_items). Killed the parallel
+  // listReleaseNoteCounts call that was doing the same aggregate
+  // independently.
+  const noteCountByVersion = new Map(scoreInputs.map((s) => [s.version, s.notes]));
 
   const filtered = all.filter((release) => releaseMatchesSelectedFilters(release, selectedFilters));
   const sorted = sortKey ? sortByScore(filtered, scoreResults, sortKey) : filtered;
@@ -120,7 +124,7 @@ export default async function ReleasesPage({
             </thead>
             <tbody>
               {releases.map((release) => {
-                const noteCount = noteCounts[release.version] ?? 0;
+                const noteCount = noteCountByVersion.get(release.version) ?? 0;
                 const score = scoreResults.get(release.version);
                 return (
                   <tr key={release.version}>
@@ -248,14 +252,6 @@ async function safeListReleases() {
     return await listReleases(500);
   } catch {
     return [];
-  }
-}
-
-async function safeListReleaseNoteCounts(): Promise<Record<string, number>> {
-  try {
-    return await listReleaseNoteCounts();
-  } catch {
-    return {};
   }
 }
 
