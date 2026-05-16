@@ -401,9 +401,9 @@ export function scoreAllReleases(
   return { results, cohorts };
 }
 
+/** Exported for test-side use of the sparse-data threshold; the other
+ *  two constants are module-private. */
 export const SCORE_CONSTANTS = {
-  MIN_COHORT_SIZE,
-  MIN_FULL_CONFIDENCE_NOTES,
   MIN_SCORABLE_NOTES
 };
 

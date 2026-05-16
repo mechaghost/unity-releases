@@ -8,7 +8,6 @@ import type { IngestionFreshness } from "@/lib/db/repositories";
 export function TrustRail({ freshness }: { freshness: IngestionFreshness[] }) {
   const editor = freshness.find((f) => f.sourceType === "editor_release");
   const packages = freshness.find((f) => f.sourceType === "package_version");
-  const issues = freshness.find((f) => f.sourceType === "issue_mention" || f.sourceType === "editor_release");
 
   return (
     <footer className="viz-trust-rail">

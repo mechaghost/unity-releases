@@ -1,4 +1,4 @@
-import { SUB_SCORES, type ScoreResult } from "@/lib/score";
+import { GROUP_LABELS, SUB_SCORES, type ScoreResult, type SubScoreGroup } from "@/lib/score";
 import { BuildScoreBadge } from "./BuildScoreBadge";
 
 /**
@@ -205,7 +205,7 @@ function WorstPatches({
                 <span className="upgrade-score-worst__version">{p.version}</span>
                 <span className="upgrade-score-worst__score">{p.result.composite}</span>
                 <span className="upgrade-score-worst__reason muted">
-                  dragged by {draggingGroup}
+                  dragged by {GROUP_LABELS[draggingGroup].toLowerCase()}
                 </span>
               </a>
             </li>
@@ -217,27 +217,25 @@ function WorstPatches({
 }
 
 /** Find the group whose actual contribution is furthest below its
- *  weight-maximum, normalized — i.e. the biggest "missed" share. */
-function identifyDraggingGroup(result: ScoreResult): string {
-  const groupContrib = new Map<string, { contrib: number; max: number }>();
+ *  weight-maximum, normalized — i.e. the biggest "missed" share. Returns
+ *  the canonical `SubScoreGroup` id so callers can render it via
+ *  `GROUP_LABELS` (rather than relying on this function to also know
+ *  the display strings). */
+function identifyDraggingGroup(result: ScoreResult): SubScoreGroup {
+  const groupContrib = new Map<SubScoreGroup, { contrib: number; max: number }>();
   for (const s of result.sub) {
     const entry = groupContrib.get(s.group) ?? { contrib: 0, max: 0 };
     entry.contrib += s.contribution;
     entry.max += s.weight * 100;
     groupContrib.set(s.group, entry);
   }
-  let worst = "upgrade risk";
+  let worst: SubScoreGroup = "upgradeRisk";
   let worstGap = -1;
-  const LABELS: Record<string, string> = {
-    upgradeRisk: "upgrade risk",
-    netCleanup: "net cleanup",
-    liveDebt: "live debt"
-  };
   for (const [group, { contrib, max }] of groupContrib) {
     const gap = max > 0 ? 1 - contrib / max : 0;
     if (gap > worstGap) {
       worstGap = gap;
-      worst = LABELS[group] ?? group;
+      worst = group;
     }
   }
   return worst;
