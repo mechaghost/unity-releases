@@ -109,8 +109,15 @@ export function AreaHeatmap({
                   const x = padding + labelW + ci * cellW;
                   const count = cellLookup.get(`${domain}::${v.version}`) ?? 0;
                   const heatClass = heatClassFor(count, maxCount);
+                  // Drill-through: jump to the release detail page with the
+                  // lanes filter pre-set to breaking + api — exactly the
+                  // notes the cell is counting. Avoids the 4-click path
+                  // (heatmap → release → filter drawer → set lane).
                   return (
-                    <a key={v.version} href={`/releases/${encodeURIComponent(v.version)}`}>
+                    <a
+                      key={v.version}
+                      href={`/releases/${encodeURIComponent(v.version)}?lanes=breaking,api`}
+                    >
                       <title>{`${domain} · ${v.version} · ${count} breaking/API`}</title>
                       <rect
                         x={x + 1}
