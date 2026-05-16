@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 import {
   getIssueStatuses,
   getRelease,
@@ -105,8 +106,15 @@ export default async function ReleasePage({
   const userPackages = await getUserPackages();
 
   // Resolve the release first so we can pass its date as the regressions
-  // boundary. Then build the search filter and fetch notes.
-  const release = await safeRelease(decoded);
+  // boundary. The lookup is a discriminated three-way:
+  //   - row     → render normally
+  //   - null    → version isn't in the corpus → 404
+  //   - throw   → DB hiccup → still render with the "not indexed" stub
+  //               so a flaky DB doesn't bury a real version
+  const release = await getRelease(decoded).catch(() => undefined);
+  if (release === null) {
+    notFound();
+  }
   const userSearchFilters = filtersToSearchFilters(
     filterState,
     userPackages,
@@ -276,14 +284,6 @@ function ReleaseLane({
       ) : null}
     </LaneShell>
   );
-}
-
-async function safeRelease(version: string) {
-  try {
-    return await getRelease(version);
-  } catch {
-    return null;
-  }
 }
 
 async function safeIssueStatuses(ids: string[]): Promise<Map<string, IssueStatus>> {
