@@ -1,8 +1,21 @@
+import { unstable_cache } from "next/cache";
 import { query } from "./db/client";
 import { DOMAINS, type Domain } from "./visualizer-domains";
 import type { ScoreInput } from "./score";
 
 export { DOMAINS, type Domain } from "./visualizer-domains";
+
+/**
+ * Cache TTL (seconds) for the two heaviest SQL paths — getScoreInputs
+ * and getVersionAggregates. Both seq-scan the 154k-row
+ * release_note_items table and are called from every score-using page.
+ *
+ * Ingestion runs at 00:00 + 12:00 UTC, so 10-minute staleness is below
+ * the data's actual refresh cadence — users never see less-fresh data
+ * than they would with `force-dynamic`, but most renders skip ~300ms of
+ * SQL work entirely.
+ */
+const SCORE_DATA_TTL_SECONDS = 600;
 
 /**
  * Data layer for the `/visualizer` page. Each exported function powers
@@ -94,11 +107,40 @@ export type VersionAggregate = {
  * notes whose `area` maps to that domain bucket; useful when the user
  * pins the page to "Rendering" or "Mobile."
  */
-export async function getVersionAggregates(options: {
+type VersionAggregateOptions = {
   domain?: Domain | "Other";
   streams?: StreamSlug[];
   limit?: number;
-}): Promise<VersionAggregate[]> {
+};
+
+export async function getVersionAggregates(
+  options: VersionAggregateOptions
+): Promise<VersionAggregate[]> {
+  // Delegate to the cached inner — cache keyed on the canonical option
+  // shape, so identical params share a cache entry across pages.
+  return cachedVersionAggregates(canonicalizeAggregateOptions(options));
+}
+
+function canonicalizeAggregateOptions(
+  options: VersionAggregateOptions
+): VersionAggregateOptions {
+  // Sort streams so the cache key is order-independent.
+  return {
+    domain: options.domain,
+    streams: options.streams ? [...options.streams].sort() : undefined,
+    limit: options.limit ?? 120
+  };
+}
+
+const cachedVersionAggregates = unstable_cache(
+  async (options: VersionAggregateOptions): Promise<VersionAggregate[]> => {
+    return getVersionAggregatesImpl(options);
+  },
+  ["visualizer:getVersionAggregates"],
+  { revalidate: SCORE_DATA_TTL_SECONDS, tags: ["score-data"] }
+);
+
+async function getVersionAggregatesImpl(options: VersionAggregateOptions): Promise<VersionAggregate[]> {
   const params: unknown[] = [];
   const noteJoinConds: string[] = [];
   const releaseWhereConds: string[] = ["r.release_date IS NOT NULL"];
@@ -808,6 +850,18 @@ export async function getVersionFacts(options: {
  * consistent across views).
  */
 export async function getScoreInputs(): Promise<ScoreInput[]> {
+  return cachedScoreInputs();
+}
+
+const cachedScoreInputs = unstable_cache(
+  async (): Promise<ScoreInput[]> => {
+    return getScoreInputsImpl();
+  },
+  ["visualizer:getScoreInputs"],
+  { revalidate: SCORE_DATA_TTL_SECONDS, tags: ["score-data"] }
+);
+
+async function getScoreInputsImpl(): Promise<ScoreInput[]> {
   const result = await query<{
     version: string;
     stream: string;
