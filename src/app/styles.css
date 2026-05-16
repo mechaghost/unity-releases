@@ -117,7 +117,10 @@
 
   --text-primary:    #ECE8DF;
   --text-secondary:  #C5BFB4;
-  --text-muted:      #8E887F;
+  /* Bumped from #8E887F (≈4.4:1 on --surface-base) to clear WCAG AA
+     4.5:1 for normal-size text. Lots of small UI copy uses .muted
+     (formula lines, cohort labels, date stamps). */
+  --text-muted:      #A19A8E;
   --text-link:       var(--azure-300);
 
   --accent-hover:   var(--azure-300);

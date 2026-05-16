@@ -43,6 +43,11 @@ export function VersionPill({ version, stream, href }: VersionPillProps) {
 
   return (
     <HoverInfo
+      // Use asChild here: the pill itself is already a focusable <a>
+      // (or a static <span> when href=null). Wrapping it in another
+      // focusable span would double the tab stops on dense pages like
+      // /releases/[version] where 100+ pills can render.
+      asChild
       title={
         <>
           {version}

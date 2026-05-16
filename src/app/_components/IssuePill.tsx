@@ -34,6 +34,10 @@ export function IssuePill({ id, url, status }: IssuePillProps) {
 
   return (
     <HoverInfo
+      // asChild: the chip itself is already a focusable <a>. Avoids
+      // doubling the tab stops on lane-heavy pages (~50 issue pills
+      // per release-detail view).
+      asChild
       title={id}
       body={
         <>
