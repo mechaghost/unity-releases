@@ -51,7 +51,6 @@ import { UpgradeScoreCard } from "../_components/UpgradeScoreCard";
 import { getScoreInputs } from "@/lib/visualizer";
 import {
   aggregateDiffScoreInput,
-  buildCohortStats,
   scoreAllReleases,
   scoreRelease
 } from "@/lib/score";
@@ -285,10 +284,12 @@ export default async function ComparePage({
   let upgradeScore: ReturnType<typeof scoreRelease> | null = null;
   let trajectory: Array<{ version: string; releaseDate: string | null; result: ReturnType<typeof scoreRelease> }> = [];
   if (scoreInputs.length > 0 && effectiveVersions.length > 0) {
-    const allStats = buildCohortStats(scoreInputs);
+    // Score the per-release trajectory first; reuse the globalStats it
+    // computed for the diff-aggregate scoring below instead of running
+    // buildCohortStats a second time over the same ~200 rows.
+    const { results: perReleaseScores, globalStats } = scoreAllReleases(scoreInputs);
     const diffInput = aggregateDiffScoreInput(scoreInputs, effectiveVersions, fromVersion, toVersion);
-    upgradeScore = scoreRelease(diffInput, allStats, "ALL");
-    const { results: perReleaseScores } = scoreAllReleases(scoreInputs);
+    upgradeScore = scoreRelease(diffInput, globalStats, "ALL");
     // Build the version→ScoreInput map once instead of `find()`-ing
     // per iteration. `effectiveVersions` can reach the lane's
     // 500-version ceiling, so the previous O(n²) was up to 100k string

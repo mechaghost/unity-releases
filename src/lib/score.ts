@@ -187,7 +187,7 @@ export type ScoreResult = {
   insufficient: boolean;
 };
 
-type CohortStats = {
+export type CohortStats = {
   // For each metric, the cohort p95 and the sorted log-transformed values
   // we use for percentile-rank lookups.
   perMetric: Record<SubScoreId, { p95: number; sortedLog: number[] }>;
@@ -368,7 +368,15 @@ export function scoreRelease(
  */
 export function scoreAllReleases(
   population: ScoreInput[]
-): { results: Map<string, ScoreResult>; cohorts: Record<string, number> } {
+): {
+  results: Map<string, ScoreResult>;
+  cohorts: Record<string, number>;
+  /** The cohort stats computed against the *entire* population, exposed
+   *  so callers that also need to score a one-off "virtual release"
+   *  (e.g. a diff aggregate on /compare) can reuse them instead of
+   *  triggering a duplicate buildCohortStats call. */
+  globalStats: CohortStats;
+} {
   // Bucket by stream.
   const byStream = new Map<string, ScoreInput[]>();
   for (const row of population) {
@@ -377,7 +385,7 @@ export function scoreAllReleases(
     byStream.set(row.stream, list);
   }
 
-  // Compute global stats once for the fallback path.
+  // Compute global stats once for the fallback path AND for caller reuse.
   const globalStats = buildCohortStats(population);
 
   const streamStats = new Map<string, CohortStats>();
@@ -398,7 +406,7 @@ export function scoreAllReleases(
       results.set(row.version, scoreRelease(row, globalStats, "ALL"));
     }
   }
-  return { results, cohorts };
+  return { results, cohorts, globalStats };
 }
 
 /** Exported for test-side use of the sparse-data threshold; the other
