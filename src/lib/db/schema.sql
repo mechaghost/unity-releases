@@ -279,6 +279,17 @@ CREATE INDEX IF NOT EXISTS idx_unity_release_modules_release_id ON unity_release
 CREATE INDEX IF NOT EXISTS idx_issue_mentions_release_id ON issue_mentions (unity_release_id);
 CREATE INDEX IF NOT EXISTS idx_issue_mentions_issue_id ON issue_mentions (issue_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_issue_mentions_issue_release ON issue_mentions (issue_id, unity_release_id, release_note_item_id);
+-- Powers the build-score / upgrade-score CTEs in `getIssueLifespans`
+-- and the longest-open / fastest-fix facts in `getVersionFacts`. Without
+-- this index Postgres seq-scans the 70k+ row issue_mentions table twice
+-- per /visualizer render (once for 'Known Issues', once for 'Fixes').
+CREATE INDEX IF NOT EXISTS idx_issue_mentions_section_issue ON issue_mentions (section, issue_id, unity_release_id);
+-- Powers the per-version COUNT(*) FILTER aggregates used by
+-- getVersionAggregates / getScoreInputs / getVersionFacts. The existing
+-- `idx_release_note_items_impact` is single-column on impact_kind only;
+-- pairing with version turns the per-fact `GROUP BY version` queries
+-- into Index Only Scans.
+CREATE INDEX IF NOT EXISTS idx_release_note_items_impact_version ON release_note_items (impact_kind, version);
 CREATE INDEX IF NOT EXISTS idx_package_versions_package_id ON package_versions (package_id);
 CREATE INDEX IF NOT EXISTS idx_content_events_time ON content_events (event_time DESC);
 CREATE INDEX IF NOT EXISTS idx_content_events_type ON content_events (event_type);
