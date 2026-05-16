@@ -3762,6 +3762,10 @@ button.filter-section__head:focus-visible {
     flex: 1 1 0;
     min-width: 13ch;
   }
+  /* When the From label wraps wider than To, the swap arrow used to
+     drift onto its own row mid-flow. Pin it baseline-aligned so it
+     stays between the inputs even with asymmetric label heights. */
+  .compare-picker__swap { align-self: end; }
   .compare-picker__go { flex: 1 1 100%; width: 100%; }
   .row { gap: var(--space-2); }
   .row__lead { width: 72px; }
@@ -4474,6 +4478,13 @@ button.filter-section__head:focus-visible {
   font-style: italic;
   margin-left: auto;
   align-self: baseline;
+}
+/* On narrow widths the caption used to wrap onto a fresh line right
+   next to the big composite number, reading like a footnote. Hide it
+   below 480px — the bar's "0 · 50 · 100" scale already conveys the
+   direction. */
+@media (max-width: 480px) {
+  .score-badge__direction { display: none; }
 }
 
 /* Bands — tint the left border so the score scans on color too,
