@@ -360,6 +360,21 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   gap: var(--space-1);
 }
 
+.lnav__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Thin divider between primary (release intel) and secondary (ambient
+   content) nav groups. Hairline so the divider whispers, not shouts. */
+.lnav__divider {
+  border: 0;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: var(--space-3) var(--space-3);
+}
+
 .lnav__group {
   display: flex;
   flex-direction: column;
