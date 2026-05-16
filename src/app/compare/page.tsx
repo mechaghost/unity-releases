@@ -47,6 +47,14 @@ import { LaneCollapseProvider, LaneShell } from "../_components/ReviewLanes";
 import { FilterChips, FilterTrigger } from "../_components/FilterBar";
 import { ComparePicker } from "../_components/ComparePicker";
 import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
+import { UpgradeScoreCard } from "../_components/UpgradeScoreCard";
+import { getScoreInputs } from "@/lib/visualizer";
+import {
+  aggregateDiffScoreInput,
+  buildCohortStats,
+  scoreAllReleases,
+  scoreRelease
+} from "@/lib/score";
 import { parseUnityVersion } from "@/lib/parsers/version";
 import { CopyLlmUrlButton } from "../_components/CopyLlmUrlButton";
 import { pageSocialMetadata, siteUrl } from "@/lib/site";
@@ -253,6 +261,29 @@ export default async function ComparePage({
     }
   }
 
+  // Upgrade-score: load the single-release population once, then compute
+  // the aggregate diff score against the global ALL cohort (diffs may
+  // span streams so a stream cohort doesn't apply). Per-release scores
+  // for the trajectory sparkline come from the same population. Failure
+  // here is non-fatal: the card just doesn't render.
+  const scoreInputs = await safeScoreInputs();
+  let upgradeScore: ReturnType<typeof scoreRelease> | null = null;
+  let trajectory: Array<{ version: string; releaseDate: string | null; result: ReturnType<typeof scoreRelease> }> = [];
+  if (scoreInputs.length > 0 && effectiveVersions.length > 0) {
+    const allStats = buildCohortStats(scoreInputs);
+    const diffInput = aggregateDiffScoreInput(scoreInputs, effectiveVersions, fromVersion, toVersion);
+    upgradeScore = scoreRelease(diffInput, allStats, "ALL");
+    const { results: perReleaseScores } = scoreAllReleases(scoreInputs);
+    trajectory = effectiveVersions
+      .map((v) => {
+        const result = perReleaseScores.get(v);
+        if (!result) return null;
+        const input = scoreInputs.find((s) => s.version === v);
+        return { version: v, releaseDate: input?.releaseDate ?? null, result };
+      })
+      .filter((x): x is { version: string; releaseDate: string | null; result: ReturnType<typeof scoreRelease> } => x != null);
+  }
+
   // Project user filters now that we know the regressions boundary
   // (earliest release_date in scope) - the toggle is a no-op without it.
   const userSearchFilters = filtersToSearchFilters(
@@ -435,27 +466,27 @@ export default async function ComparePage({
         }
       />
 
-      {(range.reversed || effectiveVersions.length < fullVersions.length || platform) ? (
+      {upgradeScore ? (
+        <UpgradeScoreCard
+          aggregate={upgradeScore}
+          fromVersion={fromVersion}
+          toVersion={toVersion}
+          trajectory={trajectory}
+        />
+      ) : null}
+
+      {(effectiveVersions.length < fullVersions.length || platform) ? (
         <section className="page-header">
-          {range.reversed ? (
-            <div className="page-header__title-row">
-              <span className="chip chip--reverse" title="The selected To-version is older than the From-version. The page still shows what changes between them.">
-                Reverse direction (downgrade)
-              </span>
-            </div>
-          ) : null}
-          {(effectiveVersions.length < fullVersions.length || platform) ? (
-            <p className="muted text-xs">
-              {effectiveVersions.length < fullVersions.length ? (
-                <>
-                  Sub-range <strong>{effectiveVersions.length}</strong> of{" "}
-                  <strong>{fullVersions.length}</strong>
-                  {platform ? " · " : null}
-                </>
-              ) : null}
-              {platform ? <>platform <code>{platform}</code></> : null}
-            </p>
-          ) : null}
+          <p className="muted text-xs">
+            {effectiveVersions.length < fullVersions.length ? (
+              <>
+                Sub-range <strong>{effectiveVersions.length}</strong> of{" "}
+                <strong>{fullVersions.length}</strong>
+                {platform ? " · " : null}
+              </>
+            ) : null}
+            {platform ? <>platform <code>{platform}</code></> : null}
+          </p>
         </section>
       ) : null}
 
@@ -1026,6 +1057,14 @@ function safeMinorLineOf(version: string): string | null {
 async function safeListReleases() {
   try {
     return (await listReleases(500)) as { version: string; stream: string | null; release_date: string | null }[];
+  } catch {
+    return [];
+  }
+}
+
+async function safeScoreInputs() {
+  try {
+    return await getScoreInputs();
   } catch {
     return [];
   }

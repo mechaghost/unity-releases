@@ -24,6 +24,10 @@ import { Icon } from "../../_components/Icon";
 import { NoteRow, type NoteRowData } from "../../_components/NoteRow";
 import { LaneCollapseProvider, LaneShell } from "../../_components/ReviewLanes";
 import { FilterBar } from "../../_components/FilterBar";
+import { BuildScoreBadge } from "../../_components/BuildScoreBadge";
+import { BuildScoreExpander } from "../../_components/BuildScoreExpander";
+import { getScoreInputs } from "@/lib/visualizer";
+import { scoreAllReleases } from "@/lib/score";
 import { jsonLdString, pageSocialMetadata, siteUrl, SITE_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -128,6 +132,13 @@ export default async function ReleasePage({
   const issueIds = unique(rows.flatMap((r) => r.issue_ids ?? []));
   const issueStatuses = await safeIssueStatuses(issueIds);
 
+  // Build-score: score the whole population once so the per-release
+  // result reflects the same cohort baseline used on /visualizer. Cheap
+  // enough at our scale (~200 releases × 6 metrics).
+  const scoreInputs = await safeScoreInputs();
+  const { results: scoreResults } = scoreAllReleases(scoreInputs);
+  const scoreResult = scoreResults.get(decoded);
+
   // JSON-LD describing this release as a TechArticle about a specific
   // Unity Editor version. Helps Google build rich results for the
   // release-notes search query that drives most organic traffic.
@@ -192,6 +203,12 @@ export default async function ReleasePage({
             </>
           ) : null}
         </div>
+        {scoreResult ? (
+          <div className="page-header__score">
+            <BuildScoreBadge result={scoreResult} />
+            <BuildScoreExpander result={scoreResult} version={decoded} />
+          </div>
+        ) : null}
       </section>
 
       <FilterBar
@@ -275,6 +292,14 @@ async function safeIssueStatuses(ids: string[]): Promise<Map<string, IssueStatus
     return await getIssueStatuses(ids);
   } catch {
     return new Map();
+  }
+}
+
+async function safeScoreInputs() {
+  try {
+    return await getScoreInputs();
+  } catch {
+    return [];
   }
 }
 

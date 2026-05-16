@@ -10,7 +10,9 @@ import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate } from "@/lib/format-date";
 import { pageSocialMetadata } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+// Keep ISR (5-minute revalidate) for /stats — the counts only move on
+// the 2×/day cron, so per-request rendering is pure waste. `force-dynamic`
+// previously suppressed the `revalidate` here.
 export const revalidate = 300;
 
 const STATS_DESCRIPTION =

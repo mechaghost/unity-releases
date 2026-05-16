@@ -71,7 +71,24 @@ export function releaseMatchesSelectedFilters(
   });
 }
 
-export function releasePageHref(page: number, selectedFilters: ReleaseFilterValue[]): string {
+/** Supported sort keys on /releases. Only build-score sort is wired in
+ *  v1 — adding more would require parallel server-side sort logic per
+ *  column. */
+export type ReleaseSortKey = "score-desc" | "score-asc";
+
+export function parseReleaseSortKey(
+  raw: string | string[] | undefined
+): ReleaseSortKey | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (v === "score-desc" || v === "score-asc") return v;
+  return null;
+}
+
+export function releasePageHref(
+  page: number,
+  selectedFilters: ReleaseFilterValue[],
+  sort: ReleaseSortKey | null = null
+): string {
   const params = new URLSearchParams();
   if (!selectedFiltersAreDefault(selectedFilters)) {
     for (const filter of selectedFilters) {
@@ -79,6 +96,7 @@ export function releasePageHref(page: number, selectedFilters: ReleaseFilterValu
     }
   }
   if (page > 1) params.set("page", String(page));
+  if (sort) params.set("sort", sort);
   const qs = params.toString();
   return qs ? `/releases?${qs}` : "/releases";
 }

@@ -22,7 +22,12 @@
     "check:packages": "tsx src/jobs/check-missing-packages.ts"
   },
   "dependencies": {
+    "@radix-ui/react-hover-card": "^1.1.15",
     "@types/pg": "^8.11.11",
+    "@visx/axis": "^3.12.0",
+    "@visx/group": "^3.12.0",
+    "@visx/scale": "^3.12.0",
+    "@visx/shape": "^3.12.0",
     "fast-xml-parser": "^5.2.5",
     "next": "^15.3.2",
     "pg": "^8.13.1",

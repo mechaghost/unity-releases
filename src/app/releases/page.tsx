@@ -3,11 +3,15 @@ import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
 import { paginateItems, type PaginationResult } from "@/lib/pagination";
 import {
+  parseReleaseSortKey,
   parseSelectedReleaseFilters,
   releaseMatchesSelectedFilters,
   releasePageHref,
-  type ReleaseFilterValue
+  type ReleaseFilterValue,
+  type ReleaseSortKey
 } from "@/lib/release-page-filter";
+import { getScoreInputs } from "@/lib/visualizer";
+import { scoreAllReleases, type ScoreResult } from "@/lib/score";
 import { pageSocialMetadata } from "@/lib/site";
 import { VersionPill } from "../_components/VersionPill";
 import { ReleaseStreamFilter } from "../_components/ReleaseStreamFilter";
@@ -44,14 +48,25 @@ export default async function ReleasesPage({
 }) {
   const params = await searchParams;
   const selectedFilters = parseSelectedReleaseFilters(params.stream);
+  const sortKey = parseReleaseSortKey(params.sort);
 
-  const [all, noteCounts] = await Promise.all([
+  const [all, noteCounts, scoreInputs] = await Promise.all([
     safeListReleases() as Promise<Release[]>,
-    safeListReleaseNoteCounts()
+    safeListReleaseNoteCounts(),
+    safeScoreInputs()
   ]);
+  const { results: scoreResults } = scoreAllReleases(scoreInputs);
+
   const filtered = all.filter((release) => releaseMatchesSelectedFilters(release, selectedFilters));
-  const pagination = paginateItems(filtered, firstParam(params.page), RELEASES_PER_PAGE);
+  const sorted = sortKey ? sortByScore(filtered, scoreResults, sortKey) : filtered;
+  const pagination = paginateItems(sorted, firstParam(params.page), RELEASES_PER_PAGE);
   const releases = pagination.items;
+
+  // Cycle: no sort → desc → asc → desc → … (clicking the header alternates
+  // direction once a sort is active; users land on the default newest-first
+  // view by removing the param manually or via filter chips).
+  const nextSort: ReleaseSortKey = sortKey === "score-desc" ? "score-asc" : "score-desc";
+  const scoreSortHref = releasePageHref(1, selectedFilters, nextSort);
 
   return (
     <>
@@ -88,12 +103,25 @@ export default async function ReleasesPage({
                 <th>Released</th>
                 <th>Age</th>
                 <th>Notes</th>
+                <th>
+                  <a
+                    className={`releases-table__sort ${sortKey ? "releases-table__sort--active" : ""}`}
+                    href={scoreSortHref}
+                    aria-label={`Sort by build score ${nextSort === "score-desc" ? "descending" : "ascending"}`}
+                  >
+                    Build score
+                    <span className="releases-table__sort-arrow" aria-hidden>
+                      {sortKey === "score-desc" ? "▼" : sortKey === "score-asc" ? "▲" : "↕"}
+                    </span>
+                  </a>
+                </th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {releases.map((release) => {
                 const noteCount = noteCounts[release.version] ?? 0;
+                const score = scoreResults.get(release.version);
                 return (
                   <tr key={release.version}>
                     <td data-label="Version">
@@ -125,6 +153,9 @@ export default async function ReleasesPage({
                           ? `Parsed · ${noteCount.toLocaleString()} ${noteCount === 1 ? "entry" : "entries"}`
                           : "Not yet parsed"}
                       </span>
+                    </td>
+                    <td data-label="Build score">
+                      <ScoreCell score={score} />
                     </td>
                     <td data-label="Actions">
                       <span className="release-actions">
@@ -226,4 +257,57 @@ async function safeListReleaseNoteCounts(): Promise<Record<string, number>> {
   } catch {
     return {};
   }
+}
+
+async function safeScoreInputs() {
+  try {
+    return await getScoreInputs();
+  } catch {
+    return [];
+  }
+}
+
+/** Sort releases by their composite score. Releases with no score
+ *  (insufficient data) always land last, regardless of direction, so
+ *  they don't clog the top of an "ascending" view. */
+function sortByScore(
+  releases: Release[],
+  scores: Map<string, ScoreResult>,
+  direction: ReleaseSortKey
+): Release[] {
+  const desc = direction === "score-desc";
+  return [...releases].sort((a, b) => {
+    const aScore = scores.get(a.version)?.composite;
+    const bScore = scores.get(b.version)?.composite;
+    if (aScore == null && bScore == null) return 0;
+    if (aScore == null) return 1;
+    if (bScore == null) return -1;
+    return desc ? bScore - aScore : aScore - bScore;
+  });
+}
+
+/** Compact in-table score cell: the number + a small dot in the
+ *  band color. Hovering shows the cohort. Links into the release
+ *  detail page where the full badge + expander live. */
+function ScoreCell({ score }: { score: ScoreResult | undefined }) {
+  if (!score || score.composite == null) {
+    return <span className="release-score release-score--empty">—</span>;
+  }
+  const band = bandFor(score.composite);
+  return (
+    <span
+      className={`release-score release-score--${band}`}
+      title={`Cohort: ${score.cohort} (${score.cohortSize})`}
+    >
+      <span className="release-score__dot" />
+      <span className="release-score__num">{score.composite}</span>
+    </span>
+  );
+}
+
+function bandFor(composite: number): string {
+  if (composite >= 75) return "good";
+  if (composite >= 55) return "mid";
+  if (composite >= 35) return "low";
+  return "bad";
 }
