@@ -274,11 +274,16 @@ export default async function ComparePage({
     const diffInput = aggregateDiffScoreInput(scoreInputs, effectiveVersions, fromVersion, toVersion);
     upgradeScore = scoreRelease(diffInput, allStats, "ALL");
     const { results: perReleaseScores } = scoreAllReleases(scoreInputs);
+    // Build the version→ScoreInput map once instead of `find()`-ing
+    // per iteration. `effectiveVersions` can reach the lane's
+    // 500-version ceiling, so the previous O(n²) was up to 100k string
+    // comparisons.
+    const inputsByVersion = new Map(scoreInputs.map((s) => [s.version, s]));
     trajectory = effectiveVersions
       .map((v) => {
         const result = perReleaseScores.get(v);
         if (!result) return null;
-        const input = scoreInputs.find((s) => s.version === v);
+        const input = inputsByVersion.get(v);
         return { version: v, releaseDate: input?.releaseDate ?? null, result };
       })
       .filter((x): x is { version: string; releaseDate: string | null; result: ReturnType<typeof scoreRelease> } => x != null);

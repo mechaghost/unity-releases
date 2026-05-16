@@ -73,11 +73,16 @@ export default async function VisualizerPage({
     safeScoreInputs()
   ]);
   const { results: scoreResults } = scoreAllReleases(scoreInputs);
+  // Build a version→ScoreInput lookup once so the leaderboard's
+  // enrichment loop is O(n) instead of O(n²) over ~200 releases (the
+  // earlier `scoreInputs.find` inside the .map was ~40k string
+  // comparisons per render).
+  const inputsByVersion = new Map(scoreInputs.map((s) => [s.version, s]));
   // Enrich each leaderboard row with the release's metadata (stream +
   // date) so the panel can show what version each badge belongs to
   // without forcing the user to hover.
   const leaderboardRows = [...scoreResults.values()].map((result) => {
-    const meta = scoreInputs.find((s) => s.version === result.version);
+    const meta = inputsByVersion.get(result.version);
     return {
       result,
       stream: meta?.stream ?? null,
