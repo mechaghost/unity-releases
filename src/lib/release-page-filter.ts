@@ -84,6 +84,30 @@ export function parseReleaseSortKey(
   return null;
 }
 
+/**
+ * Sort releases by their composite score. Releases with no score
+ * (insufficient data) always land LAST regardless of direction so they
+ * don't clog the top of an ascending view.
+ *
+ * Generic over the release shape — only requires a `version` string —
+ * so the helper is independent of the page's local `Release` type.
+ */
+export function sortReleasesByScore<T extends { version: string }>(
+  releases: T[],
+  scoreByVersion: Map<string, { composite: number | null }>,
+  direction: ReleaseSortKey
+): T[] {
+  const desc = direction === "score-desc";
+  return [...releases].sort((a, b) => {
+    const aScore = scoreByVersion.get(a.version)?.composite;
+    const bScore = scoreByVersion.get(b.version)?.composite;
+    if (aScore == null && bScore == null) return 0;
+    if (aScore == null) return 1;
+    if (bScore == null) return -1;
+    return desc ? bScore - aScore : aScore - bScore;
+  });
+}
+
 export function releasePageHref(
   page: number,
   selectedFilters: ReleaseFilterValue[],

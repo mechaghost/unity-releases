@@ -7,6 +7,7 @@ import {
   parseSelectedReleaseFilters,
   releaseMatchesSelectedFilters,
   releasePageHref,
+  sortReleasesByScore,
   type ReleaseFilterValue,
   type ReleaseSortKey
 } from "@/lib/release-page-filter";
@@ -62,7 +63,7 @@ export default async function ReleasesPage({
   const noteCountByVersion = new Map(scoreInputs.map((s) => [s.version, s.notes]));
 
   const filtered = all.filter((release) => releaseMatchesSelectedFilters(release, selectedFilters));
-  const sorted = sortKey ? sortByScore(filtered, scoreResults, sortKey) : filtered;
+  const sorted = sortKey ? sortReleasesByScore(filtered, scoreResults, sortKey) : filtered;
   const pagination = paginateItems(sorted, firstParam(params.page), RELEASES_PER_PAGE);
   const releases = pagination.items;
 
@@ -261,25 +262,6 @@ async function safeScoreInputs() {
   } catch {
     return [];
   }
-}
-
-/** Sort releases by their composite score. Releases with no score
- *  (insufficient data) always land last, regardless of direction, so
- *  they don't clog the top of an "ascending" view. */
-function sortByScore(
-  releases: Release[],
-  scores: Map<string, ScoreResult>,
-  direction: ReleaseSortKey
-): Release[] {
-  const desc = direction === "score-desc";
-  return [...releases].sort((a, b) => {
-    const aScore = scores.get(a.version)?.composite;
-    const bScore = scores.get(b.version)?.composite;
-    if (aScore == null && bScore == null) return 0;
-    if (aScore == null) return 1;
-    if (bScore == null) return -1;
-    return desc ? bScore - aScore : aScore - bScore;
-  });
 }
 
 /** Compact in-table score cell: the number + a small dot in the
