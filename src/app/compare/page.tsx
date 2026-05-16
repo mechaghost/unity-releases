@@ -229,6 +229,10 @@ export default async function ComparePage({
   }
 
   if (range.versions.length === 0) {
+    // Distinguish the two empty-range causes so the explanation is
+    // honest: same version on both sides yields nothing by definition;
+    // stream-filtered ranges might fix themselves with a wider scope.
+    const sameVersion = fromVersion === toVersion;
     return (
       <ComparePicker
         fromVersion={fromVersion}
@@ -237,11 +241,22 @@ export default async function ComparePage({
         selectedStreams={selectedStreams}
       >
         <div className="empty-state">
-          <h2>No releases in range</h2>
-          <p>
-            Nothing falls between <code>{fromVersion}</code> and <code>{toVersion}</code> in the compare
-            scope ({streamListLabel(selectedStreams)}).
-          </p>
+          <h2>{sameVersion ? "Nothing to compare" : "No releases in range"}</h2>
+          {sameVersion ? (
+            <p>
+              <code>{fromVersion}</code> on both sides — pick two different
+              versions to see what changed between them. If you want a
+              single-release view instead, open{" "}
+              <a href={`/releases/${encodeURIComponent(fromVersion)}`}>
+                /releases/{fromVersion}
+              </a>.
+            </p>
+          ) : (
+            <p>
+              Nothing falls between <code>{fromVersion}</code> and <code>{toVersion}</code> in the compare
+              scope ({streamListLabel(selectedStreams)}).
+            </p>
+          )}
         </div>
       </ComparePicker>
     );

@@ -99,12 +99,34 @@ export default async function IssuePage({
         <p>
           {results.length === 0
             ? activeMajor === null
-              ? "Not mentioned in indexed release notes yet."
+              ? `Not mentioned in any of the indexed Unity release notes yet. The issue may exist on Unity's tracker — check the link below — but Unity hasn't called it out in a release-note row we've parsed.`
               : `Not mentioned in any indexed ${majorLabel(activeMajor)} release.`
             : activeMajor === null
               ? `Mentioned in ${results.length} release note${results.length === 1 ? "" : "s"}.`
               : `Mentioned in ${results.length} ${majorLabel(activeMajor)} release note${results.length === 1 ? "" : "s"}.`}
         </p>
+        {results.length === 0 && activeMajor === null ? (
+          <div className="empty-state" style={{ marginTop: 16 }}>
+            <p className="muted">Next steps:</p>
+            <ul>
+              <li>
+                <a href={trackerUrl} target="_blank" rel="noopener noreferrer">
+                  Search Unity Issue Tracker for {id} ↗
+                </a>
+              </li>
+              <li>
+                <a href={`/explorer?q=${encodeURIComponent(id)}`}>
+                  Free-text search for &quot;{id}&quot; across all parsed notes
+                </a>
+              </li>
+              <li>
+                <a href="/visualizer">
+                  See currently long-living open issues on the Release Visualizer
+                </a>
+              </li>
+            </ul>
+          </div>
+        ) : null}
         {status.kind !== "unknown" ? (
           <p className="muted text-xs">{statusDetail(status)}</p>
         ) : null}

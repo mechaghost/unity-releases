@@ -51,6 +51,19 @@ function parseDomain(value: string | string[] | undefined): Domain | "Other" | n
   return (DOMAINS as readonly string[]).includes(value) ? (value as Domain) : null;
 }
 
+/** Returns the raw param value when it was non-empty but failed to
+ *  resolve to a known domain — so the page can surface "Unknown domain
+ *  'X' — showing all data" instead of silently dropping the filter. */
+function unknownDomainInput(
+  raw: string | string[] | undefined,
+  parsed: Domain | "Other" | null
+): string | null {
+  if (parsed != null) return null;
+  if (typeof raw !== "string") return null;
+  if (raw.trim() === "") return null;
+  return raw;
+}
+
 export default async function VisualizerPage({
   searchParams
 }: {
@@ -58,6 +71,7 @@ export default async function VisualizerPage({
 }) {
   const params = await searchParams;
   const domain = parseDomain(params.domain);
+  const unknownDomain = unknownDomainInput(params.domain, domain);
 
   // Every DB call below is wrapped in a `safeX` helper that swallows
   // errors and returns an empty default. A single dead query no longer
@@ -114,6 +128,13 @@ export default async function VisualizerPage({
       </section>
 
       <DomainFilterChips activeDomain={domain} />
+
+      {unknownDomain ? (
+        <div className="viz-warning" role="alert">
+          Unknown domain <code>{unknownDomain}</code> — showing all data.
+          Use the chips above to filter to a known domain.
+        </div>
+      ) : null}
 
       <div className="viz-grid">
         <div className="viz-main">
