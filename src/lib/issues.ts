@@ -1,6 +1,14 @@
+import { unstable_cache } from "next/cache";
 import { query } from "./db/client";
 import { DOMAINS, type Domain } from "./visualizer-domains";
 import { buildDomainCaseSql } from "./visualizer";
+
+/** Cache TTL (seconds) for the heaviest /issues read queries. Matches
+ *  the `SCORE_DATA_TTL_SECONDS` cadence in visualizer.ts — ingestion
+ *  runs every 12h so 10-minute staleness is well inside the data's
+ *  natural refresh window. Search queries are intentionally NOT cached
+ *  (high keyspace, low hit rate). */
+const ISSUE_DATA_TTL_SECONDS = 600;
 
 /**
  * Data layer for `/issues` (Issue Explorer). Issue-centric aggregates
@@ -27,7 +35,14 @@ export type IssueStats = {
   regressed: number;
 };
 
-export async function getIssueStats(): Promise<IssueStats> {
+async function getIssueStatsImpl(): Promise<IssueStats> {
+  // Single-pass GROUP BY over issue_mentions ⨝ unity_releases. The
+  // previous version computed 4 DISTINCT-ON CTEs and 4 scalar subqueries
+  // — the same scan four times. Here, per issue, we record:
+  //   - earliest fix date  (MIN(release_date) FILTER section='Fixes')
+  //   - latest fix date    (MAX(…))
+  //   - latest known date  (MAX(…) FILTER section='Known Issues')
+  // The outer SELECT then derives the four counts off those flags.
   const result = await query<{
     total: string;
     open: string;
@@ -35,45 +50,30 @@ export async function getIssueStats(): Promise<IssueStats> {
     regressed: string;
   }>(
     `
-      WITH first_known AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
+      WITH per_issue AS (
+        SELECT
+          im.issue_id,
+          MIN(ur.release_date) FILTER (WHERE im.section = 'Fixes')           AS first_fix,
+          MAX(ur.release_date) FILTER (WHERE im.section = 'Fixes')           AS latest_fix,
+          MAX(ur.release_date) FILTER (WHERE im.section = 'Known Issues')    AS latest_known
         FROM issue_mentions im
         JOIN unity_releases ur ON ur.id = im.unity_release_id
-        WHERE im.section = 'Known Issues'
-        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
-      ),
-      latest_known AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
-        FROM issue_mentions im
-        JOIN unity_releases ur ON ur.id = im.unity_release_id
-        WHERE im.section = 'Known Issues'
-        ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
-      ),
-      first_fix AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
-        FROM issue_mentions im
-        JOIN unity_releases ur ON ur.id = im.unity_release_id
-        WHERE im.section = 'Fixes'
-        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
-      ),
-      latest_fix AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
-        FROM issue_mentions im
-        JOIN unity_releases ur ON ur.id = im.unity_release_id
-        WHERE im.section = 'Fixes'
-        ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
+        GROUP BY im.issue_id
       )
       SELECT
-        (SELECT COUNT(DISTINCT issue_id) FROM issue_mentions)::text AS total,
-        (SELECT COUNT(*) FROM latest_known lk
-           LEFT JOIN latest_fix lf ON lf.issue_id = lk.issue_id
-           WHERE lf.issue_id IS NULL
-              OR lk.release_date > lf.release_date)::text AS open,
-        (SELECT COUNT(*) FROM first_fix
-           WHERE release_date > now() - interval '30 days')::text AS fixed_recent,
-        (SELECT COUNT(*) FROM latest_known lk
-           JOIN first_fix ff ON ff.issue_id = lk.issue_id
-           WHERE lk.release_date > ff.release_date)::text AS regressed
+        COUNT(*)::text AS total,
+        COUNT(*) FILTER (
+          WHERE latest_known IS NOT NULL
+            AND (latest_fix IS NULL OR latest_known > latest_fix)
+        )::text AS open,
+        COUNT(*) FILTER (
+          WHERE first_fix IS NOT NULL AND first_fix > now() - interval '30 days'
+        )::text AS fixed_recent,
+        COUNT(*) FILTER (
+          WHERE latest_known IS NOT NULL AND first_fix IS NOT NULL
+            AND latest_known > first_fix
+        )::text AS regressed
+      FROM per_issue
     `
   );
   const row = result.rows[0];
@@ -104,7 +104,7 @@ export type IssueRow = {
 
 /** The N longest-open issues (open = no Fix mention, or Known Issues
  *  appears after every fix). Sorted by days-open desc. */
-export async function getLongestOpenIssues(limit = 10): Promise<IssueRow[]> {
+async function getLongestOpenIssuesImpl(limit = 10): Promise<IssueRow[]> {
   const result = await query<{
     issue_id: string;
     area: string | null;
@@ -201,7 +201,7 @@ export async function getLongestOpenIssues(limit = 10): Promise<IssueRow[]> {
  *  new problems has Unity flagged lately?" regardless of whether
  *  there's already a Fix shipped. Status column on the table tells
  *  the user whether each issue is still open. */
-export async function getNewestIssues(limit = 10): Promise<IssueRow[]> {
+async function getNewestIssuesImpl(limit = 10): Promise<IssueRow[]> {
   const result = await query<{
     issue_id: string;
     area: string | null;
@@ -299,7 +299,7 @@ export async function getNewestIssues(limit = 10): Promise<IssueRow[]> {
 /** The N issues mentioned in the most distinct release versions —
  *  surfaces "Unity keeps re-listing this" cases plus the most
  *  frequently fixed-and-reintroduced regressions. */
-export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
+async function getMostMentionedIssuesImpl(limit = 10): Promise<IssueRow[]> {
   const result = await query<{
     issue_id: string;
     area: string | null;
@@ -527,13 +527,30 @@ export async function searchIssues(
   // Shared CTE block driving both the count and the paginated row
   // query. Keeping the same CTE definitions in both means the row
   // query's status_val and the count's status_val agree.
+  //
+  // `matched` is a UNION of two index-friendly subqueries rather than
+  // an `OR` join: ILIKE on a single column can use the pg_trgm GIN
+  // index, but `WHERE issue_id ILIKE … OR body ILIKE …` cannot. The
+  // empty-pattern case (drill-through with status/area filter only,
+  // no text query) skips the UNION entirely and returns every issue.
+  const matchedCte =
+    pattern === "%"
+      ? // $1 is referenced in a noop predicate so the bind set matches.
+        `matched AS (
+          SELECT DISTINCT issue_id FROM issue_mentions
+          WHERE $1::text IS NOT NULL
+        )`
+      : `matched AS (
+          SELECT issue_id FROM issue_mentions
+          WHERE issue_id ILIKE $1 ESCAPE '\\'
+          UNION
+          SELECT DISTINCT im.issue_id
+          FROM issue_mentions im
+          JOIN release_note_items rn ON rn.id = im.release_note_item_id
+          WHERE rn.body ILIKE $1 ESCAPE '\\'
+        )`;
   const baseCTE = `
-    WITH matched AS (
-      SELECT DISTINCT im.issue_id
-      FROM issue_mentions im
-      LEFT JOIN release_note_items rn ON rn.id = im.release_note_item_id
-      WHERE im.issue_id ILIKE $1 ESCAPE '\\' OR rn.body ILIKE $1 ESCAPE '\\'
-    ),
+    WITH ${matchedCte},
     first_known AS (
       SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area, rn.body
       FROM issue_mentions im
@@ -685,7 +702,7 @@ export type IssueHeatmapCell = {
  *    - status: 'open' if no Fix mention, otherwise 'fixed'
  *  Regressed issues count as 'open' here (Unity considers them
  *  unresolved). */
-export async function getIssueDomainHeatmap(): Promise<IssueHeatmapCell[]> {
+async function getIssueDomainHeatmapImpl(): Promise<IssueHeatmapCell[]> {
   const domainCase = buildDomainCaseSql("im_area.area");
   const result = await query<{
     domain: string;
@@ -732,3 +749,37 @@ export async function getIssueDomainHeatmap(): Promise<IssueHeatmapCell[]> {
 }
 
 export const ALL_DOMAINS_PLUS_OTHER: ReadonlyArray<Domain | "Other"> = [...DOMAINS, "Other"];
+
+/**
+ * Cached wrappers for the read functions used by /issues. Each cache
+ * key includes the function name + arg signature; on a cold render the
+ * underlying SQL runs once and serves every subsequent request inside
+ * the TTL window. searchIssues is intentionally NOT cached because its
+ * keyspace (q, page, status, sort, area) is high-cardinality and most
+ * requests would miss.
+ */
+export const getIssueStats = unstable_cache(
+  () => getIssueStatsImpl(),
+  ["issues:getIssueStats"],
+  { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
+);
+export const getLongestOpenIssues = unstable_cache(
+  (limit?: number) => getLongestOpenIssuesImpl(limit),
+  ["issues:getLongestOpenIssues"],
+  { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
+);
+export const getNewestIssues = unstable_cache(
+  (limit?: number) => getNewestIssuesImpl(limit),
+  ["issues:getNewestIssues"],
+  { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
+);
+export const getMostMentionedIssues = unstable_cache(
+  (limit?: number) => getMostMentionedIssuesImpl(limit),
+  ["issues:getMostMentionedIssues"],
+  { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
+);
+export const getIssueDomainHeatmap = unstable_cache(
+  () => getIssueDomainHeatmapImpl(),
+  ["issues:getIssueDomainHeatmap"],
+  { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
+);
