@@ -411,6 +411,137 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
   }));
 }
 
+/**
+ * Free-text search across issue ids + their first Known-Issues body.
+ * Returns up to `limit` matching issues sorted by recency of first
+ * Known-Issues mention.
+ *
+ * - Query is matched ILIKE on `issue_id` AND on `body`, so "UUM-22444"
+ *   finds the exact id and "addressables" finds every issue whose
+ *   body mentions Addressables.
+ * - Empty / whitespace-only query short-circuits to []; the caller
+ *   should not invoke the SQL in that case but we guard anyway.
+ * - Reuses the same IssueRow shape the existing tables render so the
+ *   results card can drop into the existing IssueTable component.
+ */
+export async function searchIssues(rawQuery: string, limit = 50): Promise<IssueRow[]> {
+  const q = rawQuery.trim();
+  if (q.length === 0) return [];
+  // Match ILIKE %q% with PG escape for the LIKE wildcards.
+  const pattern = `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
+
+  const result = await query<{
+    issue_id: string;
+    area: string | null;
+    introduced_version: string | null;
+    introduced_date: string | null;
+    days_open: string | null;
+    mention_count: string;
+    fixed_version: string | null;
+    fixed_date: string | null;
+    status: string;
+    description: string | null;
+  }>(
+    `
+      WITH matched AS (
+        SELECT DISTINCT im.issue_id
+        FROM issue_mentions im
+        LEFT JOIN release_note_items rn ON rn.id = im.release_note_item_id
+        WHERE im.issue_id ILIKE $1 ESCAPE '\\' OR rn.body ILIKE $1 ESCAPE '\\'
+      ),
+      first_known AS (
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area, rn.body
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        JOIN release_note_items rn ON rn.id = im.release_note_item_id
+        WHERE im.section = 'Known Issues' AND im.issue_id IN (SELECT issue_id FROM matched)
+        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+      ),
+      latest_known AS (
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.section = 'Known Issues' AND im.issue_id IN (SELECT issue_id FROM matched)
+        ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
+      ),
+      first_fix AS (
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.section = 'Fixes' AND im.issue_id IN (SELECT issue_id FROM matched)
+        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+      ),
+      latest_fix AS (
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.section = 'Fixes' AND im.issue_id IN (SELECT issue_id FROM matched)
+        ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
+      ),
+      any_body AS (
+        -- Fallback body for matched issues with no Known-Issues mention
+        -- (e.g. fix-only references).
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, rn.body, im.area
+        FROM issue_mentions im
+        JOIN release_note_items rn ON rn.id = im.release_note_item_id
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.issue_id IN (SELECT issue_id FROM matched)
+        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+      ),
+      mention_counts AS (
+        SELECT issue_id, COUNT(DISTINCT unity_release_id) AS n
+        FROM issue_mentions
+        WHERE issue_id IN (SELECT issue_id FROM matched)
+        GROUP BY issue_id
+      )
+      SELECT
+        m.issue_id,
+        COALESCE(fk.area, ab.area) AS area,
+        COALESCE(fk.body, ab.body) AS description,
+        fk.version              AS introduced_version,
+        fk.release_date::text   AS introduced_date,
+        ff.version              AS fixed_version,
+        ff.release_date::text   AS fixed_date,
+        CASE
+          WHEN fk.release_date IS NOT NULL
+            THEN (EXTRACT(EPOCH FROM (COALESCE(ff.release_date, now()) - fk.release_date)) / 86400)::text
+          ELSE NULL
+        END AS days_open,
+        COALESCE(mc.n, 0)::text AS mention_count,
+        CASE
+          WHEN ff.issue_id IS NULL AND fk.issue_id IS NOT NULL THEN 'open'
+          WHEN lk.release_date IS NOT NULL AND lf.release_date IS NOT NULL
+               AND lk.release_date > lf.release_date THEN 'regressed'
+          WHEN ff.issue_id IS NOT NULL THEN 'fixed'
+          ELSE 'open'
+        END AS status
+      FROM matched m
+      LEFT JOIN first_known fk  ON fk.issue_id = m.issue_id
+      LEFT JOIN any_body ab     ON ab.issue_id = m.issue_id
+      LEFT JOIN first_fix ff    ON ff.issue_id = m.issue_id
+      LEFT JOIN latest_known lk ON lk.issue_id = m.issue_id
+      LEFT JOIN latest_fix lf   ON lf.issue_id = m.issue_id
+      LEFT JOIN mention_counts mc ON mc.issue_id = m.issue_id
+      ORDER BY COALESCE(fk.release_date, ff.release_date) DESC NULLS LAST, m.issue_id ASC
+      LIMIT $2
+    `,
+    [pattern, limit]
+  );
+
+  return result.rows.map((row) => ({
+    issueId: row.issue_id,
+    status: (row.status as IssueRow["status"]) ?? "open",
+    area: row.area,
+    introducedVersion: row.introduced_version,
+    introducedDate: row.introduced_date,
+    fixedVersion: row.fixed_version,
+    fixedDate: row.fixed_date,
+    daysOpen: row.days_open != null ? Number(row.days_open) : null,
+    mentionCount: Number(row.mention_count),
+    description: row.description
+  }));
+}
+
 export type IssueHeatmapCell = {
   domain: Domain | "Other";
   status: "open" | "fixed";
