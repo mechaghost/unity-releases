@@ -2,6 +2,8 @@ import type { IssueRow } from "@/lib/issues";
 import { IssuePill } from "@/app/_components/IssuePill";
 import { VersionPill } from "@/app/_components/VersionPill";
 import { formatReleaseDate } from "@/lib/format-date";
+import { cleanReleaseNoteText } from "@/lib/release-notes/format";
+import { stripAreaPrefix } from "@/lib/classification";
 
 /**
  * Shared table for any sorted-by-something issue list on /issues. The
@@ -27,7 +29,7 @@ export function IssueTable({
         <tr>
           <th>Issue</th>
           <th>Status</th>
-          <th>Area</th>
+          <th>Description</th>
           <th>Introduced</th>
           <th>Fixed</th>
           <th className="issue-table__num">Days open</th>
@@ -35,7 +37,9 @@ export function IssueTable({
         </tr>
       </thead>
       <tbody>
-        {rows.map((row) => (
+        {rows.map((row) => {
+          const cleaned = describeIssue(row.description, row.area);
+          return (
           <tr key={row.issueId}>
             <td>
               <IssuePill id={row.issueId} />
@@ -45,7 +49,18 @@ export function IssueTable({
                 {labelFor(row.status)}
               </span>
             </td>
-            <td className="muted">{row.area ?? "—"}</td>
+            <td className="issue-table__desc">
+              {cleaned ? (
+                <span className="issue-table__desc-text" title={cleaned}>
+                  {row.area ? (
+                    <span className="issue-table__desc-area">{row.area}: </span>
+                  ) : null}
+                  {cleaned}
+                </span>
+              ) : (
+                <span className="muted">—</span>
+              )}
+            </td>
             <td>
               {row.introducedVersion ? (
                 <span className="issue-table__col-stack">
@@ -79,10 +94,27 @@ export function IssueTable({
             </td>
             <td className="issue-table__num">{row.mentionCount}</td>
           </tr>
-        ))}
+          );
+        })}
       </tbody>
     </table>
   );
+}
+
+/** Trim the issue body for inline table display:
+ *  - drop the leading "Area:" prefix (we render that as a separate
+ *    tag) so the description doesn't lead with redundant text
+ *  - run cleanReleaseNoteText to collapse Unity's markdown / links
+ *  - cap at ~240 chars with an ellipsis so the cell stays clamped to
+ *    two lines visually
+ *  Full text remains accessible via the cell's `title` attribute and
+ *  via the per-issue detail page. */
+function describeIssue(body: string | null, area: string | null): string {
+  if (!body) return "";
+  let text = body;
+  if (area) text = stripAreaPrefix(text);
+  text = cleanReleaseNoteText(text);
+  return text.length > 240 ? text.slice(0, 237).trimEnd() + "…" : text;
 }
 
 function labelFor(status: IssueRow["status"]): string {

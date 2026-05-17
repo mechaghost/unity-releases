@@ -94,6 +94,11 @@ export type IssueRow = {
   fixedDate: string | null;
   daysOpen: number | null;
   mentionCount: number;
+  /** Body of the first Known-Issues mention — what Unity wrote when
+   *  they first called this out. May be a long-form paragraph; the
+   *  table view clamps it to 2 lines and the full text is available
+   *  on the per-issue detail page. */
+  description: string | null;
 };
 
 /** The N longest-open issues (open = no Fix mention, or Known Issues
@@ -109,12 +114,15 @@ export async function getLongestOpenIssues(limit = 10): Promise<IssueRow[]> {
     fixed_version: string | null;
     fixed_date: string | null;
     status: string;
+    description: string | null;
   }>(
     `
       WITH first_known AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area,
+                                          rn.body
         FROM issue_mentions im
         JOIN unity_releases ur ON ur.id = im.unity_release_id
+        JOIN release_note_items rn ON rn.id = im.release_note_item_id
         WHERE im.section = 'Known Issues'
         ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
       ),
@@ -147,6 +155,7 @@ export async function getLongestOpenIssues(limit = 10): Promise<IssueRow[]> {
       SELECT
         fk.issue_id,
         fk.area,
+        fk.body              AS description,
         fk.version          AS introduced_version,
         fk.release_date::text AS introduced_date,
         (EXTRACT(EPOCH FROM (now() - fk.release_date)) / 86400)::text AS days_open,
@@ -181,7 +190,8 @@ export async function getLongestOpenIssues(limit = 10): Promise<IssueRow[]> {
     fixedVersion: row.fixed_version,
     fixedDate: row.fixed_date,
     daysOpen: row.days_open != null ? Number(row.days_open) : null,
-    mentionCount: Number(row.mention_count)
+    mentionCount: Number(row.mention_count),
+    description: row.description
   }));
 }
 
@@ -199,6 +209,7 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
     fixed_date: string | null;
     days_open: string | null;
     status: string;
+    description: string | null;
   }>(
     `
       WITH mention_counts AS (
@@ -209,9 +220,10 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
         LIMIT $1
       ),
       first_known AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area, rn.body
         FROM issue_mentions im
         JOIN unity_releases ur ON ur.id = im.unity_release_id
+        JOIN release_note_items rn ON rn.id = im.release_note_item_id
         WHERE im.section = 'Known Issues' AND im.issue_id IN (SELECT issue_id FROM mention_counts)
         ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
       ),
@@ -241,10 +253,22 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
         FROM issue_mentions
         WHERE area IS NOT NULL AND issue_id IN (SELECT issue_id FROM mention_counts)
         ORDER BY issue_id
+      ),
+      any_body AS (
+        -- Fallback body for issues with no Known-Issues mention (e.g.
+        -- pure-fix UUM ids that show up in the most-mentioned list).
+        -- Picks the earliest-dated mention regardless of section.
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, rn.body
+        FROM issue_mentions im
+        JOIN release_note_items rn ON rn.id = im.release_note_item_id
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.issue_id IN (SELECT issue_id FROM mention_counts)
+        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
       )
       SELECT
         mc.issue_id,
         COALESCE(fk.area, aa.area) AS area,
+        COALESCE(fk.body, ab.body) AS description,
         mc.n::text AS mention_count,
         fk.version              AS introduced_version,
         fk.release_date::text   AS introduced_date,
@@ -265,6 +289,7 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
       FROM mention_counts mc
       LEFT JOIN first_known fk  ON fk.issue_id = mc.issue_id
       LEFT JOIN any_area aa     ON aa.issue_id = mc.issue_id
+      LEFT JOIN any_body ab     ON ab.issue_id = mc.issue_id
       LEFT JOIN first_fix ff    ON ff.issue_id = mc.issue_id
       LEFT JOIN latest_known lk ON lk.issue_id = mc.issue_id
       LEFT JOIN latest_fix lf   ON lf.issue_id = mc.issue_id
@@ -281,7 +306,8 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
     fixedVersion: row.fixed_version,
     fixedDate: row.fixed_date,
     daysOpen: row.days_open != null ? Number(row.days_open) : null,
-    mentionCount: Number(row.mention_count)
+    mentionCount: Number(row.mention_count),
+    description: row.description
   }));
 }
 
