@@ -522,7 +522,7 @@ const SECTIONS: Section[] = [
         answer: (
           <>
             <p>
-              The landing page for everything UUM-id-shaped. Four
+              The landing page for everything UUM-id-shaped. Five
               sections, top to bottom:
             </p>
             <ul>
@@ -531,6 +531,11 @@ const SECTIONS: Section[] = [
                 currently open, fixed in the last 30 days, regressed
                 (Unity shipped a fix and re-listed). Each card prints
                 its own formula in muted text.
+              </li>
+              <li>
+                <strong>Newest issues</strong> — top 10 by first
+                Known-Issues mention date. What Unity has flagged most
+                recently, regardless of whether a fix has shipped yet.
               </li>
               <li>
                 <strong>Longest-open issues</strong> — top 10 by days-

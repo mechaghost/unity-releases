@@ -3,6 +3,7 @@ import {
   getIssueStats,
   getLongestOpenIssues,
   getMostMentionedIssues,
+  getNewestIssues,
   type IssueHeatmapCell,
   type IssueRow,
   type IssueStats
@@ -30,9 +31,10 @@ export default async function IssueExplorerPage() {
   // Every read is wrapped — a slow query or schema mismatch on one
   // section shouldn't take the whole page down. Matches the pattern
   // CLAUDE.md requires for resilient deploys.
-  const [stats, longestOpen, mostMentioned, heatmap, freshness] = await Promise.all([
+  const [stats, longestOpen, newest, mostMentioned, heatmap, freshness] = await Promise.all([
     safeStats(),
     safeLongestOpen(),
+    safeNewest(),
     safeMostMentioned(),
     safeHeatmap(),
     safeFreshness()
@@ -50,6 +52,24 @@ export default async function IssueExplorerPage() {
       </section>
 
       <IssueStatCards stats={stats} />
+
+      <section className="viz-card">
+        <div className="viz-card__header">
+          <h2>Newest issues</h2>
+        </div>
+        <p className="viz-card__sub">
+          Top 10 issues by first Known-Issues mention date — what Unity
+          has flagged most recently, regardless of whether a fix is
+          already shipped. Status pill on each row tells you whether
+          it&apos;s still open.
+        </p>
+        <div className="viz-scroll">
+          <IssueTable
+            rows={newest}
+            emptyMessage="No newly-flagged issues yet."
+          />
+        </div>
+      </section>
 
       <section className="viz-card">
         <div className="viz-card__header">
@@ -107,6 +127,15 @@ async function safeLongestOpen(): Promise<IssueRow[]> {
     return await getLongestOpenIssues(10);
   } catch (err) {
     console.error("[issues] getLongestOpenIssues failed:", err);
+    return [];
+  }
+}
+
+async function safeNewest(): Promise<IssueRow[]> {
+  try {
+    return await getNewestIssues(10);
+  } catch (err) {
+    console.error("[issues] getNewestIssues failed:", err);
     return [];
   }
 }

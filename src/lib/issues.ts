@@ -195,6 +195,106 @@ export async function getLongestOpenIssues(limit = 10): Promise<IssueRow[]> {
   }));
 }
 
+/** The N most recently introduced issues — issues whose first
+ *  Known-Issues mention sits in the latest releases. Answers "what
+ *  new problems has Unity flagged lately?" regardless of whether
+ *  there's already a Fix shipped. Status column on the table tells
+ *  the user whether each issue is still open. */
+export async function getNewestIssues(limit = 10): Promise<IssueRow[]> {
+  const result = await query<{
+    issue_id: string;
+    area: string | null;
+    introduced_version: string | null;
+    introduced_date: string | null;
+    days_open: string | null;
+    mention_count: string;
+    fixed_version: string | null;
+    fixed_date: string | null;
+    status: string;
+    description: string | null;
+  }>(
+    `
+      WITH first_known AS (
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area,
+                                          rn.body
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        JOIN release_note_items rn ON rn.id = im.release_note_item_id
+        WHERE im.section = 'Known Issues'
+        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+      ),
+      latest_known AS (
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.section = 'Known Issues'
+        ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
+      ),
+      first_fix AS (
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.section = 'Fixes'
+        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+      ),
+      latest_fix AS (
+        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.section = 'Fixes'
+        ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
+      ),
+      mention_counts AS (
+        SELECT issue_id, COUNT(DISTINCT unity_release_id) AS n
+        FROM issue_mentions
+        GROUP BY issue_id
+      )
+      SELECT
+        fk.issue_id,
+        fk.area,
+        fk.body              AS description,
+        fk.version          AS introduced_version,
+        fk.release_date::text AS introduced_date,
+        CASE
+          WHEN ff.release_date IS NOT NULL
+            THEN (EXTRACT(EPOCH FROM (ff.release_date - fk.release_date)) / 86400)::text
+          ELSE (EXTRACT(EPOCH FROM (now() - fk.release_date)) / 86400)::text
+        END AS days_open,
+        COALESCE(mc.n, 0)::text AS mention_count,
+        ff.version          AS fixed_version,
+        ff.release_date::text AS fixed_date,
+        CASE
+          WHEN ff.issue_id IS NULL THEN 'open'
+          WHEN lk.release_date IS NOT NULL AND lf.release_date IS NOT NULL
+               AND lk.release_date > lf.release_date THEN 'regressed'
+          WHEN ff.issue_id IS NOT NULL THEN 'fixed'
+          ELSE 'open'
+        END AS status
+      FROM first_known fk
+      LEFT JOIN first_fix     ff ON ff.issue_id = fk.issue_id
+      LEFT JOIN latest_known  lk ON lk.issue_id = fk.issue_id
+      LEFT JOIN latest_fix    lf ON lf.issue_id = fk.issue_id
+      LEFT JOIN mention_counts mc ON mc.issue_id = fk.issue_id
+      WHERE fk.release_date IS NOT NULL
+      ORDER BY fk.release_date DESC, fk.issue_id ASC
+      LIMIT $1
+    `,
+    [limit]
+  );
+  return result.rows.map((row) => ({
+    issueId: row.issue_id,
+    status: (row.status as IssueRow["status"]) ?? "open",
+    area: row.area,
+    introducedVersion: row.introduced_version,
+    introducedDate: row.introduced_date,
+    fixedVersion: row.fixed_version,
+    fixedDate: row.fixed_date,
+    daysOpen: row.days_open != null ? Number(row.days_open) : null,
+    mentionCount: Number(row.mention_count),
+    description: row.description
+  }));
+}
+
 /** The N issues mentioned in the most distinct release versions —
  *  surfaces "Unity keeps re-listing this" cases plus the most
  *  frequently fixed-and-reintroduced regressions. */
