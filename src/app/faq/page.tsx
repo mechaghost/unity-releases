@@ -517,6 +517,49 @@ const SECTIONS: Section[] = [
         )
       },
       {
+        id: "page-issues-index",
+        question: "What is the Issue Explorer (/issues)?",
+        answer: (
+          <>
+            <p>
+              The landing page for everything UUM-id-shaped. Four
+              sections, top to bottom:
+            </p>
+            <ul>
+              <li>
+                <strong>Stat cards</strong> — total tracked issues,
+                currently open, fixed in the last 30 days, regressed
+                (Unity shipped a fix and re-listed). Each card prints
+                its own formula in muted text.
+              </li>
+              <li>
+                <strong>Longest-open issues</strong> — top 10 by days-
+                since-first-known-mention with no Fix mention (or whose
+                latest Known is newer than the latest Fix). Sorted to
+                surface the bugs Unity hasn&apos;t closed out.
+              </li>
+              <li>
+                <strong>Issues by domain × status heatmap</strong> — 13
+                curated subsystems × {"{open, fixed}"}, intensity = count.
+                Answers &ldquo;where do unresolved issues cluster?&rdquo;
+                in one glance.
+              </li>
+              <li>
+                <strong>Most-mentioned issues</strong> — top 10 by
+                distinct-release mention count. Surfaces UUM ids Unity
+                kept re-listing across patches (regression treadmills
+                and long-running known issues).
+              </li>
+            </ul>
+            <p>
+              Every issue id and version pill is hover-rich and links
+              into the per-issue detail page (<a href="/issues/UUM-22444">
+              /issues/[issueId]</a>) for the full mention history.
+            </p>
+          </>
+        )
+      },
+      {
         id: "page-explorer",
         question: "What is Search Notes (/explorer)?",
         answer: (
