@@ -279,6 +279,16 @@ CREATE INDEX IF NOT EXISTS idx_unity_release_modules_release_id ON unity_release
 CREATE INDEX IF NOT EXISTS idx_issue_mentions_release_id ON issue_mentions (unity_release_id);
 CREATE INDEX IF NOT EXISTS idx_issue_mentions_issue_id ON issue_mentions (issue_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_issue_mentions_issue_release ON issue_mentions (issue_id, unity_release_id, release_note_item_id);
+-- Supports the FK cascade DELETE that fires when release_note_items
+-- rows are replaced during editor-release re-ingest. Without this
+-- index, the cascade triggers a seq-scan of the 76k-row
+-- issue_mentions table per deleted parent row, which blows past the
+-- 8s statement_timeout once a release touches enough rows. (The
+-- existing uniq_issue_mentions_issue_release index has
+-- release_note_item_id in the third column, so it can't service a
+-- lookup keyed on it alone.) Caused the cron-all editor job to fail
+-- in prod on 2026-05-17.
+CREATE INDEX IF NOT EXISTS idx_issue_mentions_release_note_item_id ON issue_mentions (release_note_item_id);
 -- Powers the build-score / upgrade-score CTEs in `getIssueLifespans`
 -- and the longest-open / fastest-fix facts in `getVersionFacts`. Without
 -- this index Postgres seq-scans the 70k+ row issue_mentions table twice
