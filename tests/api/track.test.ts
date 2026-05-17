@@ -23,10 +23,18 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function postRequest(body: unknown): Request {
+const BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+function postRequest(body: unknown, opts: { userAgent?: string | null } = {}): Request {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  // Default to a real browser UA so the bot filter inside the route
+  // doesn't short-circuit the request before the body checks run.
+  const ua = opts.userAgent === undefined ? BROWSER_UA : opts.userAgent;
+  if (ua) headers["user-agent"] = ua;
   return new Request("http://localhost/api/track", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: typeof body === "string" ? body : JSON.stringify(body)
   });
 }
@@ -92,5 +100,24 @@ describe("POST /api/track", () => {
     const res = await POST(postRequest("not json"));
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ ok: false, error: "invalid_json" });
+  });
+
+  test("skips tracking when the user-agent looks like a bot", async () => {
+    const res = await POST(
+      postRequest(
+        { kind: "pageview", path: "/" },
+        { userAgent: "Googlebot/2.1 (+http://www.google.com/bot.html)" }
+      )
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, skipped: "bot" });
+    expect(analytics.recordPageView).not.toHaveBeenCalled();
+  });
+
+  test("skips tracking when the user-agent header is missing", async () => {
+    const res = await POST(postRequest({ kind: "pageview", path: "/" }, { userAgent: null }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, skipped: "bot" });
+    expect(analytics.recordPageView).not.toHaveBeenCalled();
   });
 });

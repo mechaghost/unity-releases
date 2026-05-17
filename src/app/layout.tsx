@@ -4,6 +4,7 @@ import "./styles.css";
 import { LeftNav } from "./_components/LeftNav";
 import { MobileNavToggle } from "./_components/MobileNavToggle";
 import { NoFlashScript } from "./_components/NoFlashScript";
+import { PageviewBeacon } from "./_components/PageviewBeacon";
 import { UserVersionDialog, type DialogRelease } from "./_components/UserVersionDialog";
 import { listReleases } from "@/lib/db/repositories";
 import { getUserVersion } from "@/lib/user-version";
@@ -114,6 +115,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           currentVersion={userVersion}
           autoOpen={false}
         />
+        <Suspense fallback={null}>
+          <PageviewBeacon />
+        </Suspense>
       </body>
     </html>
   );

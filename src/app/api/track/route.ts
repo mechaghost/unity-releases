@@ -1,19 +1,34 @@
+import { looksLikeBot } from "@/lib/analytics";
 import { recordEvent, recordPageView } from "@/lib/analytics-server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Fire-and-forget tracking endpoint called by `src/middleware.ts` for
- * every page request that survives the bot filter. We keep the
- * surface small (two event kinds) so a misbehaving caller can't
- * stuff arbitrary data into the analytics tables.
+ * Fire-and-forget tracking endpoint. Called by `PageviewBeacon` (a
+ * client component mounted in the root layout) via
+ * `navigator.sendBeacon()` on every pathname change.
+ *
+ * Was previously called by Edge middleware, but Railway's Edge runtime
+ * can't reach back to the Node service via the public hostname — every
+ * fetch surfaced as a generic "fetch failed". Beacon from the browser
+ * sidesteps the Edge → service network boundary entirely.
+ *
+ * We keep the surface small (two event kinds) so a misbehaving caller
+ * can't stuff arbitrary data into the analytics tables.
  */
 type TrackBody =
   | { kind: "pageview"; path: string }
   | { kind: "event"; eventType: string; path?: string; metadata?: Record<string, unknown> };
 
 export async function POST(request: Request) {
+  // Bot filter (UA-based). Bots overwhelmingly skip JS so most never
+  // reach this point, but headless-Chrome scrapers do and we filter
+  // them at the route now that middleware no longer wraps them.
+  if (looksLikeBot(request.headers.get("user-agent"))) {
+    return Response.json({ ok: true, skipped: "bot" });
+  }
+
   let body: TrackBody;
   try {
     body = (await request.json()) as TrackBody;
