@@ -49,6 +49,12 @@ const NAV: NavSection[] = [
         match: (pathname) => pathname === "/explorer"
       },
       {
+        href: "/issues",
+        label: "Issue Explorer",
+        icon: "alert-octagon",
+        match: (pathname) => pathname === "/issues" || pathname.startsWith("/issues/")
+      },
+      {
         href: "/packages",
         label: "Packages",
         icon: "package",
