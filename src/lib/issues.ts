@@ -514,7 +514,6 @@ export async function searchIssues(
   // filters only → match every issue (%) so the filters can stand
   // alone for "browse by status/area" drill-through use.
   const pattern = q.length === 0 ? "%" : `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
-  const offset = (page - 1) * pageSize;
   // Combined WHERE for both filters. Both clauses are enum-whitelisted
   // so string interpolation is safe (ORDER BY can't be parameterized).
   const wheres: string[] = [];
@@ -640,6 +639,15 @@ export async function searchIssues(
   const total = Number(countResult.rows[0]?.total ?? 0);
   if (total === 0) return empty;
 
+  // Clamp page if the user requested something past the last page (e.g.
+  // they navigated via a stale link, or narrowed the filter set after
+  // paging deep). Returning an empty results card under "results 1–25
+  // of 200" is confusing; fall back to the last valid page so the
+  // ranges and rows agree.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(page, lastPage);
+  const effectiveOffset = (effectivePage - 1) * pageSize;
+
   const result = await query<{
     issue_id: string;
     area: string | null;
@@ -662,7 +670,7 @@ export async function searchIssues(
       ORDER BY ${orderBy}
       LIMIT $2 OFFSET $3
     `,
-    [pattern, pageSize, offset]
+    [pattern, pageSize, effectiveOffset]
   );
 
   const resultRows: IssueRow[] = result.rows.map((row) => ({
@@ -680,9 +688,9 @@ export async function searchIssues(
   return {
     rows: resultRows,
     total,
-    page,
+    page: effectivePage,
     pageSize,
-    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    totalPages: lastPage,
     status,
     sort,
     area,
