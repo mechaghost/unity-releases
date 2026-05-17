@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { looksLikeBot } from "@/lib/analytics";
 
 /**
@@ -11,6 +11,15 @@ import { looksLikeBot } from "@/lib/analytics";
  * Path filtering (the IGNORED_PREFIXES list in `@/lib/analytics`) is
  * also applied here via the matcher config so the tracking POST never
  * fires for static assets, OG images, or the tracking endpoint itself.
+ *
+ * IMPORTANT: the tracking fetch is registered with `event.waitUntil()`
+ * so the Edge runtime keeps the function alive until the POST settles.
+ * Without it, the runtime tears down the async context the moment
+ * `NextResponse.next()` returns and the in-flight fetch never lands —
+ * which is exactly what was happening in prod between 2026-05-14 and
+ * 2026-05-17 (only the manual smoke-test row ever made it through).
+ * The fetch is still non-blocking for the user: waitUntil extends the
+ * function's lifetime, it doesn't delay the response.
  */
 export const config = {
   // Skip anything that isn't a user-facing page render.
@@ -19,7 +28,7 @@ export const config = {
   ]
 };
 
-export function middleware(request: NextRequest) {
+export function middleware(request: NextRequest, event: NextFetchEvent) {
   const ua = request.headers.get("user-agent");
   if (looksLikeBot(ua)) {
     return NextResponse.next();
@@ -29,19 +38,15 @@ export function middleware(request: NextRequest) {
   const origin = request.nextUrl.origin;
   const path = request.nextUrl.pathname + request.nextUrl.search;
 
-  // Fire-and-forget: we never await this. The page response goes back
-  // to the user without blocking on the analytics write, and a tracking
-  // failure can't take the page down.
-  fetch(`${origin}/api/track`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ kind: "pageview", path }),
-    // Edge runtime doesn't always support keepalive, but where it does
-    // it keeps the connection alive past the response.
-    keepalive: true
-  }).catch(() => {
-    // Swallow - logged inside the API route if it makes it that far.
-  });
+  event.waitUntil(
+    fetch(`${origin}/api/track`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "pageview", path })
+    }).catch(() => {
+      // Swallow - logged inside the API route if it makes it that far.
+    })
+  );
 
   return NextResponse.next();
 }
