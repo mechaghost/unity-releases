@@ -30,8 +30,14 @@ export const config = {
 
 export function middleware(request: NextRequest, event: NextFetchEvent) {
   const ua = request.headers.get("user-agent");
-  if (looksLikeBot(ua)) {
-    return NextResponse.next();
+  const isBot = looksLikeBot(ua);
+  const response = NextResponse.next();
+  // Diagnostic header so we can confirm middleware actually runs in
+  // prod's Edge environment. Remove once tracking is verified working.
+  response.headers.set("x-mw", isBot ? "bot" : "track");
+
+  if (isBot) {
+    return response;
   }
 
   // Origin needs to be absolute - Edge middleware can't relative-resolve.
@@ -43,10 +49,23 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind: "pageview", path })
-    }).catch(() => {
-      // Swallow - logged inside the API route if it makes it that far.
     })
+      .then((r) => {
+        // Surface track-endpoint failures so we can see them in
+        // Railway logs. NextFetchEvent.waitUntil swallows promise
+        // resolutions otherwise.
+        if (!r.ok) {
+          console.error(JSON.stringify({ event: "mw_track_non_2xx", status: r.status, path }));
+        }
+      })
+      .catch((err: unknown) => {
+        console.error(JSON.stringify({
+          event: "mw_track_fetch_failed",
+          error: err instanceof Error ? err.message : String(err),
+          path
+        }));
+      })
   );
 
-  return NextResponse.next();
+  return response;
 }
