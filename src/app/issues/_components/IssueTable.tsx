@@ -42,7 +42,7 @@ export function IssueTable({
           return (
           <tr key={row.issueId}>
             <td>
-              <IssuePill id={row.issueId} />
+              <IssuePill id={row.issueId} compact />
             </td>
             <td>
               <span className={`chip chip--status-${toneFor(row.status)}`}>

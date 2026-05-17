@@ -9,6 +9,16 @@ type IssuePillProps = {
   id: string;
   url?: string | null;
   status?: IssueStatus | null;
+  /**
+   * Skip the HoverInfo wrapper. Use in contexts that already display
+   * the same status / resolution info inline (e.g. /issues tables,
+   * where status sits in its own column right next to the pill).
+   * Also a workaround for a Radix HoverCard SSR quirk where a specific
+   * subset of triggers in dense same-shape lists fail to render their
+   * cloned trigger element — easier to opt out where the hover is
+   * redundant than to fight the issue.
+   */
+  compact?: boolean;
 };
 
 const ISSUE_TRACKER_BASE = "https://issuetracker.unity3d.com/issues";
@@ -17,7 +27,7 @@ export function issueTrackerHref(id: string): string {
   return `${ISSUE_TRACKER_BASE}/${id.toLowerCase()}`;
 }
 
-export function IssuePill({ id, url, status }: IssuePillProps) {
+export function IssuePill({ id, url, status, compact = false }: IssuePillProps) {
   const href = url ?? issueTrackerHref(id);
   const tone = status && status.kind !== "unknown" ? issueStatusTone(status) : null;
   const chip = (
@@ -31,6 +41,8 @@ export function IssuePill({ id, url, status }: IssuePillProps) {
       <span className="chip--issue__id">{id}</span>
     </a>
   );
+
+  if (compact) return chip;
 
   return (
     <HoverInfo
