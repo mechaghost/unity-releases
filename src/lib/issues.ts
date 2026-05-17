@@ -411,12 +411,37 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
   }));
 }
 
+export const ISSUE_SEARCH_STATUSES = ["all", "open", "fixed", "regressed"] as const;
+export type IssueSearchStatus = (typeof ISSUE_SEARCH_STATUSES)[number];
+
+export const ISSUE_SEARCH_SORT_KEYS = [
+  "date-desc",
+  "days-desc",
+  "days-asc",
+  "mentions-desc",
+  "mentions-asc"
+] as const;
+export type IssueSearchSort = (typeof ISSUE_SEARCH_SORT_KEYS)[number];
+
 export type IssueSearchPage = {
   rows: IssueRow[];
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
+  status: IssueSearchStatus;
+  sort: IssueSearchSort;
+};
+
+/** Whitelist-driven ORDER BY snippets. ORDER BY can't be parameterized
+ *  via pg `$N`, so the caller's choice MUST come from the enum above
+ *  before reaching this function. */
+const SORT_SQL: Record<IssueSearchSort, string> = {
+  "date-desc": "COALESCE(introduced_date_ts, fixed_date_ts) DESC NULLS LAST, issue_id ASC",
+  "days-desc": "days_open DESC NULLS LAST, issue_id ASC",
+  "days-asc": "days_open ASC NULLS LAST, issue_id ASC",
+  "mentions-desc": "mention_count DESC, issue_id ASC",
+  "mentions-asc": "mention_count ASC, issue_id ASC"
 };
 
 /**
@@ -434,29 +459,135 @@ export type IssueSearchPage = {
  */
 export async function searchIssues(
   rawQuery: string,
-  options: { page?: number; pageSize?: number } = {}
+  options: {
+    page?: number;
+    pageSize?: number;
+    status?: IssueSearchStatus;
+    sort?: IssueSearchSort;
+  } = {}
 ): Promise<IssueSearchPage> {
   const page = Math.max(1, Math.floor(options.page ?? 1));
   const pageSize = Math.max(1, Math.min(100, Math.floor(options.pageSize ?? 25)));
-  const empty: IssueSearchPage = { rows: [], total: 0, page, pageSize, totalPages: 0 };
+  const status: IssueSearchStatus = (ISSUE_SEARCH_STATUSES as readonly string[]).includes(
+    options.status ?? "all"
+  )
+    ? (options.status as IssueSearchStatus) ?? "all"
+    : "all";
+  const sort: IssueSearchSort = (ISSUE_SEARCH_SORT_KEYS as readonly string[]).includes(
+    options.sort ?? "date-desc"
+  )
+    ? (options.sort as IssueSearchSort) ?? "date-desc"
+    : "date-desc";
+  const empty: IssueSearchPage = {
+    rows: [],
+    total: 0,
+    page,
+    pageSize,
+    totalPages: 0,
+    status,
+    sort
+  };
   const q = rawQuery.trim();
   if (q.length === 0) return empty;
   // Match ILIKE %q% with PG escape for the LIKE wildcards.
   const pattern = `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
   const offset = (page - 1) * pageSize;
+  const statusFilter = status === "all" ? "" : `WHERE status = '${status}'`;
+  const orderBy = SORT_SQL[sort];
 
-  // Count + fetch as two queries: the count's small (matched is the
-  // narrow filtered set, not the full 76k mention table) so this is
-  // cheap, and keeping them separate lets the row query stay
-  // pagination-shaped without a `COUNT(*) OVER()` partition that
-  // would pin every row.
-  const countResult = await query<{ total: string }>(
-    `
-      SELECT COUNT(DISTINCT im.issue_id)::text AS total
+  // Shared CTE block driving both the count and the paginated row
+  // query. Keeping the same CTE definitions in both means the row
+  // query's status_val and the count's status_val agree.
+  const baseCTE = `
+    WITH matched AS (
+      SELECT DISTINCT im.issue_id
       FROM issue_mentions im
       LEFT JOIN release_note_items rn ON rn.id = im.release_note_item_id
       WHERE im.issue_id ILIKE $1 ESCAPE '\\' OR rn.body ILIKE $1 ESCAPE '\\'
-    `,
+    ),
+    first_known AS (
+      SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area, rn.body
+      FROM issue_mentions im
+      JOIN unity_releases ur ON ur.id = im.unity_release_id
+      JOIN release_note_items rn ON rn.id = im.release_note_item_id
+      WHERE im.section = 'Known Issues' AND im.issue_id IN (SELECT issue_id FROM matched)
+      ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+    ),
+    latest_known AS (
+      SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
+      FROM issue_mentions im
+      JOIN unity_releases ur ON ur.id = im.unity_release_id
+      WHERE im.section = 'Known Issues' AND im.issue_id IN (SELECT issue_id FROM matched)
+      ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
+    ),
+    first_fix AS (
+      SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date
+      FROM issue_mentions im
+      JOIN unity_releases ur ON ur.id = im.unity_release_id
+      WHERE im.section = 'Fixes' AND im.issue_id IN (SELECT issue_id FROM matched)
+      ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+    ),
+    latest_fix AS (
+      SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
+      FROM issue_mentions im
+      JOIN unity_releases ur ON ur.id = im.unity_release_id
+      WHERE im.section = 'Fixes' AND im.issue_id IN (SELECT issue_id FROM matched)
+      ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
+    ),
+    any_body AS (
+      -- Fallback body for matched issues with no Known-Issues mention.
+      SELECT DISTINCT ON (im.issue_id) im.issue_id, rn.body, im.area
+      FROM issue_mentions im
+      JOIN release_note_items rn ON rn.id = im.release_note_item_id
+      JOIN unity_releases ur ON ur.id = im.unity_release_id
+      WHERE im.issue_id IN (SELECT issue_id FROM matched)
+      ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
+    ),
+    mention_counts AS (
+      SELECT issue_id, COUNT(DISTINCT unity_release_id) AS n
+      FROM issue_mentions
+      WHERE issue_id IN (SELECT issue_id FROM matched)
+      GROUP BY issue_id
+    ),
+    rows AS (
+      SELECT
+        m.issue_id,
+        COALESCE(fk.area, ab.area) AS area,
+        COALESCE(fk.body, ab.body) AS description,
+        fk.version              AS introduced_version,
+        fk.release_date::text   AS introduced_date,
+        fk.release_date         AS introduced_date_ts,
+        ff.version              AS fixed_version,
+        ff.release_date::text   AS fixed_date,
+        ff.release_date         AS fixed_date_ts,
+        CASE
+          WHEN fk.release_date IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (COALESCE(ff.release_date, now()) - fk.release_date)) / 86400
+          ELSE NULL
+        END AS days_open,
+        COALESCE(mc.n, 0) AS mention_count,
+        CASE
+          WHEN ff.issue_id IS NULL AND fk.issue_id IS NOT NULL THEN 'open'
+          WHEN lk.release_date IS NOT NULL AND lf.release_date IS NOT NULL
+               AND lk.release_date > lf.release_date THEN 'regressed'
+          WHEN ff.issue_id IS NOT NULL THEN 'fixed'
+          ELSE 'open'
+        END AS status
+      FROM matched m
+      LEFT JOIN first_known fk  ON fk.issue_id = m.issue_id
+      LEFT JOIN any_body ab     ON ab.issue_id = m.issue_id
+      LEFT JOIN first_fix ff    ON ff.issue_id = m.issue_id
+      LEFT JOIN latest_known lk ON lk.issue_id = m.issue_id
+      LEFT JOIN latest_fix lf   ON lf.issue_id = m.issue_id
+      LEFT JOIN mention_counts mc ON mc.issue_id = m.issue_id
+    )
+  `;
+
+  // Count + fetch as two queries sharing the same CTE block. The count
+  // applies the status filter so pagination math stays consistent
+  // (showing X of N) when the user filters to a subset.
+  const countResult = await query<{ total: string }>(
+    `${baseCTE} SELECT COUNT(*)::text AS total FROM rows ${statusFilter}`,
     [pattern]
   );
   const total = Number(countResult.rows[0]?.total ?? 0);
@@ -475,92 +606,19 @@ export async function searchIssues(
     description: string | null;
   }>(
     `
-      WITH matched AS (
-        SELECT DISTINCT im.issue_id
-        FROM issue_mentions im
-        LEFT JOIN release_note_items rn ON rn.id = im.release_note_item_id
-        WHERE im.issue_id ILIKE $1 ESCAPE '\\' OR rn.body ILIKE $1 ESCAPE '\\'
-      ),
-      first_known AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date, im.area, rn.body
-        FROM issue_mentions im
-        JOIN unity_releases ur ON ur.id = im.unity_release_id
-        JOIN release_note_items rn ON rn.id = im.release_note_item_id
-        WHERE im.section = 'Known Issues' AND im.issue_id IN (SELECT issue_id FROM matched)
-        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
-      ),
-      latest_known AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
-        FROM issue_mentions im
-        JOIN unity_releases ur ON ur.id = im.unity_release_id
-        WHERE im.section = 'Known Issues' AND im.issue_id IN (SELECT issue_id FROM matched)
-        ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
-      ),
-      first_fix AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.version, ur.release_date
-        FROM issue_mentions im
-        JOIN unity_releases ur ON ur.id = im.unity_release_id
-        WHERE im.section = 'Fixes' AND im.issue_id IN (SELECT issue_id FROM matched)
-        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
-      ),
-      latest_fix AS (
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, ur.release_date
-        FROM issue_mentions im
-        JOIN unity_releases ur ON ur.id = im.unity_release_id
-        WHERE im.section = 'Fixes' AND im.issue_id IN (SELECT issue_id FROM matched)
-        ORDER BY im.issue_id, ur.release_date DESC NULLS LAST
-      ),
-      any_body AS (
-        -- Fallback body for matched issues with no Known-Issues mention
-        -- (e.g. fix-only references).
-        SELECT DISTINCT ON (im.issue_id) im.issue_id, rn.body, im.area
-        FROM issue_mentions im
-        JOIN release_note_items rn ON rn.id = im.release_note_item_id
-        JOIN unity_releases ur ON ur.id = im.unity_release_id
-        WHERE im.issue_id IN (SELECT issue_id FROM matched)
-        ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
-      ),
-      mention_counts AS (
-        SELECT issue_id, COUNT(DISTINCT unity_release_id) AS n
-        FROM issue_mentions
-        WHERE issue_id IN (SELECT issue_id FROM matched)
-        GROUP BY issue_id
-      )
+      ${baseCTE}
       SELECT
-        m.issue_id,
-        COALESCE(fk.area, ab.area) AS area,
-        COALESCE(fk.body, ab.body) AS description,
-        fk.version              AS introduced_version,
-        fk.release_date::text   AS introduced_date,
-        ff.version              AS fixed_version,
-        ff.release_date::text   AS fixed_date,
-        CASE
-          WHEN fk.release_date IS NOT NULL
-            THEN (EXTRACT(EPOCH FROM (COALESCE(ff.release_date, now()) - fk.release_date)) / 86400)::text
-          ELSE NULL
-        END AS days_open,
-        COALESCE(mc.n, 0)::text AS mention_count,
-        CASE
-          WHEN ff.issue_id IS NULL AND fk.issue_id IS NOT NULL THEN 'open'
-          WHEN lk.release_date IS NOT NULL AND lf.release_date IS NOT NULL
-               AND lk.release_date > lf.release_date THEN 'regressed'
-          WHEN ff.issue_id IS NOT NULL THEN 'fixed'
-          ELSE 'open'
-        END AS status
-      FROM matched m
-      LEFT JOIN first_known fk  ON fk.issue_id = m.issue_id
-      LEFT JOIN any_body ab     ON ab.issue_id = m.issue_id
-      LEFT JOIN first_fix ff    ON ff.issue_id = m.issue_id
-      LEFT JOIN latest_known lk ON lk.issue_id = m.issue_id
-      LEFT JOIN latest_fix lf   ON lf.issue_id = m.issue_id
-      LEFT JOIN mention_counts mc ON mc.issue_id = m.issue_id
-      ORDER BY COALESCE(fk.release_date, ff.release_date) DESC NULLS LAST, m.issue_id ASC
+        issue_id, area, description, introduced_version, introduced_date,
+        fixed_version, fixed_date, days_open::text, mention_count::text, status
+      FROM rows
+      ${statusFilter}
+      ORDER BY ${orderBy}
       LIMIT $2 OFFSET $3
     `,
     [pattern, pageSize, offset]
   );
 
-  const rows: IssueRow[] = result.rows.map((row) => ({
+  const resultRows: IssueRow[] = result.rows.map((row) => ({
     issueId: row.issue_id,
     status: (row.status as IssueRow["status"]) ?? "open",
     area: row.area,
@@ -573,11 +631,13 @@ export async function searchIssues(
     description: row.description
   }));
   return {
-    rows,
+    rows: resultRows,
     total,
     page,
     pageSize,
-    totalPages: Math.max(1, Math.ceil(total / pageSize))
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    status,
+    sort
   };
 }
 

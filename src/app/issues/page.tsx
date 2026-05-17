@@ -5,9 +5,13 @@ import {
   getMostMentionedIssues,
   getNewestIssues,
   searchIssues,
+  ISSUE_SEARCH_STATUSES,
+  ISSUE_SEARCH_SORT_KEYS,
   type IssueHeatmapCell,
   type IssueRow,
   type IssueSearchPage,
+  type IssueSearchSort,
+  type IssueSearchStatus,
   type IssueStats
 } from "@/lib/issues";
 import { listIngestionFreshness, type IngestionFreshness } from "@/lib/db/repositories";
@@ -43,6 +47,8 @@ export default async function IssueExplorerPage({
   const query = rawQ.trim();
   const isSearch = query.length > 0;
   const requestedPage = parsePage(params.page);
+  const requestedStatus = parseStatus(params.status);
+  const requestedSort = parseSort(params.sort);
 
   // In search mode the browse sections aren't needed — render only the
   // results table. Otherwise hit the normal four-section bundle.
@@ -51,7 +57,9 @@ export default async function IssueExplorerPage({
     total: 0,
     page: requestedPage,
     pageSize: SEARCH_PAGE_SIZE,
-    totalPages: 0
+    totalPages: 0,
+    status: requestedStatus,
+    sort: requestedSort
   };
   const [stats, longestOpen, newest, mostMentioned, heatmap, freshness, searchPage] =
     await Promise.all([
@@ -61,7 +69,9 @@ export default async function IssueExplorerPage({
       isSearch ? Promise.resolve<IssueRow[]>([]) : safeMostMentioned(),
       isSearch ? Promise.resolve<IssueHeatmapCell[]>([]) : safeHeatmap(),
       safeFreshness(),
-      isSearch ? safeSearch(query, requestedPage) : Promise.resolve(emptySearch)
+      isSearch
+        ? safeSearch(query, requestedPage, requestedStatus, requestedSort)
+        : Promise.resolve(emptySearch)
     ]);
 
   return (
@@ -92,12 +102,18 @@ export default async function IssueExplorerPage({
             </div>
             <p className="viz-card__sub">
               Matches UUM-id substrings and the body of the issue&apos;s
-              first Known-Issues mention. Ordered by most-recent mention.
+              first Known-Issues mention.
             </p>
+            <SearchFilterChips query={query} sort={searchPage.sort} active={searchPage.status} />
             <div className="viz-scroll">
               <IssueTable
                 rows={searchPage.rows}
-                emptyMessage={`No issues match "${query}".`}
+                emptyMessage={`No issues match "${query}"${searchPage.status !== "all" ? ` with status ${searchPage.status}` : ""}.`}
+                sortable={{
+                  query,
+                  status: searchPage.status,
+                  current: searchPage.sort
+                }}
               />
             </div>
             <SearchPagination page={searchPage} query={query} />
@@ -226,9 +242,19 @@ async function safeFreshness(): Promise<IngestionFreshness[]> {
   }
 }
 
-async function safeSearch(query: string, page: number): Promise<IssueSearchPage> {
+async function safeSearch(
+  query: string,
+  page: number,
+  status: IssueSearchStatus,
+  sort: IssueSearchSort
+): Promise<IssueSearchPage> {
   try {
-    return await searchIssues(query, { page, pageSize: SEARCH_PAGE_SIZE });
+    return await searchIssues(query, {
+      page,
+      pageSize: SEARCH_PAGE_SIZE,
+      status,
+      sort
+    });
   } catch (err) {
     console.error("[issues] searchIssues failed:", err);
     return {
@@ -236,7 +262,9 @@ async function safeSearch(query: string, page: number): Promise<IssueSearchPage>
       total: 0,
       page,
       pageSize: SEARCH_PAGE_SIZE,
-      totalPages: 0
+      totalPages: 0,
+      status,
+      sort
     };
   }
 }
@@ -247,10 +275,67 @@ function parsePage(raw: string | string[] | undefined): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
 }
 
-function searchPageHref(query: string, page: number): string {
-  const params = new URLSearchParams({ q: query });
-  if (page > 1) params.set("page", String(page));
+function parseStatus(raw: string | string[] | undefined): IssueSearchStatus {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return (ISSUE_SEARCH_STATUSES as readonly string[]).includes(v ?? "")
+    ? (v as IssueSearchStatus)
+    : "all";
+}
+
+function parseSort(raw: string | string[] | undefined): IssueSearchSort {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return (ISSUE_SEARCH_SORT_KEYS as readonly string[]).includes(v ?? "")
+    ? (v as IssueSearchSort)
+    : "date-desc";
+}
+
+/** Single URL helper that preserves every search-mode param except the
+ *  ones the caller is overriding. Switching status or sort drops the
+ *  user back to page=1 (the previous page may not exist after the
+ *  filter narrows results). */
+function searchHref(opts: {
+  q: string;
+  page?: number;
+  status?: IssueSearchStatus;
+  sort?: IssueSearchSort;
+}): string {
+  const params = new URLSearchParams({ q: opts.q });
+  if (opts.page && opts.page > 1) params.set("page", String(opts.page));
+  if (opts.status && opts.status !== "all") params.set("status", opts.status);
+  if (opts.sort && opts.sort !== "date-desc") params.set("sort", opts.sort);
   return `/issues?${params.toString()}`;
+}
+
+const STATUS_LABELS: Record<IssueSearchStatus, string> = {
+  all: "All",
+  open: "Open",
+  fixed: "Fixed",
+  regressed: "Regressed"
+};
+
+function SearchFilterChips({
+  query,
+  sort,
+  active
+}: {
+  query: string;
+  sort: IssueSearchSort;
+  active: IssueSearchStatus;
+}) {
+  return (
+    <div className="search-filter-chips" role="group" aria-label="Filter by status">
+      {ISSUE_SEARCH_STATUSES.map((s) => (
+        <a
+          key={s}
+          href={searchHref({ q: query, status: s, sort })}
+          className={`viz-chip ${active === s ? "viz-chip--active" : ""}`}
+          aria-current={active === s ? "true" : undefined}
+        >
+          {STATUS_LABELS[s]}
+        </a>
+      ))}
+    </div>
+  );
 }
 
 function SearchResultRange({ page }: { page: IssueSearchPage }) {
@@ -280,7 +365,7 @@ function SearchPagination({ page, query }: { page: IssueSearchPage; query: strin
         {hasPrev ? (
           <a
             className="lane__pagination-btn"
-            href={searchPageHref(query, page.page - 1)}
+            href={searchHref({ q: query, page: page.page - 1, status: page.status, sort: page.sort })}
             rel="prev"
           >
             <Icon name="chevron-left" size={14} />
@@ -298,7 +383,7 @@ function SearchPagination({ page, query }: { page: IssueSearchPage; query: strin
         {hasNext ? (
           <a
             className="lane__pagination-btn"
-            href={searchPageHref(query, page.page + 1)}
+            href={searchHref({ q: query, page: page.page + 1, status: page.status, sort: page.sort })}
             rel="next"
           >
             Next

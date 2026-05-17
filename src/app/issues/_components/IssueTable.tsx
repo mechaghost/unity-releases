@@ -1,9 +1,15 @@
-import type { IssueRow } from "@/lib/issues";
+import type { IssueRow, IssueSearchSort, IssueSearchStatus } from "@/lib/issues";
 import { IssuePill } from "@/app/_components/IssuePill";
 import { VersionPill } from "@/app/_components/VersionPill";
 import { formatReleaseDate } from "@/lib/format-date";
 import { cleanReleaseNoteText } from "@/lib/release-notes/format";
 import { stripAreaPrefix } from "@/lib/classification";
+
+export type SortableContext = {
+  query: string;
+  status: IssueSearchStatus;
+  current: IssueSearchSort;
+};
 
 /**
  * Shared table for any sorted-by-something issue list on /issues. The
@@ -15,10 +21,15 @@ import { stripAreaPrefix } from "@/lib/classification";
  */
 export function IssueTable({
   rows,
-  emptyMessage = "No issues to show."
+  emptyMessage = "No issues to show.",
+  sortable
 }: {
   rows: IssueRow[];
   emptyMessage?: string;
+  /** When provided, the Days-open and Mentions headers become
+   *  toggleable sort links pointing back at /issues with updated
+   *  sort + page=1 query params. */
+  sortable?: SortableContext;
 }) {
   if (rows.length === 0) {
     return <p className="muted">{emptyMessage}</p>;
@@ -32,8 +43,30 @@ export function IssueTable({
           <th>Description</th>
           <th>Introduced</th>
           <th>Fixed</th>
-          <th className="issue-table__num">Days open</th>
-          <th className="issue-table__num">Mentions</th>
+          <th className="issue-table__num">
+            {sortable ? (
+              <SortHeader
+                label="Days open"
+                ascKey="days-asc"
+                descKey="days-desc"
+                context={sortable}
+              />
+            ) : (
+              "Days open"
+            )}
+          </th>
+          <th className="issue-table__num">
+            {sortable ? (
+              <SortHeader
+                label="Mentions"
+                ascKey="mentions-asc"
+                descKey="mentions-desc"
+                context={sortable}
+              />
+            ) : (
+              "Mentions"
+            )}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -137,4 +170,53 @@ function toneFor(status: IssueRow["status"]): string {
     case "regressed":
       return "warn";
   }
+}
+
+/** Clickable column header. Cycles through:
+ *    inactive → desc → asc → desc → …
+ *  The base label always renders, with a small ▼ / ▲ / ↕ glyph
+ *  reflecting the current state. */
+function SortHeader({
+  label,
+  ascKey,
+  descKey,
+  context
+}: {
+  label: string;
+  ascKey: IssueSearchSort;
+  descKey: IssueSearchSort;
+  context: SortableContext;
+}) {
+  const isAsc = context.current === ascKey;
+  const isDesc = context.current === descKey;
+  // Clicking when desc → asc. Otherwise jump to desc (most useful
+  // direction first for both days-open and mentions).
+  const nextKey: IssueSearchSort = isDesc ? ascKey : descKey;
+  const href = sortHref(context.query, context.status, nextKey);
+  const arrow = isDesc ? "▼" : isAsc ? "▲" : "↕";
+  const active = isAsc || isDesc;
+  return (
+    <a
+      className={`issue-table__sort ${active ? "issue-table__sort--active" : ""}`}
+      href={href}
+      aria-label={`Sort by ${label} ${isDesc ? "ascending" : "descending"}`}
+    >
+      {label}{" "}
+      <span className="issue-table__sort-arrow" aria-hidden>
+        {arrow}
+      </span>
+    </a>
+  );
+}
+
+function sortHref(
+  query: string,
+  status: IssueSearchStatus,
+  sort: IssueSearchSort
+): string {
+  const params = new URLSearchParams({ q: query });
+  if (status !== "all") params.set("status", status);
+  if (sort !== "date-desc") params.set("sort", sort);
+  // Reset to page 1 — current page may not exist under the new sort.
+  return `/issues?${params.toString()}`;
 }
