@@ -1,8 +1,7 @@
 import type { IssueRow } from "@/lib/issues";
 import { IssuePill } from "@/app/_components/IssuePill";
 import { VersionPill } from "@/app/_components/VersionPill";
-import { HoverInfo } from "@/app/_components/HoverInfo";
-import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
+import { formatReleaseDate } from "@/lib/format-date";
 import { cleanReleaseNoteText } from "@/lib/release-notes/format";
 import { stripAreaPrefix } from "@/lib/classification";
 
@@ -52,29 +51,12 @@ export function IssueTable({
             </td>
             <td className="issue-table__desc">
               {cleaned ? (
-                <HoverInfo
-                  title={
-                    <span className="issue-card__title-row">
-                      <code className="issue-card__id">{row.issueId}</code>
-                      <span className={`chip chip--status-${toneFor(row.status)}`}>
-                        {labelFor(row.status)}
-                      </span>
-                    </span>
-                  }
-                  body={<IssueCardBody row={row} />}
-                  footer={
-                    <a href={`/issues/${encodeURIComponent(row.issueId)}`}>
-                      Open issue detail · every mention →
-                    </a>
-                  }
-                >
-                  <span className="issue-table__desc-text">
-                    {row.area ? (
-                      <span className="issue-table__desc-area">{row.area}: </span>
-                    ) : null}
-                    {cleaned}
-                  </span>
-                </HoverInfo>
+                <span className="issue-table__desc-text" title={cleaned}>
+                  {row.area ? (
+                    <span className="issue-table__desc-area">{row.area}: </span>
+                  ) : null}
+                  {cleaned}
+                </span>
               ) : (
                 <span className="muted">—</span>
               )}
@@ -155,70 +137,4 @@ function toneFor(status: IssueRow["status"]): string {
     case "regressed":
       return "warn";
   }
-}
-
-/** Rich-hover body — the "whole issue card." Shows everything the
- *  table row carries, including the FULL untruncated description.
- *  Renders inside the HoverInfo's body slot so the popover's title
- *  (issue id + status) sits above this. */
-function IssueCardBody({ row }: { row: IssueRow }) {
-  const fullDescription = row.description
-    ? cleanReleaseNoteText(row.area ? stripAreaPrefix(row.description) : row.description)
-    : null;
-  return (
-    <div className="issue-card__body">
-      {fullDescription ? (
-        <p className="issue-card__description">{fullDescription}</p>
-      ) : null}
-      <dl className="issue-card__meta">
-        {row.area ? (
-          <>
-            <dt>Area</dt>
-            <dd>
-              <code>{row.area}</code>
-            </dd>
-          </>
-        ) : null}
-        {row.introducedVersion ? (
-          <>
-            <dt>Introduced</dt>
-            <dd>
-              <code>{row.introducedVersion}</code>
-              {row.introducedDate ? (
-                <span className="muted">
-                  {" "}· {formatReleaseDate(row.introducedDate)}{" "}
-                  ({formatRelativeDate(row.introducedDate)})
-                </span>
-              ) : null}
-            </dd>
-          </>
-        ) : null}
-        {row.fixedVersion ? (
-          <>
-            <dt>Fixed</dt>
-            <dd>
-              <code>{row.fixedVersion}</code>
-              {row.fixedDate ? (
-                <span className="muted">
-                  {" "}· {formatReleaseDate(row.fixedDate)}
-                </span>
-              ) : null}
-            </dd>
-          </>
-        ) : null}
-        {row.daysOpen != null ? (
-          <>
-            <dt>{row.fixedVersion ? "Resolution time" : "Days open"}</dt>
-            <dd>
-              {Math.floor(row.daysOpen)} day{Math.floor(row.daysOpen) === 1 ? "" : "s"}
-            </dd>
-          </>
-        ) : null}
-        <dt>Mentions</dt>
-        <dd>
-          {row.mentionCount} release{row.mentionCount === 1 ? "" : "s"}
-        </dd>
-      </dl>
-    </div>
-  );
 }
