@@ -51,9 +51,10 @@ export default async function IssueExplorerPage() {
         </p>
       </section>
 
-      <IssueStatCards stats={stats} />
+      <div className="issue-explorer__sections">
+        <IssueStatCards stats={stats} />
 
-      <section className="viz-card">
+        <section className="viz-card">
         <div className="viz-card__header">
           <h2>Newest issues</h2>
         </div>
@@ -107,6 +108,7 @@ export default async function IssueExplorerPage() {
           />
         </div>
       </section>
+      </div>
 
       <TrustRail freshness={freshness} />
     </>

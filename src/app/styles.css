@@ -5029,11 +5029,20 @@ button.filter-section__head:focus-visible {
    Issue Explorer (/issues)
    ======================================================================== */
 
+/* Vertical rhythm between every section on /issues. Mirrors the
+   .viz-main flex-column-with-gap pattern from /visualizer so the two
+   issue-detail-adjacent pages feel structurally consistent. */
+.issue-explorer__sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+}
+
 .issue-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-3);
-  margin: var(--space-4) 0;
 }
 .issue-stats__card {
   background: var(--surface-raised);
