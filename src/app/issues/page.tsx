@@ -7,10 +7,14 @@ import {
   searchIssues,
   type IssueHeatmapCell,
   type IssueRow,
+  type IssueSearchPage,
   type IssueStats
 } from "@/lib/issues";
 import { listIngestionFreshness, type IngestionFreshness } from "@/lib/db/repositories";
 import { pageSocialMetadata } from "@/lib/site";
+import { Icon } from "@/app/_components/Icon";
+
+const SEARCH_PAGE_SIZE = 25;
 import { IssueStatCards } from "./_components/IssueStatCards";
 import { IssueTable } from "./_components/IssueTable";
 import { IssueDomainHeatmap } from "./_components/IssueDomainHeatmap";
@@ -38,10 +42,18 @@ export default async function IssueExplorerPage({
   const rawQ = typeof params.q === "string" ? params.q : "";
   const query = rawQ.trim();
   const isSearch = query.length > 0;
+  const requestedPage = parsePage(params.page);
 
   // In search mode the browse sections aren't needed — render only the
   // results table. Otherwise hit the normal four-section bundle.
-  const [stats, longestOpen, newest, mostMentioned, heatmap, freshness, searchResults] =
+  const emptySearch: IssueSearchPage = {
+    rows: [],
+    total: 0,
+    page: requestedPage,
+    pageSize: SEARCH_PAGE_SIZE,
+    totalPages: 0
+  };
+  const [stats, longestOpen, newest, mostMentioned, heatmap, freshness, searchPage] =
     await Promise.all([
       safeStats(),
       isSearch ? Promise.resolve<IssueRow[]>([]) : safeLongestOpen(),
@@ -49,7 +61,7 @@ export default async function IssueExplorerPage({
       isSearch ? Promise.resolve<IssueRow[]>([]) : safeMostMentioned(),
       isSearch ? Promise.resolve<IssueHeatmapCell[]>([]) : safeHeatmap(),
       safeFreshness(),
-      isSearch ? safeSearch(query) : Promise.resolve<IssueRow[]>([])
+      isSearch ? safeSearch(query, requestedPage) : Promise.resolve(emptySearch)
     ]);
 
   return (
@@ -72,18 +84,23 @@ export default async function IssueExplorerPage({
               <h2>
                 Search results for <code>{query}</code>
               </h2>
+              {searchPage.total > 0 ? (
+                <div className="viz-card__legend">
+                  <SearchResultRange page={searchPage} />
+                </div>
+              ) : null}
             </div>
             <p className="viz-card__sub">
               Matches UUM-id substrings and the body of the issue&apos;s
-              first Known-Issues mention. Up to 50 results, ordered by
-              the most-recent mention.
+              first Known-Issues mention. Ordered by most-recent mention.
             </p>
             <div className="viz-scroll">
               <IssueTable
-                rows={searchResults}
+                rows={searchPage.rows}
                 emptyMessage={`No issues match "${query}".`}
               />
             </div>
+            <SearchPagination page={searchPage} query={query} />
           </section>
         ) : null}
 
@@ -209,11 +226,94 @@ async function safeFreshness(): Promise<IngestionFreshness[]> {
   }
 }
 
-async function safeSearch(query: string): Promise<IssueRow[]> {
+async function safeSearch(query: string, page: number): Promise<IssueSearchPage> {
   try {
-    return await searchIssues(query, 50);
+    return await searchIssues(query, { page, pageSize: SEARCH_PAGE_SIZE });
   } catch (err) {
     console.error("[issues] searchIssues failed:", err);
-    return [];
+    return {
+      rows: [],
+      total: 0,
+      page,
+      pageSize: SEARCH_PAGE_SIZE,
+      totalPages: 0
+    };
   }
+}
+
+function parsePage(raw: string | string[] | undefined): number {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+}
+
+function searchPageHref(query: string, page: number): string {
+  const params = new URLSearchParams({ q: query });
+  if (page > 1) params.set("page", String(page));
+  return `/issues?${params.toString()}`;
+}
+
+function SearchResultRange({ page }: { page: IssueSearchPage }) {
+  if (page.total === 0) return null;
+  const start = (page.page - 1) * page.pageSize + 1;
+  const end = Math.min(page.total, page.page * page.pageSize);
+  return (
+    <span className="tabnums">
+      <strong>{start.toLocaleString()}</strong>
+      {end !== start ? <>–<strong>{end.toLocaleString()}</strong></> : null} of{" "}
+      <strong>{page.total.toLocaleString()}</strong>
+    </span>
+  );
+}
+
+function SearchPagination({ page, query }: { page: IssueSearchPage; query: string }) {
+  if (page.totalPages <= 1) return null;
+  const hasPrev = page.page > 1;
+  const hasNext = page.page < page.totalPages;
+  return (
+    <nav className="lane__pagination" aria-label="Search results pagination">
+      <span className="lane__pagination-status">
+        Page <strong className="tabnums">{page.page}</strong> of{" "}
+        <strong className="tabnums">{page.totalPages}</strong>
+      </span>
+      <span className="lane__pagination-controls">
+        {hasPrev ? (
+          <a
+            className="lane__pagination-btn"
+            href={searchPageHref(query, page.page - 1)}
+            rel="prev"
+          >
+            <Icon name="chevron-left" size={14} />
+            Prev
+          </a>
+        ) : (
+          <span
+            className="lane__pagination-btn lane__pagination-btn--disabled"
+            aria-disabled="true"
+          >
+            <Icon name="chevron-left" size={14} />
+            Prev
+          </span>
+        )}
+        {hasNext ? (
+          <a
+            className="lane__pagination-btn"
+            href={searchPageHref(query, page.page + 1)}
+            rel="next"
+          >
+            Next
+            <Icon name="chevron-right" size={14} />
+          </a>
+        ) : (
+          <span
+            className="lane__pagination-btn lane__pagination-btn--disabled"
+            aria-disabled="true"
+          >
+            Next
+            <Icon name="chevron-right" size={14} />
+          </span>
+        )}
+      </span>
+    </nav>
+  );
 }

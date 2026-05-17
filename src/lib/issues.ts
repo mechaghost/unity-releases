@@ -411,24 +411,56 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
   }));
 }
 
+export type IssueSearchPage = {
+  rows: IssueRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 /**
  * Free-text search across issue ids + their first Known-Issues body.
- * Returns up to `limit` matching issues sorted by recency of first
- * Known-Issues mention.
+ * Server-paginated — total count comes back so the caller can render
+ * a "showing X-Y of Z" line and Prev/Next links.
  *
  * - Query is matched ILIKE on `issue_id` AND on `body`, so "UUM-22444"
  *   finds the exact id and "addressables" finds every issue whose
  *   body mentions Addressables.
- * - Empty / whitespace-only query short-circuits to []; the caller
- *   should not invoke the SQL in that case but we guard anyway.
+ * - Empty / whitespace-only query short-circuits to a zero page so
+ *   callers don't need to guard.
  * - Reuses the same IssueRow shape the existing tables render so the
  *   results card can drop into the existing IssueTable component.
  */
-export async function searchIssues(rawQuery: string, limit = 50): Promise<IssueRow[]> {
+export async function searchIssues(
+  rawQuery: string,
+  options: { page?: number; pageSize?: number } = {}
+): Promise<IssueSearchPage> {
+  const page = Math.max(1, Math.floor(options.page ?? 1));
+  const pageSize = Math.max(1, Math.min(100, Math.floor(options.pageSize ?? 25)));
+  const empty: IssueSearchPage = { rows: [], total: 0, page, pageSize, totalPages: 0 };
   const q = rawQuery.trim();
-  if (q.length === 0) return [];
+  if (q.length === 0) return empty;
   // Match ILIKE %q% with PG escape for the LIKE wildcards.
   const pattern = `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
+  const offset = (page - 1) * pageSize;
+
+  // Count + fetch as two queries: the count's small (matched is the
+  // narrow filtered set, not the full 76k mention table) so this is
+  // cheap, and keeping them separate lets the row query stay
+  // pagination-shaped without a `COUNT(*) OVER()` partition that
+  // would pin every row.
+  const countResult = await query<{ total: string }>(
+    `
+      SELECT COUNT(DISTINCT im.issue_id)::text AS total
+      FROM issue_mentions im
+      LEFT JOIN release_note_items rn ON rn.id = im.release_note_item_id
+      WHERE im.issue_id ILIKE $1 ESCAPE '\\' OR rn.body ILIKE $1 ESCAPE '\\'
+    `,
+    [pattern]
+  );
+  const total = Number(countResult.rows[0]?.total ?? 0);
+  if (total === 0) return empty;
 
   const result = await query<{
     issue_id: string;
@@ -523,12 +555,12 @@ export async function searchIssues(rawQuery: string, limit = 50): Promise<IssueR
       LEFT JOIN latest_fix lf   ON lf.issue_id = m.issue_id
       LEFT JOIN mention_counts mc ON mc.issue_id = m.issue_id
       ORDER BY COALESCE(fk.release_date, ff.release_date) DESC NULLS LAST, m.issue_id ASC
-      LIMIT $2
+      LIMIT $2 OFFSET $3
     `,
-    [pattern, limit]
+    [pattern, pageSize, offset]
   );
 
-  return result.rows.map((row) => ({
+  const rows: IssueRow[] = result.rows.map((row) => ({
     issueId: row.issue_id,
     status: (row.status as IssueRow["status"]) ?? "open",
     area: row.area,
@@ -540,6 +572,13 @@ export async function searchIssues(rawQuery: string, limit = 50): Promise<IssueR
     mentionCount: Number(row.mention_count),
     description: row.description
   }));
+  return {
+    rows,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize))
+  };
 }
 
 export type IssueHeatmapCell = {
