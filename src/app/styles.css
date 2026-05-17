@@ -662,6 +662,12 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   font-weight: var(--weight-semibold);
 }
 
+.chip--status-bad {
+  background: var(--color-blocker-bg);
+  color: var(--color-blocker-fg);
+  font-weight: var(--weight-semibold);
+}
+
 .chip--status-info {
   background: var(--surface-sunken);
   color: var(--text-secondary);
@@ -5069,6 +5075,36 @@ button.filter-section__head:focus-visible {
 .issue-stats__hint {
   font-size: var(--text-xs);
   line-height: var(--leading-sm);
+}
+
+.issue-stats__card--link {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 80ms ease, transform 80ms ease, background-color 80ms ease;
+}
+.issue-stats__card--link:hover,
+.issue-stats__card--link:focus-visible {
+  border-color: var(--text-secondary);
+  background: var(--surface-hover, var(--surface-raised));
+  cursor: pointer;
+}
+.issue-stats__card--link:focus-visible {
+  outline: 2px solid var(--text-link, var(--text-primary));
+  outline-offset: 2px;
+}
+
+.viz-heat-cell__link {
+  cursor: pointer;
+  outline: none;
+}
+.viz-heat-cell__link:hover .viz-heat-cell,
+.viz-heat-cell__link:focus-visible .viz-heat-cell {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+.viz-heat-cell__link:focus-visible {
+  outline: 2px solid var(--text-link, var(--text-primary));
+  outline-offset: 2px;
 }
 
 .issue-table {

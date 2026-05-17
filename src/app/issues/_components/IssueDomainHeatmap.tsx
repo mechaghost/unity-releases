@@ -56,7 +56,7 @@ export function IssueDomainHeatmap({ cells }: { cells: IssueHeatmapCell[] }) {
       <p className="viz-card__sub">
         Each cell = number of UUM ids in that subsystem with that
         status. Open includes Regressed (Unity-shipped fix, then
-        re-listed). Hover a cell for the count.
+        re-listed). Click any cell to drill into the filtered list.
       </p>
       <div className="viz-scroll">
         <svg
@@ -101,9 +101,9 @@ export function IssueDomainHeatmap({ cells }: { cells: IssueHeatmapCell[] }) {
                   const x = padding + labelW + ci * cellW;
                   const count = cellLookup.get(`${domain}::${col.status}`) ?? 0;
                   const heatClass = heatClassFor(count, maxCount);
-                  return (
-                    <g key={col.status}>
-                      <title>{`${domain} · ${col.label} · ${count}`}</title>
+                  const cellGroup = (
+                    <g>
+                      <title>{`${domain} · ${col.label} · ${count}${count > 0 ? " — click to filter" : ""}`}</title>
                       <rect
                         x={x + 1}
                         y={y + 1}
@@ -125,6 +125,20 @@ export function IssueDomainHeatmap({ cells }: { cells: IssueHeatmapCell[] }) {
                         </text>
                       ) : null}
                     </g>
+                  );
+                  if (count === 0) {
+                    return <g key={col.status}>{cellGroup}</g>;
+                  }
+                  const href = `/issues?area=${encodeURIComponent(domain)}&status=${col.status}`;
+                  return (
+                    <a
+                      key={col.status}
+                      href={href}
+                      className="viz-heat-cell__link"
+                      aria-label={`${count} ${col.label.toLowerCase()} issues in ${domain} — open filtered list`}
+                    >
+                      {cellGroup}
+                    </a>
                   );
                 })}
               </g>

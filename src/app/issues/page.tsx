@@ -5,10 +5,12 @@ import {
   getMostMentionedIssues,
   getNewestIssues,
   searchIssues,
+  ISSUE_SEARCH_AREAS,
   ISSUE_SEARCH_STATUSES,
   ISSUE_SEARCH_SORT_KEYS,
   type IssueHeatmapCell,
   type IssueRow,
+  type IssueSearchArea,
   type IssueSearchPage,
   type IssueSearchSort,
   type IssueSearchStatus,
@@ -45,13 +47,16 @@ export default async function IssueExplorerPage({
   const params = await searchParams;
   const rawQ = typeof params.q === "string" ? params.q : "";
   const query = rawQ.trim();
-  const isSearch = query.length > 0;
   const requestedPage = parsePage(params.page);
   const requestedStatus = parseStatus(params.status);
   const requestedSort = parseSort(params.sort);
+  const requestedArea = parseArea(params.area);
+  // Search mode kicks in for any of: text query, non-default status,
+  // non-default area. Lets users drill in from the heatmap or stat
+  // cards without typing anything.
+  const isSearch =
+    query.length > 0 || requestedStatus !== "all" || requestedArea !== "all";
 
-  // In search mode the browse sections aren't needed — render only the
-  // results table. Otherwise hit the normal four-section bundle.
   const emptySearch: IssueSearchPage = {
     rows: [],
     total: 0,
@@ -59,7 +64,9 @@ export default async function IssueExplorerPage({
     pageSize: SEARCH_PAGE_SIZE,
     totalPages: 0,
     status: requestedStatus,
-    sort: requestedSort
+    sort: requestedSort,
+    area: requestedArea,
+    hasAnyFilter: false
   };
   const [stats, longestOpen, newest, mostMentioned, heatmap, freshness, searchPage] =
     await Promise.all([
@@ -70,7 +77,7 @@ export default async function IssueExplorerPage({
       isSearch ? Promise.resolve<IssueHeatmapCell[]>([]) : safeHeatmap(),
       safeFreshness(),
       isSearch
-        ? safeSearch(query, requestedPage, requestedStatus, requestedSort)
+        ? safeSearch(query, requestedPage, requestedStatus, requestedSort, requestedArea)
         : Promise.resolve(emptySearch)
     ]);
 
@@ -91,9 +98,7 @@ export default async function IssueExplorerPage({
         {isSearch ? (
           <section className="viz-card">
             <div className="viz-card__header">
-              <h2>
-                Search results for <code>{query}</code>
-              </h2>
+              <h2>{searchHeadline(query, searchPage)}</h2>
               {searchPage.total > 0 ? (
                 <div className="viz-card__legend">
                   <SearchResultRange page={searchPage} />
@@ -101,17 +106,30 @@ export default async function IssueExplorerPage({
               ) : null}
             </div>
             <p className="viz-card__sub">
-              Matches UUM-id substrings and the body of the issue&apos;s
-              first Known-Issues mention.
+              {query.length > 0
+                ? "Matches UUM-id substrings and the body of the issue's first Known-Issues mention."
+                : "Filtered slice of every tracked UUM id — adjust the chips to widen or narrow."}
             </p>
-            <SearchFilterChips query={query} sort={searchPage.sort} active={searchPage.status} />
+            <SearchFilterChips
+              query={query}
+              sort={searchPage.sort}
+              area={searchPage.area}
+              activeStatus={searchPage.status}
+            />
+            <SearchAreaChips
+              query={query}
+              sort={searchPage.sort}
+              status={searchPage.status}
+              activeArea={searchPage.area}
+            />
             <div className="viz-scroll">
               <IssueTable
                 rows={searchPage.rows}
-                emptyMessage={`No issues match "${query}"${searchPage.status !== "all" ? ` with status ${searchPage.status}` : ""}.`}
+                emptyMessage={emptyResultsMessage(query, searchPage)}
                 sortable={{
                   query,
                   status: searchPage.status,
+                  area: searchPage.area,
                   current: searchPage.sort
                 }}
               />
@@ -246,14 +264,16 @@ async function safeSearch(
   query: string,
   page: number,
   status: IssueSearchStatus,
-  sort: IssueSearchSort
+  sort: IssueSearchSort,
+  area: IssueSearchArea
 ): Promise<IssueSearchPage> {
   try {
     return await searchIssues(query, {
       page,
       pageSize: SEARCH_PAGE_SIZE,
       status,
-      sort
+      sort,
+      area
     });
   } catch (err) {
     console.error("[issues] searchIssues failed:", err);
@@ -264,7 +284,9 @@ async function safeSearch(
       pageSize: SEARCH_PAGE_SIZE,
       totalPages: 0,
       status,
-      sort
+      sort,
+      area,
+      hasAnyFilter: query.length > 0 || status !== "all" || area !== "all"
     };
   }
 }
@@ -289,6 +311,13 @@ function parseSort(raw: string | string[] | undefined): IssueSearchSort {
     : "date-desc";
 }
 
+function parseArea(raw: string | string[] | undefined): IssueSearchArea {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return (ISSUE_SEARCH_AREAS as readonly string[]).includes(v ?? "")
+    ? (v as IssueSearchArea)
+    : "all";
+}
+
 /** Single URL helper that preserves every search-mode param except the
  *  ones the caller is overriding. Switching status or sort drops the
  *  user back to page=1 (the previous page may not exist after the
@@ -298,12 +327,16 @@ function searchHref(opts: {
   page?: number;
   status?: IssueSearchStatus;
   sort?: IssueSearchSort;
+  area?: IssueSearchArea;
 }): string {
-  const params = new URLSearchParams({ q: opts.q });
+  const params = new URLSearchParams();
+  if (opts.q.length > 0) params.set("q", opts.q);
   if (opts.page && opts.page > 1) params.set("page", String(opts.page));
   if (opts.status && opts.status !== "all") params.set("status", opts.status);
   if (opts.sort && opts.sort !== "date-desc") params.set("sort", opts.sort);
-  return `/issues?${params.toString()}`;
+  if (opts.area && opts.area !== "all") params.set("area", opts.area);
+  const qs = params.toString();
+  return qs.length > 0 ? `/issues?${qs}` : "/issues";
 }
 
 const STATUS_LABELS: Record<IssueSearchStatus, string> = {
@@ -316,26 +349,77 @@ const STATUS_LABELS: Record<IssueSearchStatus, string> = {
 function SearchFilterChips({
   query,
   sort,
-  active
+  area,
+  activeStatus
 }: {
   query: string;
   sort: IssueSearchSort;
-  active: IssueSearchStatus;
+  area: IssueSearchArea;
+  activeStatus: IssueSearchStatus;
 }) {
   return (
     <div className="search-filter-chips" role="group" aria-label="Filter by status">
       {ISSUE_SEARCH_STATUSES.map((s) => (
         <a
           key={s}
-          href={searchHref({ q: query, status: s, sort })}
-          className={`viz-chip ${active === s ? "viz-chip--active" : ""}`}
-          aria-current={active === s ? "true" : undefined}
+          href={searchHref({ q: query, status: s, sort, area })}
+          className={`viz-chip ${activeStatus === s ? "viz-chip--active" : ""}`}
+          aria-current={activeStatus === s ? "true" : undefined}
         >
           {STATUS_LABELS[s]}
         </a>
       ))}
     </div>
   );
+}
+
+function SearchAreaChips({
+  query,
+  sort,
+  status,
+  activeArea
+}: {
+  query: string;
+  sort: IssueSearchSort;
+  status: IssueSearchStatus;
+  activeArea: IssueSearchArea;
+}) {
+  return (
+    <div className="search-filter-chips" role="group" aria-label="Filter by subsystem">
+      {ISSUE_SEARCH_AREAS.map((a) => (
+        <a
+          key={a}
+          href={searchHref({ q: query, status, sort, area: a })}
+          className={`viz-chip ${activeArea === a ? "viz-chip--active" : ""}`}
+          aria-current={activeArea === a ? "true" : undefined}
+        >
+          {a === "all" ? "All subsystems" : a}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function searchHeadline(query: string, page: IssueSearchPage): string {
+  if (query.length > 0) return `Search results for "${query}"`;
+  const parts: string[] = [];
+  if (page.status !== "all") parts.push(STATUS_LABELS[page.status]);
+  if (page.area !== "all") parts.push(page.area);
+  if (parts.length === 0) return "Search results";
+  return `${parts.join(" · ")} issues`;
+}
+
+function emptyResultsMessage(query: string, page: IssueSearchPage): string {
+  if (query.length > 0) {
+    const suffix: string[] = [];
+    if (page.status !== "all") suffix.push(`status ${page.status}`);
+    if (page.area !== "all") suffix.push(`subsystem ${page.area}`);
+    return `No issues match "${query}"${suffix.length > 0 ? ` with ${suffix.join(" and ")}` : ""}.`;
+  }
+  const parts: string[] = [];
+  if (page.status !== "all") parts.push(page.status);
+  if (page.area !== "all") parts.push(page.area);
+  return `No issues with ${parts.join(" · ") || "the current filters"}.`;
 }
 
 function SearchResultRange({ page }: { page: IssueSearchPage }) {
@@ -365,7 +449,7 @@ function SearchPagination({ page, query }: { page: IssueSearchPage; query: strin
         {hasPrev ? (
           <a
             className="lane__pagination-btn"
-            href={searchHref({ q: query, page: page.page - 1, status: page.status, sort: page.sort })}
+            href={searchHref({ q: query, page: page.page - 1, status: page.status, sort: page.sort, area: page.area })}
             rel="prev"
           >
             <Icon name="chevron-left" size={14} />
@@ -383,7 +467,7 @@ function SearchPagination({ page, query }: { page: IssueSearchPage; query: strin
         {hasNext ? (
           <a
             className="lane__pagination-btn"
-            href={searchHref({ q: query, page: page.page + 1, status: page.status, sort: page.sort })}
+            href={searchHref({ q: query, page: page.page + 1, status: page.status, sort: page.sort, area: page.area })}
             rel="next"
           >
             Next

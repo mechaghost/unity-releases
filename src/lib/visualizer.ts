@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { query } from "./db/client";
-import { DOMAINS, type Domain } from "./visualizer-domains";
+import { DOMAINS, DOMAIN_REGEX_SOURCES, type Domain } from "./visualizer-domains";
 import type { ScoreInput } from "./score";
 
 export { DOMAINS, type Domain } from "./visualizer-domains";
@@ -30,20 +30,9 @@ const SCORE_DATA_TTL_SECONDS = 600;
  * deps" failure mode.
  */
 
-const DOMAIN_PATTERNS: Record<Domain, RegExp> = {
-  Rendering: /^(URP|HDRP|SRP|Rendering|Graphics|Shaders?|Shader Graph|Post[- ]?processing|Lighting|GPU|Render Pipeline|Visual Effect|VFX|Camera)/i,
-  Scripting: /^(Scripting|C#|IL2CPP|Burst|Mono|Job System|DOTS|Entities|ECS|Compiler|Roslyn)/i,
-  Mobile: /^(Android|iOS|Mobile)/i,
-  XR: /^(XR|AR|VR|OpenXR|VisionOS|MR|MARS)/i,
-  Physics: /^(Physics|Physics 2D|Cloth)/i,
-  UI: /^(UI|UI Toolkit|UI Builder|UIElements|IMGUI|UGUI|TextMesh)/i,
-  Networking: /^(Networking|Netcode|Multiplayer|Transport|Relay|Lobby)/i,
-  Editor: /^(Editor|Inspector|Hierarchy|Scene Manag|Project Browser|Preferences|Build Profile)/i,
-  Audio: /^(Audio|Sound|DSP)/i,
-  Animation: /^(Animation|Animator|Timeline|Mecanim)/i,
-  "Asset Pipeline": /^(Asset|Import|Asset Bundle|Addressables|AssetDatabase|Prefab|Texture|Mesh|Loading)/i,
-  Input: /^(Input|Input System|Touch|Pointer|Gamepad|Keyboard|Mouse)/i
-};
+const DOMAIN_PATTERNS: Record<Domain, RegExp> = Object.fromEntries(
+  DOMAINS.map((d) => [d, new RegExp(DOMAIN_REGEX_SOURCES[d], "i")])
+) as Record<Domain, RegExp>;
 
 export function classifyDomain(area: string | null | undefined): Domain | "Other" {
   if (!area) return "Other";
@@ -53,16 +42,18 @@ export function classifyDomain(area: string | null | undefined): Domain | "Other
   return "Other";
 }
 
-function buildDomainCaseExpression(): string {
-  // CASE WHEN area ~* '^(URP|HDRP|…)' THEN 'Rendering' WHEN … ELSE 'Other' END
+/** CASE WHEN <columnRef> ~* '^(URP|HDRP|…)' THEN 'Rendering' … ELSE 'Other' END
+ *  Shared by `visualizer.ts` and `issues.ts` so the heatmap, charts,
+ *  and the /issues area filter all bucket the same way. */
+export function buildDomainCaseSql(columnRef: string): string {
   const branches = DOMAINS.map((domain) => {
-    const source = DOMAIN_PATTERNS[domain].source.replace(/'/g, "''");
-    return `WHEN area ~* '${source}' THEN '${domain}'`;
+    const source = DOMAIN_REGEX_SOURCES[domain].replace(/'/g, "''");
+    return `WHEN ${columnRef} ~* '${source}' THEN '${domain}'`;
   }).join(" ");
   return `CASE ${branches} ELSE 'Other' END`;
 }
 
-const DOMAIN_CASE = buildDomainCaseExpression();
+const DOMAIN_CASE = buildDomainCaseSql("area");
 
 export type StreamSlug = "lts" | "stable" | "beta" | "alpha";
 

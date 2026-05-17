@@ -1,5 +1,6 @@
 import { query } from "./db/client";
 import { DOMAINS, type Domain } from "./visualizer-domains";
+import { buildDomainCaseSql } from "./visualizer";
 
 /**
  * Data layer for `/issues` (Issue Explorer). Issue-centric aggregates
@@ -414,6 +415,12 @@ export async function getMostMentionedIssues(limit = 10): Promise<IssueRow[]> {
 export const ISSUE_SEARCH_STATUSES = ["all", "open", "fixed", "regressed"] as const;
 export type IssueSearchStatus = (typeof ISSUE_SEARCH_STATUSES)[number];
 
+/** Area facet: "all" plus every canonical Domain plus "Other" for
+ *  uncategorized `area` strings. Drives both the area chip-row and
+ *  the heatmap-cell drill-through links. */
+export const ISSUE_SEARCH_AREAS = ["all", ...DOMAINS, "Other"] as const;
+export type IssueSearchArea = (typeof ISSUE_SEARCH_AREAS)[number];
+
 export const ISSUE_SEARCH_SORT_KEYS = [
   "date-desc",
   "days-desc",
@@ -431,6 +438,11 @@ export type IssueSearchPage = {
   totalPages: number;
   status: IssueSearchStatus;
   sort: IssueSearchSort;
+  area: IssueSearchArea;
+  /** True iff the search was issued with no `q`, no status filter, and
+   *  no area filter — the page should show its browse sections, not
+   *  the results card. */
+  hasAnyFilter: boolean;
 };
 
 /** Whitelist-driven ORDER BY snippets. ORDER BY can't be parameterized
@@ -464,6 +476,7 @@ export async function searchIssues(
     pageSize?: number;
     status?: IssueSearchStatus;
     sort?: IssueSearchSort;
+    area?: IssueSearchArea;
   } = {}
 ): Promise<IssueSearchPage> {
   const page = Math.max(1, Math.floor(options.page ?? 1));
@@ -478,6 +491,13 @@ export async function searchIssues(
   )
     ? (options.sort as IssueSearchSort) ?? "date-desc"
     : "date-desc";
+  const area: IssueSearchArea = (ISSUE_SEARCH_AREAS as readonly string[]).includes(
+    options.area ?? "all"
+  )
+    ? (options.area as IssueSearchArea) ?? "all"
+    : "all";
+  const q = rawQuery.trim();
+  const hasAnyFilter = q.length > 0 || status !== "all" || area !== "all";
   const empty: IssueSearchPage = {
     rows: [],
     total: 0,
@@ -485,15 +505,24 @@ export async function searchIssues(
     pageSize,
     totalPages: 0,
     status,
-    sort
+    sort,
+    area,
+    hasAnyFilter
   };
-  const q = rawQuery.trim();
-  if (q.length === 0) return empty;
-  // Match ILIKE %q% with PG escape for the LIKE wildcards.
-  const pattern = `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
+  if (!hasAnyFilter) return empty;
+  // Match ILIKE %q% with PG escape for the LIKE wildcards. Empty q +
+  // filters only → match every issue (%) so the filters can stand
+  // alone for "browse by status/area" drill-through use.
+  const pattern = q.length === 0 ? "%" : `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
   const offset = (page - 1) * pageSize;
-  const statusFilter = status === "all" ? "" : `WHERE status = '${status}'`;
+  // Combined WHERE for both filters. Both clauses are enum-whitelisted
+  // so string interpolation is safe (ORDER BY can't be parameterized).
+  const wheres: string[] = [];
+  if (status !== "all") wheres.push(`status = '${status}'`);
+  if (area !== "all") wheres.push(`area_domain = '${area.replace(/'/g, "''")}'`);
+  const filterClause = wheres.length > 0 ? `WHERE ${wheres.join(" AND ")}` : "";
   const orderBy = SORT_SQL[sort];
+  const domainCase = buildDomainCaseSql("COALESCE(fk.area, ab.area)");
 
   // Shared CTE block driving both the count and the paginated row
   // query. Keeping the same CTE definitions in both means the row
@@ -553,6 +582,7 @@ export async function searchIssues(
       SELECT
         m.issue_id,
         COALESCE(fk.area, ab.area) AS area,
+        ${domainCase} AS area_domain,
         COALESCE(fk.body, ab.body) AS description,
         fk.version              AS introduced_version,
         fk.release_date::text   AS introduced_date,
@@ -584,10 +614,10 @@ export async function searchIssues(
   `;
 
   // Count + fetch as two queries sharing the same CTE block. The count
-  // applies the status filter so pagination math stays consistent
+  // applies the status/area filters so pagination math stays consistent
   // (showing X of N) when the user filters to a subset.
   const countResult = await query<{ total: string }>(
-    `${baseCTE} SELECT COUNT(*)::text AS total FROM rows ${statusFilter}`,
+    `${baseCTE} SELECT COUNT(*)::text AS total FROM rows ${filterClause}`,
     [pattern]
   );
   const total = Number(countResult.rows[0]?.total ?? 0);
@@ -611,7 +641,7 @@ export async function searchIssues(
         issue_id, area, description, introduced_version, introduced_date,
         fixed_version, fixed_date, days_open::text, mention_count::text, status
       FROM rows
-      ${statusFilter}
+      ${filterClause}
       ORDER BY ${orderBy}
       LIMIT $2 OFFSET $3
     `,
@@ -637,7 +667,9 @@ export async function searchIssues(
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
     status,
-    sort
+    sort,
+    area,
+    hasAnyFilter
   };
 }
 
@@ -654,7 +686,7 @@ export type IssueHeatmapCell = {
  *  Regressed issues count as 'open' here (Unity considers them
  *  unresolved). */
 export async function getIssueDomainHeatmap(): Promise<IssueHeatmapCell[]> {
-  const domainCase = buildDomainCase("im_area.area");
+  const domainCase = buildDomainCaseSql("im_area.area");
   const result = await query<{
     domain: string;
     status: string;
@@ -697,32 +729,6 @@ export async function getIssueDomainHeatmap(): Promise<IssueHeatmapCell[]> {
     status: (row.status as "open" | "fixed") ?? "open",
     count: Number(row.count)
   }));
-}
-
-/** Builds the same kind of regex CASE expression used elsewhere on the
- *  site but parameterized by the caller's column reference (so we can
- *  apply it to im_area.area rather than the table's bare `area`). */
-function buildDomainCase(columnRef: string): string {
-  // Mirrors DOMAIN_PATTERNS in src/lib/visualizer.ts. Kept in sync by
-  // hand — both files are short and the regex set is canonical.
-  const branches: Array<[Domain, string]> = [
-    ["Rendering", "^(URP|HDRP|SRP|Rendering|Graphics|Shaders?|Shader Graph|Post[- ]?processing|Lighting|GPU|Render Pipeline|Visual Effect|VFX|Camera)"],
-    ["Scripting", "^(Scripting|C#|IL2CPP|Burst|Mono|Job System|DOTS|Entities|ECS|Compiler|Roslyn)"],
-    ["Mobile", "^(Android|iOS|Mobile)"],
-    ["XR", "^(XR|AR|VR|OpenXR|VisionOS|MR|MARS)"],
-    ["Physics", "^(Physics|Physics 2D|Cloth)"],
-    ["UI", "^(UI|UI Toolkit|UI Builder|UIElements|IMGUI|UGUI|TextMesh)"],
-    ["Networking", "^(Networking|Netcode|Multiplayer|Transport|Relay|Lobby)"],
-    ["Editor", "^(Editor|Inspector|Hierarchy|Scene Manag|Project Browser|Preferences|Build Profile)"],
-    ["Audio", "^(Audio|Sound|DSP)"],
-    ["Animation", "^(Animation|Animator|Timeline|Mecanim)"],
-    ["Asset Pipeline", "^(Asset|Import|Asset Bundle|Addressables|AssetDatabase|Prefab|Texture|Mesh|Loading)"],
-    ["Input", "^(Input|Input System|Touch|Pointer|Gamepad|Keyboard|Mouse)"]
-  ];
-  const whens = branches
-    .map(([domain, pat]) => `WHEN ${columnRef} ~* '${pat.replace(/'/g, "''")}' THEN '${domain}'`)
-    .join(" ");
-  return `CASE ${whens} ELSE 'Other' END`;
 }
 
 export const ALL_DOMAINS_PLUS_OTHER: ReadonlyArray<Domain | "Other"> = [...DOMAINS, "Other"];

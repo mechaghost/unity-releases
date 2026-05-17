@@ -1,4 +1,9 @@
-import type { IssueRow, IssueSearchSort, IssueSearchStatus } from "@/lib/issues";
+import type {
+  IssueRow,
+  IssueSearchArea,
+  IssueSearchSort,
+  IssueSearchStatus
+} from "@/lib/issues";
 import { IssuePill } from "@/app/_components/IssuePill";
 import { VersionPill } from "@/app/_components/VersionPill";
 import { formatReleaseDate } from "@/lib/format-date";
@@ -8,6 +13,7 @@ import { stripAreaPrefix } from "@/lib/classification";
 export type SortableContext = {
   query: string;
   status: IssueSearchStatus;
+  area: IssueSearchArea;
   current: IssueSearchSort;
 };
 
@@ -43,7 +49,10 @@ export function IssueTable({
           <th>Description</th>
           <th>Introduced</th>
           <th>Fixed</th>
-          <th className="issue-table__num">
+          <th
+            className="issue-table__num"
+            aria-sort={ariaSortFor(sortable, "days-asc", "days-desc")}
+          >
             {sortable ? (
               <SortHeader
                 label="Days open"
@@ -55,7 +64,10 @@ export function IssueTable({
               "Days open"
             )}
           </th>
-          <th className="issue-table__num">
+          <th
+            className="issue-table__num"
+            aria-sort={ariaSortFor(sortable, "mentions-asc", "mentions-desc")}
+          >
             {sortable ? (
               <SortHeader
                 label="Mentions"
@@ -168,7 +180,7 @@ function toneFor(status: IssueRow["status"]): string {
     case "fixed":
       return "good";
     case "regressed":
-      return "warn";
+      return "bad";
   }
 }
 
@@ -192,14 +204,15 @@ function SortHeader({
   // Clicking when desc → asc. Otherwise jump to desc (most useful
   // direction first for both days-open and mentions).
   const nextKey: IssueSearchSort = isDesc ? ascKey : descKey;
-  const href = sortHref(context.query, context.status, nextKey);
+  const nextDirection = isDesc ? "ascending" : "descending";
+  const href = sortHref(context.query, context.status, context.area, nextKey);
   const arrow = isDesc ? "▼" : isAsc ? "▲" : "↕";
   const active = isAsc || isDesc;
   return (
     <a
       className={`issue-table__sort ${active ? "issue-table__sort--active" : ""}`}
       href={href}
-      aria-label={`Sort by ${label} ${isDesc ? "ascending" : "descending"}`}
+      aria-label={`Sort by ${label}, ${nextDirection}`}
     >
       {label}{" "}
       <span className="issue-table__sort-arrow" aria-hidden>
@@ -212,11 +225,30 @@ function SortHeader({
 function sortHref(
   query: string,
   status: IssueSearchStatus,
+  area: IssueSearchArea,
   sort: IssueSearchSort
 ): string {
-  const params = new URLSearchParams({ q: query });
+  const params = new URLSearchParams();
+  if (query.length > 0) params.set("q", query);
   if (status !== "all") params.set("status", status);
+  if (area !== "all") params.set("area", area);
   if (sort !== "date-desc") params.set("sort", sort);
   // Reset to page 1 — current page may not exist under the new sort.
-  return `/issues?${params.toString()}`;
+  const qs = params.toString();
+  return qs.length > 0 ? `/issues?${qs}` : "/issues";
+}
+
+/** WAI-ARIA aria-sort value for a sortable <th>. Returns "ascending" /
+ *  "descending" when the column is the active sort, "none" when it's
+ *  sortable but inactive, and undefined when the table isn't sortable
+ *  (so the attribute is omitted entirely). */
+function ariaSortFor(
+  sortable: SortableContext | undefined,
+  ascKey: IssueSearchSort,
+  descKey: IssueSearchSort
+): "ascending" | "descending" | "none" | undefined {
+  if (!sortable) return undefined;
+  if (sortable.current === ascKey) return "ascending";
+  if (sortable.current === descKey) return "descending";
+  return "none";
 }

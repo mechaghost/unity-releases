@@ -25,9 +25,32 @@ export const DOMAINS = [
 
 export type Domain = (typeof DOMAINS)[number];
 
+/** Canonical regex source per domain. Plain strings (not RegExp) so
+ *  this module stays Edge-safe and so the SQL CASE builder in
+ *  `visualizer.ts` and `issues.ts` can share the same expressions
+ *  rather than maintaining a hand-mirrored copy.
+ *
+ *  Anchored with `^` because Unity's `area` labels lead with the
+ *  domain word ("URP", "Android: …"). Stored without flags; callers
+ *  add `(?i)` for Postgres or `RegExp(..., "i")` in JS. */
+export const DOMAIN_REGEX_SOURCES: Record<Domain, string> = {
+  Rendering: "^(URP|HDRP|SRP|Rendering|Graphics|Shaders?|Shader Graph|Post[- ]?processing|Lighting|GPU|Render Pipeline|Visual Effect|VFX|Camera)",
+  Scripting: "^(Scripting|C#|IL2CPP|Burst|Mono|Job System|DOTS|Entities|ECS|Compiler|Roslyn)",
+  Mobile: "^(Android|iOS|Mobile)",
+  XR: "^(XR|AR|VR|OpenXR|VisionOS|MR|MARS)",
+  Physics: "^(Physics|Physics 2D|Cloth)",
+  UI: "^(UI|UI Toolkit|UI Builder|UIElements|IMGUI|UGUI|TextMesh)",
+  Networking: "^(Networking|Netcode|Multiplayer|Transport|Relay|Lobby)",
+  Editor: "^(Editor|Inspector|Hierarchy|Scene Manag|Project Browser|Preferences|Build Profile)",
+  Audio: "^(Audio|Sound|DSP)",
+  Animation: "^(Animation|Animator|Timeline|Mecanim)",
+  "Asset Pipeline": "^(Asset|Import|Asset Bundle|Addressables|AssetDatabase|Prefab|Texture|Mesh|Loading)",
+  Input: "^(Input|Input System|Touch|Pointer|Gamepad|Keyboard|Mouse)"
+};
+
 /** Human-readable summary of which `area` labels each domain bucket
- *  matches. Used by hover-info popovers; mirrors the regex in
- *  `visualizer.ts` but kept as plain strings for display. */
+ *  matches. Used by hover-info popovers; mirrors the regex sources
+ *  above but kept as plain words for display. */
 export const DOMAIN_KEYWORDS: Record<Domain, string[]> = {
   Rendering: ["URP", "HDRP", "SRP", "Graphics", "Shader Graph", "Lighting", "GPU", "VFX", "Camera"],
   Scripting: ["C#", "IL2CPP", "Burst", "Mono", "Job System", "DOTS", "Entities", "Compiler"],
