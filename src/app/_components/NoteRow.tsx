@@ -44,13 +44,28 @@ type Props = {
    */
   showImpactPill?: boolean;
   /**
+   * Surfaces where the lane header already names the row's section
+   * (e.g. /releases/[version] has a "Packages updated" lane title)
+   * should pass `true` so NoteRow skips the area chip's section
+   * fallback. Without this, package_change rows render an area chip
+   * that just echoes the lane header. Surfaces that group by something
+   * other than section — /explorer groups by version — leave it false
+   * so the section still surfaces as a chip.
+   */
+  laneShowsSection?: boolean;
+  /**
    * Map of issue id → derived status. Pages batch-fetch these so each
    * IssuePill can render a fixed/open/regressed dot inline.
    */
   issueStatuses?: Map<string, IssueStatus> | null;
 };
 
-export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
+export function NoteRow({
+  row,
+  showImpactPill = false,
+  laneShowsSection = false,
+  issueStatuses
+}: Props) {
   const cleanedBody = cleanReleaseNoteText(row.body ?? "");
   const bodyTokens = tokenizeReleaseNoteBody(cleanedBody);
   const issueLinks = normalizeIssueLinks(row.issue_ids ?? [], row.issue_links_json);
@@ -67,15 +82,37 @@ export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
   // row renders each version as its own VersionPill instead of a single
   // unparsable area chip — see ~150 rows in prod that hit this case.
   const backportVersions = parseAreaVersionList(rawArea);
-  const areaLabel =
-    rawArea && !backportVersions && !looksLikePackageId(rawArea) ? rawArea : row.section;
+  // The area chip falls back to the section name only when the lane
+  // doesn't already display it (e.g. /explorer where the lane shows the
+  // version). Otherwise we'd render a redundant "Packages updated" chip
+  // on every package_change row inside a "Packages updated" lane.
+  const usableArea =
+    rawArea && !backportVersions && !looksLikePackageId(rawArea) ? rawArea : null;
+  const areaLabel = usableArea ?? (laneShowsSection ? null : row.section);
+  // If area looks like a package id but the package_names extractor
+  // missed it (happens for third-party bundled packages like
+  // com.havok.physics and com.autodesk.fbx), promote the area into
+  // package_names so the PackagePill renders and the impact-pill
+  // dedup logic below treats the row consistently.
+  const effectivePackageNames =
+    rawArea &&
+    looksLikePackageId(rawArea) &&
+    !(row.package_names ?? []).some((p) => p.toLowerCase() === rawArea.toLowerCase())
+      ? [rawArea, ...(row.package_names ?? [])]
+      : row.package_names ?? [];
+  // Drop the impact pill on package_change rows that already render a
+  // PackagePill — the package id implicitly says "this is a package
+  // update", so the explicit "Package" chip just duplicates the signal.
+  const hasPackagePill = effectivePackageNames.length > 0;
+  const renderImpactPill =
+    showImpactPill && !(row.impact_kind === "package_change" && hasPackagePill);
   // Drop platforms that match the area OR any package name on this row
   // (case-insensitive). Unity routinely lists "XR" / "Android" / "iOS"
   // and even full package ids in both columns, which would otherwise
   // produce identical-looking chips back-to-back.
   const seen = new Set<string>();
   if (areaLabel) seen.add(areaLabel.toLowerCase());
-  for (const p of row.package_names ?? []) seen.add(p.toLowerCase());
+  for (const p of effectivePackageNames) seen.add(p.toLowerCase());
   const platforms = (row.platforms ?? []).filter(
     (plat) => !seen.has(plat.toLowerCase())
   );
@@ -116,9 +153,9 @@ export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
           ) : areaLabel ? (
             <span className="chip chip--area">{areaLabel}</span>
           ) : null}
-          {showImpactPill ? <ImpactPill kind={row.impact_kind} /> : null}
+          {renderImpactPill ? <ImpactPill kind={row.impact_kind} /> : null}
           <RiskBadge level={row.risk_level} />
-          {(row.package_names ?? []).slice(0, 2).map((pkg) => (
+          {effectivePackageNames.slice(0, 2).map((pkg) => (
             <PackagePill name={pkg} key={pkg} />
           ))}
           {platforms.slice(0, 4).map((plat) => (
@@ -139,7 +176,15 @@ export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
 }
 
 function looksLikePackageId(value: string): boolean {
-  return /^com\.unity\./i.test(value);
+  // Reverse-DNS package format: `com.unity.*`, third-party bundled
+  // packages like `com.havok.physics` and `com.autodesk.fbx`, and
+  // two-segment forms Unity uses for NuGet bundles like `nuget.moq`
+  // and `nuget.castle-core`.
+  //
+  // Two or more dot-separated lowercase-hyphen segments, leading char
+  // must be a letter so we don't accidentally match versions like
+  // "1.2.3" or "6000.3.15f1".
+  return /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/i.test(value);
 }
 
 /** Resolve the Unity stream for an inline version mention so the

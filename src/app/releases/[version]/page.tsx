@@ -273,7 +273,13 @@ function ReleaseLane({
         </div>
       ) : (
         visible.map((row) => (
-          <NoteRow key={row.id} row={row} showImpactPill issueStatuses={issueStatuses} />
+          <NoteRow
+            key={row.id}
+            row={row}
+            showImpactPill
+            laneShowsSection
+            issueStatuses={issueStatuses}
+          />
         ))
       )}
       {rows.length > visible.length ? (

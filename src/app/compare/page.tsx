@@ -717,7 +717,12 @@ function ByReleaseLaneBody({
             </span>
           </div>
           {group.rows.map((row) => (
-            <NoteRow key={row.id} row={row} issueStatuses={issueStatuses} />
+            <NoteRow
+              key={row.id}
+              row={row}
+              laneShowsSection
+              issueStatuses={issueStatuses}
+            />
           ))}
         </div>
       ))}
