@@ -460,6 +460,11 @@ const SORT_SQL: Record<IssueSearchSort, string> = {
   "mentions-asc": "mention_count ASC, issue_id ASC"
 };
 
+/** Max value `fixedWithinDays` accepts (1 year). Higher values widen
+ *  the window past useful precision and start to overlap with the
+ *  unfiltered list anyway. */
+const MAX_FIXED_WITHIN_DAYS = 365;
+
 /**
  * Free-text search across issue ids + their first Known-Issues body.
  * Server-paginated — total count comes back so the caller can render
@@ -468,16 +473,13 @@ const SORT_SQL: Record<IssueSearchSort, string> = {
  * - Query is matched ILIKE on `issue_id` AND on `body`, so "UUM-22444"
  *   finds the exact id and "addressables" finds every issue whose
  *   body mentions Addressables.
- * - Empty / whitespace-only query short-circuits to a zero page so
- *   callers don't need to guard.
+ * - Empty `q` is allowed when any other filter (status, area,
+ *   fixedWithinDays) is set — the matched CTE returns every issue and
+ *   the filters narrow it. When no filter is set, returns a zero page
+ *   so the caller can skip rendering.
  * - Reuses the same IssueRow shape the existing tables render so the
  *   results card can drop into the existing IssueTable component.
  */
-/** Max value `fixedWithinDays` accepts (1 year). Higher values widen
- *  the window past useful precision and start to overlap with the
- *  unfiltered list anyway. */
-const MAX_FIXED_WITHIN_DAYS = 365;
-
 export async function searchIssues(
   rawQuery: string,
   options: {
