@@ -28,6 +28,9 @@ export const metadata = {
 type ReleaseNoteRow = {
   id?: number;
   version: string;
+  /** release_note_items.release_date. node-pg returns timestamp
+   *  columns as Date objects (not strings), so type accordingly. */
+  release_date?: Date | string | null;
   minor_line?: string;
   stream?: string;
   section: string;
@@ -216,6 +219,13 @@ export default async function ExplorerPage({
             defaultValue={filters.issueId ?? ""}
           />
         </label>
+        <label>
+          <span>Sort</span>
+          <select name="order" defaultValue={filters.order ?? ""} aria-label="Sort order">
+            <option value="">Best match (default)</option>
+            <option value="version">Latest version</option>
+          </select>
+        </label>
         <button type="submit" className="btn btn--primary">
           Search
         </button>
@@ -338,13 +348,35 @@ function toUrlSearchParams(input: Record<string, string | string[] | undefined>)
 }
 
 function groupByVersion(results: ReleaseNoteRow[]): Array<[string, ReleaseNoteRow[]]> {
-  const groups = new Map<string, ReleaseNoteRow[]>();
+  // Bucket by version, then sort the buckets by release_date DESC so
+  // version lanes always read newest-first even when the SQL returned
+  // rows in rank order (the ts_rank branch interleaves versions, and
+  // groupByVersion would otherwise keep insertion order).
+  const groups = new Map<string, { rows: ReleaseNoteRow[]; ms: number }>();
   for (const item of results) {
-    const group = groups.get(item.version) ?? [];
-    group.push(item);
-    groups.set(item.version, group);
+    const existing = groups.get(item.version);
+    if (existing) {
+      existing.rows.push(item);
+    } else {
+      groups.set(item.version, {
+        rows: [item],
+        ms: dateToMs(item.release_date)
+      });
+    }
   }
-  return [...groups.entries()];
+  return [...groups.entries()]
+    .sort((a, b) => {
+      if (a[1].ms === b[1].ms) return b[0].localeCompare(a[0]);
+      return b[1].ms - a[1].ms;
+    })
+    .map(([version, { rows }]) => [version, rows] as [string, ReleaseNoteRow[]]);
+}
+
+function dateToMs(value: Date | string | null | undefined): number {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  const t = new Date(value).getTime();
+  return Number.isFinite(t) ? t : 0;
 }
 
 function activeFilterLabels(filters: ReturnType<typeof filtersFromSearchParams>) {

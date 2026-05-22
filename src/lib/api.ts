@@ -1,6 +1,20 @@
 import type { ReleaseNoteSearchFilters } from "./search";
 
+const ALLOWED_ORDERS: ReadonlyArray<NonNullable<ReleaseNoteSearchFilters["order"]>> = [
+  "newest",
+  "section",
+  "risk",
+  "source",
+  "area",
+  "issue",
+  "version"
+];
+
 export function filtersFromSearchParams(params: URLSearchParams): ReleaseNoteSearchFilters {
+  const rawOrder = params.get("order");
+  const order = (ALLOWED_ORDERS as readonly string[]).includes(rawOrder ?? "")
+    ? (rawOrder as ReleaseNoteSearchFilters["order"])
+    : undefined;
   return {
     q: params.get("q") ?? undefined,
     version: params.get("version") ?? undefined,
@@ -13,6 +27,7 @@ export function filtersFromSearchParams(params: URLSearchParams): ReleaseNoteSea
     riskLevel: collectMulti(params, "risk"),
     packageName: collectMulti(params, "package"),
     issueId: collectMulti(params, "issue"),
+    order,
     limit: numberParam(params.get("limit"), 100),
     offset: numberParam(params.get("offset"), 0)
   };

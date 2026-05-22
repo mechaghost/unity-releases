@@ -30,7 +30,7 @@ export type ReleaseNoteSearchFilters = {
   regressionsBefore?: string;
   limit?: number;
   offset?: number;
-  order?: "newest" | "section" | "risk" | "source" | "area" | "issue";
+  order?: "newest" | "section" | "risk" | "source" | "area" | "issue" | "version";
 };
 
 /** Render-pipeline taxonomy for the "Render pipeline" filter chip. */
@@ -119,6 +119,14 @@ export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): 
 }
 
 function releaseNoteOrder(filters: ReleaseNoteSearchFilters): string {
+  // `version` means "always group by latest release first, ignore
+  // search-rank tiebreaks." We never override it with ts_rank, even
+  // when there's a text query, so the rendered version lanes stay
+  // newest-first instead of getting jumbled by per-row relevance.
+  if (filters.order === "version") {
+    return "release_date DESC NULLS LAST, source_order ASC";
+  }
+
   if (filters.q?.trim()) {
     return `ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC, release_date DESC NULLS LAST, source_order ASC`;
   }
