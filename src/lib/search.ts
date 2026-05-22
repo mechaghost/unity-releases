@@ -30,7 +30,7 @@ export type ReleaseNoteSearchFilters = {
   regressionsBefore?: string;
   limit?: number;
   offset?: number;
-  order?: "newest" | "section" | "risk" | "source" | "area" | "issue" | "version";
+  order?: "newest" | "section" | "risk" | "source" | "area" | "issue" | "version" | "rank";
 };
 
 /** Render-pipeline taxonomy for the "Render pipeline" filter chip. */
@@ -119,15 +119,10 @@ export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): 
 }
 
 function releaseNoteOrder(filters: ReleaseNoteSearchFilters): string {
-  // `version` means "always group by latest release first, ignore
-  // search-rank tiebreaks." We never override it with ts_rank, even
-  // when there's a text query, so the rendered version lanes stay
-  // newest-first instead of getting jumbled by per-row relevance.
-  if (filters.order === "version") {
-    return "release_date DESC NULLS LAST, source_order ASC";
-  }
-
-  if (filters.q?.trim()) {
+  // `rank` is the only branch that uses ts_rank, and it's now opt-in.
+  // Default behavior (no order param) sorts by release_date DESC so
+  // version lanes always read newest-first, even during a text query.
+  if (filters.order === "rank" && filters.q?.trim()) {
     return `ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC, release_date DESC NULLS LAST, source_order ASC`;
   }
 
@@ -151,7 +146,9 @@ function releaseNoteOrder(filters: ReleaseNoteSearchFilters): string {
       return "issue_text ASC, section ASC, source_order ASC";
     case "source":
       return "source_order ASC";
-    case "newest":
+    case "rank":     // q was empty — fall through to date sort
+    case "version":  // explicit latest-version ask
+    case "newest":   // legacy alias for the same thing
     default:
       return "release_date DESC NULLS LAST, source_order ASC";
   }

@@ -222,8 +222,8 @@ export default async function ExplorerPage({
         <label>
           <span>Sort</span>
           <select name="order" defaultValue={filters.order ?? ""} aria-label="Sort order">
-            <option value="">Best match (default)</option>
-            <option value="version">Latest version</option>
+            <option value="">Latest version (default)</option>
+            <option value="rank">Best match</option>
           </select>
         </label>
         <button type="submit" className="btn btn--primary">

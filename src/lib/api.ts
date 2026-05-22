@@ -7,7 +7,8 @@ const ALLOWED_ORDERS: ReadonlyArray<NonNullable<ReleaseNoteSearchFilters["order"
   "source",
   "area",
   "issue",
-  "version"
+  "version",
+  "rank"
 ];
 
 export function filtersFromSearchParams(params: URLSearchParams): ReleaseNoteSearchFilters {
