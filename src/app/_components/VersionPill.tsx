@@ -6,6 +6,14 @@ type VersionPillProps = {
   version: string;
   stream?: string | null;
   href?: string | null;
+  /**
+   * When true, render a slimmer pill with no stream marker and skip
+   * the HoverInfo popover. Used for inline mentions inside release-note
+   * bodies, where a row often contains 2-3 versions and the per-pill
+   * L/B/A markers plus full popover would be visual noise. The hover
+   * fallback degrades to a plain `title` attribute.
+   */
+  compact?: boolean;
 };
 
 const STREAM_MARK: Record<string, string> = {
@@ -24,10 +32,30 @@ export function streamMark(stream?: string | null): string {
   return STREAM_MARK[key] ?? key.charAt(0).toUpperCase();
 }
 
-export function VersionPill({ version, stream, href }: VersionPillProps) {
+export function VersionPill({ version, stream, href, compact = false }: VersionPillProps) {
   const target = href === undefined ? `/releases/${encodeURIComponent(version)}` : href;
-  const mark = streamMark(stream);
   const label = streamLabel(stream);
+
+  // Compact rendering: inline-in-text use. No stream marker, no
+  // HoverInfo popover - just a slim link with a tooltip title.
+  if (compact) {
+    const title = `${version}${label ? ` · ${label}` : ""}`;
+    const className = "chip chip--version chip--version-compact";
+    if (target) {
+      return (
+        <a className={className} href={target} title={title}>
+          {version}
+        </a>
+      );
+    }
+    return (
+      <span className={className} title={title}>
+        {version}
+      </span>
+    );
+  }
+
+  const mark = streamMark(stream);
   const info = streamInfo(stream);
   const pill = target ? (
     <a className="chip chip--version" href={target} data-stream={mark}>

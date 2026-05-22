@@ -1,10 +1,17 @@
-import { cleanReleaseNoteText, normalizeIssueLinks } from "@/lib/release-notes/format";
+import { Fragment } from "react";
+import {
+  cleanReleaseNoteText,
+  normalizeIssueLinks,
+  tokenizeReleaseNoteBody
+} from "@/lib/release-notes/format";
+import { parseUnityVersion } from "@/lib/parsers/version";
 import type { IssueStatus } from "@/lib/issue-status";
 import { ImpactPill } from "./ImpactPill";
 import { RiskBadge } from "./RiskBadge";
 import { PackagePill } from "./PackagePill";
 import { PlatformPill } from "./PlatformPill";
 import { IssuePill } from "./IssuePill";
+import { VersionPill } from "./VersionPill";
 
 /**
  * Minimal shape any release-note row must satisfy to render through
@@ -44,6 +51,7 @@ type Props = {
 
 export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
   const cleanedBody = cleanReleaseNoteText(row.body ?? "");
+  const bodyTokens = tokenizeReleaseNoteBody(cleanedBody);
   const issueLinks = normalizeIssueLinks(row.issue_ids ?? [], row.issue_links_json);
   const ariaLabel = row.version
     ? `${row.section} note in ${row.version}`
@@ -70,7 +78,18 @@ export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
     <article className="row" aria-label={ariaLabel}>
       <div className="row__body">
         <div className="row__title row__title--wrap" title={cleanedBody}>
-          {cleanedBody}
+          {bodyTokens.map((tok, idx) =>
+            tok.kind === "version" ? (
+              <VersionPill
+                key={`v-${idx}`}
+                version={tok.version}
+                stream={safeStreamForInline(tok.version)}
+                compact
+              />
+            ) : (
+              <Fragment key={`t-${idx}`}>{tok.value}</Fragment>
+            )
+          )}
         </div>
         <div className="row__pills">
           {areaLabel ? <span className="chip chip--area">{areaLabel}</span> : null}
@@ -98,4 +117,16 @@ export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
 
 function looksLikePackageId(value: string): boolean {
   return /^com\.unity\./i.test(value);
+}
+
+/** Resolve the Unity stream for an inline version mention so the
+ *  compact VersionPill can hint at LTS / beta / alpha via its hover
+ *  title. Swallows parse errors because release-note bodies sometimes
+ *  contain version-shaped strings that don't fully validate. */
+function safeStreamForInline(version: string): string | null {
+  try {
+    return parseUnityVersion(version).stream;
+  } catch {
+    return null;
+  }
 }

@@ -687,6 +687,20 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   font-variant-numeric: tabular-nums;
 }
 
+/* Inline variant used inside release-note body text. Shorter, no
+   stream marker, sits on the text baseline so it doesn't break the
+   line-height of the surrounding paragraph. */
+.chip--version-compact {
+  height: 18px;
+  padding: 0 6px;
+  margin: 0 2px;
+  vertical-align: baseline;
+  line-height: 18px;
+}
+.chip--version-compact:hover {
+  background: var(--surface-sunken);
+}
+
 .chip--version:hover {
   border-color: var(--border-strong);
   background: var(--surface-base);
