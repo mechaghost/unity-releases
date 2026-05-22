@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 /**
  * Client-side pageview beacon. Fires `navigator.sendBeacon()` to
@@ -16,6 +16,10 @@ import { usePathname, useSearchParams } from "next/navigation";
  *    JS, so this is actually a feature for bot filtering.
  *  - Fires after hydration, so a few hundred ms later than middleware
  *    would have. Fine for daily/weekly stats.
+ *  - Only the pathname is sent — `recordPageView` strips the query
+ *    string server-side, so sending it would waste bytes. Filters
+ *    that *should* count distinctly (sort=date-desc, q=memory) get
+ *    rolled up into the bare path on /stats by design.
  *
  * sendBeacon was designed exactly for fire-and-forget analytics: the
  * browser keeps the request alive past page unload and never blocks
@@ -23,23 +27,20 @@ import { usePathname, useSearchParams } from "next/navigation";
  */
 export function PageviewBeacon() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!pathname) return;
     if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") {
       return;
     }
-    const qs = searchParams?.toString();
-    const path = qs && qs.length > 0 ? `${pathname}?${qs}` : pathname;
-    const body = JSON.stringify({ kind: "pageview", path });
+    const body = JSON.stringify({ kind: "pageview", path: pathname });
     try {
       const blob = new Blob([body], { type: "application/json" });
       navigator.sendBeacon("/api/track", blob);
     } catch {
       // sendBeacon throws on quota errors. Swallow — pageview is best-effort.
     }
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return null;
 }

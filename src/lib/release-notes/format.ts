@@ -33,14 +33,6 @@ export type ReleaseNoteToken =
   | { kind: "version"; version: string };
 
 /**
- * Slice a cleaned release-note body into a list of tokens so the
- * renderer can swap inline Unity-version mentions for a `<VersionPill>`
- * link without resorting to `dangerouslySetInnerHTML`. The output
- * always concatenates back to the input string, so callers can still
- * use the original cleaned body for `title` attributes, copy-to-LLM
- * exports, and search.
- */
-/**
  * Detects the special case where Unity overloads the `area` column with
  * a comma-separated list of cross-version backport targets, e.g.
  *   area = "6000.6.0a2,6000.4.4f1,6000.5.0b5"
@@ -62,6 +54,14 @@ export function parseAreaVersionList(area: string | null | undefined): string[] 
   return parts;
 }
 
+/**
+ * Slice a cleaned release-note body into a list of tokens so the
+ * renderer can swap inline Unity-version mentions for a `<VersionPill>`
+ * link without resorting to `dangerouslySetInnerHTML`. The output
+ * always concatenates back to the input string, so callers can still
+ * use the original cleaned body for `title` attributes, copy-to-LLM
+ * exports, and search.
+ */
 export function tokenizeReleaseNoteBody(cleanedBody: string): ReleaseNoteToken[] {
   if (!cleanedBody) return [];
   const tokens: ReleaseNoteToken[] = [];

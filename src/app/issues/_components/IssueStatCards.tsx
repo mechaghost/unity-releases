@@ -34,7 +34,12 @@ export function IssueStatCards({ stats }: { stats: IssueStats }) {
       label: "Fixed in last 30 days",
       value: stats.fixedRecently,
       hint: "Earliest Fix mention sits in a release dated within the last 30 days.",
-      href: "/issues?status=fixed&sort=date-desc"
+      // Drill-through carries only the 30-day window — no status=fixed
+      // overlay. The card counts every issue whose first-fix is in the
+      // window, including ones that later regressed, so adding
+      // status=fixed would silently exclude those and the count on the
+      // card would no longer match the rows on the destination page.
+      href: "/issues?fixed_within=30&sort=date-desc"
     },
     {
       label: "Regressed",

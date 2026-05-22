@@ -101,8 +101,8 @@ export function IssueDomainHeatmap({ cells }: { cells: IssueHeatmapCell[] }) {
                   const x = padding + labelW + ci * cellW;
                   const count = cellLookup.get(`${domain}::${col.status}`) ?? 0;
                   const heatClass = heatClassFor(count, maxCount);
-                  const cellGroup = (
-                    <g>
+                  const cellInner = (
+                    <>
                       <title>{`${domain} · ${col.label} · ${count}${count > 0 ? " — click to filter" : ""}`}</title>
                       <rect
                         x={x + 1}
@@ -124,10 +124,10 @@ export function IssueDomainHeatmap({ cells }: { cells: IssueHeatmapCell[] }) {
                           {count}
                         </text>
                       ) : null}
-                    </g>
+                    </>
                   );
                   if (count === 0) {
-                    return <g key={col.status}>{cellGroup}</g>;
+                    return <g key={col.status}>{cellInner}</g>;
                   }
                   const href = `/issues?area=${encodeURIComponent(domain)}&status=${col.status}`;
                   return (
@@ -137,7 +137,7 @@ export function IssueDomainHeatmap({ cells }: { cells: IssueHeatmapCell[] }) {
                       className="viz-heat-cell__link"
                       aria-label={`${count} ${col.label.toLowerCase()} issues in ${domain} — open filtered list`}
                     >
-                      {cellGroup}
+                      <g>{cellInner}</g>
                     </a>
                   );
                 })}

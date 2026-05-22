@@ -14,6 +14,7 @@ export type SortableContext = {
   query: string;
   status: IssueSearchStatus;
   area: IssueSearchArea;
+  fixedWithinDays: number | null;
   current: IssueSearchSort;
 };
 
@@ -205,7 +206,13 @@ function SortHeader({
   // direction first for both days-open and mentions).
   const nextKey: IssueSearchSort = isDesc ? ascKey : descKey;
   const nextDirection = isDesc ? "ascending" : "descending";
-  const href = sortHref(context.query, context.status, context.area, nextKey);
+  const href = sortHref(
+    context.query,
+    context.status,
+    context.area,
+    context.fixedWithinDays,
+    nextKey
+  );
   const arrow = isDesc ? "▼" : isAsc ? "▲" : "↕";
   const active = isAsc || isDesc;
   return (
@@ -226,12 +233,16 @@ function sortHref(
   query: string,
   status: IssueSearchStatus,
   area: IssueSearchArea,
+  fixedWithinDays: number | null,
   sort: IssueSearchSort
 ): string {
   const params = new URLSearchParams();
   if (query.length > 0) params.set("q", query);
   if (status !== "all") params.set("status", status);
   if (area !== "all") params.set("area", area);
+  if (fixedWithinDays !== null && fixedWithinDays > 0) {
+    params.set("fixed_within", String(fixedWithinDays));
+  }
   if (sort !== "date-desc") params.set("sort", sort);
   // Reset to page 1 — current page may not exist under the new sort.
   const qs = params.toString();

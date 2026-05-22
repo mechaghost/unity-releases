@@ -24,9 +24,12 @@ type TrackBody =
 export async function POST(request: Request) {
   // Bot filter (UA-based). Bots overwhelmingly skip JS so most never
   // reach this point, but headless-Chrome scrapers do and we filter
-  // them at the route now that middleware no longer wraps them.
+  // them at the route now that middleware no longer wraps them. 204 so
+  // the skip is distinguishable from a real success (200) in Railway
+  // access logs without breaking the sendBeacon contract — both are
+  // "success" from the browser's perspective.
   if (looksLikeBot(request.headers.get("user-agent"))) {
-    return Response.json({ ok: true, skipped: "bot" });
+    return new Response(null, { status: 204 });
   }
 
   let body: TrackBody;

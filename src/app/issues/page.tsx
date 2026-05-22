@@ -51,11 +51,15 @@ export default async function IssueExplorerPage({
   const requestedStatus = parseStatus(params.status);
   const requestedSort = parseSort(params.sort);
   const requestedArea = parseArea(params.area);
+  const requestedFixedWithin = parseFixedWithin(params.fixed_within);
   // Search mode kicks in for any of: text query, non-default status,
-  // non-default area. Lets users drill in from the heatmap or stat
-  // cards without typing anything.
+  // non-default area, non-null fixed_within window. Lets users drill
+  // in from the heatmap or stat cards without typing anything.
   const isSearch =
-    query.length > 0 || requestedStatus !== "all" || requestedArea !== "all";
+    query.length > 0 ||
+    requestedStatus !== "all" ||
+    requestedArea !== "all" ||
+    requestedFixedWithin !== null;
 
   const emptySearch: IssueSearchPage = {
     rows: [],
@@ -66,6 +70,7 @@ export default async function IssueExplorerPage({
     status: requestedStatus,
     sort: requestedSort,
     area: requestedArea,
+    fixedWithinDays: requestedFixedWithin,
     hasAnyFilter: false
   };
   const [stats, longestOpen, newest, mostMentioned, heatmap, freshness, searchPage] =
@@ -77,7 +82,14 @@ export default async function IssueExplorerPage({
       isSearch ? Promise.resolve<IssueHeatmapCell[]>([]) : safeHeatmap(),
       safeFreshness(),
       isSearch
-        ? safeSearch(query, requestedPage, requestedStatus, requestedSort, requestedArea)
+        ? safeSearch(
+            query,
+            requestedPage,
+            requestedStatus,
+            requestedSort,
+            requestedArea,
+            requestedFixedWithin
+          )
         : Promise.resolve(emptySearch)
     ]);
 
@@ -114,12 +126,14 @@ export default async function IssueExplorerPage({
               query={query}
               sort={searchPage.sort}
               area={searchPage.area}
+              fixedWithinDays={searchPage.fixedWithinDays}
               activeStatus={searchPage.status}
             />
             <SearchAreaChips
               query={query}
               sort={searchPage.sort}
               status={searchPage.status}
+              fixedWithinDays={searchPage.fixedWithinDays}
               activeArea={searchPage.area}
             />
             <div className="viz-scroll">
@@ -130,6 +144,7 @@ export default async function IssueExplorerPage({
                   query,
                   status: searchPage.status,
                   area: searchPage.area,
+                  fixedWithinDays: searchPage.fixedWithinDays,
                   current: searchPage.sort
                 }}
               />
@@ -265,7 +280,8 @@ async function safeSearch(
   page: number,
   status: IssueSearchStatus,
   sort: IssueSearchSort,
-  area: IssueSearchArea
+  area: IssueSearchArea,
+  fixedWithinDays: number | null
 ): Promise<IssueSearchPage> {
   try {
     return await searchIssues(query, {
@@ -273,7 +289,8 @@ async function safeSearch(
       pageSize: SEARCH_PAGE_SIZE,
       status,
       sort,
-      area
+      area,
+      fixedWithinDays
     });
   } catch (err) {
     console.error("[issues] searchIssues failed:", err);
@@ -286,7 +303,12 @@ async function safeSearch(
       status,
       sort,
       area,
-      hasAnyFilter: query.length > 0 || status !== "all" || area !== "all"
+      fixedWithinDays,
+      hasAnyFilter:
+        query.length > 0 ||
+        status !== "all" ||
+        area !== "all" ||
+        fixedWithinDays !== null
     };
   }
 }
@@ -318,6 +340,16 @@ function parseArea(raw: string | string[] | undefined): IssueSearchArea {
     : "all";
 }
 
+function parseFixedWithin(raw: string | string[] | undefined): number | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (!v) return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  // The DB layer clamps to MAX_FIXED_WITHIN_DAYS (365), so we don't
+  // need to clamp here too — just reject obvious garbage.
+  return Math.floor(n);
+}
+
 /** Single URL helper that preserves every search-mode param except the
  *  ones the caller is overriding. Switching status or sort drops the
  *  user back to page=1 (the previous page may not exist after the
@@ -328,6 +360,7 @@ function searchHref(opts: {
   status?: IssueSearchStatus;
   sort?: IssueSearchSort;
   area?: IssueSearchArea;
+  fixedWithinDays?: number | null;
 }): string {
   const params = new URLSearchParams();
   if (opts.q.length > 0) params.set("q", opts.q);
@@ -335,6 +368,9 @@ function searchHref(opts: {
   if (opts.status && opts.status !== "all") params.set("status", opts.status);
   if (opts.sort && opts.sort !== "date-desc") params.set("sort", opts.sort);
   if (opts.area && opts.area !== "all") params.set("area", opts.area);
+  if (opts.fixedWithinDays && opts.fixedWithinDays > 0) {
+    params.set("fixed_within", String(opts.fixedWithinDays));
+  }
   const qs = params.toString();
   return qs.length > 0 ? `/issues?${qs}` : "/issues";
 }
@@ -350,11 +386,13 @@ function SearchFilterChips({
   query,
   sort,
   area,
+  fixedWithinDays,
   activeStatus
 }: {
   query: string;
   sort: IssueSearchSort;
   area: IssueSearchArea;
+  fixedWithinDays: number | null;
   activeStatus: IssueSearchStatus;
 }) {
   return (
@@ -362,7 +400,7 @@ function SearchFilterChips({
       {ISSUE_SEARCH_STATUSES.map((s) => (
         <a
           key={s}
-          href={searchHref({ q: query, status: s, sort, area })}
+          href={searchHref({ q: query, status: s, sort, area, fixedWithinDays })}
           className={`viz-chip ${activeStatus === s ? "viz-chip--active" : ""}`}
           aria-current={activeStatus === s ? "true" : undefined}
         >
@@ -377,11 +415,13 @@ function SearchAreaChips({
   query,
   sort,
   status,
+  fixedWithinDays,
   activeArea
 }: {
   query: string;
   sort: IssueSearchSort;
   status: IssueSearchStatus;
+  fixedWithinDays: number | null;
   activeArea: IssueSearchArea;
 }) {
   return (
@@ -389,7 +429,7 @@ function SearchAreaChips({
       {ISSUE_SEARCH_AREAS.map((a) => (
         <a
           key={a}
-          href={searchHref({ q: query, status, sort, area: a })}
+          href={searchHref({ q: query, status, sort, area: a, fixedWithinDays })}
           className={`viz-chip ${activeArea === a ? "viz-chip--active" : ""}`}
           aria-current={activeArea === a ? "true" : undefined}
         >
@@ -403,7 +443,18 @@ function SearchAreaChips({
 function searchHeadline(query: string, page: IssueSearchPage): string {
   if (query.length > 0) return `Search results for "${query}"`;
   const parts: string[] = [];
-  if (page.status !== "all") parts.push(STATUS_LABELS[page.status]);
+  // Special case: status=fixed + fixedWithinDays both set roll up into
+  // a single label so we don't render "Fixed · fixed in last 30d".
+  if (page.status === "fixed" && page.fixedWithinDays !== null) {
+    parts.push(`Fixed in last ${page.fixedWithinDays}d`);
+  } else if (page.status === "all" && page.fixedWithinDays !== null) {
+    // No status filter — the window is the only restriction, so make
+    // it sentence-case as the leading label.
+    parts.push(`Fixed in last ${page.fixedWithinDays}d`);
+  } else {
+    if (page.status !== "all") parts.push(STATUS_LABELS[page.status]);
+    if (page.fixedWithinDays !== null) parts.push(`fixed in last ${page.fixedWithinDays}d`);
+  }
   if (page.area !== "all") parts.push(page.area);
   if (parts.length === 0) return "Search results";
   return `${parts.join(" · ")} issues`;
@@ -414,11 +465,14 @@ function emptyResultsMessage(query: string, page: IssueSearchPage): string {
     const suffix: string[] = [];
     if (page.status !== "all") suffix.push(`status ${page.status}`);
     if (page.area !== "all") suffix.push(`subsystem ${page.area}`);
+    if (page.fixedWithinDays !== null)
+      suffix.push(`fixed within ${page.fixedWithinDays} days`);
     return `No issues match "${query}"${suffix.length > 0 ? ` with ${suffix.join(" and ")}` : ""}.`;
   }
   const parts: string[] = [];
   if (page.status !== "all") parts.push(page.status);
   if (page.area !== "all") parts.push(page.area);
+  if (page.fixedWithinDays !== null) parts.push(`last ${page.fixedWithinDays}d`);
   return `No issues with ${parts.join(" · ") || "the current filters"}.`;
 }
 
@@ -449,7 +503,7 @@ function SearchPagination({ page, query }: { page: IssueSearchPage; query: strin
         {hasPrev ? (
           <a
             className="lane__pagination-btn"
-            href={searchHref({ q: query, page: page.page - 1, status: page.status, sort: page.sort, area: page.area })}
+            href={searchHref({ q: query, page: page.page - 1, status: page.status, sort: page.sort, area: page.area, fixedWithinDays: page.fixedWithinDays })}
             rel="prev"
           >
             <Icon name="chevron-left" size={14} />
@@ -467,7 +521,7 @@ function SearchPagination({ page, query }: { page: IssueSearchPage; query: strin
         {hasNext ? (
           <a
             className="lane__pagination-btn"
-            href={searchHref({ q: query, page: page.page + 1, status: page.status, sort: page.sort, area: page.area })}
+            href={searchHref({ q: query, page: page.page + 1, status: page.status, sort: page.sort, area: page.area, fixedWithinDays: page.fixedWithinDays })}
             rel="next"
           >
             Next

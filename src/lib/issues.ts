@@ -439,9 +439,13 @@ export type IssueSearchPage = {
   status: IssueSearchStatus;
   sort: IssueSearchSort;
   area: IssueSearchArea;
-  /** True iff the search was issued with no `q`, no status filter, and
-   *  no area filter — the page should show its browse sections, not
-   *  the results card. */
+  /** Window (in days) limiting results to issues whose first fix sits
+   *  within that many days. null = no window. Drives the
+   *  "Fixed in last 30 days" stat-card drill-through. */
+  fixedWithinDays: number | null;
+  /** True iff the search was issued with no `q`, no status filter,
+   *  no area filter, and no fixedWithinDays window — the page should
+   *  show its browse sections, not the results card. */
   hasAnyFilter: boolean;
 };
 
@@ -469,6 +473,11 @@ const SORT_SQL: Record<IssueSearchSort, string> = {
  * - Reuses the same IssueRow shape the existing tables render so the
  *   results card can drop into the existing IssueTable component.
  */
+/** Max value `fixedWithinDays` accepts (1 year). Higher values widen
+ *  the window past useful precision and start to overlap with the
+ *  unfiltered list anyway. */
+const MAX_FIXED_WITHIN_DAYS = 365;
+
 export async function searchIssues(
   rawQuery: string,
   options: {
@@ -477,6 +486,7 @@ export async function searchIssues(
     status?: IssueSearchStatus;
     sort?: IssueSearchSort;
     area?: IssueSearchArea;
+    fixedWithinDays?: number | null;
   } = {}
 ): Promise<IssueSearchPage> {
   const page = Math.max(1, Math.floor(options.page ?? 1));
@@ -496,8 +506,19 @@ export async function searchIssues(
   )
     ? (options.area as IssueSearchArea) ?? "all"
     : "all";
+  // Sanitize fixedWithinDays: only positive integers, clamped to a
+  // year. Reject negative / NaN / non-finite values by treating them
+  // as "no window".
+  const rawFixedWithin = options.fixedWithinDays;
+  const fixedWithinDays =
+    typeof rawFixedWithin === "number" &&
+    Number.isFinite(rawFixedWithin) &&
+    rawFixedWithin > 0
+      ? Math.min(MAX_FIXED_WITHIN_DAYS, Math.floor(rawFixedWithin))
+      : null;
   const q = rawQuery.trim();
-  const hasAnyFilter = q.length > 0 || status !== "all" || area !== "all";
+  const hasAnyFilter =
+    q.length > 0 || status !== "all" || area !== "all" || fixedWithinDays !== null;
   const empty: IssueSearchPage = {
     rows: [],
     total: 0,
@@ -507,6 +528,7 @@ export async function searchIssues(
     status,
     sort,
     area,
+    fixedWithinDays,
     hasAnyFilter
   };
   if (!hasAnyFilter) return empty;
@@ -514,11 +536,16 @@ export async function searchIssues(
   // filters only → match every issue (%) so the filters can stand
   // alone for "browse by status/area" drill-through use.
   const pattern = q.length === 0 ? "%" : `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
-  // Combined WHERE for both filters. Both clauses are enum-whitelisted
-  // so string interpolation is safe (ORDER BY can't be parameterized).
+  // Combined WHERE for the filters. status/area are enum-whitelisted
+  // so string interpolation is safe. fixedWithinDays was clamped above
+  // to a small positive integer, so direct interpolation is also safe.
   const wheres: string[] = [];
   if (status !== "all") wheres.push(`status = '${status}'`);
   if (area !== "all") wheres.push(`area_domain = '${area.replace(/'/g, "''")}'`);
+  if (fixedWithinDays !== null) {
+    wheres.push(`fixed_date_ts IS NOT NULL`);
+    wheres.push(`fixed_date_ts > now() - interval '${fixedWithinDays} days'`);
+  }
   const filterClause = wheres.length > 0 ? `WHERE ${wheres.join(" AND ")}` : "";
   const orderBy = SORT_SQL[sort];
   const domainCase = buildDomainCaseSql("COALESCE(fk.area, ab.area)");
@@ -694,6 +721,7 @@ export async function searchIssues(
     status,
     sort,
     area,
+    fixedWithinDays,
     hasAnyFilter
   };
 }
@@ -766,23 +794,31 @@ export const ALL_DOMAINS_PLUS_OTHER: ReadonlyArray<Domain | "Other"> = [...DOMAI
  * keyspace (q, page, status, sort, area) is high-cardinality and most
  * requests would miss.
  */
+/** Default top-N for the three list endpoints; centralised so the
+ *  cache key normalisation below stays consistent with the impls. */
+const DEFAULT_LIST_LIMIT = 10;
+
 export const getIssueStats = unstable_cache(
   () => getIssueStatsImpl(),
   ["issues:getIssueStats"],
   { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
 );
+// The list wrappers normalise `limit` to a concrete number before
+// invoking the impl so unstable_cache always sees the same arg shape
+// (otherwise `getXxx()`, `getXxx(undefined)`, and `getXxx(10)` would
+// each get their own cache entry even though they return the same data).
 export const getLongestOpenIssues = unstable_cache(
-  (limit?: number) => getLongestOpenIssuesImpl(limit),
+  (limit: number = DEFAULT_LIST_LIMIT) => getLongestOpenIssuesImpl(limit),
   ["issues:getLongestOpenIssues"],
   { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
 );
 export const getNewestIssues = unstable_cache(
-  (limit?: number) => getNewestIssuesImpl(limit),
+  (limit: number = DEFAULT_LIST_LIMIT) => getNewestIssuesImpl(limit),
   ["issues:getNewestIssues"],
   { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
 );
 export const getMostMentionedIssues = unstable_cache(
-  (limit?: number) => getMostMentionedIssuesImpl(limit),
+  (limit: number = DEFAULT_LIST_LIMIT) => getMostMentionedIssuesImpl(limit),
   ["issues:getMostMentionedIssues"],
   { revalidate: ISSUE_DATA_TTL_SECONDS, tags: ["issues"] }
 );

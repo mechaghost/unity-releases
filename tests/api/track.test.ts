@@ -109,15 +109,15 @@ describe("POST /api/track", () => {
         { userAgent: "Googlebot/2.1 (+http://www.google.com/bot.html)" }
       )
     );
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, skipped: "bot" });
+    // 204 No Content distinguishes bot skips from real success (200) in
+    // Railway access logs. sendBeacon still treats both as success.
+    expect(res.status).toBe(204);
     expect(analytics.recordPageView).not.toHaveBeenCalled();
   });
 
   test("skips tracking when the user-agent header is missing", async () => {
     const res = await POST(postRequest({ kind: "pageview", path: "/" }, { userAgent: null }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, skipped: "bot" });
+    expect(res.status).toBe(204);
     expect(analytics.recordPageView).not.toHaveBeenCalled();
   });
 });

@@ -115,9 +115,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           currentVersion={userVersion}
           autoOpen={false}
         />
-        <Suspense fallback={null}>
-          <PageviewBeacon />
-        </Suspense>
+        <PageviewBeacon />
       </body>
     </html>
   );

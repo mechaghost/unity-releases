@@ -181,10 +181,12 @@ function looksLikePackageId(value: string): boolean {
   // two-segment forms Unity uses for NuGet bundles like `nuget.moq`
   // and `nuget.castle-core`.
   //
-  // Two or more dot-separated lowercase-hyphen segments, leading char
-  // must be a letter so we don't accidentally match versions like
-  // "1.2.3" or "6000.3.15f1".
-  return /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/i.test(value);
+  // Two or more dot-separated all-lowercase segments. Leading char
+  // must be a letter so we don't match versions like "1.2.3" or
+  // "6000.3.15f1". Strict-lowercase (no /i flag) so TitleCase subsystem
+  // names with dots — `My.Company`, hypothetical `Build.Pipeline` —
+  // don't get swallowed; every package id Unity ships is lowercase.
+  return /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/.test(value);
 }
 
 /** Resolve the Unity stream for an inline version mention so the
