@@ -3,6 +3,7 @@ import {
   cleanReleaseNoteText,
   issueTrackerSearchUrl,
   normalizeIssueLinks,
+  parseAreaVersionList,
   tokenizeReleaseNoteBody
 } from "../src/lib/release-notes/format";
 
@@ -134,5 +135,40 @@ describe("tokenizeReleaseNoteBody", () => {
       .map((t) => (t.kind === "text" ? t.value : t.version))
       .join("");
     expect(rejoined).toBe(body);
+  });
+});
+
+describe("parseAreaVersionList", () => {
+  test("returns the version list when the area is purely versions + commas", () => {
+    expect(parseAreaVersionList("6000.6.0a2,6000.4.4f1,6000.5.0b5")).toEqual([
+      "6000.6.0a2",
+      "6000.4.4f1",
+      "6000.5.0b5"
+    ]);
+  });
+
+  test("tolerates whitespace around commas", () => {
+    expect(parseAreaVersionList("6000.6.0a2 , 6000.4.4f1 ,6000.5.0b5")).toEqual([
+      "6000.6.0a2",
+      "6000.4.4f1",
+      "6000.5.0b5"
+    ]);
+  });
+
+  test("returns null when there's only one version (caller renders normal pill)", () => {
+    expect(parseAreaVersionList("6000.3.15f1")).toBeNull();
+  });
+
+  test("returns null when any segment isn't a version", () => {
+    expect(parseAreaVersionList("Asset Pipeline,Editor")).toBeNull();
+    expect(parseAreaVersionList("6000.6.0a2,Editor")).toBeNull();
+    expect(parseAreaVersionList("Editor")).toBeNull();
+  });
+
+  test("returns null on empty or missing input", () => {
+    expect(parseAreaVersionList(null)).toBeNull();
+    expect(parseAreaVersionList(undefined)).toBeNull();
+    expect(parseAreaVersionList("")).toBeNull();
+    expect(parseAreaVersionList("   ")).toBeNull();
   });
 });

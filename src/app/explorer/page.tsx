@@ -268,8 +268,14 @@ export default async function ExplorerPage({
         <div className="explorer-results">
           {grouped.map(([version, items]) => (
             <section className="lane" key={version} aria-label={`Release notes for ${version}`}>
-              <header className="lane__header" style={{ cursor: "default" }}>
-                <span className="lane__header-title">{version}</span>
+              <header className="lane__header">
+                <a
+                  className="lane__header-title lane__header-title--link"
+                  href={`/releases/${encodeURIComponent(version)}`}
+                  title={`Open the full release notes for ${version}`}
+                >
+                  {version}
+                </a>
                 <span className="lane__header-count tabnums">
                   {items.length} shown
                 </span>

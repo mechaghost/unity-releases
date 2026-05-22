@@ -40,6 +40,28 @@ export type ReleaseNoteToken =
  * use the original cleaned body for `title` attributes, copy-to-LLM
  * exports, and search.
  */
+/**
+ * Detects the special case where Unity overloads the `area` column with
+ * a comma-separated list of cross-version backport targets, e.g.
+ *   area = "6000.6.0a2,6000.4.4f1,6000.5.0b5"
+ * Returns the parsed version array if every comma-separated piece is a
+ * Unity version, otherwise `null` so the caller falls back to the
+ * normal subsystem chip rendering. Whitespace around commas is allowed
+ * because Unity isn't consistent about it.
+ */
+export function parseAreaVersionList(area: string | null | undefined): string[] | null {
+  if (!area) return null;
+  const trimmed = area.trim();
+  if (trimmed.length === 0) return null;
+  const parts = trimmed.split(/\s*,\s*/);
+  if (parts.length < 2) return null;
+  const versionPattern = /^\d+\.\d+\.\d+[abfp]\d+$/;
+  for (const part of parts) {
+    if (!versionPattern.test(part)) return null;
+  }
+  return parts;
+}
+
 export function tokenizeReleaseNoteBody(cleanedBody: string): ReleaseNoteToken[] {
   if (!cleanedBody) return [];
   const tokens: ReleaseNoteToken[] = [];

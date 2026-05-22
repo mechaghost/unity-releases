@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import {
   cleanReleaseNoteText,
   normalizeIssueLinks,
+  parseAreaVersionList,
   tokenizeReleaseNoteBody
 } from "@/lib/release-notes/format";
 import { parseUnityVersion } from "@/lib/parsers/version";
@@ -61,8 +62,13 @@ export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
   // area chip would just duplicate it - fall back to the section label
   // when area looks like a package id.
   const rawArea = row.area;
+  // Detect Unity's "area is actually a backport target list" overload
+  // (e.g. area = "6000.6.0a2,6000.4.4f1,6000.5.0b5"). When matched, the
+  // row renders each version as its own VersionPill instead of a single
+  // unparsable area chip — see ~150 rows in prod that hit this case.
+  const backportVersions = parseAreaVersionList(rawArea);
   const areaLabel =
-    rawArea && !looksLikePackageId(rawArea) ? rawArea : row.section;
+    rawArea && !backportVersions && !looksLikePackageId(rawArea) ? rawArea : row.section;
   // Drop platforms that match the area OR any package name on this row
   // (case-insensitive). Unity routinely lists "XR" / "Android" / "iOS"
   // and even full package ids in both columns, which would otherwise
@@ -92,7 +98,24 @@ export function NoteRow({ row, showImpactPill = false, issueStatuses }: Props) {
           )}
         </div>
         <div className="row__pills">
-          {areaLabel ? <span className="chip chip--area">{areaLabel}</span> : null}
+          {backportVersions ? (
+            <span
+              className="row__backport-versions"
+              aria-label="Backported to versions"
+              title="Backported to these Unity versions"
+            >
+              {backportVersions.map((v) => (
+                <VersionPill
+                  key={`bp-${v}`}
+                  version={v}
+                  stream={safeStreamForInline(v)}
+                  compact
+                />
+              ))}
+            </span>
+          ) : areaLabel ? (
+            <span className="chip chip--area">{areaLabel}</span>
+          ) : null}
           {showImpactPill ? <ImpactPill kind={row.impact_kind} /> : null}
           <RiskBadge level={row.risk_level} />
           {(row.package_names ?? []).slice(0, 2).map((pkg) => (

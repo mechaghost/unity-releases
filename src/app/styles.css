@@ -701,6 +701,18 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   background: var(--surface-sunken);
 }
 
+/* Wrapper around the comma-separated backport version list that
+ *  replaces a single area chip when area = "6000.6.0a2,6000.4.4f1,…".
+ *  inline-flex keeps the pills baseline-aligned with neighbouring chips
+ *  in row__pills, and the tiny gap mirrors the existing chip spacing
+ *  inside the row. */
+.row__backport-versions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px;
+}
+
 .chip--version:hover {
   border-color: var(--border-strong);
   background: var(--surface-base);
@@ -1624,6 +1636,19 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Clickable version on the /explorer lane header. Keeps the same
+ *  weight + color as the static span but adds the hover affordance and
+ *  underline used everywhere else for text links. */
+.lane__header-title--link {
+  color: inherit;
+  text-decoration: none;
+}
+.lane__header-title--link:hover,
+.lane__header-title--link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .lane__header-count {
