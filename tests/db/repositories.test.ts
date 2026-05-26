@@ -16,7 +16,8 @@ import {
   getIssueStatuses,
   packageVersionsAtBoundary,
   resolveDiffRange,
-  searchReleaseNotesInRange
+  searchReleaseNotesInRange,
+  listTimelineFeed
 } from "../../src/lib/db/repositories";
 
 type Row = Record<string, unknown>;
@@ -352,5 +353,139 @@ describe("getIssueStatuses", () => {
     const out = await getIssueStatuses([]);
     expect(out.size).toBe(0);
     expect(mocks.query).not.toHaveBeenCalled();
+  });
+});
+
+// ─── listTimelineFeed ─────────────────────────────────────────
+
+describe("listTimelineFeed", () => {
+  test("groups same-type updates under a single scraper run and retrieves ingestion runs with their updates", async () => {
+    // mock first call (content events)
+    mocks.query.mockResolvedValueOnce(
+      rows(
+        {
+          id: 1,
+          event_type: "package_version",
+          title: "Package A 1.0.0",
+          summary: "Updated package A",
+          event_time: "2026-05-26T10:00:00Z",
+          source_url: "http://example.com/a",
+          stable_guid: "guid-1",
+          risk_level: null,
+          tags: ["tag1"],
+          ingestion_run_id: 101
+        },
+        {
+          id: 2,
+          event_type: "package_version",
+          title: "Package B 2.0.0",
+          summary: "Updated package B",
+          event_time: "2026-05-26T10:05:00Z",
+          source_url: "http://example.com/b",
+          stable_guid: "guid-2",
+          risk_level: null,
+          tags: ["tag2"],
+          ingestion_run_id: 101
+        },
+        {
+          id: 3,
+          event_type: "unity_release",
+          title: "6000.0.1f1",
+          summary: "New Unity Editor release",
+          event_time: "2026-05-26T09:00:00Z",
+          source_url: "http://example.com/unity",
+          stable_guid: "guid-3",
+          risk_level: "low",
+          tags: [],
+          ingestion_run_id: null
+        }
+      )
+    );
+
+    // mock second call (ingestion runs)
+    mocks.query.mockResolvedValueOnce(
+      rows({
+        id: "101",
+        source_type: "packages",
+        job_name: "poll-packages",
+        started_at: "2026-05-26T09:55:00Z",
+        finished_at: "2026-05-26T10:06:00Z",
+        status: "success",
+        records_created: 2,
+        records_updated: 0,
+        records_deleted: 0,
+        error_message: null
+      })
+    );
+
+    // mock third call (updates for run IDs)
+    mocks.query.mockResolvedValueOnce(
+      rows(
+        {
+          id: 1,
+          event_type: "package_version",
+          title: "Package A 1.0.0",
+          source_url: "http://example.com/a",
+          ingestion_run_id: 101
+        },
+        {
+          id: 2,
+          event_type: "package_version",
+          title: "Package B 2.0.0",
+          source_url: "http://example.com/b",
+          ingestion_run_id: 101
+        }
+      )
+    );
+
+    const result = await listTimelineFeed(10);
+
+    // We expect:
+    // 1. One grouped package event (from the 2 package_version content events under ingestion_run_id: 101)
+    // 2. One ingestion event (for ingestion run 101)
+    // 3. One single unity_release content event
+
+    expect(mocks.query).toHaveBeenCalledTimes(3);
+
+    // Check content events query parameters
+    const [contentSql, contentParams] = mocks.query.mock.calls[0];
+    expect(contentSql).toContain("FROM content_events");
+    expect(contentParams).toEqual([20]);
+
+    // Check ingestion runs query parameters
+    const [ingestionSql, ingestionParams] = mocks.query.mock.calls[1];
+    expect(ingestionSql).toContain("FROM ingestion_runs");
+    expect(ingestionParams).toEqual([10]);
+
+    // Check updates query parameters
+    const [updatesSql, updatesParams] = mocks.query.mock.calls[2];
+    expect(updatesSql).toContain("ingestion_run_id = ANY(");
+    expect(updatesParams).toEqual([[101]]);
+
+    expect(result).toHaveLength(3);
+
+    const groupEvent = result[0];
+    expect(groupEvent.type).toBe("content");
+    expect(groupEvent.id).toBe("content-group-101-package_version");
+    expect(groupEvent.eventType).toBe("package_version_group");
+    expect(groupEvent.title).toBe("2 Packages Updated");
+    expect(groupEvent.isGroup).toBe(true);
+    expect(groupEvent.groupItems).toHaveLength(2);
+    expect(groupEvent.groupItems![0].title).toBe("Package B 2.0.0");
+    expect(groupEvent.groupItems![1].title).toBe("Package A 1.0.0");
+
+    const ingestionEvent = result[1];
+    expect(ingestionEvent.type).toBe("ingestion");
+    expect(ingestionEvent.id).toBe("ingestion-101");
+    expect(ingestionEvent.jobName).toBe("poll-packages");
+    expect(ingestionEvent.updates).toHaveLength(2);
+    expect(ingestionEvent.updates![0].title).toBe("Package A 1.0.0");
+
+    const singleEvent = result[2];
+    expect(singleEvent.type).toBe("content");
+    expect(singleEvent.id).toBe("content-3");
+    expect(singleEvent.eventType).toBe("unity_release");
+    expect(singleEvent.title).toBe("6000.0.1f1");
+    expect(singleEvent.riskLevel).toBe("low");
   });
 });
