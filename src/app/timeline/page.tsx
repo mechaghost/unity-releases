@@ -118,10 +118,10 @@ function TimelineNode({ event }: { event: TimelineEvent }) {
     if (event.eventType === "unity_release") {
       iconName = "rocket";
       variant = "release";
-    } else if (event.eventType === "package_version") {
+    } else if (event.eventType === "package_version" || event.eventType === "package_version_group") {
       iconName = "package";
       variant = "package";
-    } else if (event.eventType === "blog_post") {
+    } else if (event.eventType === "blog_post" || event.eventType === "blog_post_group") {
       iconName = "newspaper";
       variant = "news";
     }
@@ -151,6 +151,62 @@ function TimelineNode({ event }: { event: TimelineEvent }) {
 
 function TimelineCardBody({ event }: { event: TimelineEvent }) {
   if (event.type === "content") {
+    if (event.isGroup && event.groupItems) {
+      const isPackageGroup = event.eventType === "package_version_group";
+      const isNewsGroup = event.eventType === "blog_post_group";
+      
+      return (
+        <div className="timeline-content">
+          <h3 className="timeline-content__title">
+            {event.title}
+          </h3>
+          
+          <div className="timeline-content__run-updates" style={{ borderTop: "none", marginTop: 0, paddingTop: 0 }}>
+            <ul className="timeline-run-updates-list">
+              {event.groupItems.map((item) => {
+                const isEditorItem = event.eventType.startsWith("unity_release");
+                const isPackageItem = event.eventType.startsWith("package_version");
+                
+                let href = item.sourceUrl;
+                let target: string | undefined = "_blank";
+                
+                if (isEditorItem) {
+                  href = `/releases/${encodeURIComponent(item.title)}`;
+                  target = undefined;
+                } else if (isPackageItem) {
+                  href = `/packages?q=${encodeURIComponent(item.title.split(" ")[0] || "")}`;
+                  target = undefined;
+                }
+                
+                return (
+                  <li key={item.id}>
+                    <span className={`chip chip--small chip--event-${event.eventType.replace("_group", "")}`}>
+                      {isPackageGroup ? "package" : isNewsGroup ? "news" : "update"}
+                    </span>
+                    <a href={href} target={target} rel={target ? "noopener noreferrer" : undefined}>
+                      {item.title}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          
+          <div className="timeline-content__footer">
+            {event.tags && event.tags.length > 0 && (
+              <div className="timeline-content__tags">
+                {event.tags.map((tag) => (
+                  <span key={tag} className="chip chip--small">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     const isEditor = event.eventType === "unity_release";
     const isPackage = event.eventType === "package_version";
     const isNews = event.eventType === "blog_post";

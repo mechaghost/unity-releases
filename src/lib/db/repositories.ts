@@ -24,6 +24,7 @@ export type FeedEventRow = {
   stable_guid: string;
   risk_level: string | null;
   tags: string[];
+  ingestion_run_id?: number | null;
 };
 
 export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
@@ -1530,6 +1531,14 @@ export type TimelineEvent =
       sourceUrl: string;
       tags: string[];
       riskLevel: string | null;
+      isGroup?: boolean;
+      groupItems?: Array<{
+        id: string;
+        title: string;
+        summary: string;
+        sourceUrl: string;
+        tags: string[];
+      }>;
     }
   | {
       type: "ingestion";
@@ -1553,11 +1562,11 @@ export type TimelineEvent =
 
 export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
   const contentPromise = query<FeedEventRow>(
-    `SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
+    `SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags, ingestion_run_id
      FROM content_events
      ORDER BY event_time DESC
      LIMIT $1`,
-    [limit]
+    [limit * 2]
   );
 
   const ingestionPromise = query<IngestionRunRow>(
@@ -1604,8 +1613,72 @@ export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
     }
   }
 
-  const events: TimelineEvent[] = [
-    ...contentResult.rows.map((row) => ({
+  // Group content events by ingestion_run_id and event_type
+  const groupedContent: Record<string, FeedEventRow[]> = {};
+  const ungroupedContent: FeedEventRow[] = [];
+
+  for (const row of contentResult.rows) {
+    if (row.ingestion_run_id) {
+      const key = `${row.ingestion_run_id}-${row.event_type}`;
+      if (!groupedContent[key]) {
+        groupedContent[key] = [];
+      }
+      groupedContent[key].push(row);
+    } else {
+      ungroupedContent.push(row);
+    }
+  }
+
+  const contentEvents: TimelineEvent[] = [];
+
+  // Grouped content processing
+  for (const key in groupedContent) {
+    const rows = groupedContent[key];
+    if (rows.length === 1) {
+      ungroupedContent.push(rows[0]);
+    } else {
+      const first = rows[0];
+      const eventType = first.event_type;
+      
+      rows.sort((a, b) => new Date(b.event_time).getTime() - new Date(a.event_time).getTime());
+      
+      const tagsSet = new Set<string>();
+      rows.forEach(r => (r.tags || []).forEach(t => tagsSet.add(t)));
+
+      let groupTitle = "";
+      if (eventType === "package_version") {
+        groupTitle = `${rows.length} Packages Updated`;
+      } else if (eventType === "blog_post") {
+        groupTitle = `${rows.length} Blog Posts Published`;
+      } else {
+        groupTitle = `${rows.length} ${eventType} Updates`;
+      }
+
+      contentEvents.push({
+        type: "content" as const,
+        id: `content-group-${first.ingestion_run_id}-${eventType}`,
+        eventType: `${eventType}_group`,
+        title: groupTitle,
+        summary: `Grouped updates from scraper job.`,
+        timestamp: new Date(rows[0].event_time).toISOString(),
+        sourceUrl: first.source_url,
+        tags: Array.from(tagsSet),
+        riskLevel: null,
+        isGroup: true,
+        groupItems: rows.map(r => ({
+          id: String(r.id),
+          title: r.title,
+          summary: r.summary,
+          sourceUrl: r.source_url,
+          tags: r.tags || []
+        }))
+      });
+    }
+  }
+
+  // Process ungrouped items
+  for (const row of ungroupedContent) {
+    contentEvents.push({
       type: "content" as const,
       id: `content-${row.id}`,
       eventType: row.event_type,
@@ -1615,7 +1688,11 @@ export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
       sourceUrl: row.source_url,
       tags: row.tags || [],
       riskLevel: row.risk_level
-    })),
+    });
+  }
+
+  const events: TimelineEvent[] = [
+    ...contentEvents,
     ...ingestionResult.rows.map((row) => {
       const runIdNum = Number(row.id);
       return {
