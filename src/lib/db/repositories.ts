@@ -1503,3 +1503,95 @@ async function upsertContentEvent(
     ]
   );
 }
+
+export type IngestionRunRow = {
+  id: string;
+  source_type: string;
+  job_name: string;
+  started_at: Date | string;
+  finished_at: Date | string | null;
+  status: string;
+  parser_version: string;
+  source_count: number;
+  records_created: number;
+  records_updated: number;
+  records_deleted: number;
+  error_message: string | null;
+};
+
+export type TimelineEvent =
+  | {
+      type: "content";
+      id: string;
+      eventType: string;
+      title: string;
+      summary: string;
+      timestamp: string;
+      sourceUrl: string;
+      tags: string[];
+      riskLevel: string | null;
+    }
+  | {
+      type: "ingestion";
+      id: string;
+      jobName: string;
+      sourceType: string;
+      timestamp: string;
+      finishedAt: string | null;
+      status: string;
+      recordsCreated: number;
+      recordsUpdated: number;
+      recordsDeleted: number;
+      errorMessage: string | null;
+    };
+
+export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
+  const contentPromise = query<FeedEventRow>(
+    `SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
+     FROM content_events
+     ORDER BY event_time DESC
+     LIMIT $1`,
+    [limit]
+  );
+
+  const ingestionPromise = query<IngestionRunRow>(
+    `SELECT id::text, source_type, job_name, started_at, finished_at, status, records_created, records_updated, records_deleted, error_message
+     FROM ingestion_runs
+     ORDER BY started_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+
+  const [contentResult, ingestionResult] = await Promise.all([contentPromise, ingestionPromise]);
+
+  const events: TimelineEvent[] = [
+    ...contentResult.rows.map((row) => ({
+      type: "content" as const,
+      id: `content-${row.id}`,
+      eventType: row.event_type,
+      title: row.title,
+      summary: row.summary,
+      timestamp: row.event_time ? new Date(row.event_time).toISOString() : new Date().toISOString(),
+      sourceUrl: row.source_url,
+      tags: row.tags || [],
+      riskLevel: row.risk_level
+    })),
+    ...ingestionResult.rows.map((row) => ({
+      type: "ingestion" as const,
+      id: `ingestion-${row.id}`,
+      jobName: row.job_name,
+      sourceType: row.source_type,
+      timestamp: row.started_at ? new Date(row.started_at).toISOString() : new Date().toISOString(),
+      finishedAt: row.finished_at ? new Date(row.finished_at).toISOString() : null,
+      status: row.status,
+      recordsCreated: Number(row.records_created || 0),
+      recordsUpdated: Number(row.records_updated || 0),
+      recordsDeleted: Number(row.records_deleted || 0),
+      errorMessage: row.error_message
+    }))
+  ];
+
+  return events
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, limit);
+}

@@ -28,7 +28,8 @@ export type IconName =
   | "link"
   | "bar-chart"
   | "activity"
-  | "file-text";
+  | "file-text"
+  | "clock";
 
 const PATHS: Record<IconName, string> = {
   "chevron-right": "M9 6l6 6-6 6",
@@ -58,7 +59,8 @@ const PATHS: Record<IconName, string> = {
   link: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71 M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71",
   "bar-chart": "M3 3v18h18 M7 16V10 M12 16V6 M17 16v-3",
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",
-  "file-text": "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8"
+  "file-text": "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
+  clock: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 6v6l4 2"
 };
 
 type IconProps = SVGProps<SVGSVGElement> & { name: IconName; size?: number };
