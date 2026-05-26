@@ -193,6 +193,12 @@ export function PackageVersionDialog({
             </a>
           </p>
 
+          {load.status === "loaded" && load.data.description && (
+            <p className="pkg-dialog__description">
+              {load.data.description}
+            </p>
+          )}
+
           {load.status === "loading" ? (
             <DialogSkeleton />
           ) : load.status === "error" ? (
