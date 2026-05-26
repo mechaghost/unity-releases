@@ -234,32 +234,68 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
       ) : (
         <div className="timeline-content__stats">
           {hasChanges ? (
-            <ul className="timeline-stats-list">
-              {hasCreated && (
-                <li>
-                  <span className="timeline-stats-count timeline-stats-count--created">
-                    +{event.recordsCreated}
-                  </span>{" "}
-                  created
-                </li>
+            <div className="timeline-content__changes-group">
+              <ul className="timeline-stats-list">
+                {hasCreated && (
+                  <li>
+                    <span className="timeline-stats-count timeline-stats-count--created">
+                      +{event.recordsCreated}
+                    </span>{" "}
+                    created
+                  </li>
+                )}
+                {hasUpdated && (
+                  <li>
+                    <span className="timeline-stats-count timeline-stats-count--updated">
+                      ~{event.recordsUpdated}
+                    </span>{" "}
+                    updated
+                  </li>
+                )}
+                {hasDeleted && (
+                  <li>
+                    <span className="timeline-stats-count timeline-stats-count--deleted">
+                      -{event.recordsDeleted}
+                    </span>{" "}
+                    deleted
+                  </li>
+                )}
+              </ul>
+
+              {event.updates && event.updates.length > 0 && (
+                <div className="timeline-content__run-updates">
+                  <p className="timeline-run-updates-header">Imported updates:</p>
+                  <ul className="timeline-run-updates-list">
+                    {event.updates.map((update) => {
+                      const isEditor = update.eventType === "unity_release";
+                      const isPackage = update.eventType === "package_version";
+                      
+                      let href = update.sourceUrl;
+                      let target: string | undefined = "_blank";
+                      
+                      if (isEditor) {
+                        href = `/releases/${encodeURIComponent(update.title)}`;
+                        target = undefined;
+                      } else if (isPackage) {
+                        href = `/packages?q=${encodeURIComponent(update.title.split(" ")[0] || "")}`;
+                        target = undefined;
+                      }
+                      
+                      return (
+                        <li key={update.id}>
+                          <span className={`chip chip--small chip--event-${update.eventType}`}>
+                            {update.eventType === "unity_release" ? "editor" : update.eventType === "package_version" ? "package" : "news"}
+                          </span>
+                          <a href={href} target={target} rel={target ? "noopener noreferrer" : undefined}>
+                            {update.title}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
-              {hasUpdated && (
-                <li>
-                  <span className="timeline-stats-count timeline-stats-count--updated">
-                    ~{event.recordsUpdated}
-                  </span>{" "}
-                  updated
-                </li>
-              )}
-              {hasDeleted && (
-                <li>
-                  <span className="timeline-stats-count timeline-stats-count--deleted">
-                    -{event.recordsDeleted}
-                  </span>{" "}
-                  deleted
-                </li>
-              )}
-            </ul>
+            </div>
           ) : (
             <p className="timeline-content__no-changes">
               No new datasets were added or changed.

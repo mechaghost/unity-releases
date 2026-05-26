@@ -1543,6 +1543,12 @@ export type TimelineEvent =
       recordsUpdated: number;
       recordsDeleted: number;
       errorMessage: string | null;
+      updates?: Array<{
+        id: string;
+        eventType: string;
+        title: string;
+        sourceUrl: string;
+      }>;
     };
 
 export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
@@ -1564,6 +1570,40 @@ export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
 
   const [contentResult, ingestionResult] = await Promise.all([contentPromise, ingestionPromise]);
 
+  const runIds = ingestionResult.rows.map((row) => Number(row.id)).filter((id) => !isNaN(id));
+  const updatesByRunId: Record<number, Array<{ id: string; eventType: string; title: string; sourceUrl: string }>> = {};
+
+  if (runIds.length > 0) {
+    try {
+      const updatesResult = await query<{
+        id: number;
+        event_type: string;
+        title: string;
+        source_url: string;
+        ingestion_run_id: number;
+      }>(
+        `SELECT id, event_type, title, source_url, ingestion_run_id
+         FROM content_events
+         WHERE ingestion_run_id = ANY($1::bigint[])`,
+        [runIds]
+      );
+
+      for (const row of updatesResult.rows) {
+        if (!updatesByRunId[row.ingestion_run_id]) {
+          updatesByRunId[row.ingestion_run_id] = [];
+        }
+        updatesByRunId[row.ingestion_run_id].push({
+          id: `content-${row.id}`,
+          eventType: row.event_type,
+          title: row.title,
+          sourceUrl: row.source_url
+        });
+      }
+    } catch (err) {
+      console.error("Failed to query ingestion run updates:", err);
+    }
+  }
+
   const events: TimelineEvent[] = [
     ...contentResult.rows.map((row) => ({
       type: "content" as const,
@@ -1576,19 +1616,23 @@ export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
       tags: row.tags || [],
       riskLevel: row.risk_level
     })),
-    ...ingestionResult.rows.map((row) => ({
-      type: "ingestion" as const,
-      id: `ingestion-${row.id}`,
-      jobName: row.job_name,
-      sourceType: row.source_type,
-      timestamp: row.started_at ? new Date(row.started_at).toISOString() : new Date().toISOString(),
-      finishedAt: row.finished_at ? new Date(row.finished_at).toISOString() : null,
-      status: row.status,
-      recordsCreated: Number(row.records_created || 0),
-      recordsUpdated: Number(row.records_updated || 0),
-      recordsDeleted: Number(row.records_deleted || 0),
-      errorMessage: row.error_message
-    }))
+    ...ingestionResult.rows.map((row) => {
+      const runIdNum = Number(row.id);
+      return {
+        type: "ingestion" as const,
+        id: `ingestion-${row.id}`,
+        jobName: row.job_name,
+        sourceType: row.source_type,
+        timestamp: row.started_at ? new Date(row.started_at).toISOString() : new Date().toISOString(),
+        finishedAt: row.finished_at ? new Date(row.finished_at).toISOString() : null,
+        status: row.status,
+        recordsCreated: Number(row.records_created || 0),
+        recordsUpdated: Number(row.records_updated || 0),
+        recordsDeleted: Number(row.records_deleted || 0),
+        errorMessage: row.error_message,
+        updates: updatesByRunId[runIdNum] || []
+      };
+    })
   ];
 
   return events
