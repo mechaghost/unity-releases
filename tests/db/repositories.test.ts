@@ -464,8 +464,13 @@ describe("listTimelineFeed", () => {
 
     expect(result).toHaveLength(3);
 
+    // TimelineEvent is a discriminated union on `type` — narrow before
+    // touching branch-specific fields so the assertions stay typesafe
+    // (and so a future refactor that splits the union further keeps
+    // failing at the right spot rather than silently passing `any`).
     const groupEvent = result[0];
     expect(groupEvent.type).toBe("content");
+    if (groupEvent.type !== "content") throw new Error("expected content event");
     expect(groupEvent.id).toBe("content-group-101-package_version");
     expect(groupEvent.eventType).toBe("package_version_group");
     expect(groupEvent.title).toBe("2 Packages Updated");
@@ -476,6 +481,7 @@ describe("listTimelineFeed", () => {
 
     const ingestionEvent = result[1];
     expect(ingestionEvent.type).toBe("ingestion");
+    if (ingestionEvent.type !== "ingestion") throw new Error("expected ingestion event");
     expect(ingestionEvent.id).toBe("ingestion-101");
     expect(ingestionEvent.jobName).toBe("poll-packages");
     expect(ingestionEvent.updates).toHaveLength(2);
@@ -483,6 +489,7 @@ describe("listTimelineFeed", () => {
 
     const singleEvent = result[2];
     expect(singleEvent.type).toBe("content");
+    if (singleEvent.type !== "content") throw new Error("expected content event");
     expect(singleEvent.id).toBe("content-3");
     expect(singleEvent.eventType).toBe("unity_release");
     expect(singleEvent.title).toBe("6000.0.1f1");
