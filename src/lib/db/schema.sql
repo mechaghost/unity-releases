@@ -353,3 +353,182 @@ CREATE TABLE IF NOT EXISTS site_events (
 );
 CREATE INDEX IF NOT EXISTS idx_site_events_occurred_at ON site_events (occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_site_events_type_time ON site_events (event_type, occurred_at DESC);
+
+-- =====================================================================
+-- Unity Discussions (discussions.unity.com) staff post tracking
+--
+-- The forum is Discourse; staff are the `unity_staff` user group
+-- (id 41). We ingest posts authored by staff group members, store
+-- each post's live state, and append an immutable revision row
+-- every time we observe a real change (raw_sha256 differs or version
+-- bumped). The ingester runs inside the existing mega-cron at
+-- 00:00 + 12:00 UTC and rate-limits itself to 60 req/min.
+--
+-- discourse_post_id, discourse_user_id, discourse_category_id are
+-- the upstream identifiers from Discourse — never reassigned, used
+-- as upsert keys. Our own BIGSERIAL `id` is what other tables FK to.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS discourse_staff_users (
+  id BIGSERIAL PRIMARY KEY,
+  discourse_user_id BIGINT NOT NULL UNIQUE,
+  username TEXT NOT NULL,
+  display_name TEXT,
+  avatar_template TEXT,
+  user_title TEXT,
+  trust_level INTEGER,
+  primary_group_name TEXT,
+  flair_group_id INTEGER,
+  -- Last activity timestamps as Discourse reports them. last_seen_at
+  -- is Discourse-login activity; last_posted_at drives the active-user
+  -- filter the ingester uses to skip dormant ex-employees.
+  last_posted_at TIMESTAMPTZ,
+  last_seen_at TIMESTAMPTZ,
+  added_to_group_at TIMESTAMPTZ,
+  -- False when a roster walk no longer sees this username under
+  -- unity_staff. We keep the row + its posts so historical attribution
+  -- survives, but new posts won't be polled.
+  active_in_group BOOLEAN NOT NULL DEFAULT true,
+  last_polled_at TIMESTAMPTZ,
+  raw_metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  source_snapshot_id BIGINT REFERENCES source_snapshots(id),
+  ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
+  parser_version TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS discourse_categories (
+  id BIGSERIAL PRIMARY KEY,
+  discourse_category_id INTEGER NOT NULL UNIQUE,
+  slug TEXT NOT NULL,
+  name TEXT NOT NULL,
+  parent_discourse_category_id INTEGER,
+  description TEXT,
+  color TEXT,
+  text_color TEXT,
+  raw_metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  source_snapshot_id BIGINT REFERENCES source_snapshots(id),
+  ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
+  parser_version TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS discourse_posts (
+  id BIGSERIAL PRIMARY KEY,
+  -- Upstream identifiers. discourse_post_id is the upsert key.
+  discourse_post_id BIGINT NOT NULL UNIQUE,
+  discourse_topic_id BIGINT NOT NULL,
+  post_number INTEGER NOT NULL,
+  topic_slug TEXT,
+  topic_title TEXT,
+  -- Author. FK to our staff_users for join-friendly queries, plus
+  -- denormalized fields so the list view doesn't need a JOIN on every
+  -- row. was_staff_at_post is the *ingest-time* attestation that the
+  -- author was in unity_staff when we saw the post — set TRUE
+  -- unconditionally during the staff-user fan-out per critique risk
+  -- #4. Defends against later group changes mis-relabeling history.
+  staff_user_id BIGINT REFERENCES discourse_staff_users(id) ON DELETE SET NULL,
+  discourse_user_id BIGINT NOT NULL,
+  username TEXT NOT NULL,
+  was_staff_at_post BOOLEAN NOT NULL DEFAULT true,
+  -- Category + tags denormalized for list-page filtering.
+  -- discourse_category_id stays nullable when a topic is in a private
+  -- category we can't read.
+  discourse_category_id INTEGER,
+  tags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  -- Live post state.
+  raw TEXT NOT NULL,
+  cooked TEXT NOT NULL,
+  excerpt TEXT,
+  raw_sha256 TEXT NOT NULL,
+  -- Discourse's own version counter; bumps on every edit (author or
+  -- moderation). Stored as INTEGER for direct comparison.
+  discourse_version INTEGER NOT NULL DEFAULT 1,
+  edit_reason TEXT,
+  -- Discourse-reported timestamps. last_edited_at moves only on real
+  -- changes (set by ingester when version bumps or raw_sha256
+  -- differs). updated_at on this row moves on every poll for
+  -- bookkeeping.
+  discourse_created_at TIMESTAMPTZ NOT NULL,
+  discourse_updated_at TIMESTAMPTZ NOT NULL,
+  last_edited_at TIMESTAMPTZ,
+  -- Engagement signals.
+  reply_count INTEGER NOT NULL DEFAULT 0,
+  reads INTEGER,
+  score NUMERIC(10, 2),
+  incoming_link_count INTEGER NOT NULL DEFAULT 0,
+  -- Soft-delete: when /posts/:id.json returns 404, the row stays so
+  -- links keep resolving; the page just renders a tombstone.
+  is_deleted BOOLEAN NOT NULL DEFAULT false,
+  deleted_at TIMESTAMPTZ,
+  -- Provenance.
+  raw_metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  search_vector TSVECTOR,
+  source_snapshot_id BIGINT REFERENCES source_snapshots(id),
+  ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
+  parser_version TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Append-only audit log: every real change to a discourse_posts row
+-- produces a revision. The UNIQUE constraint guarantees an idempotent
+-- ingest — re-seeing the same (post, version) tuple is a no-op insert.
+CREATE TABLE IF NOT EXISTS discourse_post_revisions (
+  id BIGSERIAL PRIMARY KEY,
+  -- FK by surrogate id (consistent with the rest of the schema where
+  -- FKs target BIGSERIAL pks, not UNIQUE upstream-id columns). No
+  -- CASCADE because discourse_posts are soft-deleted in practice —
+  -- a revision outliving its parent is the explicit audit-log goal.
+  discourse_post_db_id BIGINT NOT NULL REFERENCES discourse_posts(id) ON DELETE NO ACTION,
+  discourse_post_id BIGINT NOT NULL,
+  discourse_version INTEGER NOT NULL,
+  raw TEXT NOT NULL,
+  raw_sha256 TEXT NOT NULL,
+  edit_reason TEXT,
+  observed_updated_at TIMESTAMPTZ NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_snapshot_id BIGINT REFERENCES source_snapshots(id),
+  ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
+  parser_version TEXT NOT NULL,
+  UNIQUE (discourse_post_id, discourse_version)
+);
+
+-- Lookup + sort indexes.
+CREATE INDEX IF NOT EXISTS idx_discourse_staff_users_username ON discourse_staff_users (username);
+CREATE INDEX IF NOT EXISTS idx_discourse_staff_users_active ON discourse_staff_users (active_in_group, last_posted_at DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_discourse_categories_slug ON discourse_categories (slug);
+CREATE INDEX IF NOT EXISTS idx_discourse_posts_updated_at ON discourse_posts (discourse_updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_discourse_posts_created_at ON discourse_posts (discourse_created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_discourse_posts_user ON discourse_posts (discourse_user_id);
+CREATE INDEX IF NOT EXISTS idx_discourse_posts_category ON discourse_posts (discourse_category_id);
+CREATE INDEX IF NOT EXISTS idx_discourse_posts_tags ON discourse_posts USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_discourse_posts_search ON discourse_posts USING GIN (search_vector);
+CREATE INDEX IF NOT EXISTS idx_discourse_posts_body_trgm ON discourse_posts USING GIN (raw gin_trgm_ops);
+-- Partial index: the list page defaults to visible posts ordered by
+-- recent activity. Trimming deleted + non-staff rows keeps the index
+-- small and the default query a single seek.
+CREATE INDEX IF NOT EXISTS idx_discourse_posts_visible_recent ON discourse_posts (discourse_updated_at DESC)
+  WHERE is_deleted = false AND was_staff_at_post = true;
+CREATE INDEX IF NOT EXISTS idx_discourse_post_revisions_post ON discourse_post_revisions (discourse_post_id, discourse_version DESC);
+
+-- tsvector trigger: title (A) + author handle (B) + raw body (C).
+-- Mirrors the release_note_items pattern but weighted for "who said
+-- what about which Unity feature."
+CREATE OR REPLACE FUNCTION update_discourse_post_search_vector()
+RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector :=
+    setweight(to_tsvector('english', coalesce(NEW.topic_title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.username, '')), 'B') ||
+    setweight(to_tsvector('english', array_to_string(NEW.tags, ' ')), 'B') ||
+    setweight(to_tsvector('english', coalesce(NEW.raw, '')), 'C');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_discourse_posts_search_vector ON discourse_posts;
+CREATE TRIGGER trg_discourse_posts_search_vector
+BEFORE INSERT OR UPDATE ON discourse_posts
+FOR EACH ROW EXECUTE FUNCTION update_discourse_post_search_vector();

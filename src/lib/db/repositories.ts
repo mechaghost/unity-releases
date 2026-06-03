@@ -1716,3 +1716,729 @@ export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, limit);
 }
+
+// =====================================================================
+// Unity Discussions repository functions
+// =====================================================================
+
+export type DiscourseStaffUserInput = {
+  discourseUserId: number;
+  username: string;
+  displayName?: string | null;
+  avatarTemplate?: string | null;
+  userTitle?: string | null;
+  trustLevel?: number | null;
+  primaryGroupName?: string | null;
+  flairGroupId?: number | null;
+  lastPostedAt?: string | null;
+  lastSeenAt?: string | null;
+  addedToGroupAt?: string | null;
+  activeInGroup?: boolean;
+  rawMetadata?: Record<string, unknown>;
+  sourceSnapshotId?: number | null;
+  ingestionRunId: number;
+  parserVersion: string;
+};
+
+export type DiscourseCategoryInput = {
+  discourseCategoryId: number;
+  slug: string;
+  name: string;
+  parentDiscourseCategoryId?: number | null;
+  description?: string | null;
+  color?: string | null;
+  textColor?: string | null;
+  rawMetadata?: Record<string, unknown>;
+  sourceSnapshotId?: number | null;
+  ingestionRunId: number;
+  parserVersion: string;
+};
+
+export type DiscoursePostInput = {
+  discoursePostId: number;
+  discourseTopicId: number;
+  postNumber: number;
+  topicSlug: string | null;
+  topicTitle: string | null;
+  staffUserDbId: number | null;
+  discourseUserId: number;
+  username: string;
+  wasStaffAtPost: boolean;
+  discourseCategoryId: number | null;
+  tags: string[];
+  raw: string;
+  cooked: string;
+  excerpt: string | null;
+  rawSha256: string;
+  discourseVersion: number;
+  editReason: string | null;
+  discourseCreatedAt: string;
+  discourseUpdatedAt: string;
+  lastEditedAt: string | null;
+  replyCount: number;
+  reads: number | null;
+  score: number | null;
+  incomingLinkCount: number;
+  rawMetadata: Record<string, unknown>;
+  sourceSnapshotId: number | null;
+  ingestionRunId: number;
+  parserVersion: string;
+};
+
+export type DiscoursePostRevisionInput = {
+  discoursePostDbId: number;
+  discoursePostId: number;
+  discourseVersion: number;
+  raw: string;
+  rawSha256: string;
+  editReason: string | null;
+  observedUpdatedAt: string;
+  sourceSnapshotId: number | null;
+  ingestionRunId: number;
+  parserVersion: string;
+};
+
+/** Snapshot of every tracked post's current (version, raw_sha256,
+ *  updated_at) so the ingester can do change-detection in O(N) without
+ *  a per-post round-trip. Keyed by discourse_post_id. */
+export type DiscoursePostFreshness = {
+  id: number;
+  discourseVersion: number;
+  rawSha256: string;
+  discourseUpdatedAt: string;
+};
+
+export async function getDiscoursePostFreshness(): Promise<Map<number, DiscoursePostFreshness>> {
+  const result = await query<{
+    id: string;
+    discourse_post_id: string;
+    discourse_version: number;
+    raw_sha256: string;
+    discourse_updated_at: string;
+  }>(`
+    SELECT id, discourse_post_id, discourse_version, raw_sha256, discourse_updated_at
+    FROM discourse_posts
+  `);
+  const map = new Map<number, DiscoursePostFreshness>();
+  for (const row of result.rows) {
+    map.set(Number(row.discourse_post_id), {
+      id: Number(row.id),
+      discourseVersion: row.discourse_version,
+      rawSha256: row.raw_sha256,
+      discourseUpdatedAt: new Date(row.discourse_updated_at).toISOString()
+    });
+  }
+  return map;
+}
+
+export async function upsertDiscourseStaffUsers(
+  client: PoolClient,
+  users: DiscourseStaffUserInput[]
+): Promise<void> {
+  for (const u of users) {
+    await client.query(
+      `
+        INSERT INTO discourse_staff_users (
+          discourse_user_id, username, display_name, avatar_template, user_title,
+          trust_level, primary_group_name, flair_group_id,
+          last_posted_at, last_seen_at, added_to_group_at,
+          active_in_group, last_polled_at, raw_metadata_json,
+          source_snapshot_id, ingestion_run_id, parser_version
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now(),$13,$14,$15,$16)
+        ON CONFLICT (discourse_user_id) DO UPDATE SET
+          username = EXCLUDED.username,
+          display_name = EXCLUDED.display_name,
+          avatar_template = EXCLUDED.avatar_template,
+          user_title = EXCLUDED.user_title,
+          trust_level = EXCLUDED.trust_level,
+          primary_group_name = EXCLUDED.primary_group_name,
+          flair_group_id = EXCLUDED.flair_group_id,
+          last_posted_at = EXCLUDED.last_posted_at,
+          last_seen_at = EXCLUDED.last_seen_at,
+          added_to_group_at = COALESCE(discourse_staff_users.added_to_group_at, EXCLUDED.added_to_group_at),
+          active_in_group = EXCLUDED.active_in_group,
+          last_polled_at = now(),
+          raw_metadata_json = EXCLUDED.raw_metadata_json,
+          source_snapshot_id = EXCLUDED.source_snapshot_id,
+          ingestion_run_id = EXCLUDED.ingestion_run_id,
+          parser_version = EXCLUDED.parser_version,
+          updated_at = now()
+      `,
+      [
+        u.discourseUserId,
+        u.username,
+        u.displayName ?? null,
+        u.avatarTemplate ?? null,
+        u.userTitle ?? null,
+        u.trustLevel ?? null,
+        u.primaryGroupName ?? null,
+        u.flairGroupId ?? null,
+        u.lastPostedAt ?? null,
+        u.lastSeenAt ?? null,
+        u.addedToGroupAt ?? null,
+        u.activeInGroup ?? true,
+        JSON.stringify(u.rawMetadata ?? {}),
+        u.sourceSnapshotId ?? null,
+        u.ingestionRunId,
+        u.parserVersion
+      ]
+    );
+  }
+}
+
+/** Mark every staff user NOT in the latest roster walk as
+ *  inactive_in_group=false. We keep the row so historical post
+ *  attribution survives; we just stop polling them. Returns the
+ *  number of users newly marked inactive. */
+export async function markMissingDiscourseStaffUsersInactive(
+  client: PoolClient,
+  currentDiscourseUserIds: number[]
+): Promise<number> {
+  if (currentDiscourseUserIds.length === 0) return 0;
+  const result = await client.query<{ count: string }>(
+    `
+      WITH marked AS (
+        UPDATE discourse_staff_users
+        SET active_in_group = false, updated_at = now()
+        WHERE active_in_group = true
+          AND discourse_user_id <> ALL($1::bigint[])
+        RETURNING id
+      )
+      SELECT COUNT(*)::text AS count FROM marked
+    `,
+    [currentDiscourseUserIds]
+  );
+  return Number(result.rows[0]?.count ?? 0);
+}
+
+export async function upsertDiscourseCategories(
+  client: PoolClient,
+  categories: DiscourseCategoryInput[]
+): Promise<void> {
+  for (const c of categories) {
+    await client.query(
+      `
+        INSERT INTO discourse_categories (
+          discourse_category_id, slug, name, parent_discourse_category_id,
+          description, color, text_color, raw_metadata_json,
+          source_snapshot_id, ingestion_run_id, parser_version
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        ON CONFLICT (discourse_category_id) DO UPDATE SET
+          slug = EXCLUDED.slug,
+          name = EXCLUDED.name,
+          parent_discourse_category_id = EXCLUDED.parent_discourse_category_id,
+          description = EXCLUDED.description,
+          color = EXCLUDED.color,
+          text_color = EXCLUDED.text_color,
+          raw_metadata_json = EXCLUDED.raw_metadata_json,
+          source_snapshot_id = EXCLUDED.source_snapshot_id,
+          ingestion_run_id = EXCLUDED.ingestion_run_id,
+          parser_version = EXCLUDED.parser_version,
+          updated_at = now()
+      `,
+      [
+        c.discourseCategoryId,
+        c.slug,
+        c.name,
+        c.parentDiscourseCategoryId ?? null,
+        c.description ?? null,
+        c.color ?? null,
+        c.textColor ?? null,
+        JSON.stringify(c.rawMetadata ?? {}),
+        c.sourceSnapshotId ?? null,
+        c.ingestionRunId,
+        c.parserVersion
+      ]
+    );
+  }
+}
+
+/** Compare freshness state against the incoming post; write a revision
+ *  row when the version bumped or raw_sha256 differs. ON CONFLICT
+ *  (discourse_post_id, discourse_version) DO NOTHING makes re-polls
+ *  idempotent. Returns whether a new revision row was written - the
+ *  caller uses this to decide whether to bump last_edited_at on the
+ *  live row. */
+export async function insertDiscoursePostRevisionIfChanged(
+  client: PoolClient,
+  previous: { discourseVersion: number; rawSha256: string } | null,
+  next: DiscoursePostRevisionInput
+): Promise<boolean> {
+  if (
+    previous &&
+    previous.discourseVersion === next.discourseVersion &&
+    previous.rawSha256 === next.rawSha256
+  ) {
+    return false;
+  }
+  const result = await client.query(
+    `
+      INSERT INTO discourse_post_revisions (
+        discourse_post_db_id, discourse_post_id, discourse_version,
+        raw, raw_sha256, edit_reason, observed_updated_at,
+        source_snapshot_id, ingestion_run_id, parser_version
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      ON CONFLICT (discourse_post_id, discourse_version) DO NOTHING
+    `,
+    [
+      next.discoursePostDbId,
+      next.discoursePostId,
+      next.discourseVersion,
+      next.raw,
+      next.rawSha256,
+      next.editReason,
+      next.observedUpdatedAt,
+      next.sourceSnapshotId,
+      next.ingestionRunId,
+      next.parserVersion
+    ]
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+/** Returns { id, wasInsert }. `id` is the discourse_posts.id surrogate
+ *  PK so the caller can use it as discoursePostDbId in a revision
+ *  insert without an extra round-trip. */
+export async function upsertDiscoursePost(
+  client: PoolClient,
+  post: DiscoursePostInput
+): Promise<{ id: number; wasInsert: boolean }> {
+  const result = await client.query<{ id: string; was_insert: boolean }>(
+    `
+      INSERT INTO discourse_posts (
+        discourse_post_id, discourse_topic_id, post_number,
+        topic_slug, topic_title,
+        staff_user_id, discourse_user_id, username, was_staff_at_post,
+        discourse_category_id, tags,
+        raw, cooked, excerpt, raw_sha256,
+        discourse_version, edit_reason,
+        discourse_created_at, discourse_updated_at, last_edited_at,
+        reply_count, reads, score, incoming_link_count,
+        is_deleted, deleted_at,
+        raw_metadata_json,
+        source_snapshot_id, ingestion_run_id, parser_version
+      )
+      VALUES (
+        $1,$2,$3, $4,$5, $6,$7,$8,$9, $10,$11,
+        $12,$13,$14,$15, $16,$17,
+        $18,$19,$20, $21,$22,$23,$24,
+        false, NULL,
+        $25, $26,$27,$28
+      )
+      ON CONFLICT (discourse_post_id) DO UPDATE SET
+        discourse_topic_id = EXCLUDED.discourse_topic_id,
+        post_number = EXCLUDED.post_number,
+        topic_slug = EXCLUDED.topic_slug,
+        topic_title = EXCLUDED.topic_title,
+        staff_user_id = EXCLUDED.staff_user_id,
+        discourse_user_id = EXCLUDED.discourse_user_id,
+        username = EXCLUDED.username,
+        -- was_staff_at_post is a snapshot from FIRST insert - never
+        -- overwrite, so a later non-staff sighting doesn't relabel.
+        was_staff_at_post = discourse_posts.was_staff_at_post,
+        discourse_category_id = EXCLUDED.discourse_category_id,
+        tags = EXCLUDED.tags,
+        raw = EXCLUDED.raw,
+        cooked = EXCLUDED.cooked,
+        excerpt = EXCLUDED.excerpt,
+        raw_sha256 = EXCLUDED.raw_sha256,
+        discourse_version = EXCLUDED.discourse_version,
+        edit_reason = EXCLUDED.edit_reason,
+        discourse_updated_at = EXCLUDED.discourse_updated_at,
+        last_edited_at = EXCLUDED.last_edited_at,
+        reply_count = EXCLUDED.reply_count,
+        reads = EXCLUDED.reads,
+        score = EXCLUDED.score,
+        incoming_link_count = EXCLUDED.incoming_link_count,
+        -- An upsert never un-tombstones a soft-deleted row implicitly.
+        -- That's a job for a separate revive path (not implemented).
+        is_deleted = discourse_posts.is_deleted,
+        raw_metadata_json = EXCLUDED.raw_metadata_json,
+        source_snapshot_id = EXCLUDED.source_snapshot_id,
+        ingestion_run_id = EXCLUDED.ingestion_run_id,
+        parser_version = EXCLUDED.parser_version,
+        updated_at = now()
+      RETURNING id::text, (xmax = 0) AS was_insert
+    `,
+    [
+      post.discoursePostId,
+      post.discourseTopicId,
+      post.postNumber,
+      post.topicSlug,
+      post.topicTitle,
+      post.staffUserDbId,
+      post.discourseUserId,
+      post.username,
+      post.wasStaffAtPost,
+      post.discourseCategoryId,
+      post.tags,
+      post.raw,
+      post.cooked,
+      post.excerpt,
+      post.rawSha256,
+      post.discourseVersion,
+      post.editReason,
+      post.discourseCreatedAt,
+      post.discourseUpdatedAt,
+      post.lastEditedAt,
+      post.replyCount,
+      post.reads,
+      post.score,
+      post.incomingLinkCount,
+      JSON.stringify(post.rawMetadata ?? {}),
+      post.sourceSnapshotId,
+      post.ingestionRunId,
+      post.parserVersion
+    ]
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error(`upsertDiscoursePost returned no row`);
+  return { id: Number(row.id), wasInsert: row.was_insert };
+}
+
+/** Soft-delete: a /posts/:id.json 404 means the upstream post is gone.
+ *  We keep the row so URLs resolve and historical attribution stands;
+ *  the page just renders a tombstone. Returns whether the row was
+ *  already tombstoned. */
+export async function tombstoneDiscoursePost(
+  client: PoolClient,
+  discoursePostId: number,
+  ingestionRunId: number
+): Promise<{ alreadyDeleted: boolean }> {
+  const result = await client.query<{ was_deleted: boolean }>(
+    `
+      UPDATE discourse_posts
+      SET is_deleted = true,
+          deleted_at = COALESCE(deleted_at, now()),
+          ingestion_run_id = $2,
+          updated_at = now()
+      WHERE discourse_post_id = $1
+      RETURNING (deleted_at < now()) AS was_deleted
+    `,
+    [discoursePostId, ingestionRunId]
+  );
+  return { alreadyDeleted: (result.rows[0]?.was_deleted ?? false) === true };
+}
+
+/** Resolve a staff user's surrogate PK by discourse_user_id, returning
+ *  null if we haven't ingested them yet. The ingester uses this to set
+ *  staff_user_id on discourse_posts. Bulk lookups should call this in
+ *  parallel with the per-user fetch. */
+export async function findDiscourseStaffUserDbId(
+  discourseUserId: number
+): Promise<number | null> {
+  const r = await query<{ id: string }>(
+    `SELECT id FROM discourse_staff_users WHERE discourse_user_id = $1`,
+    [discourseUserId]
+  );
+  return r.rows[0] ? Number(r.rows[0].id) : null;
+}
+
+// ---------------------- READ PATH FOR /discussions --------------------
+
+export type DiscoursePostListFilters = {
+  q?: string;
+  categoryIds?: number[];
+  tags?: string[];
+  usernames?: string[];
+  editedOnly?: boolean;
+  sort?: "recent" | "newest" | "popular" | "edited";
+  includeDeleted?: boolean;
+  page?: number;
+  perPage?: number;
+};
+
+export type DiscoursePostListItem = {
+  id: number;
+  discoursePostId: number;
+  discourseTopicId: number;
+  postNumber: number;
+  topicSlug: string | null;
+  topicTitle: string | null;
+  username: string;
+  userTitle: string | null;
+  avatarTemplate: string | null;
+  discourseCategoryId: number | null;
+  categoryName: string | null;
+  categorySlug: string | null;
+  tags: string[];
+  excerpt: string | null;
+  raw: string;
+  discourseCreatedAt: string;
+  discourseUpdatedAt: string;
+  lastEditedAt: string | null;
+  editReason: string | null;
+  replyCount: number;
+  incomingLinkCount: number;
+  score: number | null;
+  isDeleted: boolean;
+  postUrl: string;
+};
+
+export type DiscoursePostListResult = {
+  total: number;
+  items: DiscoursePostListItem[];
+};
+
+const DEFAULT_PER_PAGE = 30;
+const MAX_PER_PAGE = 100;
+const DISCOURSE_BASE = "https://discussions.unity.com";
+
+function clampPerPage(value?: number): number {
+  if (!value || !Number.isFinite(value) || value <= 0) return DEFAULT_PER_PAGE;
+  return Math.min(MAX_PER_PAGE, Math.floor(value));
+}
+
+function clampPage(value?: number): number {
+  if (!value || !Number.isFinite(value) || value <= 0) return 1;
+  return Math.floor(value);
+}
+
+function discoursePostUrl(topicSlug: string | null, topicId: number, postNumber: number): string {
+  const slug = topicSlug?.replace(/[^a-z0-9-]/gi, "") || "topic";
+  return `${DISCOURSE_BASE}/t/${slug}/${topicId}/${postNumber}`;
+}
+
+export async function listDiscoursePosts(
+  filters: DiscoursePostListFilters
+): Promise<DiscoursePostListResult> {
+  const perPage = clampPerPage(filters.perPage);
+  const page = clampPage(filters.page);
+  const offset = (page - 1) * perPage;
+
+  const wheres: string[] = ["dp.was_staff_at_post = true"];
+  const values: unknown[] = [];
+  if (!filters.includeDeleted) wheres.push("dp.is_deleted = false");
+  if (filters.q && filters.q.trim().length > 0) {
+    values.push(filters.q.trim());
+    wheres.push(`dp.search_vector @@ websearch_to_tsquery('english', $${values.length})`);
+  }
+  if (filters.categoryIds && filters.categoryIds.length > 0) {
+    values.push(filters.categoryIds);
+    wheres.push(`dp.discourse_category_id = ANY($${values.length}::int[])`);
+  }
+  if (filters.tags && filters.tags.length > 0) {
+    values.push(filters.tags);
+    wheres.push(`dp.tags && $${values.length}::text[]`);
+  }
+  if (filters.usernames && filters.usernames.length > 0) {
+    values.push(filters.usernames);
+    wheres.push(`dp.username = ANY($${values.length}::text[])`);
+  }
+  if (filters.editedOnly) {
+    wheres.push("dp.last_edited_at IS NOT NULL");
+  }
+  const whereSql = wheres.length > 0 ? `WHERE ${wheres.join(" AND ")}` : "";
+
+  let orderSql: string;
+  switch (filters.sort) {
+    case "newest":
+      orderSql = "dp.discourse_created_at DESC NULLS LAST, dp.discourse_post_id DESC";
+      break;
+    case "popular":
+      orderSql = "COALESCE(dp.reply_count, 0) DESC, dp.discourse_updated_at DESC";
+      break;
+    case "edited":
+      orderSql = "dp.last_edited_at DESC NULLS LAST, dp.discourse_updated_at DESC";
+      break;
+    default:
+      orderSql = "dp.discourse_updated_at DESC, dp.discourse_post_id DESC";
+  }
+
+  values.push(perPage, offset);
+  const result = await query<{
+    total_count: string;
+    id: string;
+    discourse_post_id: string;
+    discourse_topic_id: string;
+    post_number: number;
+    topic_slug: string | null;
+    topic_title: string | null;
+    username: string;
+    user_title: string | null;
+    avatar_template: string | null;
+    discourse_category_id: number | null;
+    category_name: string | null;
+    category_slug: string | null;
+    tags: string[];
+    excerpt: string | null;
+    raw: string;
+    discourse_created_at: string;
+    discourse_updated_at: string;
+    last_edited_at: string | null;
+    edit_reason: string | null;
+    reply_count: number;
+    incoming_link_count: number;
+    score: string | null;
+    is_deleted: boolean;
+  }>(
+    `
+      SELECT
+        COUNT(*) OVER() AS total_count,
+        dp.id::text, dp.discourse_post_id::text, dp.discourse_topic_id::text,
+        dp.post_number, dp.topic_slug, dp.topic_title,
+        dp.username, su.user_title, su.avatar_template,
+        dp.discourse_category_id, dc.name AS category_name, dc.slug AS category_slug,
+        dp.tags, dp.excerpt, dp.raw,
+        dp.discourse_created_at, dp.discourse_updated_at, dp.last_edited_at, dp.edit_reason,
+        dp.reply_count, dp.incoming_link_count, dp.score::text, dp.is_deleted
+      FROM discourse_posts dp
+      LEFT JOIN discourse_staff_users su ON su.id = dp.staff_user_id
+      LEFT JOIN discourse_categories dc ON dc.discourse_category_id = dp.discourse_category_id
+      ${whereSql}
+      ORDER BY ${orderSql}
+      LIMIT $${values.length - 1} OFFSET $${values.length}
+    `,
+    values
+  );
+
+  const items: DiscoursePostListItem[] = result.rows.map((row) => ({
+    id: Number(row.id),
+    discoursePostId: Number(row.discourse_post_id),
+    discourseTopicId: Number(row.discourse_topic_id),
+    postNumber: row.post_number,
+    topicSlug: row.topic_slug,
+    topicTitle: row.topic_title,
+    username: row.username,
+    userTitle: row.user_title,
+    avatarTemplate: row.avatar_template,
+    discourseCategoryId: row.discourse_category_id,
+    categoryName: row.category_name,
+    categorySlug: row.category_slug,
+    tags: row.tags ?? [],
+    excerpt: row.excerpt,
+    raw: row.raw,
+    discourseCreatedAt: new Date(row.discourse_created_at).toISOString(),
+    discourseUpdatedAt: new Date(row.discourse_updated_at).toISOString(),
+    lastEditedAt: row.last_edited_at ? new Date(row.last_edited_at).toISOString() : null,
+    editReason: row.edit_reason,
+    replyCount: row.reply_count,
+    incomingLinkCount: row.incoming_link_count,
+    score: row.score == null ? null : Number(row.score),
+    isDeleted: row.is_deleted,
+    postUrl: discoursePostUrl(row.topic_slug, Number(row.discourse_topic_id), row.post_number)
+  }));
+
+  return {
+    total: Number(result.rows[0]?.total_count ?? 0),
+    items
+  };
+}
+
+export type DiscourseFacets = {
+  categories: Array<{ discourseCategoryId: number; slug: string; name: string; count: number }>;
+  tags: Array<{ tag: string; count: number }>;
+  authors: Array<{ username: string; userTitle: string | null; count: number }>;
+};
+
+/** Facet aggregates for the filter chips on /discussions. Capped so a
+ *  long-tail author or rarely-used tag doesn't bloat the page. */
+export async function listDiscourseFilterFacets(opts: {
+  categoryLimit?: number;
+  tagLimit?: number;
+  authorLimit?: number;
+} = {}): Promise<DiscourseFacets> {
+  const categoryLimit = opts.categoryLimit ?? 25;
+  const tagLimit = opts.tagLimit ?? 30;
+  const authorLimit = opts.authorLimit ?? 40;
+
+  const [categoriesResult, tagsResult, authorsResult] = await Promise.all([
+    query<{ discourse_category_id: number; slug: string; name: string; count: string }>(
+      `
+        SELECT dp.discourse_category_id, dc.slug, dc.name, COUNT(*)::text AS count
+        FROM discourse_posts dp
+        JOIN discourse_categories dc ON dc.discourse_category_id = dp.discourse_category_id
+        WHERE dp.was_staff_at_post = true AND dp.is_deleted = false
+        GROUP BY dp.discourse_category_id, dc.slug, dc.name
+        ORDER BY COUNT(*) DESC, dc.name ASC
+        LIMIT $1
+      `,
+      [categoryLimit]
+    ),
+    query<{ tag: string; count: string }>(
+      `
+        SELECT tag, COUNT(*)::text AS count
+        FROM (
+          SELECT unnest(tags) AS tag
+          FROM discourse_posts
+          WHERE was_staff_at_post = true AND is_deleted = false
+        ) t
+        GROUP BY tag
+        ORDER BY COUNT(*) DESC, tag ASC
+        LIMIT $1
+      `,
+      [tagLimit]
+    ),
+    query<{ username: string; user_title: string | null; count: string }>(
+      `
+        SELECT dp.username, su.user_title, COUNT(*)::text AS count
+        FROM discourse_posts dp
+        LEFT JOIN discourse_staff_users su ON su.discourse_user_id = dp.discourse_user_id
+        WHERE dp.was_staff_at_post = true AND dp.is_deleted = false
+        GROUP BY dp.username, su.user_title
+        ORDER BY COUNT(*) DESC, dp.username ASC
+        LIMIT $1
+      `,
+      [authorLimit]
+    )
+  ]);
+
+  return {
+    categories: categoriesResult.rows.map((r) => ({
+      discourseCategoryId: r.discourse_category_id,
+      slug: r.slug,
+      name: r.name,
+      count: Number(r.count)
+    })),
+    tags: tagsResult.rows.map((r) => ({ tag: r.tag, count: Number(r.count) })),
+    authors: authorsResult.rows.map((r) => ({
+      username: r.username,
+      userTitle: r.user_title,
+      count: Number(r.count)
+    }))
+  };
+}
+
+export type DiscoursePostStats = {
+  totalPosts: number;
+  editedPosts: number;
+  deletedPosts: number;
+  trackedStaff: number;
+  activeStaff: number;
+  trackedCategories: number;
+  latestPostAt: string | null;
+};
+
+export async function getDiscoursePostStats(): Promise<DiscoursePostStats> {
+  const result = await query<{
+    total_posts: string;
+    edited_posts: string;
+    deleted_posts: string;
+    tracked_staff: string;
+    active_staff: string;
+    tracked_categories: string;
+    latest_post_at: string | null;
+  }>(`
+    SELECT
+      (SELECT COUNT(*) FROM discourse_posts WHERE was_staff_at_post = true)                                AS total_posts,
+      (SELECT COUNT(*) FROM discourse_posts WHERE was_staff_at_post = true AND last_edited_at IS NOT NULL) AS edited_posts,
+      (SELECT COUNT(*) FROM discourse_posts WHERE was_staff_at_post = true AND is_deleted = true)          AS deleted_posts,
+      (SELECT COUNT(*) FROM discourse_staff_users)                                                          AS tracked_staff,
+      (SELECT COUNT(*) FROM discourse_staff_users WHERE active_in_group = true)                             AS active_staff,
+      (SELECT COUNT(*) FROM discourse_categories)                                                           AS tracked_categories,
+      (SELECT MAX(discourse_created_at) FROM discourse_posts WHERE was_staff_at_post = true)                AS latest_post_at
+  `);
+  const row = result.rows[0];
+  return {
+    totalPosts: Number(row?.total_posts ?? 0),
+    editedPosts: Number(row?.edited_posts ?? 0),
+    deletedPosts: Number(row?.deleted_posts ?? 0),
+    trackedStaff: Number(row?.tracked_staff ?? 0),
+    activeStaff: Number(row?.active_staff ?? 0),
+    trackedCategories: Number(row?.tracked_categories ?? 0),
+    latestPostAt: row?.latest_post_at ? new Date(row.latest_post_at).toISOString() : null
+  };
+}
