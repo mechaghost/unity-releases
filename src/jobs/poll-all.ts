@@ -17,7 +17,8 @@ export type JobName =
   | "packages"
   | "legacy-lts"
   | "news"
-  | "resources";
+  | "resources"
+  | "discussions";
 
 export type JobDefinition = {
   name: JobName;
@@ -33,15 +34,20 @@ export type JobDefinition = {
  *   release notes that reference it.
  * - legacy-lts third because it's the cheapest read (sitemap diff) and
  *   benefits from happening before news/resources fan out the network.
- * - news/resources last - they're secondary content that's least
- *   urgent if the run gets killed by Railway's max-runtime cap.
+ * - news/resources next - they're secondary content with low budget.
+ * - discussions LAST - the Discourse staff-post fan-out is the
+ *   longest single job (~20 min worst case) and the most
+ *   network-bound. Running it after the more urgent surfaces means
+ *   a Railway max-runtime kill won't block fresh release/package
+ *   data.
  */
 export const JOB_ORDER: JobDefinition[] = [
   { name: "editor", npmScript: "ingest:editor" },
   { name: "packages", npmScript: "ingest:packages" },
   { name: "legacy-lts", npmScript: "ingest:legacy-lts" },
   { name: "news", npmScript: "ingest:news" },
-  { name: "resources", npmScript: "ingest:resources" }
+  { name: "resources", npmScript: "ingest:resources" },
+  { name: "discussions", npmScript: "ingest:discussions" }
 ];
 
 export type JobResult = {

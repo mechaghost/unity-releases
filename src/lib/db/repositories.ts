@@ -2046,9 +2046,15 @@ export async function upsertDiscoursePost(
         excerpt = EXCLUDED.excerpt,
         raw_sha256 = EXCLUDED.raw_sha256,
         discourse_version = EXCLUDED.discourse_version,
-        edit_reason = EXCLUDED.edit_reason,
+        -- edit_reason + last_edited_at: COALESCE so a non-editing poll
+        -- (where the post payload doesn't supply a reason / edit
+        -- timestamp) doesn't blow away the last known good values.
+        -- The ingester only sets these to non-null when it detects a
+        -- real edit (version bump or raw_sha256 differs); otherwise
+        -- it passes null and the existing value is preserved.
+        edit_reason = COALESCE(EXCLUDED.edit_reason, discourse_posts.edit_reason),
         discourse_updated_at = EXCLUDED.discourse_updated_at,
-        last_edited_at = EXCLUDED.last_edited_at,
+        last_edited_at = COALESCE(EXCLUDED.last_edited_at, discourse_posts.last_edited_at),
         reply_count = EXCLUDED.reply_count,
         reads = EXCLUDED.reads,
         score = EXCLUDED.score,
