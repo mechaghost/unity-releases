@@ -24,22 +24,22 @@ The user wants functionality tested first. Visual polish can come later, but inf
 
 ## Local Development
 
-Local Postgres runs in Docker:
+Local Postgres runs in Docker (container name predates the repo rename — it's still `unity-alerts-postgres` and the database is still `unity_alerts`; `scripts/migrate-db-to-prod.sh` defaults to the same name when pushing to Railway):
 
 ```bash
-docker ps --filter name=unity-releases-postgres
+docker ps --filter name=unity-alerts-postgres
 ```
 
 Connection string used locally:
 
 ```bash
-postgres://unity:unity@localhost:54329/unity_releases
+postgres://unity:unity@localhost:54329/unity_alerts
 ```
 
 Start the preview:
 
 ```bash
-DATABASE_URL='postgres://unity:unity@localhost:54329/unity_releases' npm run dev -- --port 3000
+DATABASE_URL='postgres://unity:unity@localhost:54329/unity_alerts' npm run dev -- --port 3000
 ```
 
 Useful checks:
@@ -47,7 +47,7 @@ Useful checks:
 ```bash
 npm test
 npm run typecheck
-DATABASE_URL='postgres://unity:unity@localhost:54329/unity_releases' npm run build
+DATABASE_URL='postgres://unity:unity@localhost:54329/unity_alerts' npm run build
 curl -sS http://localhost:3000/api/health
 ```
 
