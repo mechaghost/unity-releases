@@ -23,6 +23,9 @@ else
   echo "[boot] WARN: db:migrate failed; starting server anyway" >&2
 fi
 
-# exec so Node replaces this shell as PID 1 and receives Railway's
-# SIGTERM directly for clean shutdowns.
-exec npm run start
+# exec the Next.js binary directly (not via `npm run start`) so Node
+# becomes PID 1 and receives Railway's SIGTERM itself — it then drains
+# connections and exits 0. Going through npm leaves npm as PID 1, which
+# doesn't forward the signal cleanly and logs noisy "npm error signal
+# SIGTERM / command failed" lines on every shutdown.
+exec node_modules/.bin/next start
