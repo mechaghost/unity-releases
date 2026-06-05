@@ -2151,6 +2151,10 @@ export type DiscoursePostListFilters = {
   tags?: string[];
   usernames?: string[];
   editedOnly?: boolean;
+  /** Only topic-starter posts (Discourse post_number = 1) — i.e. threads
+   *  staff actually opened, which is where product announcements, betas,
+   *  and release posts live (vs. staff replies inside other threads). */
+  firstPostOnly?: boolean;
   sort?: "recent" | "newest" | "popular" | "edited";
   includeDeleted?: boolean;
   page?: number;
@@ -2235,6 +2239,9 @@ export async function listDiscoursePosts(
   }
   if (filters.editedOnly) {
     wheres.push("dp.last_edited_at IS NOT NULL");
+  }
+  if (filters.firstPostOnly) {
+    wheres.push("dp.post_number = 1");
   }
   const whereSql = wheres.length > 0 ? `WHERE ${wheres.join(" AND ")}` : "";
 

@@ -48,6 +48,11 @@ describe("buildDiscussionsHref", () => {
     );
   });
 
+  test("serializes topicsOnly as topics=1", () => {
+    expect(buildDiscussionsHref({ topicsOnly: true })).toBe("/discussions?topics=1");
+    expect(buildDiscussionsHref({ topicsOnly: false })).toBe("/discussions");
+  });
+
   test("url-encodes filter values", () => {
     expect(buildDiscussionsHref({ q: "input system" })).toBe(
       "/discussions?q=input+system"
