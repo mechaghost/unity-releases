@@ -11,6 +11,7 @@ type Props = {
   author: string;
   sort: string;
   editedOnly: boolean;
+  topicsOnly: boolean;
   categories: FacetOption[];
   authors: FacetOption[];
 };
@@ -35,6 +36,7 @@ export function DiscussionsFilter({
   author,
   sort,
   editedOnly,
+  topicsOnly,
   categories,
   authors
 }: Props) {
@@ -110,6 +112,20 @@ export function DiscussionsFilter({
             </option>
           ))}
         </select>
+      </label>
+
+      <label
+        className="stream-checkbox-filter__option"
+        data-checked={topicsOnly ? "true" : undefined}
+        title="Only threads staff started (post #1) — product announcements, betas, and release posts"
+      >
+        <input type="checkbox" name="topics" value="1" defaultChecked={topicsOnly} />
+        {topicsOnly ? (
+          <span className="stream-checkbox-filter__check" aria-hidden="true">
+            <Icon name="check" size={12} />
+          </span>
+        ) : null}
+        <span>Announcements &amp; betas</span>
       </label>
 
       <label
