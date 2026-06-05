@@ -4047,6 +4047,7 @@ button.filter-section__head:focus-visible {
 }
 
 .discussion-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -4054,6 +4055,20 @@ button.filter-section__head:focus-visible {
   background: var(--surface-base);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+/* Whole-card tap target: the title link is stretched to cover the card
+   via a ::after overlay, so tapping anywhere on the card opens the
+   thread. The title stays the real, semantic link. */
+.discussion-card:hover {
+  border-color: var(--border-focus);
+  background: var(--surface-raised, var(--surface-base));
+}
+.discussion-card__title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
 .discussion-card__head {
@@ -4079,9 +4094,6 @@ button.filter-section__head:focus-visible {
 .discussion-card__author-name {
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
-}
-.discussion-card__author-title {
-  font-size: var(--text-xs);
 }
 .discussion-card__date {
   margin-left: auto;
