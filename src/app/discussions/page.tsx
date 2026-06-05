@@ -14,6 +14,7 @@ import {
   DISCOURSE_BASE,
   avatarUrl,
   buildDiscussionsHref,
+  cleanExcerpt,
   normalizeSort
 } from "@/lib/discussions-view";
 
@@ -95,7 +96,7 @@ export default async function DiscussionsPage({
   }));
   const authorOptions = facets.authors.map((a) => ({
     value: a.username,
-    label: a.userTitle ? `${a.username} · ${a.userTitle}` : a.username,
+    label: a.username,
     count: a.count
   }));
 
@@ -261,6 +262,7 @@ function StatsStrip({ stats }: { stats: DiscoursePostStats }) {
 function DiscussionCard({ post }: { post: DiscoursePostListItem }) {
   const title = post.topicTitle || `Post #${post.postNumber}`;
   const avatar = avatarUrl(post.avatarTemplate);
+  const excerpt = cleanExcerpt(post.excerpt);
   return (
     <li className="discussion-card">
       <header className="discussion-card__head">
@@ -279,9 +281,6 @@ function DiscussionCard({ post }: { post: DiscoursePostListItem }) {
             />
           ) : null}
           <span className="discussion-card__author-name">{post.username}</span>
-          {post.userTitle ? (
-            <span className="discussion-card__author-title muted">{post.userTitle}</span>
-          ) : null}
         </span>
         {post.categoryName ? (
           <span className="chip discussion-card__category">{post.categoryName}</span>
@@ -305,7 +304,7 @@ function DiscussionCard({ post }: { post: DiscoursePostListItem }) {
         </ExternalLink>
       </h2>
 
-      {post.excerpt ? <p className="discussion-card__excerpt">{post.excerpt}</p> : null}
+      {excerpt ? <p className="discussion-card__excerpt">{excerpt}</p> : null}
 
       <footer className="discussion-card__meta">
         {post.tags.length > 0 ? (

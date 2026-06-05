@@ -3,8 +3,33 @@ import { describe, expect, test } from "vitest";
 import {
   avatarUrl,
   buildDiscussionsHref,
+  cleanExcerpt,
   normalizeSort
 } from "@/lib/discussions-view";
+
+describe("cleanExcerpt", () => {
+  test("returns empty string for nullish input", () => {
+    expect(cleanExcerpt(null)).toBe("");
+    expect(cleanExcerpt(undefined)).toBe("");
+    expect(cleanExcerpt("")).toBe("");
+  });
+
+  test("strips HTML tags down to readable text", () => {
+    expect(
+      cleanExcerpt('Read the <a href="https://discussions.unity.com/t/1">beta notes</a> now')
+    ).toBe("Read the beta notes now");
+  });
+
+  test("decodes the common HTML entities", () => {
+    expect(cleanExcerpt('Tom &amp; Jerry &quot;quoted&quot; it&#39;s fine')).toBe(
+      'Tom & Jerry "quoted" it\'s fine'
+    );
+  });
+
+  test("collapses whitespace left behind by stripped block tags", () => {
+    expect(cleanExcerpt("<p>line one</p>\n<p>line two</p>")).toBe("line one line two");
+  });
+});
 
 describe("normalizeSort", () => {
   test("passes through known sorts", () => {

@@ -6,6 +6,25 @@
 
 export const DISCOURSE_BASE = "https://discussions.unity.com";
 
+/** Discourse excerpts arrive with raw HTML (anchor tags, encoded
+ *  entities). We render them as plain text, so a literal `<a href="…">`
+ *  would otherwise show through. Strip tags and decode the common
+ *  entities down to clean, readable text. */
+export function cleanExcerpt(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&hellip;/g, "…")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&#x0*27;|&rsquo;|&lsquo;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export type DiscourseSort = "recent" | "newest" | "popular" | "edited";
 
 const VALID_SORTS: ReadonlySet<string> = new Set([
