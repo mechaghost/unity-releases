@@ -65,6 +65,12 @@ const NAV: NavSection[] = [
         label: "Activity Feed",
         icon: "clock",
         match: (pathname) => pathname === "/timeline"
+      },
+      {
+        href: "/discussions",
+        label: "Staff Discussions",
+        icon: "message-square",
+        match: (pathname) => pathname === "/discussions"
       }
     ]
   },
