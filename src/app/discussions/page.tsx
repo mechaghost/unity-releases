@@ -14,6 +14,7 @@ import {
   DISCOURSE_BASE,
   avatarUrl,
   buildDiscussionsHref,
+  cleanExcerpt,
   normalizeSort
 } from "@/lib/discussions-view";
 
@@ -41,7 +42,7 @@ type SearchParams = Promise<{
   author?: string | string[];
   sort?: string | string[];
   edited?: string | string[];
-  topics?: string | string[];
+  replies?: string | string[];
   page?: string | string[];
 }>;
 
@@ -56,7 +57,11 @@ export default async function DiscussionsPage({
   const author = firstString(params.author);
   const sort = normalizeSort(firstString(params.sort));
   const editedOnly = firstString(params.edited) === "1";
-  const topicsOnly = firstString(params.topics) === "1";
+  // Default view is staff-started topics (announcements/betas). Opt in to
+  // the full firehose — staff replies inside other threads too — via
+  // ?replies=1. An unchecked GET checkbox sends nothing, so the absent
+  // case has to be the default-on (topics-only) state.
+  const includeReplies = firstString(params.replies) === "1";
   const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
 
   const [facets, stats] = await Promise.all([safeFacets(), safeStats()]);
@@ -73,7 +78,7 @@ export default async function DiscussionsPage({
     categoryIds: categoryId ? [categoryId] : undefined,
     usernames: author ? [author] : undefined,
     editedOnly,
-    firstPostOnly: topicsOnly,
+    firstPostOnly: !includeReplies,
     sort,
     page,
     perPage: PER_PAGE
@@ -82,7 +87,7 @@ export default async function DiscussionsPage({
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const start = total === 0 ? 0 : (page - 1) * PER_PAGE + 1;
   const end = Math.min(total, page * PER_PAGE);
-  const filtered = Boolean(q || categorySlug || author || editedOnly || topicsOnly);
+  const filtered = Boolean(q || categorySlug || author || editedOnly);
 
   const categoryOptions = facets.categories.map((c) => ({
     value: c.slug,
@@ -91,7 +96,7 @@ export default async function DiscussionsPage({
   }));
   const authorOptions = facets.authors.map((a) => ({
     value: a.username,
-    label: a.userTitle ? `${a.username} · ${a.userTitle}` : a.username,
+    label: a.username,
     count: a.count
   }));
 
@@ -102,7 +107,7 @@ export default async function DiscussionsPage({
       author,
       sort,
       edited: editedOnly,
-      topicsOnly,
+      includeReplies,
       page: targetPage
     });
 
@@ -113,13 +118,15 @@ export default async function DiscussionsPage({
           <h1>Staff Discussions</h1>
         </div>
         <p>
-          What Unity employees are saying on{" "}
+          Threads Unity staff have started on{" "}
           <ExternalLink href={DISCOURSE_BASE} className="link-internal--accent">
             discussions.unity.com
-          </ExternalLink>
-          . Only posts from accounts in Unity&apos;s staff group are tracked,
-          and each post&apos;s edit history is kept so you can see when an answer
-          changed. Click a title to read the full thread on Unity&apos;s forum.
+          </ExternalLink>{" "}
+          — product announcements, beta programs, and release posts. Only
+          accounts in Unity&apos;s staff group are tracked, and each post&apos;s
+          edit history is kept. Tick <strong>Include replies</strong> to also
+          see staff replies inside other people&apos;s threads. Click a title to
+          read the full thread on Unity&apos;s forum.
         </p>
         <StatsStrip stats={stats} />
       </section>
@@ -130,7 +137,7 @@ export default async function DiscussionsPage({
         author={author}
         sort={sort}
         editedOnly={editedOnly}
-        topicsOnly={topicsOnly}
+        includeReplies={includeReplies}
         categories={categoryOptions}
         authors={authorOptions}
       />
@@ -138,7 +145,13 @@ export default async function DiscussionsPage({
       <div className="list-toolbar">
         <span className="list-toolbar__count">
           <strong className="tabnums">{total.toLocaleString()}</strong>{" "}
-          {total === 1 ? "staff post" : "staff posts"}
+          {includeReplies
+            ? total === 1
+              ? "staff post"
+              : "staff posts"
+            : total === 1
+              ? "staff-started topic"
+              : "staff-started topics"}
           {q ? <> matching <code>{q}</code></> : null}
           {total > 0 ? (
             <> · showing {start.toLocaleString()}–{end.toLocaleString()}</>
@@ -249,6 +262,7 @@ function StatsStrip({ stats }: { stats: DiscoursePostStats }) {
 function DiscussionCard({ post }: { post: DiscoursePostListItem }) {
   const title = post.topicTitle || `Post #${post.postNumber}`;
   const avatar = avatarUrl(post.avatarTemplate);
+  const excerpt = cleanExcerpt(post.excerpt);
   return (
     <li className="discussion-card">
       <header className="discussion-card__head">
@@ -267,9 +281,6 @@ function DiscussionCard({ post }: { post: DiscoursePostListItem }) {
             />
           ) : null}
           <span className="discussion-card__author-name">{post.username}</span>
-          {post.userTitle ? (
-            <span className="discussion-card__author-title muted">{post.userTitle}</span>
-          ) : null}
         </span>
         {post.categoryName ? (
           <span className="chip discussion-card__category">{post.categoryName}</span>
@@ -293,7 +304,7 @@ function DiscussionCard({ post }: { post: DiscoursePostListItem }) {
         </ExternalLink>
       </h2>
 
-      {post.excerpt ? <p className="discussion-card__excerpt">{post.excerpt}</p> : null}
+      {excerpt ? <p className="discussion-card__excerpt">{excerpt}</p> : null}
 
       <footer className="discussion-card__meta">
         {post.tags.length > 0 ? (
