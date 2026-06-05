@@ -41,7 +41,7 @@ type SearchParams = Promise<{
   author?: string | string[];
   sort?: string | string[];
   edited?: string | string[];
-  topics?: string | string[];
+  replies?: string | string[];
   page?: string | string[];
 }>;
 
@@ -56,7 +56,11 @@ export default async function DiscussionsPage({
   const author = firstString(params.author);
   const sort = normalizeSort(firstString(params.sort));
   const editedOnly = firstString(params.edited) === "1";
-  const topicsOnly = firstString(params.topics) === "1";
+  // Default view is staff-started topics (announcements/betas). Opt in to
+  // the full firehose — staff replies inside other threads too — via
+  // ?replies=1. An unchecked GET checkbox sends nothing, so the absent
+  // case has to be the default-on (topics-only) state.
+  const includeReplies = firstString(params.replies) === "1";
   const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
 
   const [facets, stats] = await Promise.all([safeFacets(), safeStats()]);
@@ -73,7 +77,7 @@ export default async function DiscussionsPage({
     categoryIds: categoryId ? [categoryId] : undefined,
     usernames: author ? [author] : undefined,
     editedOnly,
-    firstPostOnly: topicsOnly,
+    firstPostOnly: !includeReplies,
     sort,
     page,
     perPage: PER_PAGE
@@ -82,7 +86,7 @@ export default async function DiscussionsPage({
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const start = total === 0 ? 0 : (page - 1) * PER_PAGE + 1;
   const end = Math.min(total, page * PER_PAGE);
-  const filtered = Boolean(q || categorySlug || author || editedOnly || topicsOnly);
+  const filtered = Boolean(q || categorySlug || author || editedOnly);
 
   const categoryOptions = facets.categories.map((c) => ({
     value: c.slug,
@@ -102,7 +106,7 @@ export default async function DiscussionsPage({
       author,
       sort,
       edited: editedOnly,
-      topicsOnly,
+      includeReplies,
       page: targetPage
     });
 
@@ -113,13 +117,15 @@ export default async function DiscussionsPage({
           <h1>Staff Discussions</h1>
         </div>
         <p>
-          What Unity employees are saying on{" "}
+          Threads Unity staff have started on{" "}
           <ExternalLink href={DISCOURSE_BASE} className="link-internal--accent">
             discussions.unity.com
-          </ExternalLink>
-          . Only posts from accounts in Unity&apos;s staff group are tracked,
-          and each post&apos;s edit history is kept so you can see when an answer
-          changed. Click a title to read the full thread on Unity&apos;s forum.
+          </ExternalLink>{" "}
+          — product announcements, beta programs, and release posts. Only
+          accounts in Unity&apos;s staff group are tracked, and each post&apos;s
+          edit history is kept. Tick <strong>Include replies</strong> to also
+          see staff replies inside other people&apos;s threads. Click a title to
+          read the full thread on Unity&apos;s forum.
         </p>
         <StatsStrip stats={stats} />
       </section>
@@ -130,7 +136,7 @@ export default async function DiscussionsPage({
         author={author}
         sort={sort}
         editedOnly={editedOnly}
-        topicsOnly={topicsOnly}
+        includeReplies={includeReplies}
         categories={categoryOptions}
         authors={authorOptions}
       />
@@ -138,7 +144,13 @@ export default async function DiscussionsPage({
       <div className="list-toolbar">
         <span className="list-toolbar__count">
           <strong className="tabnums">{total.toLocaleString()}</strong>{" "}
-          {total === 1 ? "staff post" : "staff posts"}
+          {includeReplies
+            ? total === 1
+              ? "staff post"
+              : "staff posts"
+            : total === 1
+              ? "staff-started topic"
+              : "staff-started topics"}
           {q ? <> matching <code>{q}</code></> : null}
           {total > 0 ? (
             <> · showing {start.toLocaleString()}–{end.toLocaleString()}</>
