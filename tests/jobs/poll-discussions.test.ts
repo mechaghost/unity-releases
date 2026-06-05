@@ -50,6 +50,16 @@ describe("RequestBudget", () => {
     expect(budget.throttled).toBe(false);
   });
 
+  test("sends a browser user-agent so Cloudflare doesn't 403 the Discourse API", async () => {
+    mocks.fetchText.mockResolvedValueOnce(fakeSource(200));
+    const budget = new RequestBudget(10);
+    await budget.fetch("https://discussions.unity.com/site.json");
+    expect(mocks.fetchText).toHaveBeenCalledWith(
+      "https://discussions.unity.com/site.json",
+      expect.objectContaining({ userAgent: expect.stringContaining("Mozilla/5.0") })
+    );
+  });
+
   test("treats 404 as a non-error not_found result", async () => {
     mocks.fetchText.mockResolvedValueOnce(fakeSource(404));
     const budget = new RequestBudget(10);
