@@ -2172,7 +2172,6 @@ export type DiscoursePostListItem = {
   categorySlug: string | null;
   tags: string[];
   excerpt: string | null;
-  raw: string;
   discourseCreatedAt: string;
   discourseUpdatedAt: string;
   lastEditedAt: string | null;
@@ -2271,7 +2270,6 @@ export async function listDiscoursePosts(
     category_slug: string | null;
     tags: string[];
     excerpt: string | null;
-    raw: string;
     discourse_created_at: string;
     discourse_updated_at: string;
     last_edited_at: string | null;
@@ -2288,7 +2286,7 @@ export async function listDiscoursePosts(
         dp.post_number, dp.topic_slug, dp.topic_title,
         dp.username, su.user_title, su.avatar_template,
         dp.discourse_category_id, dc.name AS category_name, dc.slug AS category_slug,
-        dp.tags, dp.excerpt, dp.raw,
+        dp.tags, dp.excerpt,
         dp.discourse_created_at, dp.discourse_updated_at, dp.last_edited_at, dp.edit_reason,
         dp.reply_count, dp.incoming_link_count, dp.score::text, dp.is_deleted
       FROM discourse_posts dp
@@ -2316,7 +2314,6 @@ export async function listDiscoursePosts(
     categorySlug: row.category_slug,
     tags: row.tags ?? [],
     excerpt: row.excerpt,
-    raw: row.raw,
     discourseCreatedAt: new Date(row.discourse_created_at).toISOString(),
     discourseUpdatedAt: new Date(row.discourse_updated_at).toISOString(),
     lastEditedAt: row.last_edited_at ? new Date(row.last_edited_at).toISOString() : null,

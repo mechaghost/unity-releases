@@ -78,7 +78,7 @@ export function DiscussionsFilter({
       />
 
       <label className="discussions-filter__select">
-        <span className="visually-hidden">Category</span>
+        <span>Category</span>
         <select name="category" defaultValue={categorySlug} aria-label="Filter by category">
           <option value="">All categories</option>
           {categories.map((c) => (
@@ -90,7 +90,7 @@ export function DiscussionsFilter({
       </label>
 
       <label className="discussions-filter__select">
-        <span className="visually-hidden">Author</span>
+        <span>Author</span>
         <select name="author" defaultValue={author} aria-label="Filter by author">
           <option value="">All staff</option>
           {authors.map((a) => (
@@ -102,7 +102,7 @@ export function DiscussionsFilter({
       </label>
 
       <label className="discussions-filter__select">
-        <span className="visually-hidden">Sort</span>
+        <span>Sort</span>
         <select name="sort" defaultValue={sort} aria-label="Sort posts">
           {SORTS.map((s) => (
             <option key={s.value} value={s.value}>

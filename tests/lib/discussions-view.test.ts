@@ -74,10 +74,24 @@ describe("avatarUrl", () => {
     );
   });
 
-  test("passes through an already-absolute template", () => {
-    expect(avatarUrl("https://cdn.example.com/a/{size}/x.png")).toBe(
-      "https://cdn.example.com/a/48/x.png"
+  test("honors absolute https URLs on allowed Unity / Discourse-CDN hosts", () => {
+    expect(avatarUrl("https://discussions.unity.com/a/{size}/x.png")).toBe(
+      "https://discussions.unity.com/a/48/x.png"
     );
+    expect(avatarUrl("https://sjc1.discourse-cdn.com/unity/a/{size}/x.png")).toBe(
+      "https://sjc1.discourse-cdn.com/unity/a/48/x.png"
+    );
+  });
+
+  test("blocks absolute URLs on untrusted hosts (anti-tracking-pixel)", () => {
+    expect(avatarUrl("https://evil.example.com/a/{size}/x.png")).toBeNull();
+    // A host that merely contains, but does not end with, an allowed
+    // suffix must not slip through.
+    expect(avatarUrl("https://unity.com.evil.test/x.png")).toBeNull();
+  });
+
+  test("blocks non-https schemes", () => {
+    expect(avatarUrl("http://discussions.unity.com/a/{size}/x.png")).toBeNull();
   });
 
   test("returns null for an unusable (non-path, non-url) template", () => {

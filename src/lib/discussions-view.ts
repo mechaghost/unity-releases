@@ -47,14 +47,33 @@ export function buildDiscussionsHref(state: DiscussionsHrefState): string {
 
 /** Discourse `avatar_template` is a path with a `{size}` placeholder
  *  (e.g. `/user_avatar/host/name/{size}/123.png`). Resolve it to an
- *  absolute URL at a small render size, or null when absent/unusable. */
+ *  absolute URL at a small render size, or null when absent/unusable.
+ *
+ *  The template is upstream data (the Discourse API), so we never render
+ *  an arbitrary absolute `src`: a poisoned template pointing at an
+ *  attacker host would otherwise leak every viewer's IP / act as a
+ *  tracking pixel. Relative paths resolve against discussions.unity.com;
+ *  absolute URLs are only honored over https and only for Unity or the
+ *  standard Discourse avatar CDN. Anything else resolves to null (no
+ *  avatar), which the card already degrades to gracefully. */
 export function avatarUrl(
   template: string | null | undefined,
   size = 48
 ): string | null {
   if (!template) return null;
   const sized = template.replace("{size}", String(size));
-  if (sized.startsWith("http://") || sized.startsWith("https://")) return sized;
   if (sized.startsWith("/")) return `${DISCOURSE_BASE}${sized}`;
-  return null;
+  let url: URL;
+  try {
+    url = new URL(sized);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:") return null;
+  const host = url.hostname.toLowerCase();
+  const allowed =
+    host === "unity.com" ||
+    host.endsWith(".unity.com") ||
+    host.endsWith(".discourse-cdn.com");
+  return allowed ? url.toString() : null;
 }

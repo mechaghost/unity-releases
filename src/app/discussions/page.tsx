@@ -257,6 +257,8 @@ function DiscussionCard({ post }: { post: DiscoursePostListItem }) {
               width={24}
               height={24}
               loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
             />
           ) : null}
           <span className="discussion-card__author-name">{post.username}</span>
