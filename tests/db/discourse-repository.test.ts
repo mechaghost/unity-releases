@@ -168,6 +168,13 @@ describe("listDiscoursePosts", () => {
     expect(sql).toContain("dp.last_edited_at IS NOT NULL");
   });
 
+  test("firstPostOnly restricts to topic-starter posts (post_number = 1)", async () => {
+    mocks.query.mockResolvedValueOnce(rows());
+    await listDiscoursePosts({ firstPostOnly: true });
+    const [sql] = mocks.query.mock.calls[0];
+    expect(sql).toContain("dp.post_number = 1");
+  });
+
   test("sort=popular orders by reply_count, sort=edited orders by last_edited_at", async () => {
     mocks.query.mockResolvedValueOnce(rows());
     await listDiscoursePosts({ sort: "popular" });
