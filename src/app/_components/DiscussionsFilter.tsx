@@ -11,7 +11,7 @@ type Props = {
   author: string;
   sort: string;
   editedOnly: boolean;
-  topicsOnly: boolean;
+  includeReplies: boolean;
   categories: FacetOption[];
   authors: FacetOption[];
 };
@@ -36,7 +36,7 @@ export function DiscussionsFilter({
   author,
   sort,
   editedOnly,
-  topicsOnly,
+  includeReplies,
   categories,
   authors
 }: Props) {
@@ -116,16 +116,16 @@ export function DiscussionsFilter({
 
       <label
         className="stream-checkbox-filter__option"
-        data-checked={topicsOnly ? "true" : undefined}
-        title="Only threads staff started (post #1) — product announcements, betas, and release posts"
+        data-checked={includeReplies ? "true" : undefined}
+        title="Also show staff replies inside other people's threads (off = staff-started topics only: announcements, betas, releases)"
       >
-        <input type="checkbox" name="topics" value="1" defaultChecked={topicsOnly} />
-        {topicsOnly ? (
+        <input type="checkbox" name="replies" value="1" defaultChecked={includeReplies} />
+        {includeReplies ? (
           <span className="stream-checkbox-filter__check" aria-hidden="true">
             <Icon name="check" size={12} />
           </span>
         ) : null}
-        <span>Announcements &amp; betas</span>
+        <span>Include replies</span>
       </label>
 
       <label
