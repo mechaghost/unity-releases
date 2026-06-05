@@ -27,6 +27,8 @@ export type DiscussionsHrefState = {
   author?: string;
   sort?: string;
   edited?: boolean;
+  /** Topic-starters only (announcements/betas) — serialized as `topics=1`. */
+  topicsOnly?: boolean;
   page?: number;
 };
 
@@ -40,6 +42,7 @@ export function buildDiscussionsHref(state: DiscussionsHrefState): string {
   if (state.author) sp.set("author", state.author);
   if (state.sort && state.sort !== "recent") sp.set("sort", state.sort);
   if (state.edited) sp.set("edited", "1");
+  if (state.topicsOnly) sp.set("topics", "1");
   if (state.page && state.page > 1) sp.set("page", String(state.page));
   const qs = sp.toString();
   return qs ? `/discussions?${qs}` : "/discussions";

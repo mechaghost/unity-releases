@@ -41,6 +41,7 @@ type SearchParams = Promise<{
   author?: string | string[];
   sort?: string | string[];
   edited?: string | string[];
+  topics?: string | string[];
   page?: string | string[];
 }>;
 
@@ -55,6 +56,7 @@ export default async function DiscussionsPage({
   const author = firstString(params.author);
   const sort = normalizeSort(firstString(params.sort));
   const editedOnly = firstString(params.edited) === "1";
+  const topicsOnly = firstString(params.topics) === "1";
   const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
 
   const [facets, stats] = await Promise.all([safeFacets(), safeStats()]);
@@ -71,6 +73,7 @@ export default async function DiscussionsPage({
     categoryIds: categoryId ? [categoryId] : undefined,
     usernames: author ? [author] : undefined,
     editedOnly,
+    firstPostOnly: topicsOnly,
     sort,
     page,
     perPage: PER_PAGE
@@ -79,7 +82,7 @@ export default async function DiscussionsPage({
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const start = total === 0 ? 0 : (page - 1) * PER_PAGE + 1;
   const end = Math.min(total, page * PER_PAGE);
-  const filtered = Boolean(q || categorySlug || author || editedOnly);
+  const filtered = Boolean(q || categorySlug || author || editedOnly || topicsOnly);
 
   const categoryOptions = facets.categories.map((c) => ({
     value: c.slug,
@@ -99,6 +102,7 @@ export default async function DiscussionsPage({
       author,
       sort,
       edited: editedOnly,
+      topicsOnly,
       page: targetPage
     });
 
@@ -126,6 +130,7 @@ export default async function DiscussionsPage({
         author={author}
         sort={sort}
         editedOnly={editedOnly}
+        topicsOnly={topicsOnly}
         categories={categoryOptions}
         authors={authorOptions}
       />
