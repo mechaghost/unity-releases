@@ -48,9 +48,9 @@ describe("buildDiscussionsHref", () => {
     );
   });
 
-  test("serializes topicsOnly as topics=1", () => {
-    expect(buildDiscussionsHref({ topicsOnly: true })).toBe("/discussions?topics=1");
-    expect(buildDiscussionsHref({ topicsOnly: false })).toBe("/discussions");
+  test("serializes includeReplies as replies=1 (default topics-only view stays bare)", () => {
+    expect(buildDiscussionsHref({ includeReplies: true })).toBe("/discussions?replies=1");
+    expect(buildDiscussionsHref({ includeReplies: false })).toBe("/discussions");
   });
 
   test("url-encodes filter values", () => {
