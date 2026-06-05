@@ -80,7 +80,7 @@ const SECTIONS: Section[] = [
         question: "Where does the data come from?",
         answer: (
           <>
-            Five public Unity sources, all polled on a schedule:
+            Six public Unity sources, all polled on a schedule:
             <ul>
               <li>
                 <strong>Editor releases (Unity 6):</strong> the three landing
@@ -119,6 +119,14 @@ const SECTIONS: Section[] = [
               <li>
                 <strong>News:</strong> the official Unity blog RSS feed at{" "}
                 <code>unity.com/blog/rss</code>.
+              </li>
+              <li>
+                <strong>Staff discussions:</strong> the Discourse JSON API at{" "}
+                <code>discussions.unity.com</code> - we track posts from
+                accounts in Unity&apos;s staff user group, keeping each
+                post&apos;s edit history so you can see when a Unity answer
+                changed. Surfaced on the{" "}
+                <a href="/discussions">Staff Discussions</a> page.
               </li>
             </ul>
             Every fetch is recorded in <code>source_snapshots</code> with a
