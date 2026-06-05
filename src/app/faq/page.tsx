@@ -647,6 +647,36 @@ const SECTIONS: Section[] = [
             something the release notes don&apos;t fully explain.
           </>
         )
+      },
+      {
+        id: "page-discussions",
+        question: "What does Staff Discussions show?",
+        answer: (
+          <>
+            <p>
+              Posts written by Unity staff on{" "}
+              <code>discussions.unity.com</code> - the official Discourse
+              forum. Only accounts in Unity&apos;s <code>unity_staff</code>{" "}
+              group are tracked, so it&apos;s a low-noise view of what Unity
+              employees are actually saying, without the surrounding community
+              threads.
+            </p>
+            <p>
+              By default the page shows <strong>staff-started topics</strong>{" "}
+              (the first post of a thread) - product announcements, beta
+              programmes, and release posts. Tick{" "}
+              <strong>Include replies</strong> to also surface staff replies
+              left inside other people&apos;s threads. You can further filter by
+              search, category, and author, and sort by recent activity,
+              newest, most replies, or recently edited.
+            </p>
+            <p>
+              Each post&apos;s edit history is kept, so a post that staff later
+              changed is flagged <strong>Edited</strong>. Titles link straight
+              to the thread on Unity&apos;s forum.
+            </p>
+          </>
+        )
       }
     ]
   },
