@@ -61,16 +61,16 @@ const NAV: NavSection[] = [
         match: (pathname) => pathname === "/packages"
       },
       {
-        href: "/timeline",
-        label: "Activity Feed",
-        icon: "clock",
-        match: (pathname) => pathname === "/timeline"
-      },
-      {
         href: "/discussions",
         label: "Staff Discussions",
         icon: "message-square",
         match: (pathname) => pathname === "/discussions"
+      },
+      {
+        href: "/timeline",
+        label: "Activity Feed",
+        icon: "clock",
+        match: (pathname) => pathname === "/timeline"
       }
     ]
   },
