@@ -52,6 +52,14 @@ import {
  */
 
 const DISCOURSE_BASE = "https://discussions.unity.com";
+// discussions.unity.com is fronted by Cloudflare, which 403s our default
+// UnityReleasesBot user-agent (and any non-browser UA). Send a browser UA
+// so the public Discourse JSON API responds. Overridable via env if Unity
+// changes their policy. The job stays polite via REQUEST_DELAY_MS + the
+// MAX_REQUESTS_PER_RUN budget below.
+const DISCOURSE_USER_AGENT =
+  process.env.DISCOURSE_USER_AGENT ??
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 const REQUEST_DELAY_MS = Number(process.env.DISCOURSE_REQUEST_DELAY_MS ?? 1000);
 const MAX_REQUESTS_PER_RUN = Number(process.env.DISCOURSE_MAX_REQUESTS_PER_RUN ?? 1500);
 const ACTIVE_WINDOW_DAYS = Number(process.env.DISCOURSE_ACTIVE_WINDOW_DAYS ?? 365);
@@ -93,7 +101,7 @@ export class RequestBudget {
       return { kind: "rate_limited", status: 429 };
     }
     this.count += 1;
-    const source = await fetchText(url);
+    const source = await fetchText(url, { userAgent: DISCOURSE_USER_AGENT });
     if (source.status === 429) {
       // Once Discourse rate-limits us, every subsequent call should
       // back off too — defer the remaining users to the next cron.

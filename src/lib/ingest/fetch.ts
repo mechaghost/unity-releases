@@ -12,10 +12,16 @@ export type FetchedSource = {
   sha256: string;
 };
 
-export async function fetchText(url: string): Promise<FetchedSource> {
+export async function fetchText(
+  url: string,
+  opts?: { userAgent?: string }
+): Promise<FetchedSource> {
   const response = await fetch(url, {
     headers: {
-      "user-agent": process.env.INGESTION_USER_AGENT ?? DEFAULT_USER_AGENT,
+      // Per-call userAgent override takes precedence over the env/default.
+      // Needed for hosts (e.g. discussions.unity.com behind Cloudflare)
+      // that 403 a non-browser UA.
+      "user-agent": opts?.userAgent ?? process.env.INGESTION_USER_AGENT ?? DEFAULT_USER_AGENT,
       accept: "text/html,application/rss+xml,application/xml,text/xml,application/json,text/plain,*/*"
     },
     redirect: "follow"
