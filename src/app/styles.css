@@ -3969,6 +3969,172 @@ button.filter-section__head:focus-visible {
   border-radius: var(--radius-pill);
 }
 
+/* ========================================================================
+   Staff Discussions - /discussions
+   ------------------------------------------------------------------------
+   Reuses page-header, filter-bar, chip, list-toolbar, and lane__pagination
+   so it sits alongside /news and /resources. New here: the dropdown-based
+   filter row, the stats strip under the header, and the staff-post card.
+   ======================================================================== */
+
+.discussions-filter__search {
+  /* Grow to dominate the row when there's space; shrink and wrap the
+     dropdowns below on narrow screens. Visual styling is inherited from
+     the base `.filter-bar input[type="search"]` rule. */
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+/* The dropdowns inherit height/border/radius from `.filter-bar select`;
+   we only cap their width so a long category or author label can't
+   stretch one control across the whole row. */
+.discussions-filter__select select {
+  max-width: 200px;
+}
+
+@media (max-width: 640px) {
+  /* Let the search box claim its own full-width row above the wrapped
+     dropdowns, and let the dropdowns share the remaining width evenly
+     rather than each clinging to a 140px min. */
+  .discussions-filter__search {
+    flex-basis: 100%;
+  }
+  .discussions-filter__select {
+    flex: 1 1 auto;
+  }
+  .discussions-filter__select select {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+/* Compact metric strip under the page intro - mirrors the number-card
+   idea from /stats but inline, since there are only a handful. */
+.discussion-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-3) 0 0;
+}
+.discussion-stats__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.discussion-stats__item dt {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.discussion-stats__item dd {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.discussion-stats__item dd .muted {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+
+.discussion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.discussion-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+
+.discussion-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  min-height: 24px;
+}
+.discussion-card__author {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.discussion-card__avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  background: var(--surface-sunken);
+}
+.discussion-card__author-name {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.discussion-card__author-title {
+  font-size: var(--text-xs);
+}
+.discussion-card__date {
+  margin-left: auto;
+}
+
+.discussion-card__title {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.discussion-card__title a { color: inherit; }
+.discussion-card__title a:hover { color: var(--text-link); }
+
+.discussion-card__excerpt {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-md);
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.discussion-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.discussion-card__tags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.discussion-card__tags li {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+}
+.discussion-card__replies {
+  margin-left: auto;
+  font-size: var(--text-xs);
+}
+
 /* ------------------------------------------------------------------ */
 /* /stats page                                                         */
 /* Three sections (artifacts, freshness, traffic), each a stack of    */
