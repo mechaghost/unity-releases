@@ -3737,6 +3737,20 @@ button.filter-section__head:focus-visible {
      specificity than `.releases-table td`. */
   .releases-table tbody tr td { border-bottom: 0; }
 
+  /* Make the whole card a tap target. The desktop pattern parks the
+     stretched row-link *below* the cell content (z-index 0 vs 1), which is
+     fine on a roomy desktop row but means on the mobile card — where
+     content fills nearly the whole surface — taps land on non-interactive
+     text and nothing opens. Lift the row-link above the content here, and
+     keep the action icons above the row-link so the external Unity link
+     still receives its own taps. */
+  .releases-table__row-link { z-index: 1; }
+  .releases-table tbody td > *:not(.releases-table__row-link) { z-index: auto; }
+  .releases-table td[data-label="Actions"] .release-actions {
+    position: relative;
+    z-index: 2;
+  }
+
   /* Top line: Version pill spans the two left columns so it can stretch. */
   .releases-table td[data-label="Version"] {
     grid-column: 1 / span 2;
