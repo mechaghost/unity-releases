@@ -3991,15 +3991,21 @@ button.filter-section__head:focus-visible {
   max-width: 200px;
 }
 
-@media (max-width: 640px) {
-  /* Let the search box claim its own full-width row above the wrapped
-     dropdowns, and let the dropdowns share the remaining width evenly
-     rather than each clinging to a 140px min. */
-  .discussions-filter__search {
-    flex-basis: 100%;
+@media (max-width: 1024px) {
+  /* The global mobile rule `.filter-bar > label { flex: 1 1 100% }` (kicks
+     in at 1024px) would otherwise stack all three dropdowns AND both
+     checkboxes as their own full-width rows. Override it with a more
+     specific compound so the controls form a tidy two-up grid: search on
+     its own row, the dropdowns two per row, the toggles inline. */
+  .filter-bar.discussions-filter > .discussions-filter__search {
+    flex: 1 1 100%;
   }
-  .discussions-filter__select {
-    flex: 1 1 auto;
+  .filter-bar.discussions-filter > label.discussions-filter__select {
+    flex: 1 1 calc(50% - var(--space-2));
+    min-width: 8rem;
+  }
+  .filter-bar.discussions-filter > label.stream-checkbox-filter__option {
+    flex: 0 1 auto;
   }
   .discussions-filter__select select {
     max-width: none;
@@ -4060,9 +4066,14 @@ button.filter-section__head:focus-visible {
 /* Whole-card tap target: the title link is stretched to cover the card
    via a ::after overlay, so tapping anywhere on the card opens the
    thread. The title stays the real, semantic link. */
-.discussion-card:hover {
-  border-color: var(--border-focus);
-  background: var(--surface-raised, var(--surface-base));
+@media (hover: hover) {
+  /* Pointer devices only — gate the hover affordance so a tapped card on
+     touch doesn't keep a stuck highlighted border (which read as a stray
+     line on mobile). */
+  .discussion-card:hover {
+    border-color: var(--border-focus);
+    background: var(--surface-raised, var(--surface-base));
+  }
 }
 .discussion-card__title a::after {
   content: "";
@@ -4105,6 +4116,9 @@ button.filter-section__head:focus-visible {
   line-height: var(--leading-md);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
+  /* A long unbroken token (URL, package id) must wrap rather than push the
+     card wider than the viewport and create an edge sliver on mobile. */
+  overflow-wrap: anywhere;
 }
 .discussion-card__title a { color: inherit; }
 .discussion-card__title a:hover { color: var(--text-link); }
@@ -4114,6 +4128,7 @@ button.filter-section__head:focus-visible {
   font-size: var(--text-sm);
   line-height: var(--leading-md);
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
