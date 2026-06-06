@@ -3611,11 +3611,17 @@ button.filter-section__head:focus-visible {
     transform: translateX(-100%);
     transition: transform var(--duration-base) var(--easing-standard);
     z-index: 50;
-    box-shadow: var(--shadow-lg);
-    border-right: 1px solid var(--border-subtle);
+    /* No border-right / box-shadow here. Parked off-canvas the drawer's
+       right edge sits exactly at the screen's left edge (x=0), so a right
+       border + shadow paint a stray vertical line / shadow down the left
+       of every mobile page. Apply them only when the drawer is open. */
     overflow-y: auto;
   }
-  .app-shell[data-nav-open="true"] .app-shell__nav { transform: translateX(0); }
+  .app-shell[data-nav-open="true"] .app-shell__nav {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+    border-right: 1px solid var(--border-subtle);
+  }
   .app-shell[data-nav-open="true"] .mobile-nav-backdrop { display: block; }
 
   .mobile-topbar { display: flex; }
