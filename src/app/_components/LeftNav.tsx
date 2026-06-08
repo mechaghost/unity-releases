@@ -61,6 +61,12 @@ const NAV: NavSection[] = [
         match: (pathname) => pathname === "/packages"
       },
       {
+        href: "/github",
+        label: "Unity GitHub",
+        icon: "github",
+        match: (pathname) => pathname === "/github"
+      },
+      {
         href: "/discussions",
         label: "Staff Discussions",
         icon: "message-square",

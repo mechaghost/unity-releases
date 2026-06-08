@@ -80,7 +80,7 @@ const SECTIONS: Section[] = [
         question: "Where does the data come from?",
         answer: (
           <>
-            Six public Unity sources, all polled on a schedule:
+            Seven public Unity sources, all polled on a schedule:
             <ul>
               <li>
                 <strong>Editor releases (Unity 6):</strong> the three landing
@@ -127,6 +127,13 @@ const SECTIONS: Section[] = [
                 post&apos;s edit history so you can see when a Unity answer
                 changed. Surfaced on the{" "}
                 <a href="/discussions">Staff Discussions</a> page.
+              </li>
+              <li>
+                <strong>GitHub:</strong> the public REST API for the{" "}
+                <code>Unity-Technologies</code> org - every public repo&apos;s
+                metadata (stars, topics, language) plus the recent activity
+                feed (releases, pushes, new repos). Surfaced on the{" "}
+                <a href="/github">Unity GitHub</a> page.
               </li>
             </ul>
             Every fetch is recorded in <code>source_snapshots</code> with a
@@ -645,6 +652,29 @@ const SECTIONS: Section[] = [
             intelligence and not classified into lanes - mostly here so a
             search across the site can find a relevant blog post about
             something the release notes don&apos;t fully explain.
+          </>
+        )
+      },
+      {
+        id: "page-github",
+        question: "What does Unity GitHub show?",
+        answer: (
+          <>
+            <p>
+              A mirror of Unity&apos;s public GitHub org,{" "}
+              <code>github.com/Unity-Technologies</code>. The activity feed up
+              top shows the latest public events - releases, pushes, and new
+              repositories - and below it is a searchable, sortable index of
+              every public repo.
+            </p>
+            <p>
+              Sort by <strong>most stars</strong>, <strong>newest</strong>, or{" "}
+              <strong>recently pushed</strong>; filter by language or search;
+              and tick <strong>Notable only</strong> for a hand-curated
+              highlight set (ml-agents, UnityCsReference, Graphics, and the
+              like). Archived repos and forks are hidden by default. It refreshes
+              on the same twice-daily cron as everything else.
+            </p>
           </>
         )
       },

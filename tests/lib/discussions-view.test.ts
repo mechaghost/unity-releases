@@ -144,6 +144,6 @@ describe("discussions page wiring", () => {
   test("the FAQ documents discussions.unity.com as a source", () => {
     const faq = readFileSync("src/app/faq/page.tsx", "utf8");
     expect(faq).toContain("discussions.unity.com");
-    expect(faq).toContain("Six public Unity sources");
+    expect(faq).toContain("public Unity sources");
   });
 });
