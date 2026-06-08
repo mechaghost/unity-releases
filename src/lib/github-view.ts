@@ -34,7 +34,6 @@ export function flipGithubDir(dir: GithubDir): GithubDir {
 export const GITHUB_TABS: ReadonlyArray<{ key: string; label: string; sort: GithubSort }> = [
   { key: "updated", label: "Recently updated", sort: "updated" },
   { key: "stars", label: "Stars", sort: "stars" },
-  { key: "newest", label: "Newest", sort: "newest" },
   { key: "forks", label: "Most forks", sort: "forks" }
 ];
 

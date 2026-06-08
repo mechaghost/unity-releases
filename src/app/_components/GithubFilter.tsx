@@ -11,7 +11,6 @@ type Props = {
   sort: string;
   dir: string;
   notableOnly: boolean;
-  includeArchived: boolean;
   includeForks: boolean;
   languages: FacetOption[];
 };
@@ -19,10 +18,11 @@ type Props = {
 /**
  * Filter row for /github, mirroring the resources/discussions pattern: a
  * GET form that auto-submits on change, with the search box debounced so a
- * typing burst is one navigation. Archived repos and forks are hidden by
- * default; the toggles opt them back in. Sort is handled by the separate
- * link-based tab control, preserved here via a hidden field so filtering
- * keeps the active sort.
+ * typing burst is one navigation. Forks are hidden by default; the toggle
+ * opts them back in. Sort is handled by the separate link-based tab
+ * control, preserved here via a hidden field so filtering keeps the active
+ * sort. (Archived repos are always hidden — they're inactive by definition,
+ * and this page is about active work.)
  */
 export function GithubFilter({
   q: initialQ,
@@ -30,7 +30,6 @@ export function GithubFilter({
   sort,
   dir,
   notableOnly,
-  includeArchived,
   includeForks,
   languages
 }: Props) {
@@ -87,7 +86,6 @@ export function GithubFilter({
       {dir && dir !== "desc" ? <input type="hidden" name="dir" value={dir} /> : null}
 
       <Toggle name="notable" checked={notableOnly} label="Notable only" title="Hand-curated highlight repos" />
-      <Toggle name="archived" checked={includeArchived} label="Archived" title="Include archived repos" />
       <Toggle name="forks" checked={includeForks} label="Forks" title="Include forked repos" />
 
       <button type="submit" className="visually-hidden">
