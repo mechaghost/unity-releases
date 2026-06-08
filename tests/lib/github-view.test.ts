@@ -10,6 +10,7 @@ describe("normalizeGithubSort", () => {
   test("passes through known sorts, defaults to stars", () => {
     expect(normalizeGithubSort("newest")).toBe("newest");
     expect(normalizeGithubSort("updated")).toBe("updated");
+    expect(normalizeGithubSort("forks")).toBe("forks");
     expect(normalizeGithubSort("stars")).toBe("stars");
     expect(normalizeGithubSort(undefined)).toBe("stars");
     expect(normalizeGithubSort("bogus")).toBe("stars");
@@ -42,6 +43,17 @@ describe("buildGithubHref", () => {
   test("drops page=1 and sort=stars", () => {
     expect(buildGithubHref({ q: "burst", sort: "stars", page: 1 })).toBe("/github?q=burst");
   });
+
+  test("serializes the forks sort", () => {
+    expect(buildGithubHref({ sort: "forks" })).toBe("/github?sort=forks");
+  });
+
+  test("the activity view drops repo filters", () => {
+    expect(buildGithubHref({ view: "activity" })).toBe("/github?view=activity");
+    expect(buildGithubHref({ view: "activity", q: "x", language: "C#", sort: "forks" })).toBe(
+      "/github?view=activity"
+    );
+  });
 });
 
 describe("formatCompact", () => {
@@ -64,6 +76,7 @@ describe("eventTypeLabel", () => {
     expect(eventTypeLabel("ReleaseEvent")).toBe("Release");
     expect(eventTypeLabel("PushEvent")).toBe("Push");
     expect(eventTypeLabel("PullRequestEvent")).toBe("PR");
+    expect(eventTypeLabel("IssueCommentEvent")).toBe("Comment");
   });
   test("humanizes unknown types", () => {
     expect(eventTypeLabel("GollumEvent")).toBe("Gollum");

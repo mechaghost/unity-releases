@@ -82,6 +82,11 @@ describe("summarizeEvent", () => {
       })
     ).toBe("Merged PR #42");
   });
+  test("issue comment", () => {
+    expect(summarizeEvent({ type: "IssueCommentEvent", payload: { issue: { number: 7 } } })).toBe(
+      "Commented on #7"
+    );
+  });
 });
 
 describe("parseEvent", () => {

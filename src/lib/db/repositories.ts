@@ -2549,7 +2549,7 @@ export type GithubRepoListFilters = {
   includeArchived?: boolean;
   includeForks?: boolean;
   notableOnly?: boolean;
-  sort?: "stars" | "newest" | "updated";
+  sort?: "stars" | "newest" | "updated" | "forks";
   page?: number;
   perPage?: number;
 };
@@ -2611,6 +2611,9 @@ export async function listGithubRepos(filters: GithubRepoListFilters): Promise<G
       break;
     case "updated":
       orderSql = "gr.repo_pushed_at DESC NULLS LAST, gr.stargazers_count DESC";
+      break;
+    case "forks":
+      orderSql = "gr.forks_count DESC, gr.stargazers_count DESC";
       break;
     default:
       orderSql = "gr.stargazers_count DESC, gr.repo_pushed_at DESC NULLS LAST";
@@ -2743,6 +2746,12 @@ export async function listGithubEvents(limit = 40): Promise<GithubEventItem[]> {
       SELECT id::text, event_type, repo_full_name, actor_login, actor_avatar_url,
              summary, html_url, event_created_at
       FROM github_events
+      -- Drop dependency-bot noise (renovate[bot], dependabot[bot], …) which
+      -- otherwise floods the feed; keep releases regardless of actor since
+      -- those are often published by CI bots.
+      WHERE event_type = 'ReleaseEvent'
+         OR actor_login IS NULL
+         OR actor_login NOT ILIKE '%[bot]%'
       ORDER BY event_created_at DESC, id DESC
       LIMIT $1
     `,

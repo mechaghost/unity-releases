@@ -15,17 +15,13 @@ type Props = {
   languages: FacetOption[];
 };
 
-const SORTS: Array<{ value: string; label: string }> = [
-  { value: "stars", label: "Most stars" },
-  { value: "newest", label: "Newest" },
-  { value: "updated", label: "Recently pushed" }
-];
-
 /**
  * Filter row for /github, mirroring the resources/discussions pattern: a
  * GET form that auto-submits on change, with the search box debounced so a
  * typing burst is one navigation. Archived repos and forks are hidden by
- * default; the toggles opt them back in.
+ * default; the toggles opt them back in. Sort is handled by the separate
+ * link-based tab control, preserved here via a hidden field so filtering
+ * keeps the active sort.
  */
 export function GithubFilter({
   q: initialQ,
@@ -85,16 +81,7 @@ export function GithubFilter({
         </select>
       </label>
 
-      <label className="github-filter__select">
-        <span>Sort</span>
-        <select name="sort" defaultValue={sort} aria-label="Sort repositories">
-          {SORTS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {sort && sort !== "stars" ? <input type="hidden" name="sort" value={sort} /> : null}
 
       <Toggle name="notable" checked={notableOnly} label="Notable only" title="Hand-curated highlight repos" />
       <Toggle name="archived" checked={includeArchived} label="Archived" title="Include archived repos" />
