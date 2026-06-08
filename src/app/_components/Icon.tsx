@@ -4,6 +4,7 @@ export type IconName =
   | "chevron-right"
   | "chevron-left"
   | "chevron-down"
+  | "chevron-up"
   | "search"
   | "filter"
   | "x"
@@ -38,6 +39,7 @@ const PATHS: Record<IconName, string> = {
   "chevron-right": "M9 6l6 6-6 6",
   "chevron-left": "M15 6l-6 6 6 6",
   "chevron-down": "M6 9l6 6 6-6",
+  "chevron-up": "M6 15l6-6 6 6",
   search: "M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm10 2l-4.35-4.35",
   filter: "M3 6h18M6 12h12M10 18h4",
   x: "M18 6L6 18M6 6l12 12",
