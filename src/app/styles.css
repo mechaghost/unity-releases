@@ -5838,3 +5838,178 @@ button.filter-section__head:focus-visible {
   border-color: var(--color-info);
 }
 
+
+/* ========================================================================
+   Unity GitHub - /github
+   ------------------------------------------------------------------------
+   Reuses page-header, filter-bar, chip, list-toolbar, discussion-stats,
+   and lane__pagination. New: the activity feed rows and the repo card
+   grid. Cards are tappable from the start (stretched link above content,
+   hover gated to pointer devices, overflow-wrap to avoid edge slivers).
+   ======================================================================== */
+
+.github-section__title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: var(--space-6) 0 var(--space-3);
+}
+
+.github-filter__search {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+.github-filter__select select { max-width: 200px; }
+
+@media (max-width: 1024px) {
+  .filter-bar.github-filter > .github-filter__search { flex: 1 1 100%; }
+  .filter-bar.github-filter > label.github-filter__select {
+    flex: 1 1 calc(50% - var(--space-2));
+    min-width: 8rem;
+  }
+  .filter-bar.github-filter > label.stream-checkbox-filter__option { flex: 0 1 auto; }
+  .github-filter__select select { max-width: none; width: 100%; }
+}
+
+/* Activity feed */
+.github-activity__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.github-activity__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+.github-activity__item:last-child { border-bottom: 0; }
+.github-activity__badge {
+  flex: 0 0 auto;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  min-width: 56px;
+  text-align: center;
+}
+.github-activity__badge--ReleaseEvent { background: var(--accent-soft, var(--surface-sunken)); color: var(--accent); }
+.github-activity__badge--CreateEvent { color: var(--text-link); }
+.github-activity__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.github-activity__summary {
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.github-activity__repo { font-size: var(--text-xs); }
+.github-activity__time { flex: 0 0 auto; font-size: var(--text-xs); }
+
+/* Repo card grid */
+.github-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+.github-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+@media (hover: hover) {
+  .github-card:hover {
+    border-color: var(--border-focus);
+    background: var(--surface-raised, var(--surface-base));
+  }
+}
+/* Stretched link: tap anywhere on the card opens the repo on GitHub. */
+.github-card__name a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.github-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.github-card__name {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.github-card__name a { color: inherit; }
+.github-card__name a:hover { color: var(--text-link); }
+.github-card__notable { background: var(--accent-soft, var(--surface-sunken)); color: var(--accent); }
+.github-card__desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-md);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.github-card__topics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.github-card__topics li {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+}
+.github-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-1);
+  font-size: var(--text-xs);
+}
+.github-card__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.github-card__pushed { margin-left: auto; }

@@ -13,6 +13,7 @@ import type { normalizePackageForStorage } from "../ingest/packages";
 import type { normalizeReleaseForStorage } from "../ingest/releases";
 import type { ParsedBlogPost } from "../parsers/rss";
 import type { ParsedResource } from "../ingest/resources";
+import type { GithubRepoInput, GithubEventInput } from "../ingest/github";
 
 export type FeedEventRow = {
   id: number;
@@ -2450,5 +2451,353 @@ export async function getDiscoursePostStats(): Promise<DiscoursePostStats> {
     activeStaff: Number(row?.active_staff ?? 0),
     trackedCategories: Number(row?.tracked_categories ?? 0),
     latestPostAt: row?.latest_post_at ? new Date(row.latest_post_at).toISOString() : null
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Unity GitHub repository functions (github.com/Unity-Technologies)
+// ─────────────────────────────────────────────────────────────────────
+
+export async function upsertGithubRepo(
+  client: PoolClient,
+  repo: GithubRepoInput,
+  runId: number,
+  snapshotId: number | null
+): Promise<"inserted" | "updated"> {
+  const result = await client.query<{ inserted: boolean }>(
+    `
+      INSERT INTO github_repos (
+        github_repo_id, name, full_name, owner, description, html_url, homepage,
+        stargazers_count, forks_count, open_issues_count, watchers_count,
+        language, topics, license_spdx, is_archived, is_fork, is_template,
+        default_branch, size_kb, is_notable,
+        repo_created_at, repo_updated_at, repo_pushed_at,
+        last_synced_at, source_snapshot_id, ingestion_run_id, updated_at
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::text[],$14,$15,$16,$17,$18,$19,$20,
+        $21,$22,$23, now(), $24, $25, now()
+      )
+      ON CONFLICT (github_repo_id) DO UPDATE SET
+        name = EXCLUDED.name,
+        full_name = EXCLUDED.full_name,
+        description = EXCLUDED.description,
+        html_url = EXCLUDED.html_url,
+        homepage = EXCLUDED.homepage,
+        stargazers_count = EXCLUDED.stargazers_count,
+        forks_count = EXCLUDED.forks_count,
+        open_issues_count = EXCLUDED.open_issues_count,
+        watchers_count = EXCLUDED.watchers_count,
+        language = EXCLUDED.language,
+        topics = EXCLUDED.topics,
+        license_spdx = EXCLUDED.license_spdx,
+        is_archived = EXCLUDED.is_archived,
+        is_fork = EXCLUDED.is_fork,
+        is_template = EXCLUDED.is_template,
+        default_branch = EXCLUDED.default_branch,
+        size_kb = EXCLUDED.size_kb,
+        is_notable = EXCLUDED.is_notable,
+        repo_created_at = EXCLUDED.repo_created_at,
+        repo_updated_at = EXCLUDED.repo_updated_at,
+        repo_pushed_at = EXCLUDED.repo_pushed_at,
+        last_synced_at = now(),
+        source_snapshot_id = EXCLUDED.source_snapshot_id,
+        ingestion_run_id = EXCLUDED.ingestion_run_id,
+        updated_at = now()
+      RETURNING (xmax = 0) AS inserted
+    `,
+    [
+      repo.githubRepoId, repo.name, repo.fullName, repo.owner, repo.description, repo.htmlUrl, repo.homepage,
+      repo.stargazersCount, repo.forksCount, repo.openIssuesCount, repo.watchersCount,
+      repo.language, repo.topics, repo.licenseSpdx, repo.isArchived, repo.isFork, repo.isTemplate,
+      repo.defaultBranch, repo.sizeKb, repo.isNotable,
+      repo.repoCreatedAt, repo.repoUpdatedAt, repo.repoPushedAt,
+      snapshotId, runId
+    ]
+  );
+  return result.rows[0]?.inserted ? "inserted" : "updated";
+}
+
+export async function upsertGithubEvent(
+  client: PoolClient,
+  event: GithubEventInput,
+  runId: number
+): Promise<boolean> {
+  const result = await client.query(
+    `
+      INSERT INTO github_events (
+        github_event_id, event_type, repo_full_name, repo_github_id,
+        actor_login, actor_avatar_url, summary, ref, html_url,
+        event_created_at, ingestion_run_id
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      ON CONFLICT (github_event_id) DO NOTHING
+    `,
+    [
+      event.githubEventId, event.eventType, event.repoFullName, event.repoGithubId,
+      event.actorLogin, event.actorAvatarUrl, event.summary, event.ref, event.htmlUrl,
+      event.eventCreatedAt, runId
+    ]
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+export type GithubRepoListFilters = {
+  q?: string;
+  language?: string;
+  topic?: string;
+  includeArchived?: boolean;
+  includeForks?: boolean;
+  notableOnly?: boolean;
+  sort?: "stars" | "newest" | "updated";
+  page?: number;
+  perPage?: number;
+};
+
+export type GithubRepoListItem = {
+  id: number;
+  githubRepoId: number;
+  name: string;
+  fullName: string;
+  description: string | null;
+  htmlUrl: string;
+  homepage: string | null;
+  stars: number;
+  forks: number;
+  openIssues: number;
+  language: string | null;
+  topics: string[];
+  licenseSpdx: string | null;
+  isArchived: boolean;
+  isFork: boolean;
+  isNotable: boolean;
+  repoCreatedAt: string | null;
+  repoPushedAt: string | null;
+};
+
+export type GithubRepoListResult = { total: number; items: GithubRepoListItem[] };
+
+const GITHUB_DEFAULT_PER_PAGE = 30;
+const GITHUB_MAX_PER_PAGE = 100;
+
+export async function listGithubRepos(filters: GithubRepoListFilters): Promise<GithubRepoListResult> {
+  const perPage = Math.min(GITHUB_MAX_PER_PAGE, Math.max(1, Math.floor(filters.perPage || GITHUB_DEFAULT_PER_PAGE)));
+  const page = Math.max(1, Math.floor(filters.page || 1));
+  const offset = (page - 1) * perPage;
+
+  const wheres: string[] = [];
+  const values: unknown[] = [];
+  if (!filters.includeArchived) wheres.push("gr.is_archived = false");
+  if (!filters.includeForks) wheres.push("gr.is_fork = false");
+  if (filters.notableOnly) wheres.push("gr.is_notable = true");
+  if (filters.q && filters.q.trim()) {
+    values.push(filters.q.trim());
+    wheres.push(`gr.search_vector @@ websearch_to_tsquery('english', $${values.length})`);
+  }
+  if (filters.language) {
+    values.push(filters.language);
+    wheres.push(`gr.language = $${values.length}`);
+  }
+  if (filters.topic) {
+    values.push(filters.topic);
+    wheres.push(`$${values.length} = ANY(gr.topics)`);
+  }
+  const whereSql = wheres.length ? `WHERE ${wheres.join(" AND ")}` : "";
+
+  let orderSql: string;
+  switch (filters.sort) {
+    case "newest":
+      orderSql = "gr.repo_created_at DESC NULLS LAST, gr.stargazers_count DESC";
+      break;
+    case "updated":
+      orderSql = "gr.repo_pushed_at DESC NULLS LAST, gr.stargazers_count DESC";
+      break;
+    default:
+      orderSql = "gr.stargazers_count DESC, gr.repo_pushed_at DESC NULLS LAST";
+  }
+
+  values.push(perPage, offset);
+  const result = await query<{
+    total_count: string;
+    id: string;
+    github_repo_id: string;
+    name: string;
+    full_name: string;
+    description: string | null;
+    html_url: string;
+    homepage: string | null;
+    stargazers_count: number;
+    forks_count: number;
+    open_issues_count: number;
+    language: string | null;
+    topics: string[];
+    license_spdx: string | null;
+    is_archived: boolean;
+    is_fork: boolean;
+    is_notable: boolean;
+    repo_created_at: string | null;
+    repo_pushed_at: string | null;
+  }>(
+    `
+      SELECT
+        COUNT(*) OVER() AS total_count,
+        gr.id::text, gr.github_repo_id::text, gr.name, gr.full_name, gr.description,
+        gr.html_url, gr.homepage, gr.stargazers_count, gr.forks_count, gr.open_issues_count,
+        gr.language, gr.topics, gr.license_spdx, gr.is_archived, gr.is_fork, gr.is_notable,
+        gr.repo_created_at, gr.repo_pushed_at
+      FROM github_repos gr
+      ${whereSql}
+      ORDER BY ${orderSql}
+      LIMIT $${values.length - 1} OFFSET $${values.length}
+    `,
+    values
+  );
+
+  const items: GithubRepoListItem[] = result.rows.map((r) => ({
+    id: Number(r.id),
+    githubRepoId: Number(r.github_repo_id),
+    name: r.name,
+    fullName: r.full_name,
+    description: r.description,
+    htmlUrl: r.html_url,
+    homepage: r.homepage,
+    stars: r.stargazers_count,
+    forks: r.forks_count,
+    openIssues: r.open_issues_count,
+    language: r.language,
+    topics: r.topics ?? [],
+    licenseSpdx: r.license_spdx,
+    isArchived: r.is_archived,
+    isFork: r.is_fork,
+    isNotable: r.is_notable,
+    repoCreatedAt: r.repo_created_at ? new Date(r.repo_created_at).toISOString() : null,
+    repoPushedAt: r.repo_pushed_at ? new Date(r.repo_pushed_at).toISOString() : null
+  }));
+
+  return { total: Number(result.rows[0]?.total_count ?? 0), items };
+}
+
+export type GithubRepoFacets = {
+  languages: Array<{ language: string; count: number }>;
+  topics: Array<{ topic: string; count: number }>;
+};
+
+export async function listGithubRepoFacets(opts: { languageLimit?: number; topicLimit?: number } = {}): Promise<GithubRepoFacets> {
+  const [languages, topics] = await Promise.all([
+    query<{ language: string; count: string }>(
+      `
+        SELECT language, COUNT(*)::text AS count
+        FROM github_repos
+        WHERE is_archived = false AND is_fork = false AND language IS NOT NULL
+        GROUP BY language
+        ORDER BY COUNT(*) DESC, language ASC
+        LIMIT $1
+      `,
+      [opts.languageLimit ?? 25]
+    ),
+    query<{ topic: string; count: string }>(
+      `
+        SELECT topic, COUNT(*)::text AS count
+        FROM (
+          SELECT unnest(topics) AS topic FROM github_repos
+          WHERE is_archived = false AND is_fork = false
+        ) t
+        GROUP BY topic
+        ORDER BY COUNT(*) DESC, topic ASC
+        LIMIT $1
+      `,
+      [opts.topicLimit ?? 30]
+    )
+  ]);
+  return {
+    languages: languages.rows.map((r) => ({ language: r.language, count: Number(r.count) })),
+    topics: topics.rows.map((r) => ({ topic: r.topic, count: Number(r.count) }))
+  };
+}
+
+export type GithubEventItem = {
+  id: number;
+  eventType: string;
+  repoFullName: string;
+  repoName: string;
+  actorLogin: string | null;
+  actorAvatarUrl: string | null;
+  summary: string;
+  htmlUrl: string | null;
+  eventCreatedAt: string;
+};
+
+export async function listGithubEvents(limit = 40): Promise<GithubEventItem[]> {
+  const capped = Math.min(100, Math.max(1, Math.floor(limit)));
+  const result = await query<{
+    id: string;
+    event_type: string;
+    repo_full_name: string;
+    actor_login: string | null;
+    actor_avatar_url: string | null;
+    summary: string;
+    html_url: string | null;
+    event_created_at: string;
+  }>(
+    `
+      SELECT id::text, event_type, repo_full_name, actor_login, actor_avatar_url,
+             summary, html_url, event_created_at
+      FROM github_events
+      ORDER BY event_created_at DESC, id DESC
+      LIMIT $1
+    `,
+    [capped]
+  );
+  return result.rows.map((r) => ({
+    id: Number(r.id),
+    eventType: r.event_type,
+    repoFullName: r.repo_full_name,
+    repoName: r.repo_full_name.includes("/") ? r.repo_full_name.split("/").slice(1).join("/") : r.repo_full_name,
+    actorLogin: r.actor_login,
+    actorAvatarUrl: r.actor_avatar_url,
+    summary: r.summary,
+    htmlUrl: r.html_url,
+    eventCreatedAt: new Date(r.event_created_at).toISOString()
+  }));
+}
+
+export type GithubStats = {
+  totalRepos: number;
+  activeRepos: number;
+  totalStars: number;
+  notableRepos: number;
+  languages: number;
+  latestPushAt: string | null;
+  latestEventAt: string | null;
+};
+
+export async function getGithubStats(): Promise<GithubStats> {
+  const result = await query<{
+    total_repos: string;
+    active_repos: string;
+    total_stars: string;
+    notable_repos: string;
+    languages: string;
+    latest_push: string | null;
+    latest_event: string | null;
+  }>(`
+    SELECT
+      (SELECT COUNT(*) FROM github_repos)                                                   AS total_repos,
+      (SELECT COUNT(*) FROM github_repos WHERE is_archived = false AND is_fork = false)     AS active_repos,
+      (SELECT COALESCE(SUM(stargazers_count), 0) FROM github_repos WHERE is_fork = false)   AS total_stars,
+      (SELECT COUNT(*) FROM github_repos WHERE is_notable = true)                           AS notable_repos,
+      (SELECT COUNT(DISTINCT language) FROM github_repos WHERE language IS NOT NULL)         AS languages,
+      (SELECT MAX(repo_pushed_at) FROM github_repos)                                        AS latest_push,
+      (SELECT MAX(event_created_at) FROM github_events)                                     AS latest_event
+  `);
+  const row = result.rows[0];
+  return {
+    totalRepos: Number(row?.total_repos ?? 0),
+    activeRepos: Number(row?.active_repos ?? 0),
+    totalStars: Number(row?.total_stars ?? 0),
+    notableRepos: Number(row?.notable_repos ?? 0),
+    languages: Number(row?.languages ?? 0),
+    latestPushAt: row?.latest_push ? new Date(row.latest_push).toISOString() : null,
+    latestEventAt: row?.latest_event ? new Date(row.latest_event).toISOString() : null
   };
 }
