@@ -7,52 +7,46 @@ import {
 } from "@/lib/github-view";
 
 describe("normalizeGithubSort", () => {
-  test("passes through known sorts, defaults to stars", () => {
+  test("passes through known sorts, defaults to updated", () => {
     expect(normalizeGithubSort("newest")).toBe("newest");
     expect(normalizeGithubSort("updated")).toBe("updated");
     expect(normalizeGithubSort("forks")).toBe("forks");
     expect(normalizeGithubSort("stars")).toBe("stars");
-    expect(normalizeGithubSort(undefined)).toBe("stars");
-    expect(normalizeGithubSort("bogus")).toBe("stars");
+    expect(normalizeGithubSort(undefined)).toBe("updated");
+    expect(normalizeGithubSort("bogus")).toBe("updated");
   });
 });
 
 describe("buildGithubHref", () => {
-  test("bare /github for empty / default state", () => {
+  test("bare /github for empty / default (updated) state", () => {
     expect(buildGithubHref({})).toBe("/github");
-    expect(buildGithubHref({ sort: "stars", page: 1 })).toBe("/github");
+    expect(buildGithubHref({ sort: "updated", page: 1 })).toBe("/github");
   });
 
-  test("serializes only non-default filters", () => {
+  test("serializes only non-default filters (stars is no longer the default)", () => {
     expect(
       buildGithubHref({
         q: "netcode",
         language: "C#",
         topic: "multiplayer",
-        sort: "updated",
+        sort: "stars",
         notable: true,
         archived: true,
         forks: true,
         page: 2
       })
     ).toBe(
-      "/github?q=netcode&lang=C%23&topic=multiplayer&sort=updated&notable=1&archived=1&forks=1&page=2"
+      "/github?q=netcode&lang=C%23&topic=multiplayer&sort=stars&notable=1&archived=1&forks=1&page=2"
     );
   });
 
-  test("drops page=1 and sort=stars", () => {
-    expect(buildGithubHref({ q: "burst", sort: "stars", page: 1 })).toBe("/github?q=burst");
+  test("drops page=1 and the default sort=updated", () => {
+    expect(buildGithubHref({ q: "burst", sort: "updated", page: 1 })).toBe("/github?q=burst");
   });
 
-  test("serializes the forks sort", () => {
+  test("serializes non-default sorts", () => {
     expect(buildGithubHref({ sort: "forks" })).toBe("/github?sort=forks");
-  });
-
-  test("the activity view drops repo filters", () => {
-    expect(buildGithubHref({ view: "activity" })).toBe("/github?view=activity");
-    expect(buildGithubHref({ view: "activity", q: "x", language: "C#", sort: "forks" })).toBe(
-      "/github?view=activity"
-    );
+    expect(buildGithubHref({ sort: "stars" })).toBe("/github?sort=stars");
   });
 });
 

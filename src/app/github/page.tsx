@@ -1,11 +1,11 @@
 import {
   listGithubRepos,
   listGithubRepoFacets,
-  listGithubEvents,
+  getReposLatestActivity,
   getGithubStats,
   type GithubRepoListItem,
   type GithubRepoFacets,
-  type GithubEventItem,
+  type RepoLatestActivity,
   type GithubStats
 } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
@@ -16,8 +16,7 @@ import {
   GITHUB_TABS,
   buildGithubHref,
   formatCompact,
-  normalizeGithubSort,
-  eventTypeLabel
+  normalizeGithubSort
 } from "@/lib/github-view";
 import { formatRelativeDate } from "@/lib/format-date";
 import { pageSocialMetadata } from "@/lib/site";
@@ -25,7 +24,7 @@ import { pageSocialMetadata } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 const GITHUB_DESCRIPTION =
-  "Unity's public GitHub org (Unity-Technologies): latest releases and pushes, newest projects, the most-starred and notable repos, and a searchable index of every public repository.";
+  "Which Unity-Technologies repositories are actively being worked on right now — the latest commit on each, recent releases, and a searchable index of every public Unity repo.";
 
 export const metadata = {
   title: "Unity GitHub",
@@ -41,7 +40,6 @@ type SearchParams = Promise<{
   lang?: string | string[];
   topic?: string | string[];
   sort?: string | string[];
-  view?: string | string[];
   notable?: string | string[];
   archived?: string | string[];
   forks?: string | string[];
@@ -54,31 +52,30 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
   const language = firstString(params.lang);
   const topic = firstString(params.topic);
   const sort = normalizeGithubSort(firstString(params.sort));
-  const isActivity = firstString(params.view) === "activity";
   const notableOnly = firstString(params.notable) === "1";
   const includeArchived = firstString(params.archived) === "1";
   const includeForks = firstString(params.forks) === "1";
   const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
 
-  const [stats, facets, events, repos] = await Promise.all([
+  const [stats, facets, { items, total }] = await Promise.all([
     safeStats(),
     safeFacets(),
-    isActivity ? safeEvents(60) : Promise.resolve([]),
-    isActivity
-      ? Promise.resolve({ items: [], total: 0 })
-      : safeListRepos({
-          q: q || undefined,
-          language: language || undefined,
-          topic: topic || undefined,
-          notableOnly,
-          includeArchived,
-          includeForks,
-          sort,
-          page,
-          perPage: PER_PAGE
-        })
+    safeListRepos({
+      q: q || undefined,
+      language: language || undefined,
+      topic: topic || undefined,
+      notableOnly,
+      includeArchived,
+      includeForks,
+      sort,
+      page,
+      perPage: PER_PAGE
+    })
   ]);
-  const { items, total } = repos;
+
+  // Latest commit / release for just the repos on this page, derived from
+  // the activity we already ingest (no extra GitHub calls).
+  const activity = await safeActivity(items.map((r) => r.fullName));
 
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const start = total === 0 ? 0 : (page - 1) * PER_PAGE + 1;
@@ -87,7 +84,6 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
 
   const languageOptions = facets.languages.map((l) => ({ value: l.language, label: l.language, count: l.count }));
 
-  const activeTab = isActivity ? "activity" : sort;
   const hrefFor = (targetPage: number) =>
     buildGithubHref({
       q,
@@ -107,121 +103,105 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
           <h1>Unity GitHub</h1>
         </div>
         <p>
-          What Unity ships in the open on{" "}
+          Which repos Unity is actively working on in the open on{" "}
           <ExternalLink href={GITHUB_ORG_URL} className="link-internal--accent">
             github.com/Unity-Technologies
-          </ExternalLink>{" "}
-          — every public repo plus the live activity feed. Sort by stars,
-          recent updates, newest, or forks; or switch to Activity for the
-          latest releases, pushes, and new projects.
+          </ExternalLink>
+          . Sorted by most recent activity by default — each card shows the
+          latest commit and flags new releases. Tap a repo to explore it on
+          GitHub.
         </p>
         <StatsStrip stats={stats} />
       </section>
 
-      <nav className="github-tabs" aria-label="Sort and view">
-        {GITHUB_TABS.map((tab) => {
-          const href = buildGithubHref(
-            tab.view
-              ? { view: tab.view }
-              : { q, language, topic, sort: tab.sort, notable: notableOnly, archived: includeArchived, forks: includeForks }
-          );
-          return (
-            <a
-              key={tab.key}
-              href={href}
-              className="github-tabs__tab"
-              aria-current={activeTab === tab.key ? "true" : undefined}
-            >
-              {tab.label}
-            </a>
-          );
-        })}
+      <nav className="github-tabs" aria-label="Sort">
+        {GITHUB_TABS.map((tab) => (
+          <a
+            key={tab.key}
+            href={buildGithubHref({
+              q,
+              language,
+              topic,
+              sort: tab.sort,
+              notable: notableOnly,
+              archived: includeArchived,
+              forks: includeForks
+            })}
+            className="github-tabs__tab"
+            aria-current={sort === tab.key ? "true" : undefined}
+          >
+            {tab.label}
+          </a>
+        ))}
       </nav>
 
-      {isActivity ? (
-        events.length === 0 ? (
-          <div className="empty-state">
-            <h2>No activity indexed yet.</h2>
-            <p>The activity feed fills once the GitHub ingestion has run.</p>
-          </div>
-        ) : (
-          <ul className="github-activity__list" aria-label="Latest GitHub activity">
-            {events.map((ev) => (
-              <ActivityRow key={ev.id} event={ev} />
-            ))}
-          </ul>
-        )
+      <GithubFilter
+        q={q}
+        language={language}
+        sort={sort}
+        notableOnly={notableOnly}
+        includeArchived={includeArchived}
+        includeForks={includeForks}
+        languages={languageOptions}
+      />
+
+      <div className="list-toolbar">
+        <span className="list-toolbar__count">
+          <strong className="tabnums">{total.toLocaleString()}</strong>{" "}
+          {total === 1 ? "repository" : "repositories"}
+          {q ? <> matching <code>{q}</code></> : null}
+          {total > 0 ? <> · showing {start.toLocaleString()}–{end.toLocaleString()}</> : null}
+        </span>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="empty-state">
+          <h2>{filtered ? "No repositories match these filters." : "No repositories indexed yet."}</h2>
+          <p>
+            {filtered ? (
+              <>Loosen the search, clear the language, or untick Notable only.</>
+            ) : (
+              <>Run <code>npm run ingest:github</code> (with <code>GITHUB_TOKEN</code> set) to mirror the Unity-Technologies org.</>
+            )}
+          </p>
+        </div>
       ) : (
-        <>
-          <GithubFilter
-            q={q}
-            language={language}
-            sort={sort}
-            notableOnly={notableOnly}
-            includeArchived={includeArchived}
-            includeForks={includeForks}
-            languages={languageOptions}
-          />
-
-          <div className="list-toolbar">
-            <span className="list-toolbar__count">
-              <strong className="tabnums">{total.toLocaleString()}</strong>{" "}
-              {total === 1 ? "repository" : "repositories"}
-              {q ? <> matching <code>{q}</code></> : null}
-              {total > 0 ? <> · showing {start.toLocaleString()}–{end.toLocaleString()}</> : null}
-            </span>
-          </div>
-
-          {items.length === 0 ? (
-            <div className="empty-state">
-              <h2>{filtered ? "No repositories match these filters." : "No repositories indexed yet."}</h2>
-              <p>
-                {filtered ? (
-                  <>Loosen the search, clear the language, or untick Notable only.</>
-                ) : (
-                  <>Run <code>npm run ingest:github</code> (with <code>GITHUB_TOKEN</code> set) to mirror the Unity-Technologies org.</>
-                )}
-              </p>
-            </div>
-          ) : (
-            <ul className="github-grid" aria-label="Unity-Technologies repositories">
-              {items.map((repo) => (
-                <RepoCard key={repo.id} repo={repo} />
-              ))}
-            </ul>
-          )}
-
-          {totalPages > 1 ? (
-            <nav className="lane__pagination" aria-label="Repository pagination">
-              <span className="lane__pagination-status">
-                Page <strong className="tabnums">{page}</strong> of{" "}
-                <strong className="tabnums">{totalPages}</strong>
-              </span>
-              <span className="lane__pagination-controls">
-                {page > 1 ? (
-                  <a className="lane__pagination-btn" href={hrefFor(page - 1)} rel="prev">
-                    <Icon name="chevron-left" size={14} /> Prev
-                  </a>
-                ) : (
-                  <span className="lane__pagination-btn lane__pagination-btn--disabled" aria-disabled="true">
-                    <Icon name="chevron-left" size={14} /> Prev
-                  </span>
-                )}
-                <span className="lane__pagination-page tabnums">Page {page} of {totalPages}</span>
-                {page < totalPages ? (
-                  <a className="lane__pagination-btn" href={hrefFor(page + 1)} rel="next">
-                    Next <Icon name="chevron-right" size={14} />
-                  </a>
-                ) : (
-                  <span className="lane__pagination-btn lane__pagination-btn--disabled" aria-disabled="true">
-                    Next <Icon name="chevron-right" size={14} />
-                  </span>
-                )}
-              </span>
-            </nav>
-          ) : null}
-        </>
+        <ul className="github-grid" aria-label="Unity-Technologies repositories">
+          {items.map((repo) => (
+            <RepoCard key={repo.id} repo={repo} activity={activity.get(repo.fullName)} />
+          ))}
+        </ul>
       )}
+
+      {totalPages > 1 ? (
+        <nav className="lane__pagination" aria-label="Repository pagination">
+          <span className="lane__pagination-status">
+            Page <strong className="tabnums">{page}</strong> of{" "}
+            <strong className="tabnums">{totalPages}</strong>
+          </span>
+          <span className="lane__pagination-controls">
+            {page > 1 ? (
+              <a className="lane__pagination-btn" href={hrefFor(page - 1)} rel="prev">
+                <Icon name="chevron-left" size={14} /> Prev
+              </a>
+            ) : (
+              <span className="lane__pagination-btn lane__pagination-btn--disabled" aria-disabled="true">
+                <Icon name="chevron-left" size={14} /> Prev
+              </span>
+            )}
+            <span className="lane__pagination-page tabnums">Page {page} of {totalPages}</span>
+            {page < totalPages ? (
+              <a className="lane__pagination-btn" href={hrefFor(page + 1)} rel="next">
+                Next <Icon name="chevron-right" size={14} />
+              </a>
+            ) : (
+              <span className="lane__pagination-btn lane__pagination-btn--disabled" aria-disabled="true">
+                Next <Icon name="chevron-right" size={14} />
+              </span>
+            )}
+          </span>
+        </nav>
+      ) : null}
     </>
   );
 }
@@ -247,28 +227,8 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ActivityRow({ event }: { event: GithubEventItem }) {
-  const href = event.htmlUrl ?? `https://github.com/${event.repoFullName}`;
-  return (
-    <li className="github-activity__item">
-      <span className={`github-activity__badge github-activity__badge--${event.eventType}`}>
-        {eventTypeLabel(event.eventType)}
-      </span>
-      <span className="github-activity__body">
-        <ExternalLink href={href} className="link-internal--accent github-activity__summary">
-          {event.summary}
-        </ExternalLink>
-        <span className="github-activity__meta muted">
-          <span className="github-activity__repo">{event.repoName}</span>
-          <span aria-hidden="true"> · </span>
-          <span className="github-activity__time tabnums">{formatRelativeDate(event.eventCreatedAt)}</span>
-        </span>
-      </span>
-    </li>
-  );
-}
-
-function RepoCard({ repo }: { repo: GithubRepoListItem }) {
+function RepoCard({ repo, activity }: { repo: GithubRepoListItem; activity?: RepoLatestActivity }) {
+  const commit = activity?.commitMessage?.trim();
   return (
     <li className="github-card">
       <header className="github-card__head">
@@ -277,12 +237,24 @@ function RepoCard({ repo }: { repo: GithubRepoListItem }) {
             {repo.name}
           </ExternalLink>
         </h3>
+        {activity?.releaseTag ? (
+          <span className="chip github-card__release" title="Recent release">
+            Released {activity.releaseTag}
+          </span>
+        ) : null}
         {repo.isNotable ? <span className="chip github-card__notable">Notable</span> : null}
         {repo.isArchived ? <span className="chip chip--reverse">Archived</span> : null}
         {repo.isFork ? <span className="chip chip--reverse">Fork</span> : null}
       </header>
 
-      {repo.description ? <p className="github-card__desc">{repo.description}</p> : null}
+      {commit ? (
+        <p className="github-card__commit" title="Latest commit">
+          <Icon name="git-compare" size={12} className="github-card__commit-icon" />
+          <span>{commit}</span>
+        </p>
+      ) : repo.description ? (
+        <p className="github-card__desc">{repo.description}</p>
+      ) : null}
 
       {repo.topics.length > 0 ? (
         <ul className="github-card__topics">
@@ -329,11 +301,11 @@ async function safeFacets(): Promise<GithubRepoFacets> {
   }
 }
 
-async function safeEvents(limit = 16): Promise<GithubEventItem[]> {
+async function safeActivity(fullNames: string[]): Promise<Map<string, RepoLatestActivity>> {
   try {
-    return await listGithubEvents(limit);
+    return await getReposLatestActivity(fullNames);
   } catch {
-    return [];
+    return new Map();
   }
 }
 

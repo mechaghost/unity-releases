@@ -7,7 +7,7 @@ vi.mock("../../src/lib/db/client", () => ({
   getPool: vi.fn()
 }));
 
-import { listGithubRepos, listGithubEvents } from "../../src/lib/db/repositories";
+import { listGithubRepos, listGithubEvents, getReposLatestActivity } from "../../src/lib/db/repositories";
 
 function rows(...records: Array<Record<string, unknown>>) {
   return { rows: records, rowCount: records.length };
@@ -74,5 +74,32 @@ describe("listGithubEvents", () => {
     expect(sql).toContain("event_type = 'ReleaseEvent'");
     expect(sql).toContain("actor_login NOT ILIKE '%[bot]%'");
     expect(params).toContain(40);
+  });
+});
+
+describe("getReposLatestActivity", () => {
+  test("returns empty map for no repos without querying", async () => {
+    const map = await getReposLatestActivity([]);
+    expect(map.size).toBe(0);
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
+  test("merges latest push commit + latest release per repo", async () => {
+    // First query() = pushes, second = releases (Promise.all order).
+    mocks.query
+      .mockResolvedValueOnce(
+        rows({ repo_full_name: "Unity-Technologies/Graphics", head_commit_message: "Fix race", event_created_at: "2026-06-06T00:00:00Z" })
+      )
+      .mockResolvedValueOnce(
+        rows({ repo_full_name: "Unity-Technologies/Graphics", ref: "v17.0", html_url: "https://github.com/x/releases/v17.0" })
+      );
+    const map = await getReposLatestActivity(["Unity-Technologies/Graphics"]);
+    const a = map.get("Unity-Technologies/Graphics");
+    expect(a?.commitMessage).toBe("Fix race");
+    expect(a?.releaseTag).toBe("v17.0");
+    expect(a?.releaseUrl).toBe("https://github.com/x/releases/v17.0");
+    // The push query targets PushEvents, the release query ReleaseEvents.
+    expect(mocks.query.mock.calls[0][0]).toContain("event_type = 'PushEvent'");
+    expect(mocks.query.mock.calls[1][0]).toContain("event_type = 'ReleaseEvent'");
   });
 });

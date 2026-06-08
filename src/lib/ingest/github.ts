@@ -76,6 +76,8 @@ export type GithubEventInput = {
   summary: string;
   ref: string | null;
   htmlUrl: string | null;
+  /** Head commit message for PushEvents (first line), null otherwise. */
+  headCommitMessage: string | null;
   eventCreatedAt: string;
 };
 
@@ -194,12 +196,22 @@ export function parseEvent(raw: Record<string, unknown>): GithubEventInput | nul
   const ref = asString(payload.ref);
 
   let htmlUrl: string | null = `https://github.com/${repoFullName}`;
+  // `tag` carries the release version (ReleaseEvents have no payload.ref);
+  // `commitMessage` carries the head commit's first line (PushEvents).
+  let tag: string | null = null;
+  let commitMessage: string | null = null;
   if (type === "ReleaseEvent") {
     const release = (payload.release ?? {}) as Record<string, unknown>;
     htmlUrl = asString(release.html_url) ?? htmlUrl;
+    tag = asString(release.tag_name) ?? asString(release.name);
   } else if (type === "PullRequestEvent") {
     const pr = (payload.pull_request ?? {}) as Record<string, unknown>;
     htmlUrl = asString(pr.html_url) ?? htmlUrl;
+  } else if (type === "PushEvent") {
+    const commits = Array.isArray(payload.commits) ? (payload.commits as Array<Record<string, unknown>>) : [];
+    const head = commits.length > 0 ? commits[commits.length - 1] : null;
+    const msg = head ? asString(head.message) : null;
+    commitMessage = msg ? msg.split("\n")[0].trim().slice(0, 200) : null;
   }
 
   return {
@@ -210,8 +222,9 @@ export function parseEvent(raw: Record<string, unknown>): GithubEventInput | nul
     actorLogin: asString(actor.login),
     actorAvatarUrl: asString(actor.avatar_url),
     summary: summarizeEvent(raw),
-    ref: ref ? ref.replace(/^refs\/(heads|tags)\//, "") : null,
+    ref: tag ?? (ref ? ref.replace(/^refs\/(heads|tags)\//, "") : null),
     htmlUrl,
+    headCommitMessage: commitMessage,
     eventCreatedAt: asIso(raw.created_at) ?? new Date().toISOString()
   };
 }

@@ -661,19 +661,21 @@ const SECTIONS: Section[] = [
         answer: (
           <>
             <p>
-              A mirror of Unity&apos;s public GitHub org,{" "}
-              <code>github.com/Unity-Technologies</code>. The activity feed up
-              top shows the latest public events - releases, pushes, and new
-              repositories - and below it is a searchable, sortable index of
-              every public repo.
+              Which repos Unity is actively working on in the open, mirrored
+              from <code>github.com/Unity-Technologies</code>. It defaults to{" "}
+              <strong>recently updated</strong>, and each card shows that
+              repo&apos;s <strong>latest commit message</strong> plus a{" "}
+              <strong>Released vX</strong> flag when there&apos;s a recent
+              release - so you can see what just changed and jump in.
             </p>
             <p>
-              Sort by <strong>most stars</strong>, <strong>newest</strong>, or{" "}
-              <strong>recently pushed</strong>; filter by language or search;
-              and tick <strong>Notable only</strong> for a hand-curated
-              highlight set (ml-agents, UnityCsReference, Graphics, and the
-              like). Archived repos and forks are hidden by default. It refreshes
-              on the same twice-daily cron as everything else.
+              Re-sort by <strong>stars</strong>, <strong>newest</strong>, or{" "}
+              <strong>most forks</strong>; filter by language or search; and
+              tick <strong>Notable only</strong> for a hand-curated highlight
+              set (ml-agents, UnityCsReference, Graphics, and the like).
+              Archived repos and forks are hidden by default. The latest commit
+              and release come from the org&apos;s public activity, refreshed on
+              the same twice-daily cron as everything else.
             </p>
           </>
         )

@@ -2523,23 +2523,88 @@ export async function upsertGithubEvent(
   event: GithubEventInput,
   runId: number
 ): Promise<boolean> {
-  const result = await client.query(
+  const result = await client.query<{ inserted: boolean }>(
     `
       INSERT INTO github_events (
         github_event_id, event_type, repo_full_name, repo_github_id,
         actor_login, actor_avatar_url, summary, ref, html_url,
-        event_created_at, ingestion_run_id
+        head_commit_message, event_created_at, ingestion_run_id
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-      ON CONFLICT (github_event_id) DO NOTHING
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      -- Backfill the commit message / release tag onto rows ingested before
+      -- those columns existed, without disturbing anything else. The org
+      -- events feed re-serves the same recent events, so this fills them in
+      -- on the next run rather than only catching brand-new events.
+      ON CONFLICT (github_event_id) DO UPDATE SET
+        head_commit_message = COALESCE(EXCLUDED.head_commit_message, github_events.head_commit_message),
+        ref = COALESCE(EXCLUDED.ref, github_events.ref)
+      RETURNING (xmax = 0) AS inserted
     `,
     [
       event.githubEventId, event.eventType, event.repoFullName, event.repoGithubId,
       event.actorLogin, event.actorAvatarUrl, event.summary, event.ref, event.htmlUrl,
-      event.eventCreatedAt, runId
+      event.headCommitMessage, event.eventCreatedAt, runId
     ]
   );
-  return (result.rowCount ?? 0) > 0;
+  return result.rows[0]?.inserted === true;
+}
+
+export type RepoLatestActivity = {
+  commitMessage: string | null;
+  commitAt: string | null;
+  releaseTag: string | null;
+  releaseUrl: string | null;
+};
+
+/** Latest commit message (from PushEvents) and latest release tag (from
+ *  ReleaseEvents) for a set of repos, derived from the activity we already
+ *  ingest — no extra GitHub calls. Keyed by repo full_name. */
+export async function getReposLatestActivity(
+  fullNames: string[]
+): Promise<Map<string, RepoLatestActivity>> {
+  const map = new Map<string, RepoLatestActivity>();
+  if (fullNames.length === 0) return map;
+  const [pushes, releases] = await Promise.all([
+    query<{ repo_full_name: string; head_commit_message: string | null; event_created_at: string }>(
+      `
+        SELECT DISTINCT ON (repo_full_name) repo_full_name, head_commit_message, event_created_at
+        FROM github_events
+        WHERE event_type = 'PushEvent' AND head_commit_message IS NOT NULL
+          AND repo_full_name = ANY($1::text[])
+        ORDER BY repo_full_name, event_created_at DESC
+      `,
+      [fullNames]
+    ),
+    query<{ repo_full_name: string; ref: string | null; html_url: string | null }>(
+      `
+        SELECT DISTINCT ON (repo_full_name) repo_full_name, ref, html_url
+        FROM github_events
+        WHERE event_type = 'ReleaseEvent' AND repo_full_name = ANY($1::text[])
+        ORDER BY repo_full_name, event_created_at DESC
+      `,
+      [fullNames]
+    )
+  ]);
+  for (const r of pushes.rows) {
+    map.set(r.repo_full_name, {
+      commitMessage: r.head_commit_message,
+      commitAt: r.event_created_at ? new Date(r.event_created_at).toISOString() : null,
+      releaseTag: null,
+      releaseUrl: null
+    });
+  }
+  for (const r of releases.rows) {
+    const existing = map.get(r.repo_full_name) ?? {
+      commitMessage: null,
+      commitAt: null,
+      releaseTag: null,
+      releaseUrl: null
+    };
+    existing.releaseTag = r.ref;
+    existing.releaseUrl = r.html_url;
+    map.set(r.repo_full_name, existing);
+  }
+  return map;
 }
 
 export type GithubRepoListFilters = {

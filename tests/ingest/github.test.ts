@@ -107,6 +107,28 @@ describe("parseEvent", () => {
     expect(ev!.repoFullName).toBe("Unity-Technologies/Graphics");
     expect(ev!.summary).toBe("Released v17.0");
     expect(ev!.htmlUrl).toBe("https://github.com/Unity-Technologies/Graphics/releases/tag/v17.0");
+    expect(ev!.ref).toBe("v17.0");
+    expect(ev!.headCommitMessage).toBeNull();
     expect(ev!.eventCreatedAt).toBe("2026-06-05T10:00:00.000Z");
+  });
+  test("extracts the head commit message (first line) from a push event", () => {
+    const ev = parseEvent({
+      id: "100",
+      type: "PushEvent",
+      created_at: "2026-06-06T09:00:00Z",
+      repo: { id: 8, name: "Unity-Technologies/Graphics" },
+      actor: { login: "dev" },
+      payload: {
+        ref: "refs/heads/main",
+        commits: [
+          { sha: "a", message: "first" },
+          { sha: "b", message: "Fix host migration race\n\nlonger body" }
+        ]
+      }
+    });
+    expect(ev).not.toBeNull();
+    expect(ev!.eventType).toBe("PushEvent");
+    expect(ev!.headCommitMessage).toBe("Fix host migration race");
+    expect(ev!.ref).toBe("main");
   });
 });

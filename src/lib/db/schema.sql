@@ -634,3 +634,7 @@ DROP TRIGGER IF EXISTS trg_github_repos_search_vector ON github_repos;
 CREATE TRIGGER trg_github_repos_search_vector
 BEFORE INSERT OR UPDATE ON github_repos
 FOR EACH ROW EXECUTE FUNCTION update_github_repo_search_vector();
+
+-- Head commit message for PushEvents, so repo cards can show the latest
+-- commit without an extra per-repo API call. Additive for existing deploys.
+ALTER TABLE github_events ADD COLUMN IF NOT EXISTS head_commit_message TEXT;
