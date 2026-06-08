@@ -44,7 +44,6 @@ type SearchParams = Promise<{
   sort?: string | string[];
   dir?: string | string[];
   notable?: string | string[];
-  archived?: string | string[];
   forks?: string | string[];
   page?: string | string[];
 }>;
@@ -57,7 +56,6 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
   const sort = normalizeGithubSort(firstString(params.sort));
   const dir = normalizeGithubDir(firstString(params.dir));
   const notableOnly = firstString(params.notable) === "1";
-  const includeArchived = firstString(params.archived) === "1";
   const includeForks = firstString(params.forks) === "1";
   const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
 
@@ -69,7 +67,6 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
       language: language || undefined,
       topic: topic || undefined,
       notableOnly,
-      includeArchived,
       includeForks,
       sort,
       direction: dir,
@@ -97,7 +94,6 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
       sort,
       dir,
       notable: notableOnly,
-      archived: includeArchived,
       forks: includeForks,
       page: targetPage
     });
@@ -136,7 +132,6 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
                 sort: tab.sort,
                 dir: nextDir,
                 notable: notableOnly,
-                archived: includeArchived,
                 forks: includeForks
               })}
               className="github-tabs__tab"
@@ -166,7 +161,6 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
         sort={sort}
         dir={dir}
         notableOnly={notableOnly}
-        includeArchived={includeArchived}
         includeForks={includeForks}
         languages={languageOptions}
       />
