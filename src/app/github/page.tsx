@@ -16,7 +16,9 @@ import {
   GITHUB_TABS,
   buildGithubHref,
   formatCompact,
-  normalizeGithubSort
+  normalizeGithubSort,
+  normalizeGithubDir,
+  flipGithubDir
 } from "@/lib/github-view";
 import { formatRelativeDate } from "@/lib/format-date";
 import { pageSocialMetadata } from "@/lib/site";
@@ -40,6 +42,7 @@ type SearchParams = Promise<{
   lang?: string | string[];
   topic?: string | string[];
   sort?: string | string[];
+  dir?: string | string[];
   notable?: string | string[];
   archived?: string | string[];
   forks?: string | string[];
@@ -52,6 +55,7 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
   const language = firstString(params.lang);
   const topic = firstString(params.topic);
   const sort = normalizeGithubSort(firstString(params.sort));
+  const dir = normalizeGithubDir(firstString(params.dir));
   const notableOnly = firstString(params.notable) === "1";
   const includeArchived = firstString(params.archived) === "1";
   const includeForks = firstString(params.forks) === "1";
@@ -68,6 +72,7 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
       includeArchived,
       includeForks,
       sort,
+      direction: dir,
       page,
       perPage: PER_PAGE
     })
@@ -90,6 +95,7 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
       language,
       topic,
       sort,
+      dir,
       notable: notableOnly,
       archived: includeArchived,
       forks: includeForks,
@@ -115,30 +121,50 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
       </section>
 
       <nav className="github-tabs" aria-label="Sort">
-        {GITHUB_TABS.map((tab) => (
-          <a
-            key={tab.key}
-            href={buildGithubHref({
-              q,
-              language,
-              topic,
-              sort: tab.sort,
-              notable: notableOnly,
-              archived: includeArchived,
-              forks: includeForks
-            })}
-            className="github-tabs__tab"
-            aria-current={sort === tab.key ? "true" : undefined}
-          >
-            {tab.label}
-          </a>
-        ))}
+        {GITHUB_TABS.map((tab) => {
+          const isActive = sort === tab.key;
+          // Clicking the active sort reverses its direction; clicking an
+          // inactive sort switches to it (descending).
+          const nextDir = isActive ? flipGithubDir(dir) : "desc";
+          return (
+            <a
+              key={tab.key}
+              href={buildGithubHref({
+                q,
+                language,
+                topic,
+                sort: tab.sort,
+                dir: nextDir,
+                notable: notableOnly,
+                archived: includeArchived,
+                forks: includeForks
+              })}
+              className="github-tabs__tab"
+              aria-current={isActive ? "true" : undefined}
+              title={
+                isActive
+                  ? `${tab.label} — ${dir === "desc" ? "descending" : "ascending"}, click to reverse`
+                  : `Sort by ${tab.label.toLowerCase()}`
+              }
+            >
+              {tab.label}
+              {isActive ? (
+                <Icon
+                  name={dir === "desc" ? "chevron-down" : "chevron-up"}
+                  size={14}
+                  className="github-tabs__dir"
+                />
+              ) : null}
+            </a>
+          );
+        })}
       </nav>
 
       <GithubFilter
         q={q}
         language={language}
         sort={sort}
+        dir={dir}
         notableOnly={notableOnly}
         includeArchived={includeArchived}
         includeForks={includeForks}

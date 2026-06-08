@@ -64,6 +64,15 @@ describe("listGithubRepos", () => {
     await listGithubRepos({ sort: "forks" });
     expect(mocks.query.mock.calls[2][0]).toContain("ORDER BY gr.forks_count DESC");
   });
+
+  test("direction=asc flips the primary sort key to ASC NULLS FIRST", async () => {
+    mocks.query.mockResolvedValueOnce(rows());
+    await listGithubRepos({ sort: "updated", direction: "asc" });
+    const [sql] = mocks.query.mock.calls[0];
+    expect(sql).toContain("ORDER BY gr.repo_pushed_at ASC NULLS FIRST");
+    // secondary tiebreaker stays DESC
+    expect(sql).toContain("gr.stargazers_count DESC");
+  });
 });
 
 describe("listGithubEvents", () => {

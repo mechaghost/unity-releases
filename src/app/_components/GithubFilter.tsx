@@ -9,6 +9,7 @@ type Props = {
   q: string;
   language: string;
   sort: string;
+  dir: string;
   notableOnly: boolean;
   includeArchived: boolean;
   includeForks: boolean;
@@ -27,6 +28,7 @@ export function GithubFilter({
   q: initialQ,
   language,
   sort,
+  dir,
   notableOnly,
   includeArchived,
   includeForks,
@@ -82,6 +84,7 @@ export function GithubFilter({
       </label>
 
       {sort && sort !== "updated" ? <input type="hidden" name="sort" value={sort} /> : null}
+      {dir && dir !== "desc" ? <input type="hidden" name="dir" value={dir} /> : null}
 
       <Toggle name="notable" checked={notableOnly} label="Notable only" title="Hand-curated highlight repos" />
       <Toggle name="archived" checked={includeArchived} label="Archived" title="Include archived repos" />

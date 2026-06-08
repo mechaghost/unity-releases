@@ -2615,6 +2615,7 @@ export type GithubRepoListFilters = {
   includeForks?: boolean;
   notableOnly?: boolean;
   sort?: "stars" | "newest" | "updated" | "forks";
+  direction?: "asc" | "desc";
   page?: number;
   perPage?: number;
 };
@@ -2669,19 +2670,24 @@ export async function listGithubRepos(filters: GithubRepoListFilters): Promise<G
   }
   const whereSql = wheres.length ? `WHERE ${wheres.join(" AND ")}` : "";
 
+  // Direction applies to the primary sort key; the secondary key stays a
+  // stable DESC tiebreaker. `dir`/`nulls` are derived constants (never raw
+  // input), so they're safe to interpolate.
+  const dir = filters.direction === "asc" ? "ASC" : "DESC";
+  const nulls = filters.direction === "asc" ? "NULLS FIRST" : "NULLS LAST";
   let orderSql: string;
   switch (filters.sort) {
     case "newest":
-      orderSql = "gr.repo_created_at DESC NULLS LAST, gr.stargazers_count DESC";
+      orderSql = `gr.repo_created_at ${dir} ${nulls}, gr.stargazers_count DESC`;
       break;
     case "updated":
-      orderSql = "gr.repo_pushed_at DESC NULLS LAST, gr.stargazers_count DESC";
+      orderSql = `gr.repo_pushed_at ${dir} ${nulls}, gr.stargazers_count DESC`;
       break;
     case "forks":
-      orderSql = "gr.forks_count DESC, gr.stargazers_count DESC";
+      orderSql = `gr.forks_count ${dir}, gr.stargazers_count DESC`;
       break;
     default:
-      orderSql = "gr.stargazers_count DESC, gr.repo_pushed_at DESC NULLS LAST";
+      orderSql = `gr.stargazers_count ${dir}, gr.repo_pushed_at DESC NULLS LAST`;
   }
 
   values.push(perPage, offset);

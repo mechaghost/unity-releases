@@ -3,8 +3,28 @@ import {
   buildGithubHref,
   formatCompact,
   normalizeGithubSort,
+  normalizeGithubDir,
+  flipGithubDir,
   eventTypeLabel
 } from "@/lib/github-view";
+
+describe("github sort direction", () => {
+  test("normalizeGithubDir defaults to desc, only accepts asc", () => {
+    expect(normalizeGithubDir(undefined)).toBe("desc");
+    expect(normalizeGithubDir("desc")).toBe("desc");
+    expect(normalizeGithubDir("bogus")).toBe("desc");
+    expect(normalizeGithubDir("asc")).toBe("asc");
+  });
+  test("flipGithubDir reverses", () => {
+    expect(flipGithubDir("desc")).toBe("asc");
+    expect(flipGithubDir("asc")).toBe("desc");
+  });
+  test("buildGithubHref serializes dir=asc, omits the default desc", () => {
+    expect(buildGithubHref({ dir: "asc" })).toBe("/github?dir=asc");
+    expect(buildGithubHref({ dir: "desc" })).toBe("/github");
+    expect(buildGithubHref({ sort: "stars", dir: "asc" })).toBe("/github?sort=stars&dir=asc");
+  });
+});
 
 describe("normalizeGithubSort", () => {
   test("passes through known sorts, defaults to updated", () => {

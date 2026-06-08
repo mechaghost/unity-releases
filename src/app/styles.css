@@ -5883,6 +5883,9 @@ button.filter-section__head:focus-visible {
   padding-bottom: var(--space-2);
 }
 .github-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
@@ -5891,6 +5894,7 @@ button.filter-section__head:focus-visible {
   border: 1px solid transparent;
   white-space: nowrap;
 }
+.github-tabs__dir { margin-right: -2px; }
 .github-tabs__tab:hover { color: var(--text-primary); background: var(--surface-sunken); }
 .github-tabs__tab[aria-current="true"] {
   color: var(--accent);
