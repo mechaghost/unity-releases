@@ -162,6 +162,11 @@ export function summarizeEvent(raw: Record<string, unknown>): string {
       const num = asInt(issue.number);
       return `${action.charAt(0).toUpperCase() + action.slice(1)} issue #${num}`.trim();
     }
+    case "IssueCommentEvent": {
+      const issue = (payload.issue ?? {}) as Record<string, unknown>;
+      const num = asInt(issue.number);
+      return num ? `Commented on #${num}` : "Commented";
+    }
     case "PublicEvent":
       return "Open-sourced the repository";
     case "MemberEvent":

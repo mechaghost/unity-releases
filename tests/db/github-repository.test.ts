@@ -7,7 +7,7 @@ vi.mock("../../src/lib/db/client", () => ({
   getPool: vi.fn()
 }));
 
-import { listGithubRepos } from "../../src/lib/db/repositories";
+import { listGithubRepos, listGithubEvents } from "../../src/lib/db/repositories";
 
 function rows(...records: Array<Record<string, unknown>>) {
   return { rows: records, rowCount: records.length };
@@ -51,7 +51,7 @@ describe("listGithubRepos", () => {
     expect(params).toContain("netcode");
   });
 
-  test("sort=newest orders by created, sort=updated by pushed", async () => {
+  test("sort=newest orders by created, updated by pushed, forks by forks", async () => {
     mocks.query.mockResolvedValueOnce(rows());
     await listGithubRepos({ sort: "newest" });
     expect(mocks.query.mock.calls[0][0]).toContain("ORDER BY gr.repo_created_at DESC");
@@ -59,5 +59,20 @@ describe("listGithubRepos", () => {
     mocks.query.mockResolvedValueOnce(rows());
     await listGithubRepos({ sort: "updated" });
     expect(mocks.query.mock.calls[1][0]).toContain("ORDER BY gr.repo_pushed_at DESC");
+
+    mocks.query.mockResolvedValueOnce(rows());
+    await listGithubRepos({ sort: "forks" });
+    expect(mocks.query.mock.calls[2][0]).toContain("ORDER BY gr.forks_count DESC");
+  });
+});
+
+describe("listGithubEvents", () => {
+  test("excludes dependency-bot noise but keeps releases", async () => {
+    mocks.query.mockResolvedValueOnce(rows());
+    await listGithubEvents(40);
+    const [sql, params] = mocks.query.mock.calls[0];
+    expect(sql).toContain("event_type = 'ReleaseEvent'");
+    expect(sql).toContain("actor_login NOT ILIKE '%[bot]%'");
+    expect(params).toContain(40);
   });
 });
