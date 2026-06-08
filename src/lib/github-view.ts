@@ -8,23 +8,20 @@ export const GITHUB_ORG_URL = "https://github.com/Unity-Technologies";
 export type GithubSort = "stars" | "newest" | "updated" | "forks";
 const VALID_SORTS: ReadonlySet<string> = new Set(["stars", "newest", "updated", "forks"]);
 
+/** Default sort is "updated" — the page is built around "which Unity repo
+ *  is most recently active." */
+export const DEFAULT_GITHUB_SORT: GithubSort = "updated";
+
 export function normalizeGithubSort(value: string | undefined): GithubSort {
-  return value && VALID_SORTS.has(value) ? (value as GithubSort) : "stars";
+  return value && VALID_SORTS.has(value) ? (value as GithubSort) : DEFAULT_GITHUB_SORT;
 }
 
-/** The single sort/view control on /github: four repo sorts plus the
- *  activity feed (activity is `?view=activity`, the rest are `?sort=`). */
-export const GITHUB_TABS: ReadonlyArray<{
-  key: string;
-  label: string;
-  sort?: GithubSort;
-  view?: "activity";
-}> = [
-  { key: "stars", label: "Stars", sort: "stars" },
+/** The sort control on /github. Recently updated leads (it's the default). */
+export const GITHUB_TABS: ReadonlyArray<{ key: string; label: string; sort: GithubSort }> = [
   { key: "updated", label: "Recently updated", sort: "updated" },
+  { key: "stars", label: "Stars", sort: "stars" },
   { key: "newest", label: "Newest", sort: "newest" },
-  { key: "forks", label: "Most forks", sort: "forks" },
-  { key: "activity", label: "Activity", view: "activity" }
+  { key: "forks", label: "Most forks", sort: "forks" }
 ];
 
 export type GithubHrefState = {
@@ -32,8 +29,6 @@ export type GithubHrefState = {
   language?: string;
   topic?: string;
   sort?: string;
-  /** non-repo view, currently only "activity" */
-  view?: string;
   notable?: boolean;
   /** include archived repos (hidden by default) */
   archived?: boolean;
@@ -43,19 +38,14 @@ export type GithubHrefState = {
 };
 
 /** Build a /github URL from filter state, omitting defaults so the
- *  canonical page stays a bare /github. The activity view drops repo
- *  filters; otherwise sort=stars and page=1 are defaults and not
- *  serialized. */
+ *  canonical page stays a bare /github. sort=updated (the default) and
+ *  page=1 are not serialized. */
 export function buildGithubHref(state: GithubHrefState): string {
   const sp = new URLSearchParams();
-  if (state.view) {
-    sp.set("view", state.view);
-    return `/github?${sp.toString()}`;
-  }
   if (state.q) sp.set("q", state.q);
   if (state.language) sp.set("lang", state.language);
   if (state.topic) sp.set("topic", state.topic);
-  if (state.sort && state.sort !== "stars") sp.set("sort", state.sort);
+  if (state.sort && state.sort !== DEFAULT_GITHUB_SORT) sp.set("sort", state.sort);
   if (state.notable) sp.set("notable", "1");
   if (state.archived) sp.set("archived", "1");
   if (state.forks) sp.set("forks", "1");

@@ -81,7 +81,7 @@ export function GithubFilter({
         </select>
       </label>
 
-      {sort && sort !== "stars" ? <input type="hidden" name="sort" value={sort} /> : null}
+      {sort && sort !== "updated" ? <input type="hidden" name="sort" value={sort} /> : null}
 
       <Toggle name="notable" checked={notableOnly} label="Notable only" title="Hand-curated highlight repos" />
       <Toggle name="archived" checked={includeArchived} label="Archived" title="Include archived repos" />
