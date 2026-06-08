@@ -18,6 +18,7 @@ export type JobName =
   | "legacy-lts"
   | "news"
   | "resources"
+  | "github"
   | "discussions";
 
 export type JobDefinition = {
@@ -47,6 +48,7 @@ export const JOB_ORDER: JobDefinition[] = [
   { name: "legacy-lts", npmScript: "ingest:legacy-lts" },
   { name: "news", npmScript: "ingest:news" },
   { name: "resources", npmScript: "ingest:resources" },
+  { name: "github", npmScript: "ingest:github" },
   { name: "discussions", npmScript: "ingest:discussions" }
 ];
 

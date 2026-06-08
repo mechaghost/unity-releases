@@ -532,3 +532,105 @@ DROP TRIGGER IF EXISTS trg_discourse_posts_search_vector ON discourse_posts;
 CREATE TRIGGER trg_discourse_posts_search_vector
 BEFORE INSERT OR UPDATE ON discourse_posts
 FOR EACH ROW EXECUTE FUNCTION update_discourse_post_search_vector();
+
+
+-- =====================================================================
+-- Unity GitHub (github.com/Unity-Technologies) public org tracking
+--
+-- We mirror the org's public repositories and recent public activity
+-- so the /github page can show latest updates (releases/pushes), newest
+-- projects, popular repos (by stars), and a hand-curated "notable" set.
+-- The ingester runs inside the mega-cron and uses GITHUB_TOKEN when set
+-- (5000 req/hr) or unauthenticated (60 req/hr) otherwise.
+--
+-- github_repo_id / github_event_id are the upstream numeric ids, used
+-- as upsert/dedupe keys; our BIGSERIAL `id` is the local key.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS github_repos (
+  id BIGSERIAL PRIMARY KEY,
+  github_repo_id BIGINT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  full_name TEXT NOT NULL,
+  owner TEXT NOT NULL,
+  description TEXT,
+  html_url TEXT NOT NULL,
+  homepage TEXT,
+  -- Popularity / activity signals as GitHub reports them.
+  stargazers_count INTEGER NOT NULL DEFAULT 0,
+  forks_count INTEGER NOT NULL DEFAULT 0,
+  open_issues_count INTEGER NOT NULL DEFAULT 0,
+  watchers_count INTEGER NOT NULL DEFAULT 0,
+  language TEXT,
+  topics TEXT[] NOT NULL DEFAULT '{}',
+  license_spdx TEXT,
+  is_archived BOOLEAN NOT NULL DEFAULT false,
+  is_fork BOOLEAN NOT NULL DEFAULT false,
+  is_template BOOLEAN NOT NULL DEFAULT false,
+  default_branch TEXT,
+  size_kb INTEGER,
+  -- Curated highlight flag, set by the ingester from a maintained list.
+  is_notable BOOLEAN NOT NULL DEFAULT false,
+  -- Upstream timestamps. repo_pushed_at drives "latest updates" by repo;
+  -- repo_created_at drives "new projects".
+  repo_created_at TIMESTAMPTZ,
+  repo_updated_at TIMESTAMPTZ,
+  repo_pushed_at TIMESTAMPTZ,
+  -- first_seen_at is ours (when we first ingested it); useful for "new to
+  -- us" even if GitHub's created_at is old.
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  raw_sha256 TEXT,
+  source_snapshot_id BIGINT REFERENCES source_snapshots(id),
+  ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
+  search_vector tsvector,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Append/dedupe log of recent public org activity (releases, pushes,
+-- new repos). Keyed by GitHub's event id, which is unique and stable.
+CREATE TABLE IF NOT EXISTS github_events (
+  id BIGSERIAL PRIMARY KEY,
+  github_event_id TEXT NOT NULL UNIQUE,
+  event_type TEXT NOT NULL,
+  repo_full_name TEXT NOT NULL,
+  repo_github_id BIGINT,
+  actor_login TEXT,
+  actor_avatar_url TEXT,
+  -- Human one-liner derived at ingest time (e.g. "Released v2.1.0").
+  summary TEXT NOT NULL,
+  ref TEXT,
+  html_url TEXT,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  event_created_at TIMESTAMPTZ NOT NULL,
+  ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_github_repos_stars ON github_repos (stargazers_count DESC);
+CREATE INDEX IF NOT EXISTS idx_github_repos_created ON github_repos (repo_created_at DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_github_repos_pushed ON github_repos (repo_pushed_at DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_github_repos_notable ON github_repos (is_notable) WHERE is_notable = true;
+CREATE INDEX IF NOT EXISTS idx_github_repos_language ON github_repos (language);
+CREATE INDEX IF NOT EXISTS idx_github_repos_topics ON github_repos USING GIN (topics);
+CREATE INDEX IF NOT EXISTS idx_github_repos_search ON github_repos USING GIN (search_vector);
+CREATE INDEX IF NOT EXISTS idx_github_events_created ON github_events (event_created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_github_events_repo ON github_events (repo_full_name);
+CREATE INDEX IF NOT EXISTS idx_github_events_type ON github_events (event_type);
+
+-- search_vector: repo name (A) + topics (B) + description (C).
+CREATE OR REPLACE FUNCTION update_github_repo_search_vector()
+RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector :=
+    setweight(to_tsvector('english', coalesce(NEW.name, '')), 'A') ||
+    setweight(to_tsvector('english', array_to_string(NEW.topics, ' ')), 'B') ||
+    setweight(to_tsvector('english', coalesce(NEW.description, '')), 'C');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_github_repos_search_vector ON github_repos;
+CREATE TRIGGER trg_github_repos_search_vector
+BEFORE INSERT OR UPDATE ON github_repos
+FOR EACH ROW EXECUTE FUNCTION update_github_repo_search_vector();

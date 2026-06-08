@@ -20,7 +20,7 @@ describe("JOB_ORDER", () => {
 
   test("covers every ingest pipeline that previously had its own cron", () => {
     const names = JOB_ORDER.map((j) => j.name).sort();
-    expect(names).toEqual(["discussions", "editor", "legacy-lts", "news", "packages", "resources"]);
+    expect(names).toEqual(["discussions", "editor", "github", "legacy-lts", "news", "packages", "resources"]);
   });
 
   test("npm scripts use the canonical ingest:* names", () => {
