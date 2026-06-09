@@ -638,3 +638,10 @@ FOR EACH ROW EXECUTE FUNCTION update_github_repo_search_vector();
 -- Head commit message for PushEvents, so repo cards can show the latest
 -- commit without an extra per-repo API call. Additive for existing deploys.
 ALTER TABLE github_events ADD COLUMN IF NOT EXISTS head_commit_message TEXT;
+
+-- Latest commit on each repo's default branch, fetched per-repo during
+-- ingestion (the org events feed doesn't carry commit messages). Powers
+-- the "latest commit" line on repo cards. Additive for existing deploys.
+ALTER TABLE github_repos ADD COLUMN IF NOT EXISTS latest_commit_message TEXT;
+ALTER TABLE github_repos ADD COLUMN IF NOT EXISTS latest_commit_at TIMESTAMPTZ;
+ALTER TABLE github_repos ADD COLUMN IF NOT EXISTS latest_commit_url TEXT;

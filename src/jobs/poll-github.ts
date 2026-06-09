@@ -4,9 +4,16 @@ import {
   createIngestionRun,
   finishIngestionRun,
   upsertGithubRepo,
-  upsertGithubEvent
+  upsertGithubEvent,
+  updateRepoLatestCommit
 } from "../lib/db/repositories";
-import { GITHUB_ORG, githubGetAll, parseRepo, parseEvent } from "../lib/ingest/github";
+import {
+  GITHUB_ORG,
+  githubGetAll,
+  parseRepo,
+  parseEvent,
+  fetchLatestCommit
+} from "../lib/ingest/github";
 
 /**
  * Ingest the Unity-Technologies public GitHub org: every repo (metadata,
@@ -24,6 +31,9 @@ import { GITHUB_ORG, githubGetAll, parseRepo, parseEvent } from "../lib/ingest/g
 // few pages. ~1000 repos at 100/page = 10 requests, trivial with a token.
 const MAX_REPO_PAGES = Number(process.env.GITHUB_MAX_REPO_PAGES ?? 12);
 const MAX_EVENT_PAGES = Number(process.env.GITHUB_MAX_EVENT_PAGES ?? 3);
+// How many of the most-recently-pushed repos to fetch a latest commit for
+// (one extra API call each). Covers the first few pages of the default view.
+const MAX_COMMIT_REPOS = Number(process.env.GITHUB_MAX_COMMIT_REPOS ?? 90);
 
 async function inTx<T>(handler: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await getPool().connect();
@@ -51,6 +61,7 @@ async function main() {
     reposSeen: 0,
     reposInserted: 0,
     reposUpdated: 0,
+    commitsFetched: 0,
     eventsSeen: 0,
     eventsInserted: 0,
     rateRemaining: null as number | null
@@ -60,16 +71,32 @@ async function main() {
     // Repositories — the dataset behind New / Popular / Notable / index.
     const repos = await githubGetAll(`/orgs/${GITHUB_ORG}/repos`, { token, maxPages: MAX_REPO_PAGES });
     summary.rateRemaining = repos.rate.remaining;
+    const parsedRepos = repos.items
+      .map(parseRepo)
+      .filter((r) => r.githubRepoId);
     await inTx(async (client) => {
-      for (const raw of repos.items) {
-        const parsed = parseRepo(raw);
-        if (!parsed.githubRepoId) continue;
+      for (const parsed of parsedRepos) {
         summary.reposSeen += 1;
         const outcome = await upsertGithubRepo(client, parsed, runId, null);
         if (outcome === "inserted") summary.reposInserted += 1;
         else summary.reposUpdated += 1;
       }
     });
+
+    // Latest commit per repo for the most-recently-pushed ones (the org
+    // events feed doesn't carry commit messages). Bounded so it stays a
+    // small number of extra calls; the default card view shows these.
+    const recent = [...parsedRepos]
+      .filter((r) => r.repoPushedAt && !r.isFork)
+      .sort((a, b) => (b.repoPushedAt ?? "").localeCompare(a.repoPushedAt ?? ""))
+      .slice(0, MAX_COMMIT_REPOS);
+    for (const r of recent) {
+      const commit = await fetchLatestCommit(r.fullName, token);
+      if (commit) {
+        await inTx((client) => updateRepoLatestCommit(client, r.githubRepoId, commit));
+        summary.commitsFetched += 1;
+      }
+    }
 
     // Public activity feed — the "latest updates" section.
     const events = await githubGetAll(`/orgs/${GITHUB_ORG}/events`, { token, maxPages: MAX_EVENT_PAGES });

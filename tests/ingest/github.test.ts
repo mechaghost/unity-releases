@@ -1,5 +1,42 @@
-import { describe, expect, test } from "vitest";
-import { parseRepo, parseEvent, summarizeEvent, isNotable } from "@/lib/ingest/github";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import {
+  parseRepo,
+  parseEvent,
+  summarizeEvent,
+  isNotable,
+  fetchLatestCommit
+} from "@/lib/ingest/github";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("fetchLatestCommit", () => {
+  function res(body: unknown, ok = true, status = 200) {
+    return { ok, status, headers: { get: () => null }, json: async () => body };
+  }
+  test("parses the first commit's first line + date + url", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        res([
+          {
+            html_url: "https://github.com/Unity-Technologies/x/commit/abc",
+            commit: { message: "Fix host migration race\n\nlong body", author: { date: "2026-06-09T00:00:00Z" } }
+          }
+        ])
+      )
+    );
+    const c = await fetchLatestCommit("Unity-Technologies/x", "tok");
+    expect(c).toEqual({
+      message: "Fix host migration race",
+      committedAt: "2026-06-09T00:00:00.000Z",
+      url: "https://github.com/Unity-Technologies/x/commit/abc"
+    });
+  });
+  test("returns null for an empty repo (non-ok status)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(res(null, false, 409)));
+    expect(await fetchLatestCommit("Unity-Technologies/empty", undefined)).toBeNull();
+  });
+});
 
 describe("parseRepo", () => {
   test("maps the fields we store and flags notable repos", () => {

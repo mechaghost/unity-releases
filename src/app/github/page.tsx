@@ -254,7 +254,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function RepoCard({ repo, activity }: { repo: GithubRepoListItem; activity?: RepoLatestActivity }) {
-  const commit = activity?.commitMessage?.trim();
+  // Latest commit comes from the per-repo fetch stored on the repo row;
+  // the release tag still comes from the activity events.
+  const commit = repo.latestCommitMessage?.trim();
   return (
     <li className="github-card">
       <header className="github-card__head">
