@@ -19,7 +19,10 @@ import { GITHUB_ORG, githubGetAll, parseRepo, parseEvent } from "../lib/ingest/g
  * /api/health rather than vanishing on rollback.
  */
 
-const MAX_REPO_PAGES = Number(process.env.GITHUB_MAX_REPO_PAGES ?? 5);
+// Unity-Technologies has well over 500 public repos (incl. archived +
+// forks), so cap high enough to ingest the whole org, not just the first
+// few pages. ~1000 repos at 100/page = 10 requests, trivial with a token.
+const MAX_REPO_PAGES = Number(process.env.GITHUB_MAX_REPO_PAGES ?? 12);
 const MAX_EVENT_PAGES = Number(process.env.GITHUB_MAX_EVENT_PAGES ?? 3);
 
 async function inTx<T>(handler: (client: PoolClient) => Promise<T>): Promise<T> {
