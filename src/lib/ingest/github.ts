@@ -281,3 +281,37 @@ function numHeader(v: string | null): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
+
+export type GithubLatestCommit = {
+  message: string;
+  committedAt: string | null;
+  url: string;
+};
+
+/** Latest commit on a repo's default branch. The org events feed doesn't
+ *  carry commit messages, so this is the reliable source. Returns null on
+ *  any error (empty repo / 404 / transient) so one repo can't abort the
+ *  run. Rate-limit 403 is rethrown so the caller can stop the loop. */
+export async function fetchLatestCommit(
+  fullName: string,
+  token: string | undefined
+): Promise<GithubLatestCommit | null> {
+  const url = `${GITHUB_API}/repos/${fullName}/commits?per_page=1`;
+  const res = await fetch(url, { headers: githubHeaders(token) });
+  if (res.status === 403 && numHeader(res.headers.get("x-ratelimit-remaining")) === 0) {
+    throw new Error("GitHub rate limit exhausted fetching commits (set GITHUB_TOKEN to raise it)");
+  }
+  if (!res.ok) return null; // 409 empty repo, 404, etc.
+  const body = (await res.json()) as unknown;
+  if (!Array.isArray(body) || body.length === 0) return null;
+  const top = body[0] as Record<string, unknown>;
+  const commit = (top.commit ?? {}) as Record<string, unknown>;
+  const author = (commit.author ?? {}) as Record<string, unknown>;
+  const raw = asString(commit.message);
+  if (!raw) return null;
+  return {
+    message: raw.split("\n")[0].trim().slice(0, 200),
+    committedAt: asIso(author.date),
+    url: asString(top.html_url) ?? `https://github.com/${fullName}`
+  };
+}

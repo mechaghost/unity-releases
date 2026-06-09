@@ -2639,6 +2639,8 @@ export type GithubRepoListItem = {
   isNotable: boolean;
   repoCreatedAt: string | null;
   repoPushedAt: string | null;
+  latestCommitMessage: string | null;
+  latestCommitUrl: string | null;
 };
 
 export type GithubRepoListResult = { total: number; items: GithubRepoListItem[] };
@@ -2657,8 +2659,17 @@ export async function listGithubRepos(filters: GithubRepoListFilters): Promise<G
   if (!filters.includeForks) wheres.push("gr.is_fork = false");
   if (filters.notableOnly) wheres.push("gr.is_notable = true");
   if (filters.q && filters.q.trim()) {
-    values.push(filters.q.trim());
-    wheres.push(`gr.search_vector @@ websearch_to_tsquery('english', $${values.length})`);
+    const term = filters.q.trim();
+    values.push(term);
+    const tsIdx = values.length;
+    values.push(`%${term}%`);
+    const likeIdx = values.length;
+    // FTS matches whole words in name/topics/description; the ILIKE on
+    // full_name also catches partial/substring repo names ("MemorySnapshot"
+    // -> "MemorySnapshotDataTools"), which FTS lexemes can't.
+    wheres.push(
+      `(gr.search_vector @@ websearch_to_tsquery('english', $${tsIdx}) OR gr.full_name ILIKE $${likeIdx})`
+    );
   }
   if (filters.language) {
     values.push(filters.language);
@@ -2711,6 +2722,8 @@ export async function listGithubRepos(filters: GithubRepoListFilters): Promise<G
     is_notable: boolean;
     repo_created_at: string | null;
     repo_pushed_at: string | null;
+    latest_commit_message: string | null;
+    latest_commit_url: string | null;
   }>(
     `
       SELECT
@@ -2718,7 +2731,8 @@ export async function listGithubRepos(filters: GithubRepoListFilters): Promise<G
         gr.id::text, gr.github_repo_id::text, gr.name, gr.full_name, gr.description,
         gr.html_url, gr.homepage, gr.stargazers_count, gr.forks_count, gr.open_issues_count,
         gr.language, gr.topics, gr.license_spdx, gr.is_archived, gr.is_fork, gr.is_notable,
-        gr.repo_created_at, gr.repo_pushed_at
+        gr.repo_created_at, gr.repo_pushed_at,
+        gr.latest_commit_message, gr.latest_commit_url
       FROM github_repos gr
       ${whereSql}
       ORDER BY ${orderSql}
@@ -2745,10 +2759,30 @@ export async function listGithubRepos(filters: GithubRepoListFilters): Promise<G
     isFork: r.is_fork,
     isNotable: r.is_notable,
     repoCreatedAt: r.repo_created_at ? new Date(r.repo_created_at).toISOString() : null,
-    repoPushedAt: r.repo_pushed_at ? new Date(r.repo_pushed_at).toISOString() : null
+    repoPushedAt: r.repo_pushed_at ? new Date(r.repo_pushed_at).toISOString() : null,
+    latestCommitMessage: r.latest_commit_message,
+    latestCommitUrl: r.latest_commit_url
   }));
 
   return { total: Number(result.rows[0]?.total_count ?? 0), items };
+}
+
+/** Store the latest commit (message + url + date) on a repo row. */
+export async function updateRepoLatestCommit(
+  client: PoolClient,
+  githubRepoId: number,
+  commit: { message: string; committedAt: string | null; url: string }
+): Promise<void> {
+  await client.query(
+    `
+      UPDATE github_repos
+      SET latest_commit_message = $2,
+          latest_commit_at = $3,
+          latest_commit_url = $4
+      WHERE github_repo_id = $1
+    `,
+    [githubRepoId, commit.message, commit.committedAt, commit.url]
+  );
 }
 
 export type GithubRepoFacets = {

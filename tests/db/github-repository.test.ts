@@ -51,6 +51,14 @@ describe("listGithubRepos", () => {
     expect(params).toContain("netcode");
   });
 
+  test("q also substring-matches full_name so partial repo names resolve", async () => {
+    mocks.query.mockResolvedValueOnce(rows());
+    await listGithubRepos({ q: "MemorySnapshot" });
+    const [sql, params] = mocks.query.mock.calls[0];
+    expect(sql).toContain("gr.full_name ILIKE");
+    expect(params).toContain("%MemorySnapshot%");
+  });
+
   test("sort=newest orders by created, updated by pushed, forks by forks", async () => {
     mocks.query.mockResolvedValueOnce(rows());
     await listGithubRepos({ sort: "newest" });
