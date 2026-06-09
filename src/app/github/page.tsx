@@ -59,6 +59,11 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
   const includeForks = firstString(params.forks) === "1";
   const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
 
+  // When the user is searching by name, span everything (archived + forks)
+  // so a specific repo is findable even if it's archived or a fork — those
+  // are only hidden from the default *browse*, not from explicit search.
+  const searching = q.length > 0;
+
   const [stats, facets, { items, total }] = await Promise.all([
     safeStats(),
     safeFacets(),
@@ -67,7 +72,8 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
       language: language || undefined,
       topic: topic || undefined,
       notableOnly,
-      includeForks,
+      includeArchived: searching,
+      includeForks: searching || includeForks,
       sort,
       direction: dir,
       page,
