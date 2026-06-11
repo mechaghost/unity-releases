@@ -95,6 +95,34 @@ mention count. Add the ones worth tracking to the list and re-run
 `npm run ingest:packages`. Built-in `com.unity.modules.*` are skipped
 (they're not registry entries).
 
+### packages.unity.com is legacy-oriented for Unity 6
+
+`https://packages.unity.com/{id}` (the npm-style metadata endpoint the
+package poller hits) is **only a reliable source of truth for pre-Unity-6
+packages.** Starting with Unity 6, Unity absorbed many packages into the
+Editor as version-bound core packages and stopped publishing them to the
+registry, so the endpoint serves a *frozen* `latest`. Examples: the entire
+render-pipeline family (URP/HDRP/core/shadergraph/VFX graph) is stuck at
+`10.10.1` from 2022-10, while Unity 6 actually ships them as 17.x bundled
+with the Editor; `ugui`, `ui.builder`, `jobs`, and a few others are
+similarly frozen. These are still real registry packages (they return 200
+with full history), so we keep ingesting them — the history is valid, just
+frozen — but for the *current* version of an Editor-bound package, trust
+the Unity 6 / Editor docs, not the registry.
+
+`/packages` flags any package whose latest registry publish predates Unity 6
+GA with a "Frozen" badge, driven by `isRegistryFrozen()` /
+`UNITY_6_REGISTRY_CUTOFF_ISO` in `src/lib/ingest/unity-packages.ts` (no list
+to maintain — it self-corrects if Unity ever publishes again).
+
+Some ids also moved off the registry entirely and must use the right name or
+be dropped: built-in modules `com.unity.2d.sprite` / `com.unity.2d.tilemap`
+and the bundled-only `com.unity.render-pipelines.universal-config` 404 and
+are not tracked; Remote Config is `com.unity.remote-config` (not
+`com.unity.services.remote-config`), Cloud Save is
+`com.unity.services.cloudsave` (not `...cloud-save`), and the tutorials
+framework is `com.unity.learn.iet-framework` (not `com.unity.tutorials.core`).
+
 ## Current App Shape
 
 Primary navigation (sidebar on desktop, drawer on mobile):

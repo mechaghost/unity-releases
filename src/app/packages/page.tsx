@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { listPackages } from "@/lib/db/repositories";
+import { isRegistryFrozen } from "@/lib/ingest/unity-packages";
 import { getUserPackages } from "@/lib/user-packages";
 import { ExternalLink } from "../_components/ExternalLink";
 import { SidebarUserPackages } from "../_components/SidebarUserPackages";
@@ -143,6 +144,14 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                     <span className="muted tabnums">
                       {pkg.latest_published_at ? formatDate(pkg.latest_published_at) : "-"}
                     </span>
+                    {isRegistryFrozen(pkg.latest_published_at) ? (
+                      <span
+                        className="chip chip--frozen"
+                        title="No registry release since before Unity 6 (2024). This package is likely Editor-bundled/version-bound in Unity 6, so packages.unity.com no longer reflects its current version - check the Unity 6 / Editor docs."
+                      >
+                        Frozen
+                      </span>
+                    ) : null}
                   </td>
                   <td>
                     {pkg.latest_is_prerelease ? (

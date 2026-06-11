@@ -524,6 +524,13 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .chip:hover { text-decoration: none; }
 
+.chip--frozen {
+  margin-left: var(--space-2);
+  background: var(--color-caution-bg);
+  color: var(--color-caution-fg);
+  cursor: help;
+}
+
 .chip--issue {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
