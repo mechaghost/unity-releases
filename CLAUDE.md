@@ -115,6 +115,21 @@ GA with a "Frozen" badge, driven by `isRegistryFrozen()` /
 `UNITY_6_REGISTRY_CUTOFF_ISO` in `src/lib/ingest/unity-packages.ts` (no list
 to maintain — it self-corrects if Unity ever publishes again).
 
+For Editor-bound packages we reconcile the *real* Unity 6 version from the
+release notes. Every editor's notes carry a "Package changes" block
+(`- com.unity.render-pipelines.universal: [16.0.3](…) to [17.0.3](…)`); the
+parser (`parseReleaseNotes` → `packageChanges`) mines those version pairs and
+ingestion stores them in `editor_package_versions` (editor → package → from/to).
+`getEditorBundledVersions()` returns the current bundled version per package
+(preferring final/patch `suffix_channel` builds, then most recent), and
+`/packages` upgrades the "Frozen" badge to **"Bundled with Editor"** with a
+dated line: *bundled vY as of <editor> — last registry release vX, <date>*.
+The full version is the link *text* (`[17.0.3]`); the `@17.0//` in the URL is
+truncated to major.minor and must be ignored. Schema change → run
+`railway run npm run db:migrate` against prod, then re-ingest editor releases
+(`npm run ingest:editor`) so `editor_package_versions` populates; until then
+`/packages` falls back to the plain "Frozen" badge.
+
 Some ids also moved off the registry entirely and must use the right name or
 be dropped: built-in modules `com.unity.2d.sprite` / `com.unity.2d.tilemap`
 and the bundled-only `com.unity.render-pipelines.universal-config` 404 and

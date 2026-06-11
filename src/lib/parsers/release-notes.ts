@@ -37,9 +37,22 @@ export type ReleaseSection = {
   sourceOrder: number;
 };
 
+// A package version transition pulled from the editor notes' "Package
+// changes" block (e.g. `- com.unity.render-pipelines.universal: [16.0.3]
+// to [17.0.3]`). This is the Unity-6-accurate source of truth for the
+// version a package ships bundled with a given Editor - the package
+// registry can't tell us this once a package becomes Editor-bound.
+export type PackageVersionChange = {
+  packageName: string;
+  fromVersion: string | null;
+  toVersion: string | null;
+  changeKind: "updated" | "added" | "removed";
+};
+
 export type ParsedReleaseNotes = {
   items: ReleaseNoteItem[];
   sections: ReleaseSection[];
+  packageChanges: PackageVersionChange[];
 };
 
 type ParseReleaseNotesOptions = {
@@ -67,6 +80,10 @@ export function parseReleaseNotes(
   const blocks = splitIntoBlocks(markdown);
   const sections: ReleaseSection[] = [];
   const items: ReleaseNoteItem[] = [];
+  // Keyed by `${packageName}|${changeKind}` so the duplicate "Packages
+  // updated" blocks Unity sometimes emits in one notes file collapse to a
+  // single change per package.
+  const packageChanges = new Map<string, PackageVersionChange>();
   let currentSection: ReleaseSection | null = null;
 
   for (const block of blocks) {
@@ -89,6 +106,14 @@ export function parseReleaseNotes(
     const body = block.body.trim();
     if (!body) {
       continue;
+    }
+
+    const changeKind = packageChangeKind(currentSection.section);
+    if (changeKind) {
+      const change = parsePackageChangeLine(body, changeKind);
+      if (change) {
+        packageChanges.set(`${change.packageName}|${change.changeKind}`, change);
+      }
     }
 
     const issueLinks = extractIssueLinks(body);
@@ -123,7 +148,60 @@ export function parseReleaseNotes(
     });
   }
 
-  return { items, sections };
+  return { items, sections, packageChanges: [...packageChanges.values()] };
+}
+
+// "Packages updated" / "Packages added" / "Packages deprecated" subsection
+// headings under Unity's "Package changes" block. We only mine version
+// pairs from these, so prose elsewhere ("Updated the Oculus XR Plugin to
+// 4.1.2") can't produce false positives.
+function packageChangeKind(section: string): PackageVersionChange["changeKind"] | null {
+  if (/packages?\s+added/i.test(section)) return "added";
+  if (/packages?\s+(removed|deprecated)/i.test(section)) return "removed";
+  if (/packages?\s+updated/i.test(section)) return "updated";
+  // Some notes put `- pkg: x to y` bullets directly under "Package changes
+  // in <ver>" with no "Packages updated" subheading - treat those as updates.
+  if (/package changes/i.test(section)) return "updated";
+  return null;
+}
+
+const PACKAGE_CHANGE_ID_RE = /^(com\.unity\.[a-z0-9.-]+)\b/;
+
+// Versions are the *link text* in `[1.2.4](https://docs...@1.2//...)` - the
+// `@1.2` in the URL is truncated to major.minor, so we read the bracketed
+// full version. Falls back to bare `@x.y.z` / `: x.y.z` / `to x.y.z` forms.
+function packageVersionTokens(body: string): string[] {
+  const linkVersions = [...body.matchAll(/\[(\d[0-9a-zA-Z.+-]*)\]\(/g)].map((m) => m[1]);
+  if (linkVersions.length) return linkVersions;
+  return [...body.matchAll(/(?:@|:\s*|to\s+)(\d+(?:\.\d+)+[0-9a-zA-Z.+-]*)/g)].map((m) => m[1]);
+}
+
+function parsePackageChangeLine(
+  body: string,
+  changeKind: PackageVersionChange["changeKind"]
+): PackageVersionChange | null {
+  const idMatch = body.match(PACKAGE_CHANGE_ID_RE);
+  if (!idMatch) return null;
+  const versions = packageVersionTokens(body);
+  if (!versions.length) return null;
+  const packageName = idMatch[1];
+
+  if (changeKind === "removed") {
+    return { packageName, fromVersion: versions[0], toVersion: null, changeKind };
+  }
+  if (changeKind === "added") {
+    return { packageName, fromVersion: null, toVersion: versions[0], changeKind };
+  }
+  // updated: `[from] to [to]`; tolerate a single version (treat as the target).
+  if (versions.length >= 2) {
+    return {
+      packageName,
+      fromVersion: versions[0],
+      toVersion: versions[versions.length - 1],
+      changeKind
+    };
+  }
+  return { packageName, fromVersion: null, toVersion: versions[0], changeKind };
 }
 
 type Block =

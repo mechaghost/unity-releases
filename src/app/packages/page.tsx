@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { listPackages } from "@/lib/db/repositories";
+import { listPackages, getEditorBundledVersions, type EditorBundledVersion } from "@/lib/db/repositories";
 import { isRegistryFrozen } from "@/lib/ingest/unity-packages";
 import { getUserPackages } from "@/lib/user-packages";
 import { ExternalLink } from "../_components/ExternalLink";
@@ -60,9 +60,10 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
   const channel = parseChannel(params.channel);
   const sort = parseSort(params.sort);
 
-  const [allPackages, userPackages] = await Promise.all([
+  const [allPackages, userPackages, bundledVersions] = await Promise.all([
     safeListPackages() as Promise<PackageRow[]>,
-    getUserPackages()
+    getUserPackages(),
+    safeBundledVersions()
   ]);
   const userSet = new Set(userPackages);
   const filtered = sortPackages(
@@ -126,7 +127,10 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
               </tr>
             </thead>
             <tbody>
-              {filtered.map((pkg) => (
+              {filtered.map((pkg) => {
+                const frozen = isRegistryFrozen(pkg.latest_published_at);
+                const bundled = frozen ? bundledVersions.get(pkg.name) : undefined;
+                return (
                 <PackageRowClient
                   key={pkg.name}
                   packageName={pkg.name}
@@ -136,6 +140,14 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                   <td>
                     <strong>{pkg.display_name ?? pkg.name}</strong>
                     <div className="muted package-table__name">{pkg.name}</div>
+                    {bundled ? (
+                      <div className="package-table__bundled">
+                        Bundled with Editor · <strong>{bundled.toVersion}</strong> as of{" "}
+                        {bundled.editorVersion}
+                        {" — "}last registry release {pkg.latest_version ?? "-"}
+                        {pkg.latest_published_at ? `, ${formatMonthYear(pkg.latest_published_at)}` : ""}
+                      </div>
+                    ) : null}
                   </td>
                   <td>
                     <span className="chip chip--package tabnums">{pkg.latest_version ?? "-"}</span>
@@ -144,7 +156,14 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                     <span className="muted tabnums">
                       {pkg.latest_published_at ? formatDate(pkg.latest_published_at) : "-"}
                     </span>
-                    {isRegistryFrozen(pkg.latest_published_at) ? (
+                    {bundled ? (
+                      <span
+                        className="chip chip--frozen"
+                        title={`Unity 6 moved ${pkg.name} into the Editor as a version-bound core package. It no longer publishes to the package registry - its version advances with the Editor. Last independent registry release: ${pkg.latest_version ?? "?"}. Currently ships as ${bundled.toVersion} (as of ${bundled.editorVersion}).`}
+                      >
+                        Bundled with Editor
+                      </span>
+                    ) : frozen ? (
                       <span
                         className="chip chip--frozen"
                         title="No registry release since before Unity 6 (2024). This package is likely Editor-bundled/version-bound in Unity 6, so packages.unity.com no longer reflects its current version - check the Unity 6 / Editor docs."
@@ -168,7 +187,8 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                     </span>
                   </td>
                 </PackageRowClient>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -304,10 +324,25 @@ function formatDate(iso: string): string {
   });
 }
 
+function formatMonthYear(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short"
+  });
+}
+
 async function safeListPackages() {
   try {
     return await listPackages(10000);
   } catch {
     return [];
+  }
+}
+
+async function safeBundledVersions(): Promise<Map<string, EditorBundledVersion>> {
+  try {
+    return await getEditorBundledVersions();
+  } catch {
+    return new Map();
   }
 }

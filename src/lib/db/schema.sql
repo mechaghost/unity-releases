@@ -183,6 +183,29 @@ CREATE TABLE IF NOT EXISTS package_versions (
   UNIQUE (package_id, version)
 );
 
+-- Package versions Unity ships *bundled with a given Editor*, mined from
+-- the "Package changes" block of each release's notes. This is the
+-- Unity-6-accurate source for Editor-bound packages whose package-registry
+-- "latest" is frozen (e.g. URP shows 10.10.1 on the registry but ships as
+-- 17.0.3 in 6000.0.23f1). package_name is intentionally not a FK - notes can
+-- mention packages we don't carry a registry row for.
+CREATE TABLE IF NOT EXISTS editor_package_versions (
+  id BIGSERIAL PRIMARY KEY,
+  unity_release_id BIGINT NOT NULL REFERENCES unity_releases(id) ON DELETE CASCADE,
+  editor_version TEXT NOT NULL,
+  package_name TEXT NOT NULL,
+  from_version TEXT,
+  to_version TEXT,
+  change_kind TEXT NOT NULL,
+  source_snapshot_id BIGINT REFERENCES source_snapshots(id),
+  ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (unity_release_id, package_name, change_kind)
+);
+
+CREATE INDEX IF NOT EXISTS idx_editor_package_versions_package ON editor_package_versions (package_name);
+CREATE INDEX IF NOT EXISTS idx_editor_package_versions_editor ON editor_package_versions (editor_version);
+
 CREATE TABLE IF NOT EXISTS blog_posts (
   id BIGSERIAL PRIMARY KEY,
   guid TEXT NOT NULL UNIQUE,

@@ -86,4 +86,78 @@ describe("parseReleaseNotes", () => {
       riskLevel: "review"
     });
   });
+
+  test("extracts package version changes from bare 'Package changes' bullets", () => {
+    const parsed = parseReleaseNotes(SAMPLE_NOTES, {
+      version: "6000.3.14f1",
+      sourceUrl: "https://unity.com/releases/editor/whats-new/6000.3.14f1"
+    });
+
+    expect(parsed.packageChanges).toContainEqual({
+      packageName: "com.unity.recorder",
+      fromVersion: "5.1.5",
+      toVersion: "5.1.6",
+      changeKind: "updated"
+    });
+  });
+
+  test("extracts full versions from the linked 'Packages updated' form", () => {
+    // The real GCS notes format: `- pkg: [from](url@maj.min) to [to](url)`.
+    // The full version lives in the link text; the @maj.min in the URL is
+    // truncated and must be ignored.
+    const notes = `### 6000.0.23f1 Release Notes
+
+#### Package changes in 6000.0.23f1
+
+#### Packages updated
+
+- com.unity.render-pipelines.universal: [16.0.3](https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@16.0//changelog/CHANGELOG.html) to [17.0.3](https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@17.0//changelog/CHANGELOG.html)
+
+- com.unity.collections: [1.2.4](https://docs.unity3d.com/Packages/com.unity.collections@1.2//changelog/CHANGELOG.html) to [2.5.1](https://docs.unity3d.com/Packages/com.unity.collections@2.5//changelog/CHANGELOG.html)
+`;
+    const parsed = parseReleaseNotes(notes, {
+      version: "6000.0.23f1",
+      sourceUrl: "https://unity.com/releases/editor/whats-new/6000.0.23f1"
+    });
+
+    expect(parsed.packageChanges).toEqual([
+      {
+        packageName: "com.unity.render-pipelines.universal",
+        fromVersion: "16.0.3",
+        toVersion: "17.0.3",
+        changeKind: "updated"
+      },
+      {
+        packageName: "com.unity.collections",
+        fromVersion: "1.2.4",
+        toVersion: "2.5.1",
+        changeKind: "updated"
+      }
+    ]);
+  });
+
+  test("collapses duplicate 'Packages updated' blocks to one change per package", () => {
+    const notes = `### Final 6000.0.23f1 Package changes
+
+#### Packages updated
+
+- com.unity.splines: [2.6.1](https://docs.unity3d.com/Packages/com.unity.splines@2.6//changelog/CHANGELOG.html) to [2.7.2](https://docs.unity3d.com/Packages/com.unity.splines@2.7//changelog/CHANGELOG.html)
+
+### Package changes in 6000.0.23f1
+
+#### Packages updated
+
+- com.unity.splines: [2.6.1](https://docs.unity3d.com/Packages/com.unity.splines@2.6//changelog/CHANGELOG.html) to [2.7.2](https://docs.unity3d.com/Packages/com.unity.splines@2.7//changelog/CHANGELOG.html)
+`;
+    const parsed = parseReleaseNotes(notes, {
+      version: "6000.0.23f1",
+      sourceUrl: "https://unity.com/releases/editor/whats-new/6000.0.23f1"
+    });
+
+    const splines = parsed.packageChanges.filter(
+      (change) => change.packageName === "com.unity.splines"
+    );
+    expect(splines).toHaveLength(1);
+    expect(splines[0].toVersion).toBe("2.7.2");
+  });
 });

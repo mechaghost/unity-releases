@@ -61,10 +61,18 @@ export function normalizeReleaseForStorage(input: NormalizeReleaseInput) {
     ingestionRunId: input.ingestionRunId
   }));
 
+  const packageChanges = parsedNotes.packageChanges.map((change) => ({
+    ...change,
+    editorVersion: input.metadata.version,
+    sourceSnapshotId: input.sourceSnapshotId,
+    ingestionRunId: input.ingestionRunId
+  }));
+
   return {
     release,
     sections,
     noteItems,
+    packageChanges,
     artifacts: input.metadata.artifacts,
     modules: input.metadata.modules,
     event: {

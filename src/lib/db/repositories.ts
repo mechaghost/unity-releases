@@ -874,6 +874,52 @@ export async function listPackages(limit = 100) {
   return result.rows;
 }
 
+export type EditorBundledVersion = {
+  toVersion: string;
+  editorVersion: string;
+  releaseDate: string | null;
+};
+
+/**
+ * For each package, the version it currently ships bundled with the Editor,
+ * reconciled from release notes. Prefers final/patch builds (suffix_channel
+ * f/p) over alpha/beta, then the most recent release, so the headline number
+ * matches what a stable Unity 6 user actually has. Keyed by package name.
+ */
+export async function getEditorBundledVersions(): Promise<Map<string, EditorBundledVersion>> {
+  const result = await query<{
+    package_name: string;
+    to_version: string;
+    editor_version: string;
+    release_date: string | null;
+  }>(
+    `
+      SELECT DISTINCT ON (epv.package_name)
+        epv.package_name,
+        epv.to_version,
+        epv.editor_version,
+        r.release_date
+      FROM editor_package_versions epv
+      JOIN unity_releases r ON r.id = epv.unity_release_id
+      WHERE epv.to_version IS NOT NULL
+      ORDER BY
+        epv.package_name,
+        (r.suffix_channel IN ('f', 'p')) DESC,
+        r.release_date DESC NULLS LAST,
+        epv.editor_version DESC
+    `
+  );
+  const map = new Map<string, EditorBundledVersion>();
+  for (const row of result.rows) {
+    map.set(row.package_name, {
+      toVersion: row.to_version,
+      editorVersion: row.editor_version,
+      releaseDate: row.release_date
+    });
+  }
+  return map;
+}
+
 export async function getPackage(name: string) {
   const pkg = await query("SELECT * FROM packages WHERE name = $1", [name]);
   if (!pkg.rows[0]) {
@@ -1031,6 +1077,7 @@ export async function upsertReleaseBundle(client: PoolClient, bundle: ReleaseBun
 
   await client.query("DELETE FROM release_sections WHERE unity_release_id = $1", [releaseId]);
   await client.query("DELETE FROM release_note_items WHERE unity_release_id = $1", [releaseId]);
+  await client.query("DELETE FROM editor_package_versions WHERE unity_release_id = $1", [releaseId]);
   await client.query("DELETE FROM unity_release_artifacts WHERE unity_release_id = $1", [releaseId]);
   await client.query("DELETE FROM unity_release_modules WHERE unity_release_id = $1", [releaseId]);
 
@@ -1143,6 +1190,34 @@ export async function upsertReleaseBundle(client: PoolClient, bundle: ReleaseBun
         module.moduleCategory,
         module.url,
         bundle.release.sourceSnapshotId
+      ]
+    );
+  }
+
+  for (const change of bundle.packageChanges) {
+    await client.query(
+      `
+        INSERT INTO editor_package_versions (
+          unity_release_id, editor_version, package_name, from_version, to_version,
+          change_kind, source_snapshot_id, ingestion_run_id
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        ON CONFLICT (unity_release_id, package_name, change_kind) DO UPDATE SET
+          from_version = EXCLUDED.from_version,
+          to_version = EXCLUDED.to_version,
+          editor_version = EXCLUDED.editor_version,
+          source_snapshot_id = EXCLUDED.source_snapshot_id,
+          ingestion_run_id = EXCLUDED.ingestion_run_id
+      `,
+      [
+        releaseId,
+        change.editorVersion,
+        change.packageName,
+        change.fromVersion,
+        change.toVersion,
+        change.changeKind,
+        change.sourceSnapshotId,
+        change.ingestionRunId
       ]
     );
   }
