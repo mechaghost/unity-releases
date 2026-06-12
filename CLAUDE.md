@@ -125,10 +125,22 @@ ingestion stores them in `editor_package_versions` (editor → package → from/
 `/packages` upgrades the "Frozen" badge to **"Bundled with Editor"** with a
 dated line: *bundled vY as of <editor> — last registry release vX, <date>*.
 The full version is the link *text* (`[17.0.3]`); the `@17.0//` in the URL is
-truncated to major.minor and must be ignored. Schema change → run
-`railway run npm run db:migrate` against prod, then re-ingest editor releases
-(`npm run ingest:editor`) so `editor_package_versions` populates; until then
-`/packages` falls back to the plain "Frozen" badge.
+truncated to major.minor and must be ignored. The same `editor_package_versions`
+data also powers the package dialog's **exact Unity version**: `getPackage()`
+attaches `bundled_in_editor` — the earliest editor build that shipped each
+package version (e.g. ProBuilder 6.0.4 → `6000.0.23f1`) — and the dialog falls
+back to the registry compatibility, which is now `unity` + `unityRelease`
+joined (e.g. `6000.0.16f1`) rather than the bare minor line.
+
+Populating prod: **the schema applies itself on every deploy** —
+`railway.json`'s start command is `scripts/boot.sh`, which runs
+`npm run db:migrate` (idempotent `CREATE … IF NOT EXISTS`) before booting, so
+there's no manual migrate step. But the twice-daily cron's `ingest:editor`
+only polls the 3 newest releases (latest/beta/alpha), so the *historical*
+"Package changes" don't backfill on their own — run a one-time
+`railway run npm run ingest:backfill` to walk the full Unity 6 history into
+`editor_package_versions`. Until it's populated, `/packages` shows the plain
+"Frozen" badge and the dialog shows registry compatibility.
 
 Some ids also moved off the registry entirely and must use the right name or
 be dropped: built-in modules `com.unity.2d.sprite` / `com.unity.2d.tilemap`
