@@ -19,6 +19,7 @@ export type JobName =
   | "news"
   | "resources"
   | "github"
+  | "backfill"
   | "discussions";
 
 export type JobDefinition = {
@@ -36,6 +37,10 @@ export type JobDefinition = {
  * - legacy-lts third because it's the cheapest read (sitemap diff) and
  *   benefits from happening before news/resources fan out the network.
  * - news/resources next - they're secondary content with low budget.
+ * - backfill near the end - it self-skips once the Unity 6 history is
+ *   seeded (see backfill-unity6.ts), so after the one-time walk it's a
+ *   single cheap COUNT. It runs before discussions so the one populating
+ *   run isn't starved by the long Discourse fan-out.
  * - discussions LAST - the Discourse staff-post fan-out is the
  *   longest single job (~20 min worst case) and the most
  *   network-bound. Running it after the more urgent surfaces means
@@ -49,6 +54,7 @@ export const JOB_ORDER: JobDefinition[] = [
   { name: "news", npmScript: "ingest:news" },
   { name: "resources", npmScript: "ingest:resources" },
   { name: "github", npmScript: "ingest:github" },
+  { name: "backfill", npmScript: "ingest:backfill" },
   { name: "discussions", npmScript: "ingest:discussions" }
 ];
 
