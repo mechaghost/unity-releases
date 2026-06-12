@@ -16,10 +16,11 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   "com.unity.2d.common",
   "com.unity.2d.pixel-perfect",
   "com.unity.2d.psdimporter",
-  "com.unity.2d.sprite",
   "com.unity.2d.spriteshape",
-  "com.unity.2d.tilemap",
   "com.unity.2d.tilemap.extras",
+  // com.unity.2d.sprite and com.unity.2d.tilemap are built-in modules in
+  // Unity 6 (not registry-exposed - both 404 at packages.unity.com), so they
+  // are intentionally not tracked here.
 
   // Addressables / Asset bundles
   "com.unity.addressables",
@@ -114,7 +115,8 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   // Render pipelines
   "com.unity.render-pipelines.core",
   "com.unity.render-pipelines.universal",
-  "com.unity.render-pipelines.universal-config",
+  // com.unity.render-pipelines.universal-config is bundled-only in Unity 6
+  // (404 at packages.unity.com), so it is not tracked here.
   "com.unity.render-pipelines.high-definition",
   "com.unity.render-pipelines.high-definition-config",
   "com.unity.shadergraph",
@@ -142,8 +144,9 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   // Timeline
   "com.unity.timeline",
 
-  // Tutorials
-  "com.unity.tutorials.core",
+  // Tutorials (the framework ships as com.unity.learn.iet-framework;
+  // com.unity.tutorials.core 404s at the registry)
+  "com.unity.learn.iet-framework",
 
   // Visual scripting
   "com.unity.visualscripting",
@@ -176,7 +179,7 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   "com.unity.services.analytics",
   "com.unity.services.authentication",
   "com.unity.services.cloudcode",
-  "com.unity.services.cloud-save",
+  "com.unity.services.cloudsave",
   "com.unity.services.core",
   "com.unity.services.deployment",
   "com.unity.services.economy",
@@ -189,9 +192,34 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   "com.unity.services.push-notifications",
   "com.unity.services.qos",
   "com.unity.services.relay",
-  "com.unity.services.remote-config",
+  // Remote Config publishes as com.unity.remote-config (the
+  // com.unity.services.remote-config id 404s at the registry).
+  "com.unity.remote-config",
   "com.unity.services.tooling",
   "com.unity.services.user-reporting",
   "com.unity.services.vivox",
   "com.unity.services.wire"
 ];
+
+/**
+ * Unity 6 GA cutoff for registry-freshness.
+ *
+ * Starting with Unity 6, many packages were absorbed into the Editor as
+ * version-bound core packages and stopped publishing to packages.unity.com -
+ * the whole render-pipeline family (URP/HDRP/core/shadergraph/VFX graph),
+ * ugui, ui.builder, and others. Their registry "latest" is frozen at the last
+ * independently-published version (e.g. URP shows 10.10.1 from 2022 while
+ * Unity 6 actually ships 17.x bundled with the Editor). So a registry publish
+ * date before this cutoff means the listed version is no longer a reliable
+ * "current" signal - the truth lives in the Unity 6 / Editor docs. `/packages`
+ * surfaces this via `isRegistryFrozen` so the stale "latest" isn't mistaken
+ * for the current version.
+ */
+export const UNITY_6_REGISTRY_CUTOFF_ISO = "2024-10-01T00:00:00.000Z";
+
+export function isRegistryFrozen(latestPublishedAt: string | null | undefined): boolean {
+  if (!latestPublishedAt) return false;
+  const published = new Date(latestPublishedAt).getTime();
+  if (Number.isNaN(published)) return false;
+  return published < new Date(UNITY_6_REGISTRY_CUTOFF_ISO).getTime();
+}

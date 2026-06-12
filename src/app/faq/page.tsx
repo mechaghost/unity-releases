@@ -607,6 +607,46 @@ const SECTIONS: Section[] = [
         )
       },
       {
+        id: "frozen-packages",
+        question:
+          "Why do some packages show no registry updates / a “Bundled with Editor” badge?",
+        answer: (
+          <>
+            <p>
+              Package versions come from{" "}
+              <code>packages.unity.com</code> (the npm-style registry). That
+              endpoint is a reliable source of truth <em>only for packages
+              published before Unity 6</em>. Starting with Unity 6 (GA October
+              2024), Unity moved many packages into the Editor as{" "}
+              <strong>version-bound core packages</strong> and stopped
+              publishing them to the registry - so the registry serves a{" "}
+              <strong>frozen</strong> &ldquo;latest&rdquo;. The render-pipeline
+              family is the clearest case: the registry still shows{" "}
+              <code>10.10.1</code> from October 2022, while Unity 6 actually
+              ships URP/HDRP as <code>17.x</code> bundled with the Editor.
+            </p>
+            <p>
+              We don&apos;t hide these - the history is real, just frozen - but
+              we flag them so the stale number isn&apos;t mistaken for the
+              current one. A package whose newest registry release predates
+              Unity 6 gets a <strong>Frozen</strong> badge. For Editor-bound
+              packages we go further: every Editor&apos;s release notes carry a
+              &ldquo;Package changes&rdquo; block pinning the exact bundled
+              version, so we reconcile the real Unity 6 version from there and
+              upgrade the badge to <strong>Bundled with Editor</strong> with a
+              dated line - e.g. <em>bundled 17.0.3 as of 6000.0.23f1 - last
+              registry release 10.10.1, Oct 2022</em>. Both numbers stay visible
+              so it&apos;s clear which is which.
+            </p>
+            <p>
+              Bottom line: for a pre-Unity-6 package the registry version is
+              current; for an Editor-bound one, trust the bundled version and
+              the Unity 6 / Editor docs, not the registry.
+            </p>
+          </>
+        )
+      },
+      {
         id: "page-resources",
         question: "What does Resources show?",
         answer: (
