@@ -149,10 +149,10 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                       </div>
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Latest">
                     <span className="chip chip--package tabnums">{pkg.latest_version ?? "-"}</span>
                   </td>
-                  <td>
+                  <td data-label="Updated">
                     <span className="muted tabnums">
                       {pkg.latest_published_at ? formatDate(pkg.latest_published_at) : "-"}
                     </span>
@@ -172,7 +172,7 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                       </span>
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Channel">
                     {pkg.latest_is_prerelease ? (
                       <span className="chip chip--impact-known_issue">Pre</span>
                     ) : (
@@ -181,7 +181,7 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                       </span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Links">
                     <span className="cluster">
                       <ExternalLink href={pkg.source_url}>Registry</ExternalLink>
                     </span>
