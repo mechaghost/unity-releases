@@ -902,6 +902,10 @@ export async function getEditorBundledVersions(): Promise<Map<string, EditorBund
       FROM editor_package_versions epv
       JOIN unity_releases r ON r.id = epv.unity_release_id
       WHERE epv.to_version IS NOT NULL
+        -- Only Unity 6 editors: these packages are Unity-6-bound, and a
+        -- recent legacy-LTS patch (2022.3.x) must not outrank a 6000.x build
+        -- and report the wrong (legacy) bundled version.
+        AND r.version LIKE '6000.%'
       ORDER BY
         epv.package_name,
         (r.suffix_channel IN ('f', 'p')) DESC,
