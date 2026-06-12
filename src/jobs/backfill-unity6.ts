@@ -5,10 +5,12 @@ import { recordSourceSnapshot, upsertReleaseBundle, withIngestionTransaction } f
 import { query } from "../lib/db/client";
 import { extractApiReleaseMetadata, type ApiRelease, type ApiReleasesResponse } from "../lib/parsers/release-api";
 
-// SUPPORTED/LTS first so the *stable* Unity 6 history (what the /packages
-// badges and dialog show) lands before beta/alpha - matters when this runs
-// inside the cron and a max-runtime kill could cut the walk short.
-const ALL_STREAMS = ["SUPPORTED", "LTS", "BETA", "ALPHA"] as const;
+// LTS first: that stream holds the 6000.0.x / 6000.3.x history (the
+// frozen-package baseline and the bulk of editor->package mappings), which
+// is the most valuable data and the slowest to walk. SUPPORTED (6000.1/2/4)
+// and the prerelease streams follow. Per-release skip (below) makes a run
+// resumable, so a max-runtime kill mid-walk just continues next time.
+const ALL_STREAMS = ["LTS", "SUPPORTED", "BETA", "ALPHA"] as const;
 const STREAMS = process.env.BACKFILL_STREAMS
   ? process.env.BACKFILL_STREAMS.split(",").map((s) => s.trim()).filter(Boolean)
   : ALL_STREAMS;
@@ -29,10 +31,31 @@ function isUnity6(release: ApiRelease): boolean {
   return release.version.startsWith("6000.");
 }
 
+// A release is already done if we've stored it with the current parser
+// version - its notes (and editor_package_versions) are current. Skipping it
+// without fetching notes is what makes the backfill cheap to re-run and
+// resumable after a max-runtime kill. A PARSER_VERSION bump (or
+// FORCE_BACKFILL=1) re-walks everything.
+async function releaseAlreadyIngested(version: string): Promise<boolean> {
+  try {
+    const { rows } = await query(
+      `SELECT 1 FROM unity_releases WHERE version = $1 AND parser_version = $2 LIMIT 1`,
+      [version, PARSER_VERSION]
+    );
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function ingestRelease(release: ApiRelease, stream: string): Promise<"created" | "skipped"> {
   const releaseNotesUrl = typeof release.releaseNotes?.url === "string" ? release.releaseNotes.url : null;
   if (!releaseNotesUrl) {
     console.log(JSON.stringify({ stream, version: release.version, skipped: "no release notes URL" }));
+    return "skipped";
+  }
+
+  if (!process.env.FORCE_BACKFILL && (await releaseAlreadyIngested(release.version))) {
     return "skipped";
   }
 
@@ -110,37 +133,13 @@ async function ingestStream(stream: string): Promise<{ ingested: number; skipped
   return { ingested, skipped };
 }
 
-/**
- * Has the full Unity 6 history already been backfilled? The twice-daily
- * editor poll only adds the newest stable build, so a low count of distinct
- * Unity 6 *stable* (f/p) editors carrying package-change data means the
- * history is still missing. Lets this job live in the cron and self-skip
- * after the one-time seed (override with FORCE_BACKFILL=1).
- */
-async function alreadyBackfilled(): Promise<boolean> {
-  if (process.env.FORCE_BACKFILL) return false;
-  try {
-    const { rows } = await query<{ n: string }>(
-      `
-        SELECT count(DISTINCT epv.editor_version)::text AS n
-        FROM editor_package_versions epv
-        JOIN unity_releases r ON r.id = epv.unity_release_id
-        WHERE r.version LIKE '6000.%' AND r.suffix_channel IN ('f', 'p')
-      `
-    );
-    return Number(rows[0]?.n ?? 0) >= 20;
-  } catch {
-    // Table missing or DB hiccup - let the backfill run.
-    return false;
-  }
-}
-
+// No global "already done" guard: the per-release `releaseAlreadyIngested`
+// skip makes a full pass cheap once the history is seeded (it just pages the
+// release lists and runs one existence check per release - no note fetches),
+// and crucially it can't prematurely declare completion the way a count
+// threshold could. A killed run simply resumes from the missing releases on
+// the next cron.
 async function main() {
-  if (await alreadyBackfilled()) {
-    console.log(JSON.stringify({ status: "skip", reason: "unity6 history already populated" }));
-    return;
-  }
-
   const summary: Record<string, { ingested: number; skipped: number }> = {};
   for (const stream of STREAMS) {
     console.log(JSON.stringify({ stream, status: "starting" }));

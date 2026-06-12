@@ -137,15 +137,20 @@ Populating prod: **the schema applies itself on every deploy** —
 `npm run db:migrate` (idempotent `CREATE … IF NOT EXISTS`) before booting, so
 there's no manual migrate step. The twice-daily cron's `ingest:editor` only
 polls the 3 newest releases, so the *historical* "Package changes" need a full
-walk — that's `ingest:backfill`, which now runs **inside the cron** (in
-`poll-all.ts`, before `discussions`) as a **self-disabling one-off**: it seeds
-the full Unity 6 history on the first run, then `alreadyBackfilled()` short-
-circuits it to a single `COUNT` on every run after (override with
-`FORCE_BACKFILL=1`, e.g. after a parser change that should re-walk history).
-Until that first run lands, `getEditorBundledVersions()` falls back per the
-available data and the dialog shows registry compatibility. `getEditorBundled
-Versions()` only counts Unity 6 (`6000.%`) editors so a recent legacy-LTS
-patch can't masquerade as the bundled version.
+walk — that's `ingest:backfill`, which runs **inside the cron** (in
+`poll-all.ts`, before `discussions`). It's **incremental and resumable**: it
+pages the release API (LTS stream first — that's the 6000.0.x / 6000.3.x
+history — then SUPPORTED/BETA/ALPHA) and `releaseAlreadyIngested()` skips any
+release already stored with the current `PARSER_VERSION` *without* fetching
+its notes. So a single cron run that gets max-runtime-killed mid-walk just
+resumes from the missing releases next time, and once the history is complete
+every run is cheap (list pages + one existence check per release, no note
+fetches). Re-walk everything with `FORCE_BACKFILL=1` or by bumping
+`PARSER_VERSION` (e.g. after a parser change). Avoid a count-threshold guard
+here: a partial run (e.g. SUPPORTED-only) can satisfy it and permanently block
+the rest of the walk. `getEditorBundledVersions()` only counts Unity 6
+(`6000.%`) editors so a recent legacy-LTS patch can't masquerade as the
+bundled version.
 
 Some ids also moved off the registry entirely and must use the right name or
 be dropped: built-in modules `com.unity.2d.sprite` / `com.unity.2d.tilemap`
