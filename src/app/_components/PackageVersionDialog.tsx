@@ -10,6 +10,10 @@ type VersionEntry = {
   publishedAt: string | null;
   isPrerelease: boolean;
   unityCompatibility: string | null;
+  /** Exact editor build this version first shipped with, reconciled from
+   *  editor release notes. More precise than unityCompatibility's minor
+   *  line; null when the package version isn't named in any editor's notes. */
+  bundledInEditor: string | null;
   changelog: string | null;
 };
 
@@ -258,8 +262,18 @@ function VersionList({ data }: { data: PackageDetail }) {
                 {v.isPrerelease ? (
                   <span className="pkg-version__pre">Prerelease</span>
                 ) : null}
-                {v.unityCompatibility ? (
-                  <span className="pkg-version__compat">
+                {v.bundledInEditor ? (
+                  <span
+                    className="pkg-version__compat"
+                    title={`First shipped with Unity ${v.bundledInEditor}`}
+                  >
+                    Unity {v.bundledInEditor}
+                  </span>
+                ) : v.unityCompatibility ? (
+                  <span
+                    className="pkg-version__compat"
+                    title={`Minimum Unity version declared by the package: ${v.unityCompatibility}`}
+                  >
                     Unity {v.unityCompatibility}
                   </span>
                 ) : null}

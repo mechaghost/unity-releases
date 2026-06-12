@@ -135,6 +135,33 @@ describe("parsePackageRegistry", () => {
       isPrerelease: true
     });
   });
+
+  test("joins unity + unityRelease into the exact minimum editor version", () => {
+    const parsed = parsePackageRegistry({
+      name: "com.unity.example",
+      versions: {
+        "2.0.0": {
+          name: "com.unity.example",
+          version: "2.0.0",
+          unity: "6000.0",
+          unityRelease: "16f1"
+        },
+        "1.0.0": {
+          name: "com.unity.example",
+          version: "1.0.0",
+          unity: "6000.0"
+        }
+      },
+      "dist-tags": { latest: "2.0.0" }
+    });
+
+    const byVersion = Object.fromEntries(
+      parsed.versions.map((v) => [v.version, v.unityCompatibility])
+    );
+    // Patch present -> exact; patch absent -> the minor line, unchanged.
+    expect(byVersion["2.0.0"]).toBe("6000.0.16f1");
+    expect(byVersion["1.0.0"]).toBe("6000.0");
+  });
 });
 
 describe("parseUnityBlogRss", () => {

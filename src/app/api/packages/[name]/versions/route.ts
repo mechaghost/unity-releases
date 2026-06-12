@@ -50,6 +50,7 @@ export async function GET(
       publishedAt: v.published_at ? new Date(v.published_at).toISOString() : null,
       isPrerelease: Boolean(v.is_prerelease),
       unityCompatibility: v.unity_compatibility ?? null,
+      bundledInEditor: v.bundled_in_editor ?? null,
       changelog: typeof v.changelog === "string" ? v.changelog.trim() || null : null
     }));
 
@@ -77,5 +78,6 @@ type PackageVersionRow = {
   published_at: string | Date | null;
   is_prerelease: boolean | null;
   unity_compatibility: string | null;
+  bundled_in_editor: string | null;
   changelog: string | null;
 };

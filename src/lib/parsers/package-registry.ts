@@ -43,8 +43,8 @@ export function parsePackageRegistry(payload: RegistryPayload): ParsedPackageReg
       version,
       displayName: valueAsString(data.displayName),
       publishedAt: payload.time?.[version] ?? null,
-      unityCompatibility: valueAsString(data.unity),
-      unityMinVersion: valueAsString(data.unity),
+      unityCompatibility: combineUnityVersion(data.unity, data.unityRelease),
+      unityMinVersion: combineUnityVersion(data.unity, data.unityRelease),
       changelog: valueAsString(upm.changelog),
       dependencies,
       distTags: payload["dist-tags"] ?? {},
@@ -68,6 +68,18 @@ export function parsePackageRegistry(payload: RegistryPayload): ParsedPackageReg
 
 function firstDefined<T>(values: Array<T | null | undefined>): T | null {
   return values.find((value): value is T => value != null) ?? null;
+}
+
+// Unity package manifests split the minimum editor version across two
+// fields: `unity` is the minor line ("6000.0") and the optional
+// `unityRelease` is the patch + suffix ("16f1"). Join them into the exact
+// version ("6000.0.16f1") when the patch is present; otherwise the minor
+// line is all Unity declares.
+function combineUnityVersion(unity: unknown, unityRelease: unknown): string | null {
+  const base = valueAsString(unity);
+  if (!base) return null;
+  const release = valueAsString(unityRelease);
+  return release ? `${base}.${release}` : base;
 }
 
 function valueAsRecord(value: unknown): Record<string, unknown> {
