@@ -135,12 +135,17 @@ joined (e.g. `6000.0.16f1`) rather than the bare minor line.
 Populating prod: **the schema applies itself on every deploy** —
 `railway.json`'s start command is `scripts/boot.sh`, which runs
 `npm run db:migrate` (idempotent `CREATE … IF NOT EXISTS`) before booting, so
-there's no manual migrate step. But the twice-daily cron's `ingest:editor`
-only polls the 3 newest releases (latest/beta/alpha), so the *historical*
-"Package changes" don't backfill on their own — run a one-time
-`railway run npm run ingest:backfill` to walk the full Unity 6 history into
-`editor_package_versions`. Until it's populated, `/packages` shows the plain
-"Frozen" badge and the dialog shows registry compatibility.
+there's no manual migrate step. The twice-daily cron's `ingest:editor` only
+polls the 3 newest releases, so the *historical* "Package changes" need a full
+walk — that's `ingest:backfill`, which now runs **inside the cron** (in
+`poll-all.ts`, before `discussions`) as a **self-disabling one-off**: it seeds
+the full Unity 6 history on the first run, then `alreadyBackfilled()` short-
+circuits it to a single `COUNT` on every run after (override with
+`FORCE_BACKFILL=1`, e.g. after a parser change that should re-walk history).
+Until that first run lands, `getEditorBundledVersions()` falls back per the
+available data and the dialog shows registry compatibility. `getEditorBundled
+Versions()` only counts Unity 6 (`6000.%`) editors so a recent legacy-LTS
+patch can't masquerade as the bundled version.
 
 Some ids also moved off the registry entirely and must use the right name or
 be dropped: built-in modules `com.unity.2d.sprite` / `com.unity.2d.tilemap`

@@ -20,7 +20,21 @@ describe("JOB_ORDER", () => {
 
   test("covers every ingest pipeline that previously had its own cron", () => {
     const names = JOB_ORDER.map((j) => j.name).sort();
-    expect(names).toEqual(["discussions", "editor", "github", "legacy-lts", "news", "packages", "resources"]);
+    expect(names).toEqual([
+      "backfill",
+      "discussions",
+      "editor",
+      "github",
+      "legacy-lts",
+      "news",
+      "packages",
+      "resources"
+    ]);
+  });
+
+  test("runs backfill before discussions so its one-time walk isn't starved", () => {
+    const names = JOB_ORDER.map((j) => j.name);
+    expect(names.indexOf("backfill")).toBeLessThan(names.indexOf("discussions"));
   });
 
   test("npm scripts use the canonical ingest:* names", () => {
