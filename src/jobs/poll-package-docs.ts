@@ -24,10 +24,11 @@ import { UNITY_OFFICIAL_PACKAGES } from "../lib/ingest/unity-packages";
 import { parseDocsChangelogTopVersion, unityMinorOfVersion } from "../lib/parsers/package-docs";
 
 const DOCS_BASE = "https://docs.unity3d.com/Packages";
-// How many of the newest Unity 6 stable minors to probe. Two gives a margin
-// for the gap between a Unity minor's GA and a package shipping its aligned
-// build, without re-probing every historical line.
-const TARGET_MINOR_COUNT = 2;
+// How many of the newest Unity 6 stable minors to probe. Four covers a
+// package whose latest version-aligned build lags up to three Unity minors
+// behind the current one, while still only adding a few cheap 404 probes per
+// package. The job records the highest aligned minor it finds.
+const TARGET_MINOR_COUNT = 4;
 
 /** Latest N Unity 6 stable minors as docs-style "6.N", newest first. */
 async function targetMinors(): Promise<string[]> {
