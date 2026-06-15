@@ -206,6 +206,22 @@ CREATE TABLE IF NOT EXISTS editor_package_versions (
 CREATE INDEX IF NOT EXISTS idx_editor_package_versions_package ON editor_package_versions (package_name);
 CREATE INDEX IF NOT EXISTS idx_editor_package_versions_editor ON editor_package_versions (editor_version);
 
+-- Packages that adopted Unity 6.4+ "unified versioning" - the package version
+-- is renumbered to match the Editor (e.g. com.unity.entities ships as 6.4.0 in
+-- Unity 6.4) and only exists in the docs, while the registry keeps serving the
+-- old line (1.4.x) for earlier Unity 6. Discovered by probing
+-- docs.unity3d.com/Packages/<pkg>@<unity-minor>. One row per package: the
+-- highest Unity minor at which a version-aligned build is documented.
+CREATE TABLE IF NOT EXISTS package_unified_versions (
+  id BIGSERIAL PRIMARY KEY,
+  package_name TEXT NOT NULL UNIQUE,
+  unity_minor TEXT NOT NULL,          -- e.g. "6.4"
+  aligned_version TEXT NOT NULL,      -- e.g. "6.4.0"
+  released_on DATE,                   -- from the changelog entry
+  doc_url TEXT NOT NULL,
+  checked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS blog_posts (
   id BIGSERIAL PRIMARY KEY,
   guid TEXT NOT NULL UNIQUE,

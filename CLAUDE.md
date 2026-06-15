@@ -152,6 +152,22 @@ the rest of the walk. `getEditorBundledVersions()` only counts Unity 6
 (`6000.%`) editors so a recent legacy-LTS patch can't masquerade as the
 bundled version.
 
+A few Unity 6.4+ packages use **unified versioning**: the package is
+renumbered to match the Editor (e.g. `com.unity.entities` ships as `6.4.0` in
+Unity 6.4, continuing from the `1.4.x` line), and that build exists *only in
+the docs* — the registry keeps serving the old line (`1.4.7`) for Unity
+6.0–6.3, and the editor notes don't carry it in the "Package changes" block.
+So it slips past both `isRegistryFrozen()` and the notes reconciliation. The
+`ingest:package-docs` job (`poll-package-docs.ts`, in the cron after
+`packages`) probes `docs.unity3d.com/Packages/<pkg>@<unity-minor>/changelog`
+for the latest 2 Unity 6 stable minors, and when the changelog's newest
+version matches the probed minor (which rules out docs that redirect to a
+package's own latest) records it in `package_unified_versions`. `/packages`
+shows "Unity 6.4 ships as 6.4.0 (version-aligned)" only when that differs from
+the registry latest. Today's set is `entities`, `entities.graphics`,
+`collections`; it's self-maintaining (a row clears when a package stops being
+aligned).
+
 Some ids also moved off the registry entirely and must use the right name or
 be dropped: built-in modules `com.unity.2d.sprite` / `com.unity.2d.tilemap`
 and the bundled-only `com.unity.render-pipelines.universal-config` 404 and

@@ -857,7 +857,9 @@ export async function listPackages(limit = 100) {
         pv.version AS latest_version,
         pv.published_at AS latest_published_at,
         pv.is_prerelease AS latest_is_prerelease,
-        pv.unity_compatibility AS latest_unity_compatibility
+        pv.unity_compatibility AS latest_unity_compatibility,
+        puv.unity_minor AS unified_unity_minor,
+        puv.aligned_version AS unified_version
       FROM packages p
       LEFT JOIN LATERAL (
         SELECT version, published_at, is_prerelease, unity_compatibility
@@ -866,6 +868,7 @@ export async function listPackages(limit = 100) {
         ORDER BY published_at DESC NULLS LAST, version DESC
         LIMIT 1
       ) pv ON true
+      LEFT JOIN package_unified_versions puv ON puv.package_name = p.name
       ORDER BY p.name ASC
       LIMIT $1
     `,

@@ -27,6 +27,7 @@ describe("JOB_ORDER", () => {
       "github",
       "legacy-lts",
       "news",
+      "package-docs",
       "packages",
       "resources"
     ]);
