@@ -132,12 +132,14 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
               {filtered.map((pkg) => {
                 const frozen = isRegistryFrozen(pkg.latest_published_at);
                 const bundled = frozen ? bundledVersions.get(pkg.name) : undefined;
-                // Unity 6.4+ "unified versioning": show only when the docs
-                // version's line differs from the registry latest (otherwise
-                // there's nothing surprising to flag).
+                // Unity 6.4+ "unified versioning": only surface when the
+                // docs/Editor-aligned version is genuinely *newer* than the
+                // registry latest (i.e. the registry is serving an older line,
+                // as for entities 1.4.x vs 6.4.0). Skips packages that already
+                // version per-Unity on the registry (AR Foundation) or whose
+                // docs path matched the package's own historical 6.x.
                 const unified =
-                  pkg.unified_version &&
-                  majorMinor(pkg.unified_version) !== majorMinor(pkg.latest_version)
+                  pkg.unified_version && isNewerVersion(pkg.unified_version, pkg.latest_version)
                     ? pkg.unified_version
                     : null;
                 return (
@@ -341,9 +343,27 @@ function formatDate(iso: string): string {
   });
 }
 
-function majorMinor(version: string | null): string | null {
-  const m = version?.match(/^(\d+)\.(\d+)/);
-  return m ? `${m[1]}.${m[2]}` : null;
+/** Numeric version core, prerelease suffix dropped: "6.6.0-pre.2" -> [6,6,0]. */
+function versionParts(version: string | null): number[] {
+  if (!version) return [];
+  return version
+    .split("-")[0]
+    .split(".")
+    .map((n) => parseInt(n, 10))
+    .filter((n) => !Number.isNaN(n));
+}
+
+/** True when `a` is a strictly higher version than `b` (major→minor→patch). */
+function isNewerVersion(a: string | null, b: string | null): boolean {
+  const pa = versionParts(a);
+  const pb = versionParts(b);
+  if (!pa.length || !pb.length) return false;
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? 0;
+    const y = pb[i] ?? 0;
+    if (x !== y) return x > y;
+  }
+  return false;
 }
 
 function formatMonthYear(iso: string): string {
