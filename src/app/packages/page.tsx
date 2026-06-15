@@ -33,6 +33,8 @@ type PackageRow = {
   latest_published_at: string | null;
   latest_is_prerelease: boolean | null;
   latest_unity_compatibility: string | null;
+  unified_unity_minor: string | null;
+  unified_version: string | null;
 };
 
 type SearchParams = Promise<{
@@ -130,6 +132,14 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
               {filtered.map((pkg) => {
                 const frozen = isRegistryFrozen(pkg.latest_published_at);
                 const bundled = frozen ? bundledVersions.get(pkg.name) : undefined;
+                // Unity 6.4+ "unified versioning": show only when the docs
+                // version's line differs from the registry latest (otherwise
+                // there's nothing surprising to flag).
+                const unified =
+                  pkg.unified_version &&
+                  majorMinor(pkg.unified_version) !== majorMinor(pkg.latest_version)
+                    ? pkg.unified_version
+                    : null;
                 return (
                 <PackageRowClient
                   key={pkg.name}
@@ -146,6 +156,13 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                         {bundled.editorVersion}
                         {" — "}last registry release {pkg.latest_version ?? "-"}
                         {pkg.latest_published_at ? `, ${formatMonthYear(pkg.latest_published_at)}` : ""}
+                      </div>
+                    ) : null}
+                    {unified ? (
+                      <div className="package-table__unified">
+                        Unity {pkg.unified_unity_minor} ships as <strong>{unified}</strong>{" "}
+                        (version-aligned) — registry {pkg.latest_version ?? "-"} is the line for
+                        earlier Unity 6
                       </div>
                     ) : null}
                   </td>
@@ -322,6 +339,11 @@ function formatDate(iso: string): string {
     month: "short",
     day: "numeric"
   });
+}
+
+function majorMinor(version: string | null): string | null {
+  const m = version?.match(/^(\d+)\.(\d+)/);
+  return m ? `${m[1]}.${m[2]}` : null;
 }
 
 function formatMonthYear(iso: string): string {

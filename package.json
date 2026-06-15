@@ -15,6 +15,7 @@
     "ingest:editor": "tsx src/jobs/poll-editor.ts",
     "ingest:legacy-lts": "tsx src/jobs/poll-legacy-lts.ts",
     "ingest:packages": "tsx src/jobs/poll-packages.ts",
+    "ingest:package-docs": "tsx src/jobs/poll-package-docs.ts",
     "ingest:news": "tsx src/jobs/poll-news.ts",
     "ingest:resources": "tsx src/jobs/poll-resources.ts",
     "ingest:discussions": "tsx src/jobs/poll-discussions.ts",

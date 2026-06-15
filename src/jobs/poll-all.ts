@@ -15,6 +15,7 @@ import { spawn } from "node:child_process";
 export type JobName =
   | "editor"
   | "packages"
+  | "package-docs"
   | "legacy-lts"
   | "news"
   | "resources"
@@ -34,6 +35,9 @@ export type JobDefinition = {
  *   surface; a fresh editor poll keeps the diff view current.
  * - packages second so the registry data lines up with the just-polled
  *   release notes that reference it.
+ * - package-docs after packages: it probes docs.unity3d.com for Unity 6.4+
+ *   "unified versioning" (entities ships as 6.4.x, registry still serves the
+ *   1.4.x line) and writes package_unified_versions.
  * - legacy-lts third because it's the cheapest read (sitemap diff) and
  *   benefits from happening before news/resources fan out the network.
  * - news/resources next - they're secondary content with low budget.
@@ -50,6 +54,7 @@ export type JobDefinition = {
 export const JOB_ORDER: JobDefinition[] = [
   { name: "editor", npmScript: "ingest:editor" },
   { name: "packages", npmScript: "ingest:packages" },
+  { name: "package-docs", npmScript: "ingest:package-docs" },
   { name: "legacy-lts", npmScript: "ingest:legacy-lts" },
   { name: "news", npmScript: "ingest:news" },
   { name: "resources", npmScript: "ingest:resources" },
