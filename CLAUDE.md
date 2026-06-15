@@ -160,9 +160,10 @@ the docs* — the registry keeps serving the old line (`1.4.7`) for Unity
 So it slips past both `isRegistryFrozen()` and the notes reconciliation. The
 `ingest:package-docs` job (`poll-package-docs.ts`, in the cron after
 `packages`) probes `docs.unity3d.com/Packages/<pkg>@<unity-minor>/changelog`
-for the latest 2 Unity 6 stable minors, and when the changelog's newest
-version matches the probed minor (which rules out docs that redirect to a
-package's own latest) records it in `package_unified_versions`. `/packages`
+for the latest 4 Unity 6 stable minors (`TARGET_MINOR_COUNT`, highest first),
+and when the changelog's newest version matches the probed minor (which rules
+out docs that redirect to a package's own latest) records the highest match in
+`package_unified_versions`. `/packages`
 shows "Unity 6.4 ships as 6.4.0 (version-aligned)" only when that differs from
 the registry latest. Today's set is `entities`, `entities.graphics`,
 `collections`; it's self-maintaining (a row clears when a package stops being
