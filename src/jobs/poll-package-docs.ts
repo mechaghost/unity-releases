@@ -54,23 +54,39 @@ async function targetMinors(): Promise<string[]> {
 
 type Aligned = { unityMinor: string; version: string; date: string | null; url: string };
 
-async function probePackage(pkg: string, minors: string[]): Promise<Aligned | null> {
+// "aligned": found a version-aligned build. "not-aligned": every minor gave a
+// definitive answer (404, or 200 that redirected to a non-matching version) -
+// safe to clear a stale row. "uncertain": at least one probe hit a transient
+// error (5xx / network), so we must NOT delete - the docs site occasionally
+// 503s and we don't want a genuine note (entities) to flicker off.
+type ProbeResult =
+  | { status: "aligned"; aligned: Aligned }
+  | { status: "not-aligned" }
+  | { status: "uncertain" };
+
+async function probePackage(pkg: string, minors: string[]): Promise<ProbeResult> {
+  let sawTransient = false;
   for (const minor of minors) {
     const url = `${DOCS_BASE}/${pkg}@${minor}/changelog/CHANGELOG.html`;
     try {
       const res = await fetchText(url);
-      if (res.status !== 200) continue;
-      const top = parseDocsChangelogTopVersion(res.text);
-      // The newest changelog version must match the probed minor; otherwise
-      // the docs redirected to the package's own latest (not version-aligned).
-      if (top && unityMinorOfVersion(top.version) === minor) {
-        return { unityMinor: minor, version: top.version, date: top.date, url };
+      if (res.status === 200) {
+        const top = parseDocsChangelogTopVersion(res.text);
+        // The newest changelog version must match the probed minor; otherwise
+        // the docs redirected to the package's own latest (not aligned).
+        if (top && unityMinorOfVersion(top.version) === minor) {
+          return { status: "aligned", aligned: { unityMinor: minor, version: top.version, date: top.date, url } };
+        }
+        // 200 but non-matching -> definitive "not aligned at this minor".
+      } else if (res.status >= 500) {
+        sawTransient = true; // server error - don't treat as definitive
       }
+      // 404 / other 4xx -> definitive "not here", try the next minor.
     } catch {
-      // network hiccup - try the next minor
+      sawTransient = true; // network/timeout - transient
     }
   }
-  return null;
+  return sawTransient ? { status: "uncertain" } : { status: "not-aligned" };
 }
 
 async function main() {
@@ -78,9 +94,11 @@ async function main() {
   console.log(JSON.stringify({ status: "starting", minors, packages: UNITY_OFFICIAL_PACKAGES.length }));
 
   let found = 0;
+  let uncertain = 0;
   for (const pkg of UNITY_OFFICIAL_PACKAGES) {
-    const aligned = await probePackage(pkg, minors);
-    if (aligned) {
+    const result = await probePackage(pkg, minors);
+    if (result.status === "aligned") {
+      const { aligned } = result;
       await query(
         `
           INSERT INTO package_unified_versions
@@ -97,13 +115,16 @@ async function main() {
       );
       found += 1;
       console.log(JSON.stringify({ pkg, unityMinor: aligned.unityMinor, version: aligned.version }));
-    } else {
-      // Clear a stale row if this package is no longer version-aligned.
+    } else if (result.status === "not-aligned") {
+      // Definitively not version-aligned - clear any stale row.
       await query(`DELETE FROM package_unified_versions WHERE package_name = $1`, [pkg]);
+    } else {
+      // Transient docs error - leave any existing row untouched.
+      uncertain += 1;
     }
   }
 
-  console.log(JSON.stringify({ status: "done", found, of: UNITY_OFFICIAL_PACKAGES.length }));
+  console.log(JSON.stringify({ status: "done", found, uncertain, of: UNITY_OFFICIAL_PACKAGES.length }));
 }
 
 main().catch((error) => {
