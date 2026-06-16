@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { isNewerVersion, earlierUnityRange } from "../../src/lib/version-compare";
+import {
+  isNewerVersion,
+  earlierUnityRange,
+  editorPrereleaseLabel
+} from "../../src/lib/version-compare";
 
 describe("isNewerVersion", () => {
   test("true unified versioning (registry on an older line)", () => {
@@ -30,5 +34,15 @@ describe("earlierUnityRange", () => {
   test("boundary falls back", () => {
     expect(earlierUnityRange("6.0")).toBe("earlier Unity 6");
     expect(earlierUnityRange("garbage")).toBe("earlier Unity 6");
+  });
+});
+
+describe("editorPrereleaseLabel", () => {
+  test("classifies the editor channel", () => {
+    expect(editorPrereleaseLabel("6000.5.0b10")).toBe("beta");
+    expect(editorPrereleaseLabel("6000.6.0a7")).toBe("alpha");
+    expect(editorPrereleaseLabel("6000.0.23f1")).toBeNull(); // final
+    expect(editorPrereleaseLabel("6000.0.45p1")).toBeNull(); // patch
+    expect(editorPrereleaseLabel(null)).toBeNull();
   });
 });

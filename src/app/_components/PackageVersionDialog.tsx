@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 import { renderChangelog } from "@/lib/changelog-markdown";
+import { editorPrereleaseLabel } from "@/lib/version-compare";
 
 type VersionEntry = {
   version: string;
@@ -267,7 +268,9 @@ function VersionList({ data }: { data: PackageDetail }) {
         <strong>{data.totalVersions}</strong> indexed versions.
       </p>
       <ol className="pkg-dialog__versions">
-        {data.versions.map((v) => (
+        {data.versions.map((v) => {
+          const editorPre = editorPrereleaseLabel(v.bundledInEditor);
+          return (
           <li key={v.version} className="pkg-version">
             <div className="pkg-version__head">
               <span className="pkg-version__num tabnums">{v.version}</span>
@@ -279,9 +282,16 @@ function VersionList({ data }: { data: PackageDetail }) {
                 {v.bundledInEditor ? (
                   <span
                     className="pkg-version__compat"
-                    title={`First shipped with Unity ${v.bundledInEditor}`}
+                    title={
+                      editorPre
+                        ? `First shipped with Unity ${v.bundledInEditor} — a ${editorPre}, not yet in a stable release`
+                        : `First shipped with Unity ${v.bundledInEditor}`
+                    }
                   >
                     Unity {v.bundledInEditor}
+                    {editorPre ? (
+                      <span className="pkg-version__compat-pre"> {editorPre}</span>
+                    ) : null}
                   </span>
                 ) : v.unityCompatibility ? (
                   <span
@@ -301,7 +311,8 @@ function VersionList({ data }: { data: PackageDetail }) {
               <p className="pkg-version__no-notes">No release notes provided.</p>
             )}
           </li>
-        ))}
+          );
+        })}
       </ol>
     </>
   );

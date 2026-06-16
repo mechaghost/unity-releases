@@ -942,12 +942,12 @@ export async function getPackage(name: string) {
     [pkg.rows[0].id]
   );
 
-  // Map each package version to the earliest editor build that bundled it,
-  // reconciled from the editors' "Package changes" notes. This gives the
-  // exact Unity version a package version shipped with - more precise than
-  // the registry's minor-line `unity` field. Empty until editor ingest
-  // populates editor_package_versions; callers fall back to the registry
-  // compatibility string.
+  // Map each package version to the editor build that bundled it, reconciled
+  // from the editors' "Package changes" notes. Prefer a stable (f/p) build
+  // over a beta/alpha, then the earliest such build - betas predate their
+  // stable, so "earliest by date" alone skews the mapping to previews. Gives
+  // the exact Unity version a package version shipped with. Empty until editor
+  // ingest populates editor_package_versions.
   const bundled = await query<{ package_version: string; editor_version: string }>(
     `
       SELECT DISTINCT ON (epv.to_version)
@@ -956,7 +956,11 @@ export async function getPackage(name: string) {
       FROM editor_package_versions epv
       JOIN unity_releases r ON r.id = epv.unity_release_id
       WHERE epv.package_name = $1 AND epv.to_version IS NOT NULL
-      ORDER BY epv.to_version, r.release_date ASC NULLS LAST, epv.editor_version ASC
+      ORDER BY
+        epv.to_version,
+        (r.suffix_channel IN ('f', 'p')) DESC,
+        r.release_date ASC NULLS LAST,
+        epv.editor_version ASC
     `,
     [name]
   );

@@ -30,6 +30,22 @@ export function isNewerVersion(
 }
 
 /**
+ * Prerelease channel of a Unity editor version, or null when stable.
+ * "6000.5.0b10" -> "beta", "6000.6.0a7" -> "alpha", "6000.0.23f1" / "...p1" -> null.
+ */
+export function editorPrereleaseLabel(
+  editorVersion: string | null | undefined
+): "beta" | "alpha" | null {
+  if (!editorVersion) return null;
+  const m = editorVersion.match(/([abfp])\d+$/i);
+  if (!m) return null;
+  const ch = m[1].toLowerCase();
+  if (ch === "b") return "beta";
+  if (ch === "a") return "alpha";
+  return null; // f (final) / p (patch) are stable
+}
+
+/**
  * The span of earlier Unity 6 minors a renumbered package's old line still
  * covers: "6.4" -> "6.0–6.3". Falls back to a generic phrase at the boundary.
  */

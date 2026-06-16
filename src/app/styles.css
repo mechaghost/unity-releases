@@ -1352,6 +1352,13 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .pkg-version__compat {
   color: var(--pkg-secondary);
 }
+.pkg-version__compat-pre {
+  color: var(--color-caution-fg);
+  text-transform: uppercase;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 
 .pkg-version__changelog {
   font-size: 13px;
