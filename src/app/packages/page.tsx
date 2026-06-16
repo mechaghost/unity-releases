@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { listPackages, getEditorBundledVersions, type EditorBundledVersion } from "@/lib/db/repositories";
 import { isRegistryFrozen } from "@/lib/ingest/unity-packages";
+import { isNewerVersion, earlierUnityRange } from "@/lib/version-compare";
 import { getUserPackages } from "@/lib/user-packages";
 import { ExternalLink } from "../_components/ExternalLink";
 import { SidebarUserPackages } from "../_components/SidebarUserPackages";
@@ -160,11 +161,20 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                         {pkg.latest_published_at ? `, ${formatMonthYear(pkg.latest_published_at)}` : ""}
                       </div>
                     ) : null}
-                    {unified ? (
+                    {unified && pkg.unified_unity_minor ? (
                       <div className="package-table__unified">
-                        Unity {pkg.unified_unity_minor} ships as <strong>{unified}</strong>{" "}
-                        (version-aligned) — registry {pkg.latest_version ?? "-"} is the line for
-                        earlier Unity 6
+                        <span>
+                          Unity {pkg.unified_unity_minor}: <strong>{unified}</strong>
+                        </span>
+                        {" · "}
+                        <span>
+                          Unity {earlierUnityRange(pkg.unified_unity_minor)}:{" "}
+                          <strong>{pkg.latest_version ?? "-"}</strong> (registry)
+                        </span>
+                        <span className="package-table__unified-hint">
+                          {" "}— same package, renumbered to match the Editor in{" "}
+                          {pkg.unified_unity_minor}
+                        </span>
                       </div>
                     ) : null}
                   </td>
@@ -341,29 +351,6 @@ function formatDate(iso: string): string {
     month: "short",
     day: "numeric"
   });
-}
-
-/** Numeric version core, prerelease suffix dropped: "6.6.0-pre.2" -> [6,6,0]. */
-function versionParts(version: string | null): number[] {
-  if (!version) return [];
-  return version
-    .split("-")[0]
-    .split(".")
-    .map((n) => parseInt(n, 10))
-    .filter((n) => !Number.isNaN(n));
-}
-
-/** True when `a` is a strictly higher version than `b` (major→minor→patch). */
-function isNewerVersion(a: string | null, b: string | null): boolean {
-  const pa = versionParts(a);
-  const pb = versionParts(b);
-  if (!pa.length || !pb.length) return false;
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const x = pa[i] ?? 0;
-    const y = pb[i] ?? 0;
-    if (x !== y) return x > y;
-  }
-  return false;
 }
 
 function formatMonthYear(iso: string): string {
