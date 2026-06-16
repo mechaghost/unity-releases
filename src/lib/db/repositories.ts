@@ -968,7 +968,20 @@ export async function getPackage(name: string) {
     bundled_in_editor: bundledByVersion.get((v as { version: string }).version) ?? null
   }));
 
-  return { package: pkg.rows[0], versions: versionsWithEditor };
+  // Unity 6.4+ unified versioning: if this package is renumbered to match the
+  // Editor (e.g. entities -> 6.4.0) the registry version list below is the old
+  // line; this row carries the Editor-aligned version so the dialog can frame
+  // the two schemes.
+  const unified = await query<{ unity_minor: string; aligned_version: string }>(
+    `SELECT unity_minor, aligned_version FROM package_unified_versions WHERE package_name = $1`,
+    [name]
+  );
+
+  return {
+    package: pkg.rows[0],
+    versions: versionsWithEditor,
+    unified: unified.rows[0] ?? null
+  };
 }
 
 export async function recordSourceSnapshot(client: PoolClient, sourceType: string, source: FetchedSource) {

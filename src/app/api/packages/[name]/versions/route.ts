@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPackage } from "@/lib/db/repositories";
+import { isNewerVersion } from "@/lib/version-compare";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -54,6 +55,15 @@ export async function GET(
       changelog: typeof v.changelog === "string" ? v.changelog.trim() || null : null
     }));
 
+  // Surface the Unity-6.4+ aligned version only when it's genuinely newer than
+  // the registry latest (the dialog frames the two schemes). Same gate as
+  // /packages, so the two views agree.
+  const registryLatest = versions[0]?.version ?? null;
+  const unified =
+    result.unified && isNewerVersion(result.unified.aligned_version, registryLatest)
+      ? { unityMinor: result.unified.unity_minor, version: result.unified.aligned_version }
+      : null;
+
   return NextResponse.json(
     {
       name: result.package.name,
@@ -61,6 +71,7 @@ export async function GET(
       description: result.package.description ?? null,
       sourceUrl: result.package.source_url ?? null,
       totalVersions: result.versions.length,
+      unified,
       versions
     },
     {

@@ -23,6 +23,9 @@ type PackageDetail = {
   description: string | null;
   sourceUrl: string | null;
   totalVersions: number;
+  /** Unity 6.4+ unified versioning: the Editor-aligned version (e.g. 6.4.0)
+   *  that the registry version list below doesn't carry. Null otherwise. */
+  unified: { unityMinor: string; version: string } | null;
   versions: VersionEntry[];
 };
 
@@ -248,6 +251,17 @@ function VersionList({ data }: { data: PackageDetail }) {
 
   return (
     <>
+      {data.unified ? (
+        <div className="pkg-dialog__unified">
+          <strong>
+            Unity {data.unified.unityMinor} ships this package as {data.unified.version}.
+          </strong>{" "}
+          Unity renumbered it to match the Editor in {data.unified.unityMinor}, and that
+          build lives only in the Unity docs. The versions below are the package
+          registry&apos;s older line, which continues for earlier Unity 6 — so{" "}
+          {data.unified.version} won&apos;t appear in the list.
+        </div>
+      ) : null}
       <p className="pkg-dialog__count">
         Showing the most recent <strong>{data.versions.length}</strong> of{" "}
         <strong>{data.totalVersions}</strong> indexed versions.
