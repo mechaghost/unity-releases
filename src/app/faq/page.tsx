@@ -598,11 +598,21 @@ const SECTIONS: Section[] = [
         question: "What does Packages show?",
         answer: (
           <>
-            Sortable table of every tracked official Unity package (Input
-            System, Addressables, URP, HDRP, Cinemachine, Burst, and the rest
-            of the curated allowlist). Each row links to the package detail
-            page, which lists every indexed version with publish date and
-            Unity-version compatibility range.
+            <p>
+              Sortable table of every tracked official Unity package (Input
+              System, Addressables, URP, HDRP, Cinemachine, Burst, and the rest
+              of the curated allowlist). Each row opens a dialog listing every
+              indexed version with its publish date and changelog.
+            </p>
+            <p>
+              For each version the dialog shows the exact Unity Editor build it{" "}
+              <strong>first shipped with</strong> (e.g. ProBuilder 6.0.4 →{" "}
+              <code>6000.0.23f1</code>), reconciled from the editor release
+              notes rather than the registry&apos;s coarse minimum-Unity field.
+              A version that has only reached a preview so far is tagged{" "}
+              <strong>BETA</strong> so a not-yet-stable build isn&apos;t read as
+              a shipping version.
+            </p>
           </>
         )
       },
@@ -642,6 +652,42 @@ const SECTIONS: Section[] = [
               Bottom line: for a pre-Unity-6 package the registry version is
               current; for an Editor-bound one, trust the bundled version and
               the Unity 6 / Editor docs, not the registry.
+            </p>
+          </>
+        )
+      },
+      {
+        id: "unified-versioning",
+        question:
+          "Why does a package show two versions — e.g. Entities 6.4.0 and 1.4.7?",
+        answer: (
+          <>
+            <p>
+              Starting with Unity 6.4, a few core packages adopted{" "}
+              <strong>unified versioning</strong> - the package version is
+              renumbered to match the Editor. <code>com.unity.entities</code>{" "}
+              ships as <code>6.4.0</code> in Unity 6.4 (its changelog continues
+              straight from the old <code>1.4.x</code> line). Today this applies
+              to Entities, Entities Graphics, and Collections.
+            </p>
+            <p>
+              The catch: that <code>6.4.0</code> build exists{" "}
+              <em>only in the Unity docs</em>. The package registry keeps
+              publishing the old line (<code>1.4.x</code>) as maintenance for
+              Unity 6.0–6.3, so both numbers are real - they just apply to
+              different Unity versions. The <a href="/packages">Packages</a>{" "}
+              note spells it out:{" "}
+              <em>Unity 6.4: 6.4.0 · Unity 6.0–6.3: 1.4.7 (registry)</em>. The
+              version list in the dialog is the registry&apos;s line, so{" "}
+              <code>6.4.0</code> won&apos;t appear there - it isn&apos;t
+              published to the registry.
+            </p>
+            <p>
+              We detect this automatically by probing the Unity docs for each
+              package at the recent Unity 6 minors, and only flag it when the
+              docs version is genuinely newer than the registry latest (so a
+              package that already versions per-Unity, like AR Foundation,
+              isn&apos;t mislabeled).
             </p>
           </>
         )
