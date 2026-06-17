@@ -3,6 +3,8 @@
 node_modules/
 .next/
 tsconfig.tsbuildinfo
-.claude/
+# Local Claude config is ignored, but shared repo skills are tracked.
+.claude/*
+!.claude/skills/
 .env.local
 .env.*.local
