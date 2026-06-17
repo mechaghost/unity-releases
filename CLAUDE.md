@@ -59,14 +59,17 @@ Important scripts:
 
 ```bash
 npm run db:migrate
-npm run ingest:all       # runs every ingest job in sequence (Railway cron uses this)
+npm run ingest:all          # runs every ingest job in sequence (Railway cron uses this)
 npm run ingest:editor
 npm run ingest:packages
+npm run ingest:package-docs  # probes Unity docs for 6.4+ unified-versioned packages
 npm run ingest:legacy-lts
 npm run ingest:news
 npm run ingest:resources
-npm run ingest:backfill
-npm run check:packages   # surfaces com.unity.* mentioned in release notes but not in the curated list
+npm run ingest:github
+npm run ingest:discussions
+npm run ingest:backfill      # one-time Unity 6 history walk (also runs inside the cron, self-skipping)
+npm run check:packages       # surfaces com.unity.* mentioned in release notes but not in the curated list
 ```
 
 Production ingestion is one mega-cron on Railway running
@@ -235,12 +238,14 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 297 tests across 38 files
+`npm test` runs the full Vitest suite — 431 tests across 47 files
 covering parsers, classification, search SQL, lane logic, ingestion
-normalization, filter state round-trips, server actions, component
-renderers, release-note body tokenization, SEO metadata, sitemap
-shape, the cron orchestrator, and the analytics middleware +
-tracking route.
+normalization, package-version reconciliation (editor "Package changes"
+→ `editor_package_versions`, the docs-probe unified-versioning parser,
+and version comparison in `src/lib/version-compare.ts`), filter state
+round-trips, server actions, component renderers, release-note body
+tokenization, SEO metadata, sitemap shape, the cron orchestrator, and
+the analytics middleware + tracking route.
 
 Run `npm run typecheck` + `npm test` before committing anything
 non-trivial. Both must pass.
