@@ -49,6 +49,9 @@ export type DiscussionsHrefState = {
   /** Default view is staff-started topics only; set this to broaden to all
    *  staff posts (replies included) — serialized as `replies=1`. */
   includeReplies?: boolean;
+  /** Show automation accounts (issue-tracker bot) — serialized as
+   *  `bots=1`. Hidden by default; their topics duplicate /issues. */
+  includeAutomated?: boolean;
   page?: number;
 };
 
@@ -63,6 +66,7 @@ export function buildDiscussionsHref(state: DiscussionsHrefState): string {
   if (state.sort && state.sort !== "recent") sp.set("sort", state.sort);
   if (state.edited) sp.set("edited", "1");
   if (state.includeReplies) sp.set("replies", "1");
+  if (state.includeAutomated) sp.set("bots", "1");
   if (state.page && state.page > 1) sp.set("page", String(state.page));
   const qs = sp.toString();
   return qs ? `/discussions?${qs}` : "/discussions";

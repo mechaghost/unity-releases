@@ -43,6 +43,7 @@ type SearchParams = Promise<{
   sort?: string | string[];
   edited?: string | string[];
   replies?: string | string[];
+  bots?: string | string[];
   page?: string | string[];
 }>;
 
@@ -62,6 +63,11 @@ export default async function DiscussionsPage({
   // ?replies=1. An unchecked GET checkbox sends nothing, so the absent
   // case has to be the default-on (topics-only) state.
   const includeReplies = firstString(params.replies) === "1";
+  // Automation accounts (issue-tracker bot) are hidden unless opted in -
+  // they start topics daily and would own the recency-sorted first page,
+  // and their content duplicates /issues. Explicitly filtering by that
+  // author still works (the repo layer skips the exclusion then).
+  const includeAutomated = firstString(params.bots) === "1";
   const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
 
   const [facets, stats] = await Promise.all([safeFacets(), safeStats()]);
@@ -79,6 +85,7 @@ export default async function DiscussionsPage({
     usernames: author ? [author] : undefined,
     editedOnly,
     firstPostOnly: !includeReplies,
+    includeAutomated,
     sort,
     page,
     perPage: PER_PAGE
@@ -87,7 +94,7 @@ export default async function DiscussionsPage({
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const start = total === 0 ? 0 : (page - 1) * PER_PAGE + 1;
   const end = Math.min(total, page * PER_PAGE);
-  const filtered = Boolean(q || categorySlug || author || editedOnly);
+  const filtered = Boolean(q || categorySlug || author || editedOnly || includeAutomated);
 
   const categoryOptions = facets.categories.map((c) => ({
     value: c.slug,
@@ -108,6 +115,7 @@ export default async function DiscussionsPage({
       sort,
       edited: editedOnly,
       includeReplies,
+      includeAutomated,
       page: targetPage
     });
 
@@ -138,6 +146,7 @@ export default async function DiscussionsPage({
         sort={sort}
         editedOnly={editedOnly}
         includeReplies={includeReplies}
+        includeAutomated={includeAutomated}
         categories={categoryOptions}
         authors={authorOptions}
       />

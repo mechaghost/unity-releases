@@ -73,6 +73,11 @@ describe("buildDiscussionsHref", () => {
     );
   });
 
+  test("serializes includeAutomated as bots=1 (bot-hidden default stays bare)", () => {
+    expect(buildDiscussionsHref({ includeAutomated: true })).toBe("/discussions?bots=1");
+    expect(buildDiscussionsHref({ includeAutomated: false })).toBe("/discussions");
+  });
+
   test("serializes includeReplies as replies=1 (default topics-only view stays bare)", () => {
     expect(buildDiscussionsHref({ includeReplies: true })).toBe("/discussions?replies=1");
     expect(buildDiscussionsHref({ includeReplies: false })).toBe("/discussions");

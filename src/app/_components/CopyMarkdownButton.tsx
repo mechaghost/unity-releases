@@ -47,6 +47,7 @@ export function CopyMarkdownButton({
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
       setState("downloaded");
+      trackDownload(url);
       window.setTimeout(() => setState("idle"), 1800);
     } catch {
       setState("error");
@@ -88,4 +89,39 @@ export function CopyMarkdownButton({
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+/** Fire-and-forget `markdown_download` event, mirroring
+ *  CopyLlmUrlButton's beacon. Only fires on a successful download. */
+function trackDownload(exportUrl: string) {
+  if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") {
+    return;
+  }
+  const path =
+    typeof window !== "undefined"
+      ? window.location.pathname + window.location.search
+      : undefined;
+  const meta: Record<string, unknown> = {};
+  try {
+    const parsed = new URL(exportUrl, window.location.origin);
+    meta.exportPath = parsed.pathname;
+    const from = parsed.searchParams.get("from");
+    const to = parsed.searchParams.get("to");
+    if (from) meta.from = from;
+    if (to) meta.to = to;
+  } catch {
+    // bad URL - omit metadata
+  }
+  try {
+    const body = JSON.stringify({
+      kind: "event",
+      eventType: "markdown_download",
+      path,
+      metadata: meta
+    });
+    const blob = new Blob([body], { type: "application/json" });
+    navigator.sendBeacon("/api/track", blob);
+  } catch {
+    // Best-effort: tracking must never block the UI.
+  }
 }

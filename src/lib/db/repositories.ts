@@ -2282,11 +2282,22 @@ export type DiscoursePostListFilters = {
    *  staff actually opened, which is where product announcements, betas,
    *  and release posts live (vs. staff replies inside other threads). */
   firstPostOnly?: boolean;
+  /** Include posts from automation accounts (see AUTOMATED_DISCOURSE_USERNAMES).
+   *  Default false: the issue-tracker bot starts topics daily and floods
+   *  the recency-sorted first page, and its content duplicates /issues.
+   *  An explicit username filter overrides this (asking for the bot by
+   *  name should show the bot). */
+  includeAutomated?: boolean;
   sort?: "recent" | "newest" | "popular" | "edited";
   includeDeleted?: boolean;
   page?: number;
   perPage?: number;
 };
+
+/** Discourse accounts in the unity_staff group that are automation, not
+ *  people. Their posts mirror content the site already surfaces
+ *  first-class (the Issue Tracker bot duplicates /issues). */
+export const AUTOMATED_DISCOURSE_USERNAMES = ["issue-tracker"];
 
 export type DiscoursePostListItem = {
   id: number;
@@ -2363,6 +2374,12 @@ export async function listDiscoursePosts(
   if (filters.usernames && filters.usernames.length > 0) {
     values.push(filters.usernames);
     wheres.push(`dp.username = ANY($${values.length}::text[])`);
+  } else if (!filters.includeAutomated) {
+    // Hide automation accounts unless the caller opted in or asked for
+    // a specific author (the branch above) - the issue-tracker bot
+    // otherwise owns the recency-sorted first page.
+    values.push(AUTOMATED_DISCOURSE_USERNAMES);
+    wheres.push(`dp.username <> ALL($${values.length}::text[])`);
   }
   if (filters.editedOnly) {
     wheres.push("dp.last_edited_at IS NOT NULL");

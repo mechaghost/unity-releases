@@ -6341,3 +6341,70 @@ button.filter-section__head:focus-visible {
     align-items: center;
   }
 }
+
+
+/* ------------------------------------------------------------------ */
+/* Landing pulse: two contained columns under the empty compare picker
+   (latest releases / latest staff posts). Same container recipe as
+   every other card surface.                                           */
+/* ------------------------------------------------------------------ */
+.landing-pulse {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+.landing-pulse__col {
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+.landing-pulse__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+.landing-pulse__title a {
+  font-weight: var(--weight-medium);
+  text-transform: none;
+  letter-spacing: var(--tracking-normal);
+  font-size: var(--text-xs);
+}
+.landing-pulse__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.landing-pulse__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.landing-pulse__row:last-child { border-bottom: 0; }
+.landing-pulse__row--post {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.landing-pulse__post-title {
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.landing-pulse__post-title:hover { color: var(--text-link); text-decoration: underline; }

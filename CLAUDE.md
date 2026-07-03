@@ -188,7 +188,7 @@ Primary navigation (sidebar on desktop, drawer on mobile):
 - `/releases` - editor release index, paginated, with stream filter
 - `/releases/[version]` - release detail with lane-bucketed parsed notes
 - `/compare?from=X&to=Y` - diff view, lane-bucketed, with sub-range slider
-- `/packages` - package index (sortable; no per-package page yet, only `/api/packages/[name]`)
+- `/packages` - package index (sortable; no per-package page yet — the JSON API is `/api/packages/[name]/versions`, the bare `[name]` path 404s)
 - `/news` - official Unity blog feed
 - `/resources` - Unity 6 ebooks/videos/webinars/podcasts/articles, marketing+enterprise filtered out by default
 - `/stats` - tracked-artifact counts, ingestion freshness, and traffic (self-hosted analytics, no third-party services)

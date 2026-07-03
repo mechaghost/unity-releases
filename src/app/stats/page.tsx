@@ -1,8 +1,12 @@
 import {
   getArtifactStats,
+  getDiscoursePostStats,
+  getGithubStats,
   getTrafficStats,
   listIngestionFreshness,
   type ArtifactStats,
+  type DiscoursePostStats,
+  type GithubStats,
   type IngestionFreshness,
   type TrafficStats
 } from "@/lib/db/repositories";
@@ -52,12 +56,28 @@ async function safeFreshness(): Promise<IngestionFreshness[]> {
     return [];
   }
 }
+async function safeDiscourse(): Promise<DiscoursePostStats | null> {
+  try {
+    return await getDiscoursePostStats();
+  } catch {
+    return null;
+  }
+}
+async function safeGithub(): Promise<GithubStats | null> {
+  try {
+    return await getGithubStats();
+  } catch {
+    return null;
+  }
+}
 
 export default async function StatsPage() {
-  const [artifacts, traffic, freshness] = await Promise.all([
+  const [artifacts, traffic, freshness, discourse, github] = await Promise.all([
     safeArtifacts(),
     safeTraffic(),
-    safeFreshness()
+    safeFreshness(),
+    safeDiscourse(),
+    safeGithub()
   ]);
 
   return (
@@ -74,14 +94,22 @@ export default async function StatsPage() {
         </p>
       </section>
 
-      <ArtifactsSection stats={artifacts} />
+      <ArtifactsSection stats={artifacts} discourse={discourse} github={github} />
       <FreshnessSection freshness={freshness} />
       <TrafficSection stats={traffic} />
     </>
   );
 }
 
-function ArtifactsSection({ stats }: { stats: ArtifactStats | null }) {
+function ArtifactsSection({
+  stats,
+  discourse,
+  github
+}: {
+  stats: ArtifactStats | null;
+  discourse: DiscoursePostStats | null;
+  github: GithubStats | null;
+}) {
   if (!stats) {
     return (
       <section className="stats-section">
@@ -122,6 +150,20 @@ function ArtifactsSection({ stats }: { stats: ArtifactStats | null }) {
       hint: "ebooks, videos, webinars, podcasts, articles"
     }
   ];
+  if (discourse) {
+    cards.push({
+      label: "Staff discussion posts",
+      value: discourse.totalPosts,
+      hint: `${formatNumber(discourse.editedPosts)} edited · ${formatNumber(discourse.activeStaff)} active staff tracked`
+    });
+  }
+  if (github) {
+    cards.push({
+      label: "Unity GitHub repos",
+      value: github.totalRepos,
+      hint: `${formatNumber(github.totalStars)} stars · ${formatNumber(github.notableRepos)} notable`
+    });
+  }
 
   return (
     <section className="stats-section">

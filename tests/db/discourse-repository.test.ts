@@ -175,6 +175,32 @@ describe("listDiscoursePosts", () => {
     expect(sql).toContain("dp.post_number = 1");
   });
 
+  test("hides automation accounts by default (issue-tracker bot)", async () => {
+    mocks.query.mockResolvedValueOnce(rows());
+    await listDiscoursePosts({});
+    const [sql, params] = mocks.query.mock.calls[0];
+    expect(sql).toContain("dp.username <> ALL(");
+    expect(params).toContainEqual(["issue-tracker"]);
+  });
+
+  test("includeAutomated: true lifts the bot exclusion", async () => {
+    mocks.query.mockResolvedValueOnce(rows());
+    await listDiscoursePosts({ includeAutomated: true });
+    const [sql] = mocks.query.mock.calls[0];
+    expect(sql).not.toContain("dp.username <> ALL(");
+  });
+
+  test("an explicit author filter overrides the bot exclusion", async () => {
+    // Asking for the bot by name should show the bot - the exclusion
+    // only applies to the unfiltered default lens.
+    mocks.query.mockResolvedValueOnce(rows());
+    await listDiscoursePosts({ usernames: ["issue-tracker"] });
+    const [sql, params] = mocks.query.mock.calls[0];
+    expect(sql).toContain("dp.username = ANY(");
+    expect(sql).not.toContain("dp.username <> ALL(");
+    expect(params).toContainEqual(["issue-tracker"]);
+  });
+
   test("sort=popular orders by reply_count, sort=edited orders by last_edited_at", async () => {
     mocks.query.mockResolvedValueOnce(rows());
     await listDiscoursePosts({ sort: "popular" });

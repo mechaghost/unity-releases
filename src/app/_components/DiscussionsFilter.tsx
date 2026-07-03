@@ -12,6 +12,7 @@ type Props = {
   sort: string;
   editedOnly: boolean;
   includeReplies: boolean;
+  includeAutomated: boolean;
   categories: FacetOption[];
   authors: FacetOption[];
 };
@@ -37,6 +38,7 @@ export function DiscussionsFilter({
   sort,
   editedOnly,
   includeReplies,
+  includeAutomated,
   categories,
   authors
 }: Props) {
@@ -140,6 +142,20 @@ export function DiscussionsFilter({
           </span>
         ) : null}
         <span>Edited only</span>
+      </label>
+
+      <label
+        className="stream-checkbox-filter__option"
+        data-checked={includeAutomated ? "true" : undefined}
+        title="Show posts from Unity's automation accounts (the Issue Tracker bot). Hidden by default - its topics duplicate this site's own /issues pages."
+      >
+        <input type="checkbox" name="bots" value="1" defaultChecked={includeAutomated} />
+        {includeAutomated ? (
+          <span className="stream-checkbox-filter__check" aria-hidden="true">
+            <Icon name="check" size={12} />
+          </span>
+        ) : null}
+        <span>Automated posts</span>
       </label>
 
       <button type="submit" className="visually-hidden">

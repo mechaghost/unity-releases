@@ -17,6 +17,13 @@ describe("release page filters", () => {
     expect(parseSelectedReleaseFilters("lts")).toEqual(["6000.3-lts", "6000.0-lts"]);
   });
 
+  test("accepts the chip label 'supported' as an alias for its value 'update'", () => {
+    // Hand-built share URLs use the visible label; before the alias,
+    // ?stream=supported silently fell back to the defaults.
+    expect(parseSelectedReleaseFilters("supported")).toEqual(["update"]);
+    expect(parseSelectedReleaseFilters("Supported")).toEqual(["update"]);
+  });
+
   test("matches 6000.0 and 6000.3 LTS releases independently", () => {
     expect(
       releaseMatchesSelectedFilters(

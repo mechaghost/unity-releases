@@ -23,7 +23,12 @@ export type FilterableRelease = {
 const RELEASE_FILTER_VALUES = RELEASE_FILTERS.map((filter) => filter.value);
 const DEFAULT_RELEASE_FILTERS: ReleaseFilterValue[] = ["6000.3-lts", "6000.0-lts"];
 const LEGACY_ALIASES: Record<string, ReleaseFilterValue[]> = {
-  lts: DEFAULT_RELEASE_FILTERS
+  lts: DEFAULT_RELEASE_FILTERS,
+  // The chip's label says "Supported" but its value is "update" - accept
+  // the label as an alias so hand-built share URLs
+  // (?stream=supported) select the stream the author meant instead of
+  // silently falling back to the defaults.
+  supported: ["update"]
 };
 
 export function parseSelectedReleaseFilters(

@@ -3,10 +3,12 @@ import {
   diffRangeCounts,
   getIssueStatuses,
   getReleaseRangeFacets,
+  listDiscoursePosts,
   listReleases,
   packageVersionsAtBoundary,
   resolveDiffRange,
   searchReleaseNotesInRange,
+  type DiscoursePostListItem,
   type PackageBoundary
 } from "@/lib/db/repositories";
 import type { IssueStatus } from "@/lib/issue-status";
@@ -57,6 +59,7 @@ import {
 import { parseUnityVersion } from "@/lib/parsers/version";
 import { CopyLlmUrlButton } from "../_components/CopyLlmUrlButton";
 import { pageSocialMetadata, siteUrl } from "@/lib/site";
+import { recordEvent } from "@/lib/analytics-server";
 import {
   COMPARE_DEFAULT_COLLAPSED,
   LANES,
@@ -156,6 +159,11 @@ export default async function ComparePage({
   );
 
   if (!fromVersion || !toVersion) {
+    // The landing was previously dead space below the picker. Surface
+    // the two freshest signals the site tracks - recent releases and
+    // recent staff announcements - so an empty compare is still useful.
+    const staffPosts = await safeLandingStaffPosts();
+    const latestReleases = allReleases.slice(0, 5);
     return (
       <>
         <LandingIntro />
@@ -167,11 +175,21 @@ export default async function ComparePage({
         >
           <CompareEmptyPreview />
         </ComparePicker>
+        <LandingPulse releases={latestReleases} staffPosts={staffPosts} />
       </>
     );
   }
 
   const range = await resolveDiffRange(fromVersion, toVersion, selectedStreams);
+  if (range) {
+    // Fire-and-forget: a compare load is the site's core interaction -
+    // /stats reads these to show which upgrade paths people research.
+    // Never awaited; a tracking failure can't slow or break the page.
+    void recordEvent("compare_load", {
+      path: "/compare",
+      metadata: { from: fromVersion, to: toVersion }
+    }).catch(() => undefined);
+  }
   if (!range) {
     return (
       <ComparePicker
@@ -1019,6 +1037,74 @@ function CompareEmptyPreview() {
         of the full dataset for LLM analysis.
       </p>
     </div>
+  );
+}
+
+async function safeLandingStaffPosts(): Promise<DiscoursePostListItem[]> {
+  try {
+    const { items } = await listDiscoursePosts({
+      firstPostOnly: true,
+      sort: "newest",
+      perPage: 5
+    });
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+function LandingPulse({
+  releases,
+  staffPosts
+}: {
+  releases: { version: string; stream: string | null; release_date: string | null }[];
+  staffPosts: DiscoursePostListItem[];
+}) {
+  if (releases.length === 0 && staffPosts.length === 0) return null;
+  return (
+    <section className="landing-pulse" aria-label="Latest Unity activity">
+      {releases.length > 0 ? (
+        <div className="landing-pulse__col">
+          <h2 className="landing-pulse__title">
+            Latest releases <a href="/releases">all →</a>
+          </h2>
+          <ul className="landing-pulse__list">
+            {releases.map((r) => (
+              <li key={r.version} className="landing-pulse__row">
+                <VersionPill version={r.version} stream={r.stream} />
+                <span className="muted text-xs">
+                  {r.release_date ? formatReleaseDate(r.release_date) : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {staffPosts.length > 0 ? (
+        <div className="landing-pulse__col">
+          <h2 className="landing-pulse__title">
+            Latest staff posts <a href="/discussions">all →</a>
+          </h2>
+          <ul className="landing-pulse__list">
+            {staffPosts.map((p) => (
+              <li key={p.discoursePostId} className="landing-pulse__row landing-pulse__row--post">
+                <a
+                  href={p.postUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="landing-pulse__post-title"
+                >
+                  {p.topicTitle ?? "Untitled thread"}
+                </a>
+                <span className="muted text-xs">
+                  {p.username} · {formatReleaseDate(p.discourseCreatedAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
