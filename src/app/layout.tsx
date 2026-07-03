@@ -68,8 +68,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
+    // Light matches --surface-base, dark matches --surface-sunken (the
+    // page canvas) so mobile browser chrome blends with the page edge.
     { media: "(prefers-color-scheme: light)", color: "#FFFEFC" },
-    { media: "(prefers-color-scheme: dark)", color: "#121719" }
+    { media: "(prefers-color-scheme: dark)", color: "#0F1315" }
   ],
   colorScheme: "light dark",
   width: "device-width",

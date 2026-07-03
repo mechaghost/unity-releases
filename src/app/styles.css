@@ -72,7 +72,7 @@
   --text-lg: 18px; --text-xl: 20px; --text-2xl: 24px;
   --leading-xs: 1.33; --leading-sm: 1.46; --leading-base: 1.5;
   --leading-md: 1.5; --leading-lg: 1.4; --leading-xl: 1.3; --leading-2xl: 1.25;
-  --tracking-tight: 0; --tracking-snug: 0; --tracking-normal: 0;
+  --tracking-tight: 0; --tracking-snug: 0; --tracking-normal: 0; --tracking-wide: 0.04em;
 
   --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600; --weight-bold: 700;
 
@@ -157,7 +157,10 @@
 
     --text-primary:    #ECE8DF;
     --text-secondary:  #C5BFB4;
-    --text-muted:      #8E887F;
+    /* Must match [data-theme="dark"] above (see the lock-step note).
+       tests/lib/dark-token-parity.test.ts fails the build if these
+       two blocks drift again. */
+    --text-muted:      #A19A8E;
     --text-link:       var(--azure-300);
 
     --accent-hover:   var(--azure-300);
@@ -480,7 +483,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .btn--tertiary {
   background: transparent;
-  color: var(--accent);
+  color: var(--text-link);
   border-color: transparent;
   padding: 0 var(--space-1);
 }
@@ -893,7 +896,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .explorer-filter {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  align-items: end;
+  align-items: flex-end;
   margin-bottom: var(--space-3);
 }
 .explorer-filter > label,
@@ -1937,7 +1940,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
    * floated ~9px above the input row on /packages, /resources, /releases,
    * and /explorer because the row height is dictated by the taller
    * labelled fields. */
-  align-items: end;
+  align-items: flex-end;
 }
 
 .filter-bar select,
@@ -3130,7 +3133,7 @@ button.filter-section__head:focus-visible {
   /* Same reasoning as `.filter-bar` — keep the From / To dropdowns bottom-
    * aligned with the bare swap arrow + Compare submit so all four sit on
    * one baseline. */
-  align-items: end;
+  align-items: flex-end;
   gap: var(--space-3);
   background: var(--surface-base);
   border: 1px solid var(--border-default);
@@ -4057,7 +4060,7 @@ button.filter-section__head:focus-visible {
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-soft-fg);
 }
 .resource-card__date { margin-left: auto; }
 
@@ -6015,7 +6018,7 @@ button.filter-section__head:focus-visible {
 .github-tabs__dir { margin-right: -2px; }
 .github-tabs__tab:hover { color: var(--text-primary); background: var(--surface-sunken); }
 .github-tabs__tab[aria-current="true"] {
-  color: var(--accent);
+  color: var(--accent-soft-fg);
   background: var(--accent-soft, var(--surface-sunken));
   border-color: var(--border-default);
 }
@@ -6063,7 +6066,7 @@ button.filter-section__head:focus-visible {
   color: var(--text-muted);
   white-space: nowrap;
 }
-.github-activity__badge--ReleaseEvent { background: var(--accent-soft, var(--surface-sunken)); color: var(--accent); }
+.github-activity__badge--ReleaseEvent { background: var(--accent-soft, var(--surface-sunken)); color: var(--accent-soft-fg); }
 .github-activity__badge--CreateEvent { color: var(--text-link); }
 .github-activity__body {
   display: flex;
@@ -6137,10 +6140,10 @@ button.filter-section__head:focus-visible {
 }
 .github-card__name a { color: inherit; }
 .github-card__name a:hover { color: var(--text-link); }
-.github-card__notable { background: var(--accent-soft, var(--surface-sunken)); color: var(--accent); }
+.github-card__notable { background: var(--accent-soft, var(--surface-sunken)); color: var(--accent-soft-fg); }
 .github-card__release {
   background: var(--accent-soft, var(--surface-sunken));
-  color: var(--accent);
+  color: var(--accent-soft-fg);
   font-weight: var(--weight-semibold);
 }
 /* Latest commit line: the "what's happening now" signal that leads the
