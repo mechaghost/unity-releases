@@ -238,14 +238,15 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 431 tests across 47 files
+`npm test` runs the full Vitest suite — 439 tests across 48 files
 covering parsers, classification, search SQL, lane logic, ingestion
 normalization, package-version reconciliation (editor "Package changes"
 → `editor_package_versions`, the docs-probe unified-versioning parser,
 and version comparison in `src/lib/version-compare.ts`), filter state
 round-trips, server actions, component renderers, release-note body
-tokenization, SEO metadata, sitemap shape, the cron orchestrator, and
-the analytics middleware + tracking route.
+tokenization, SEO metadata, sitemap shape, the cron orchestrator, the
+analytics middleware + tracking route, and dark-theme token parity
+(the two dark blocks in styles.css must not drift).
 
 Run `npm run typecheck` + `npm test` before committing anything
 non-trivial. Both must pass.
