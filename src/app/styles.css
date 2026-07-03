@@ -1197,7 +1197,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 .pkg-dialog__title {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--text-xl);
   line-height: 1.2;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -1205,11 +1205,11 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 .pkg-dialog__sub {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--pkg-muted);
 }
 .pkg-dialog__sub code {
-  font-size: 12px;
+  font-size: var(--text-xs);
   background: var(--pkg-inset);
   padding: 1px 6px;
   border-radius: 6px;
@@ -1248,7 +1248,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .pkg-dialog__registry {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--pkg-secondary);
   word-break: break-all;
 }
@@ -1262,21 +1262,21 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .pkg-dialog__description {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--pkg-secondary);
 }
 
 .pkg-dialog__count {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--pkg-muted);
 }
 
 .pkg-dialog__unified {
   margin: 0 0 var(--space-3);
   padding: var(--space-3);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   border-radius: var(--radius-md);
   border: 1px solid var(--azure-200);
@@ -1297,7 +1297,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .pkg-dialog__error,
 .pkg-dialog__empty {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-base);
   color: var(--pkg-secondary);
   padding: var(--space-4);
   background: var(--pkg-inset);
@@ -1341,7 +1341,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--pkg-muted);
   flex-wrap: wrap;
 }
@@ -1364,7 +1364,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 
 .pkg-version__changelog {
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.55;
   color: var(--pkg-text);
   display: flex;
@@ -1377,7 +1377,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
    labels (Added / Changed / Fixed / …) parseable without shouting. */
 .pkg-version__changelog .md-heading {
   margin: var(--space-2) 0 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--pkg-text);
   letter-spacing: 0;
@@ -1414,7 +1414,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   padding: var(--space-2) var(--space-3);
   background: var(--surface-overlay);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -1426,7 +1426,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   background: var(--surface-overlay);
   padding: 1px 5px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
 }
 
@@ -1440,7 +1440,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 .pkg-version__no-notes {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--pkg-muted);
   font-style: italic;
 }
@@ -1485,7 +1485,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .releases-table-wrap {
   max-width: none;
   background: var(--surface-base);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -1494,7 +1494,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
    contained list look used on /releases and /packages. */
 .table-surface {
   background: var(--surface-base);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -1574,12 +1574,20 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .releases-table td:nth-child(4) { width: 120px; font-variant-numeric: tabular-nums; }
 .releases-table th:nth-child(5),
 .releases-table td:nth-child(5) { width: auto; }
+/* 7 columns: Version | Stream | Released | Age | Notes | Build score | Actions.
+   (The width map was written for 6 columns - Build score inherited the
+   88px right-aligned slot meant for Actions and the actions column
+   absorbed the slack.) */
 .releases-table th:nth-child(6),
 .releases-table td:nth-child(6) {
-  width: 88px;
+  width: 110px;
+}
+.releases-table th:nth-child(7),
+.releases-table td:nth-child(7) {
+  width: 56px;
   text-align: right;
 }
-.releases-table td:nth-child(6) .release-actions {
+.releases-table td:nth-child(7) .release-actions {
   justify-content: flex-end;
 }
 
@@ -1672,7 +1680,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 
 .lane {
   background: var(--surface-base);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-3);
   overflow: hidden;
@@ -3242,8 +3250,16 @@ button.filter-section__head:focus-visible {
    Empty states
    ======================================================================== */
 
+/* Same visual language as the in-container empty states (e.g.
+   .releases-empty-state): solid subtle border, centered stack. The
+   old dashed border was a second, competing idiom. */
 .empty-state {
-  border: 1px dashed var(--border-default);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-8);
   text-align: center;
@@ -3826,7 +3842,9 @@ button.filter-section__head:focus-visible {
   .releases-table th:nth-child(5),
   .releases-table td:nth-child(5),
   .releases-table th:nth-child(6),
-  .releases-table td:nth-child(6) {
+  .releases-table td:nth-child(6),
+  .releases-table th:nth-child(7),
+  .releases-table td:nth-child(7) {
     width: auto;
     text-align: left;
   }
@@ -3979,6 +3997,13 @@ button.filter-section__head:focus-visible {
   border: 1px solid var(--border-subtle);
   background: var(--surface-base);
 }
+/* Between the tablet breakpoints the packages table keeps a 720px
+   min-width and scrolls sideways; fade the clipped edge as the hint. */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .table-wrap {
+    mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
+  }
+}
 .table-wrap > .dense-table { border: 0; border-radius: 0; }
 
 /* Packages table: the fixed columns total ~550px, so on anything narrower
@@ -4073,7 +4098,7 @@ button.filter-section__head:focus-visible {
   gap: var(--space-2);
   padding: var(--space-3);
   background: var(--surface-base);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
 }
 
@@ -4220,7 +4245,13 @@ button.filter-section__head:focus-visible {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  /* Contained list, not a floating card stack: the wrapper carries the
+     surface + border (like /news's .table-surface) and rows divide
+     with border-bottom. */
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 .discussion-card {
@@ -4228,11 +4259,15 @@ button.filter-section__head:focus-visible {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3);
-  background: var(--surface-base);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  transition: border-color 0.12s ease, background 0.12s ease;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  transition: background 0.12s ease;
+}
+.discussion-card:last-child {
+  border-bottom: 0;
 }
 /* Whole-card tap target: the title link is stretched to cover the card
    via a ::after overlay, so tapping anywhere on the card opens the
@@ -4242,7 +4277,6 @@ button.filter-section__head:focus-visible {
      touch doesn't keep a stuck highlighted border (which read as a stray
      line on mobile). */
   .discussion-card:hover {
-    border-color: var(--border-focus);
     background: var(--surface-raised, var(--surface-base));
   }
 }
@@ -4523,11 +4557,10 @@ button.filter-section__head:focus-visible {
 }
 
 .viz-card {
-  background: var(--surface-raised);
+  background: var(--surface-base);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-5) var(--space-5);
-  box-shadow: var(--shadow-sm);
 }
 .viz-card h2 {
   margin: 0;
@@ -4709,6 +4742,39 @@ button.filter-section__head:focus-visible {
   fill: var(--text-secondary);
 }
 
+/* Dark variants for the stability-strip cells + legend swatches - the
+   light pastels glared on the dark card, and the legend previously
+   disagreed with the (already dark-tuned) heatmap cells. */
+[data-theme="dark"] .viz-cell--neutral rect      { fill: #3A4347; }
+[data-theme="dark"] .viz-cell--green-soft rect   { fill: #2D4738; }
+[data-theme="dark"] .viz-cell--green-mid rect    { fill: #467C5E; }
+[data-theme="dark"] .viz-cell--green-strong rect { fill: #5DA379; }
+[data-theme="dark"] .viz-cell--red-soft rect     { fill: #4A2F2C; }
+[data-theme="dark"] .viz-cell--red-mid rect      { fill: #8A5450; }
+[data-theme="dark"] .viz-cell--red-strong rect   { fill: #B56B66; }
+[data-theme="dark"] .viz-legend-swatch--neutral  { background: #3A4347; }
+[data-theme="dark"] .viz-legend-swatch--green    { background: #5DA379; }
+[data-theme="dark"] .viz-legend-swatch--red      { background: #B56B66; }
+[data-theme="dark"] .viz-legend-swatch--heat-1   { background: #213029; }
+[data-theme="dark"] .viz-legend-swatch--heat-2   { background: #2D4738; }
+[data-theme="dark"] .viz-legend-swatch--heat-3   { background: #467C5E; }
+[data-theme="dark"] .viz-legend-swatch--heat-4   { background: #5DA379; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .viz-cell--neutral rect      { fill: #3A4347; }
+  :root:not([data-theme="light"]) .viz-cell--green-soft rect   { fill: #2D4738; }
+  :root:not([data-theme="light"]) .viz-cell--green-mid rect    { fill: #467C5E; }
+  :root:not([data-theme="light"]) .viz-cell--green-strong rect { fill: #5DA379; }
+  :root:not([data-theme="light"]) .viz-cell--red-soft rect     { fill: #4A2F2C; }
+  :root:not([data-theme="light"]) .viz-cell--red-mid rect      { fill: #8A5450; }
+  :root:not([data-theme="light"]) .viz-cell--red-strong rect   { fill: #B56B66; }
+  :root:not([data-theme="light"]) .viz-legend-swatch--neutral  { background: #3A4347; }
+  :root:not([data-theme="light"]) .viz-legend-swatch--green    { background: #5DA379; }
+  :root:not([data-theme="light"]) .viz-legend-swatch--red      { background: #B56B66; }
+  :root:not([data-theme="light"]) .viz-legend-swatch--heat-1   { background: #213029; }
+  :root:not([data-theme="light"]) .viz-legend-swatch--heat-2   { background: #2D4738; }
+  :root:not([data-theme="light"]) .viz-legend-swatch--heat-3   { background: #467C5E; }
+  :root:not([data-theme="light"]) .viz-legend-swatch--heat-4   { background: #5DA379; }
+}
 [data-theme="dark"] .viz-heat-cell--heat-1 { fill: #213029; }
 [data-theme="dark"] .viz-heat-cell--heat-2 { fill: #2D4738; }
 [data-theme="dark"] .viz-heat-cell--heat-3 { fill: #467C5E; }
@@ -5751,18 +5817,15 @@ button.filter-section__head:focus-visible {
 /* Timeline Card */
 .timeline__card {
   background: var(--surface-base);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
   padding: var(--space-3) var(--space-4);
-  transition: box-shadow var(--duration-fast) var(--easing-standard),
-              border-color var(--duration-fast) var(--easing-standard),
+  transition: border-color var(--duration-fast) var(--easing-standard),
               background var(--duration-fast) var(--easing-standard);
 }
 
 .timeline__item:hover .timeline__card {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
   background: var(--surface-raised);
 }
 
@@ -6061,11 +6124,13 @@ button.filter-section__head:focus-visible {
 }
 
 @media (max-width: 640px) {
-  /* One scrollable row instead of wrapping, so the control stays compact. */
+  /* One scrollable row instead of wrapping, so the control stays compact.
+     The right-edge fade hints that more tabs are off-screen. */
   .github-tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
   }
   .github-tabs__tab { flex: 0 0 auto; }
 }
@@ -6077,7 +6142,7 @@ button.filter-section__head:focus-visible {
   padding: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -6145,7 +6210,7 @@ button.filter-section__head:focus-visible {
   gap: var(--space-2);
   padding: var(--space-3);
   background: var(--surface-base);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   transition: border-color 0.12s ease, background 0.12s ease;
 }
@@ -6249,3 +6314,30 @@ button.filter-section__head:focus-visible {
   gap: 4px;
 }
 .github-card__pushed { margin-left: auto; }
+
+
+/* ------------------------------------------------------------------ */
+/* Touch-target sizing: on coarse pointers, primary tap controls get
+   ~40px heights (WCAG 2.5.8 + platform guidelines). Desktop density
+   is untouched - this only fires for touch-first devices.            */
+/* ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  .lane__pagination-btn {
+    height: 40px;
+    padding: 0 var(--space-3);
+  }
+  .viz-chip {
+    min-height: 40px;
+    padding: var(--space-2) var(--space-4);
+  }
+  .filter-bar input[type="text"],
+  .filter-bar input[type="search"],
+  .filter-bar select {
+    height: 40px;
+  }
+  .github-tabs__tab {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
