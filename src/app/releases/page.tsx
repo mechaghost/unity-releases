@@ -103,12 +103,21 @@ export default async function ReleasesPage({
           <table className="dense-table releases-table tabnums">
             <thead>
               <tr>
-                <th>Version</th>
-                <th>Stream</th>
-                <th>Released</th>
-                <th>Age</th>
-                <th>Notes</th>
-                <th>
+                <th scope="col">Version</th>
+                <th scope="col">Stream</th>
+                <th scope="col">Released</th>
+                <th scope="col">Age</th>
+                <th scope="col">Notes</th>
+                <th
+                  scope="col"
+                  aria-sort={
+                    sortKey === "score-desc"
+                      ? "descending"
+                      : sortKey === "score-asc"
+                        ? "ascending"
+                        : undefined
+                  }
+                >
                   <a
                     className={`releases-table__sort ${sortKey ? "releases-table__sort--active" : ""}`}
                     href={scoreSortHref}
@@ -120,7 +129,9 @@ export default async function ReleasesPage({
                     </span>
                   </a>
                 </th>
-                <th aria-label="Actions" />
+                <th scope="col">
+                  <span className="visually-hidden">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>

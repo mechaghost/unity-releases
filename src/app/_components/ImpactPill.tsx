@@ -50,8 +50,13 @@ const HIDDEN_IMPACT_KINDS = new Set(["install_risk"]);
 export function ImpactPill({ kind }: { kind: string | null | undefined }) {
   const safe = kind ?? "unknown";
   if (HIDDEN_IMPACT_KINDS.has(safe)) return null;
-  const chip = <span className={`chip chip--impact-${safe}`}>{impactLabel(safe)}</span>;
   const blurb = IMPACT_BLURBS[safe];
+  // Native title = screen-reader / no-popover fallback for the definition.
+  const chip = (
+    <span className={`chip chip--impact-${safe}`} title={blurb}>
+      {impactLabel(safe)}
+    </span>
+  );
   if (!blurb) return chip;
   return (
     <HoverInfo title={impactLabel(safe)} body={<p>{blurb}</p>}>

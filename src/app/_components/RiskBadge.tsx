@@ -41,7 +41,14 @@ export function RiskBadge({ level }: { level: string | null | undefined }) {
   const safe = (level ?? "info").toLowerCase();
   if (!RENDERED_RISK_LEVELS.has(safe)) return null;
   const info = RISK_BLURBS[safe];
-  const chip = <span className={`chip chip--risk-${safe}`}>{riskLabel(safe)}</span>;
+  // Native title carries the definition to screen readers and any
+  // context where the HoverCard can't open - the popover remains the
+  // rich pointer-user surface.
+  const chip = (
+    <span className={`chip chip--risk-${safe}`} title={info?.blurb}>
+      {riskLabel(safe)}
+    </span>
+  );
   if (!info) return chip;
   return (
     <HoverInfo

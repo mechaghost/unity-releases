@@ -70,6 +70,8 @@ export function FilterDrawer({
   const [, startTransition] = useTransition();
   const router = useRouter();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
   const initialSerialized = useRef<string>(JSON.stringify(initial));
 
   // Reset internal state to whatever the server reported whenever the drawer
@@ -92,14 +94,45 @@ export function FilterDrawer({
     };
   }, [open]);
 
-  // Esc to close.
+  // Focus management (same pattern as PackageVersionDialog): capture the
+  // opener, move focus to the close button, trap Tab inside the panel,
+  // Esc closes, and focus returns to the opener on close. aria-modal
+  // promises exactly this; without it keyboard users tab straight
+  // through the "modal" into the page behind it.
   useEffect(() => {
     if (!open) return;
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    const id = window.requestAnimationFrame(() => {
+      closeBtnRef.current?.focus();
+    });
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === "Tab") {
+        const root = dialogRef.current;
+        if (!root) return;
+        const focusables = root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.removeEventListener("keydown", onKey);
+      previouslyFocused.current?.focus?.();
+    };
   }, [open, onClose]);
 
   // Auto-apply: any state change that diverges from the last-applied state
@@ -156,6 +189,7 @@ export function FilterDrawer({
         <header className="filter-surface__head">
           <h2>Filter</h2>
           <button
+            ref={closeBtnRef}
             type="button"
             className="filter-surface__close"
             onClick={onClose}

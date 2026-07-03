@@ -91,16 +91,21 @@ export function LaneShell({
       id={`lane-${id}`}
       data-collapsed={isCollapsed ? "true" : undefined}
     >
-      <button
-        type="button"
-        className="lane__header"
-        aria-controls={`lane-${id}-body`}
-        aria-expanded={!isCollapsed}
-        onClick={() => toggle(id)}
-      >
-        <h3 className="lane__header-title">{title}</h3>
-        <span className="lane__header-count tabnums">{count.toLocaleString()}</span>
-      </button>
+      {/* Disclosure pattern: the heading wraps the button (a heading
+          inside a button is invalid HTML - buttons only allow phrasing
+          content - and flattens the outline for screen readers). */}
+      <h2 className="lane__heading">
+        <button
+          type="button"
+          className="lane__header"
+          aria-controls={`lane-${id}-body`}
+          aria-expanded={!isCollapsed}
+          onClick={() => toggle(id)}
+        >
+          <span className="lane__header-title">{title}</span>
+          <span className="lane__header-count tabnums">{count.toLocaleString()}</span>
+        </button>
+      </h2>
       <div className="lane__body" id={`lane-${id}-body`}>
         {children}
       </div>

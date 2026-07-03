@@ -45,8 +45,8 @@ export default async function NewsPage() {
       <div className="table-surface"><table className="dense-table">
         <thead>
           <tr>
-            <th style={{ width: 130 }}>Date</th>
-            <th>Title</th>
+            <th scope="col" style={{ width: 130 }}>Date</th>
+            <th scope="col">Title</th>
           </tr>
         </thead>
         <tbody>

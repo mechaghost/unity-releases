@@ -142,6 +142,11 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
               })}
               className="github-tabs__tab"
               aria-current={isActive ? "true" : undefined}
+              aria-label={
+                isActive
+                  ? `${tab.label}, sorted ${dir === "desc" ? "descending" : "ascending"} - activate to reverse`
+                  : `Sort by ${tab.label.toLowerCase()}`
+              }
               title={
                 isActive
                   ? `${tab.label} — ${dir === "desc" ? "descending" : "ascending"}, click to reverse`

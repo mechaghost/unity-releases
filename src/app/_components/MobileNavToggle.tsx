@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 
 /**
  * Mobile-only hamburger that toggles the slide-in nav drawer.
  * Updates `data-nav-open` on `.app-shell` so CSS can run the slide
- * transition; closes on Escape and on backdrop click.
+ * transition; closes on Escape and on backdrop click. While open,
+ * focus moves to the first nav link (and returns to the hamburger on
+ * close) and the body scroll locks via JS - the previous `body:has()`
+ * CSS lock was a no-op on older Safari.
  */
 export function MobileNavToggle() {
   const [open, setOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const shell = document.querySelector(".app-shell") as HTMLElement | null;
@@ -19,6 +23,25 @@ export function MobileNavToggle() {
     } else {
       shell.removeAttribute("data-nav-open");
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // Move focus into the drawer once the slide-in starts so keyboard +
+    // screen-reader users land where the interaction happens.
+    const id = window.requestAnimationFrame(() => {
+      const firstLink = document.querySelector<HTMLElement>(
+        "#primary-nav a, .app-shell__nav a"
+      );
+      firstLink?.focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(id);
+      document.body.style.overflow = previousOverflow;
+      toggleRef.current?.focus?.();
+    };
   }, [open]);
 
   useEffect(() => {
@@ -34,6 +57,7 @@ export function MobileNavToggle() {
       <div className="mobile-topbar" role="banner">
         <div className="mobile-topbar__lead">
           <button
+            ref={toggleRef}
             type="button"
             className="mobile-nav-toggle"
             aria-label={open ? "Close navigation" : "Open navigation"}

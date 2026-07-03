@@ -1701,6 +1701,21 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   font: inherit;
 }
 
+/* The h2 wrapper exists purely for document structure - the button
+   inside carries all the visual treatment. The sticky positioning has
+   to ride on the heading now that it's the outermost header element. */
+.lane__heading {
+  margin: 0;
+  font: inherit;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.lane__heading .lane__header {
+  position: static;
+  width: 100%;
+}
+
 .lane__header:hover {
   background: var(--surface-overlay);
 }
@@ -1961,6 +1976,9 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 .filter-bar select:focus {
   border-color: var(--border-focus);
   outline: none;
+  /* A 1px border-color swap alone is too weak an indicator; pair it
+     with a ring to match the global 2px :focus-visible treatment. */
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-focus) 35%, transparent);
 }
 
 .filter-bar label {
@@ -2474,9 +2492,17 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   inset: 0;
   z-index: 80;
   pointer-events: none;
+  /* Closed drawers must leave the tab order + accessibility tree, not
+     just fade: transform/pointer-events alone left ~50 invisible
+     controls tabbable. visibility flips on at once when opening and
+     waits for the slide-out to finish when closing. */
+  visibility: hidden;
+  transition: visibility 0s var(--easing-standard) var(--duration-base);
 }
 .filter-surface[data-open="true"] {
   pointer-events: auto;
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .filter-surface__backdrop {
@@ -3685,7 +3711,9 @@ button.filter-section__head:focus-visible {
     width: 280px;
     max-width: 85vw;
     transform: translateX(-100%);
-    transition: transform var(--duration-base) var(--easing-standard);
+    transition: transform var(--duration-base) var(--easing-standard),
+      visibility 0s var(--easing-standard) var(--duration-base);
+    visibility: hidden;
     z-index: 50;
     /* No border-right / box-shadow here. Parked off-canvas the drawer's
        right edge sits exactly at the screen's left edge (x=0), so a right
@@ -3695,6 +3723,8 @@ button.filter-section__head:focus-visible {
   }
   .app-shell[data-nav-open="true"] .app-shell__nav {
     transform: translateX(0);
+    visibility: visible;
+    transition-delay: 0s;
     box-shadow: var(--shadow-lg);
     border-right: 1px solid var(--border-subtle);
   }
@@ -5906,6 +5936,13 @@ button.filter-section__head:focus-visible {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
   border-top: 1px dashed var(--border-subtle);
+}
+/* Grouped content cards render the updates list directly under the
+   title - no divider needed (was an inline style override in JSX). */
+.timeline-content__run-updates--flush {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .timeline-run-updates-header {

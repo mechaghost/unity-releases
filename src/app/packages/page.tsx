@@ -109,24 +109,28 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
           </span>
         </div>
 
-        <div className="table-wrap">
+        {/* tabIndex lets keyboard users scroll the 720px-min table
+            horizontally between the tablet breakpoints. */}
+        <div className="table-wrap" role="region" aria-label="Package list" tabIndex={0}>
           <table className="dense-table packages-table">
             <thead>
               <tr>
-                <th>
+                <th scope="col">
                   <SortLink field="name" currentSort={sort} q={q} scope={scope} channel={channel}>
                     Package
                   </SortLink>
                 </th>
-                <th style={{ width: 140 }}>Latest</th>
-                <th style={{ width: 130 }}>
+                <th scope="col" style={{ width: 140 }}>Latest</th>
+                <th scope="col" style={{ width: 130 }}>
                   <SortLink field="updated" currentSort={sort} q={q} scope={scope} channel={channel}>
                     Updated
                   </SortLink>
                 </th>
-                <th style={{ width: 120 }}>Channel</th>
-                <th style={{ width: 120 }}>Links</th>
-                <th aria-label="Open release notes" style={{ width: 36 }} />
+                <th scope="col" style={{ width: 120 }}>Channel</th>
+                <th scope="col" style={{ width: 120 }}>Links</th>
+                <th scope="col" style={{ width: 36 }}>
+                  <span className="visually-hidden">Open release notes</span>
+                </th>
               </tr>
             </thead>
             <tbody>

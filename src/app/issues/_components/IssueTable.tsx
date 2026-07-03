@@ -45,12 +45,12 @@ export function IssueTable({
     <table className="issue-table dense-table tabnums">
       <thead>
         <tr>
-          <th>Issue</th>
-          <th>Status</th>
-          <th>Description</th>
-          <th>Introduced</th>
-          <th>Fixed</th>
-          <th
+          <th scope="col">Issue</th>
+          <th scope="col">Status</th>
+          <th scope="col">Description</th>
+          <th scope="col">Introduced</th>
+          <th scope="col">Fixed</th>
+          <th scope="col"
             className="issue-table__num"
             aria-sort={ariaSortFor(sortable, "days-asc", "days-desc")}
           >
@@ -65,7 +65,7 @@ export function IssueTable({
               "Days open"
             )}
           </th>
-          <th
+          <th scope="col"
             className="issue-table__num"
             aria-sort={ariaSortFor(sortable, "mentions-asc", "mentions-desc")}
           >

@@ -168,11 +168,11 @@ export default async function IssuePage({
         <div className="table-surface"><table className="dense-table">
           <thead>
             <tr>
-              <th style={{ width: 140 }}>Version</th>
-              <th style={{ width: 140 }}>Section</th>
-              <th style={{ width: 100 }}>Risk</th>
-              <th style={{ width: 130 }}>Impact</th>
-              <th>Note</th>
+              <th scope="col" style={{ width: 140 }}>Version</th>
+              <th scope="col" style={{ width: 140 }}>Section</th>
+              <th scope="col" style={{ width: 100 }}>Risk</th>
+              <th scope="col" style={{ width: 130 }}>Impact</th>
+              <th scope="col">Note</th>
             </tr>
           </thead>
           <tbody>

@@ -464,6 +464,12 @@ export default async function ComparePage({
 
   return (
     <>
+      {/* The results view otherwise starts its outline at the lane
+          headings; screen-reader users need the page-level h1 the
+          empty-state landing has. Mirrors the document title. */}
+      <h1 className="visually-hidden">
+        Unity {fromVersion} to {toVersion} upgrade diff
+      </h1>
       <ComparePicker
         fromVersion={fromVersion}
         toVersion={toVersion}

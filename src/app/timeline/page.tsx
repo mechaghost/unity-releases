@@ -96,9 +96,9 @@ export default async function TimelinePage({ searchParams }: { searchParams: Sea
                         {formatDateTime(item.timestamp)} · <span className="timeline__card-relative">{formatRelativeDate(item.timestamp)}</span>
                       </span>
                     </header>
-                    <main className="timeline__card-body">
+                    <div className="timeline__card-body">
                       <TimelineCardBody event={item} />
-                    </main>
+                    </div>
                   </div>
                 </li>
               ))}
@@ -157,11 +157,11 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
       
       return (
         <div className="timeline-content">
-          <h3 className="timeline-content__title">
+          <h2 className="timeline-content__title">
             {event.title}
-          </h3>
+          </h2>
           
-          <div className="timeline-content__run-updates" style={{ borderTop: "none", marginTop: 0, paddingTop: 0 }}>
+          <div className="timeline-content__run-updates timeline-content__run-updates--flush">
             <ul className="timeline-run-updates-list">
               {event.groupItems.map((item) => {
                 const isEditorItem = event.eventType.startsWith("unity_release");
@@ -213,7 +213,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
 
     return (
       <div className="timeline-content">
-        <h3 className="timeline-content__title">
+        <h2 className="timeline-content__title">
           {isEditor && (
             <a href={`/releases/${encodeURIComponent(event.title)}`}>
               Editor Released: <strong>{event.title}</strong>
@@ -229,7 +229,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
               News: <strong>{event.title}</strong>
             </a>
           )}
-        </h3>
+        </h2>
 
         {event.summary && (
           <p className="timeline-content__summary">
@@ -270,9 +270,9 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
 
   return (
     <div className="timeline-content timeline-content--ingestion">
-      <h3 className="timeline-content__title">
+      <h2 className="timeline-content__title">
         Scraper Job: <code>{event.jobName}</code>
-      </h3>
+      </h2>
       <p className="timeline-content__meta">
         Source: <code>{event.sourceType}</code> · Status:{" "}
         <span className={`timeline-status-badge timeline-status-badge--${event.status}`}>

@@ -58,7 +58,7 @@ export function StabilityHeatStrip({
         Each cell = one release. Color encodes <code>fixes − known-issues</code>.
         Hover a cell for the version + counts. Click to open the release.
       </p>
-      <div className="viz-scroll" role="region" aria-label="Stability heat strip">
+      <div className="viz-scroll" role="region" aria-label="Stability heat strip" tabIndex={0}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
@@ -142,7 +142,10 @@ export function StabilityHeatStrip({
                 }
               >
                 <g className={`viz-cell ${fillClass}`}>
-                  <a href={`/releases/${encodeURIComponent(v.version)}`}>
+                  <a
+                    href={`/releases/${encodeURIComponent(v.version)}`}
+                    aria-label={`Unity ${v.version} release notes`}
+                  >
                     <rect
                       x={x}
                       y={20}

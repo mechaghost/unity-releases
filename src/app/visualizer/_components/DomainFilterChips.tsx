@@ -30,6 +30,7 @@ export function DomainFilterChips({ activeDomain }: { activeDomain: Domain | "Ot
       <button
         type="button"
         className={`viz-chip ${activeDomain == null ? "viz-chip--active" : ""}`}
+        aria-pressed={activeDomain == null}
         onClick={() => setDomain(null)}
       >
         All
@@ -62,6 +63,7 @@ export function DomainFilterChips({ activeDomain }: { activeDomain: Domain | "Ot
           <button
             type="button"
             className={`viz-chip ${activeDomain === d ? "viz-chip--active" : ""}`}
+            aria-pressed={activeDomain === d}
             onClick={() => setDomain(d)}
           >
             {d}
@@ -81,6 +83,7 @@ export function DomainFilterChips({ activeDomain }: { activeDomain: Domain | "Ot
         <button
           type="button"
           className={`viz-chip ${activeDomain === "Other" ? "viz-chip--active" : ""}`}
+          aria-pressed={activeDomain === "Other"}
           onClick={() => setDomain("Other")}
         >
           Other

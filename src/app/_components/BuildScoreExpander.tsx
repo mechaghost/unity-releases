@@ -50,14 +50,14 @@ export function BuildScoreExpander({
         <table className="score-table">
           <thead>
             <tr>
-              <th>Sub-score</th>
-              <th>Formula</th>
-              <th>Raw</th>
-              <th>Clip</th>
-              <th>%ile</th>
-              <th>Weight</th>
-              <th>Score</th>
-              <th>Contrib</th>
+              <th scope="col">Sub-score</th>
+              <th scope="col">Formula</th>
+              <th scope="col">Raw</th>
+              <th scope="col">Clip</th>
+              <th scope="col">%ile</th>
+              <th scope="col">Weight</th>
+              <th scope="col">Score</th>
+              <th scope="col">Contrib</th>
             </tr>
           </thead>
           <tbody>

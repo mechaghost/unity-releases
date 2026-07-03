@@ -1,7 +1,7 @@
 "use client";
 
 import * as HoverCard from "@radix-ui/react-hover-card";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 /**
  * Rich hover popover primitive. Server-renderable parents pass arbitrary
@@ -46,17 +46,30 @@ export function HoverInfo({
    */
   asChild?: boolean;
 }) {
+  // Controlled open state so a tap can toggle the card - Radix
+  // HoverCard alone never opens on touch, which stranded every
+  // hover-only explanation (score formulas, domain definitions, cell
+  // counts) for phone users. Hover/focus still drive onOpenChange, so
+  // pointer behavior is unchanged on desktop.
+  const [open, setOpen] = useState(false);
   const trigger = asChild ? (
-    <HoverCard.Trigger asChild>{children}</HoverCard.Trigger>
+    <HoverCard.Trigger asChild onClick={() => setOpen((v) => !v)}>
+      {children}
+    </HoverCard.Trigger>
   ) : (
-    <HoverCard.Trigger asChild>
+    <HoverCard.Trigger asChild onClick={() => setOpen((v) => !v)}>
       <span className="hover-info__trigger" tabIndex={0}>
         {children}
       </span>
     </HoverCard.Trigger>
   );
   return (
-    <HoverCard.Root openDelay={openDelay} closeDelay={closeDelay}>
+    <HoverCard.Root
+      openDelay={openDelay}
+      closeDelay={closeDelay}
+      open={open}
+      onOpenChange={setOpen}
+    >
       {trigger}
       <HoverCard.Portal>
         <HoverCard.Content

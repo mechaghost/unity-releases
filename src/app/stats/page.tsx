@@ -179,10 +179,10 @@ function FreshnessSection({ freshness }: { freshness: IngestionFreshness[] }) {
       <table className="stats-table">
         <thead>
           <tr>
-            <th>Source</th>
-            <th>Last success</th>
-            <th>Hours ago</th>
-            <th>Status</th>
+            <th scope="col">Source</th>
+            <th scope="col">Last success</th>
+            <th scope="col">Hours ago</th>
+            <th scope="col">Status</th>
           </tr>
         </thead>
         <tbody>
