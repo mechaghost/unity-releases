@@ -440,11 +440,11 @@ const SECTIONS: Section[] = [
         answer: (
           <>
             Every indexed Unity editor release in a paginated table. The chip
-            row at the top defaults to <code>6.3 LTS</code> +{" "}
-            <code>6.0 LTS</code> - tick Supported / Beta / Alpha or the legacy
-            LTS chips (2022.3 / 2021.3 / 2020.3 / 2019.4) to widen the list.
-            Each row links to the per-release detail page; the external-link
-            icon opens the official Unity release page in a new tab.
+            row at the top defaults to the current Unity LTS lines - tick
+            Supported / Beta / Alpha or the legacy LTS chips (2022.3 / 2021.3 /
+            2020.3 / 2019.4) to widen the list. Each row links to the
+            per-release detail page; the external-link icon opens the official
+            Unity release page in a new tab.
           </>
         )
       },
@@ -918,7 +918,7 @@ const SECTIONS: Section[] = [
       {
         id: "release-button",
         question:
-          "The Editor Releases page filters default to 6.3 LTS and 6.0 LTS - how do I see beta or alpha?",
+          "The Editor Releases page defaults to the current LTS lines - how do I see beta or alpha?",
         answer: (
           <>
             The pill row at the top has Supported, Beta, and Alpha checkboxes.

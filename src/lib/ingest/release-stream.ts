@@ -13,6 +13,7 @@
  */
 
 import { fetchText } from "./fetch";
+import { parseUnityVersion, type UnityStream } from "../parsers/version";
 
 export const RELEASE_API_BASE = "https://services.api.unity.com/unity/editor/release/v1/releases";
 
@@ -36,4 +37,43 @@ export async function fetchApiStream(version: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export type ResolvedStream = {
+  stream: UnityStream;
+  /** "api" = Unity's own label, "retained" = kept the stored value, "parsed" = version-derived. */
+  source: "api" | "retained" | "parsed";
+};
+
+/**
+ * Decide the stream to store for a scraped editor release, given Unity's API
+ * answer (or null on failure) and whatever is already stored for this version.
+ *
+ * When the API lookup fails, a *final* build's fallback is only a guess from the
+ * curated LTS map - and for a line the map doesn't know (a new generation's
+ * first LTS line, e.g. 7000.0) that guess is "Update/Supported", not LTS.
+ * Because the upsert does `ON CONFLICT ... SET stream = EXCLUDED.stream`, writing
+ * that guess would overwrite a previously-correct, API-sourced stream on any
+ * flaky nightly run - and it's sticky (backfill skips already-stored versions).
+ * So on API failure we KEEP the stored value for a final build rather than
+ * downgrade it. Alpha/beta/patch are channel-derived and always correct, so they
+ * always take the parsed value.
+ */
+export function resolveIngestStream(opts: {
+  version: string;
+  apiStream: string | null;
+  storedStream: string | null;
+}): ResolvedStream {
+  if (opts.apiStream) {
+    return {
+      stream: parseUnityVersion(opts.version, { apiStream: opts.apiStream }).stream,
+      source: "api"
+    };
+  }
+  const parsed = parseUnityVersion(opts.version).stream;
+  const isFinalBuild = parsed === "LTS" || parsed === "Update/Supported";
+  if (isFinalBuild && opts.storedStream && opts.storedStream !== parsed) {
+    return { stream: opts.storedStream as UnityStream, source: "retained" };
+  }
+  return { stream: parsed, source: "parsed" };
 }

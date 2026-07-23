@@ -25,9 +25,27 @@ export function AutoSubmitOnChange() {
   useEffect(() => {
     const form = anchorRef.current?.closest("form");
     if (!form) return;
+
     const submit = () => form.requestSubmit();
     form.addEventListener("change", submit);
-    return () => form.removeEventListener("change", submit);
+
+    // Re-sync on bfcache restore (Back/Forward). The chips are uncontrolled
+    // (`defaultChecked`) and their selected *appearance* comes from static SSR
+    // markup, while a click flips only the live `input.checked`. bfcache freezes
+    // that drifted live state, so after Back a chip can look ON while its input
+    // is OFF (or vice versa) - the next click then does the opposite of what the
+    // user expects. Resetting restores every input to its `defaultChecked`,
+    // which is exactly the SSR markup for the restored URL, so appearance and
+    // input agree again. reset() fires no `change` event, so it won't submit.
+    const resync = (event: PageTransitionEvent) => {
+      if (event.persisted) form.reset();
+    };
+    window.addEventListener("pageshow", resync);
+
+    return () => {
+      form.removeEventListener("change", submit);
+      window.removeEventListener("pageshow", resync);
+    };
   }, []);
 
   return <span ref={anchorRef} hidden />;

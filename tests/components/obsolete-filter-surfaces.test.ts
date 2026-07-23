@@ -17,4 +17,22 @@ describe("obsolete filter surfaces", () => {
     expect(releasesPage).toContain("ReleaseStreamChips");
     expect(releasesPage).toContain("selectedFilters");
   });
+
+  test("the active sort is threaded into both the chip form and the page links", () => {
+    // Source-level guard because these call sites have no unit-testable surface
+    // (server component + DB reads). Round-2 mutation testing showed reverting
+    // either to `null` left the whole suite green while silently dropping ?sort:
+    // paging out of a score-sorted list then re-orders and repeats rows.
+    // The chip form must receive the sort so a chip toggle preserves it:
+    expect(releasesPage).toMatch(/<ReleaseStreamChips[\s\S]*?sortKey=\{sortKey\}/);
+    // Both pagination links must carry the sort, not a hardcoded null:
+    const pageLinkArgs = [...releasesPage.matchAll(/releasePageHref\(pagination\.page[^)]*\)/g)].map(
+      (m) => m[0]
+    );
+    expect(pageLinkArgs.length).toBe(2);
+    for (const call of pageLinkArgs) {
+      expect(call).toContain("sortKey");
+      expect(call).not.toMatch(/,\s*null\s*,/);
+    }
+  });
 });

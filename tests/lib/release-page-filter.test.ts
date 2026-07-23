@@ -4,6 +4,7 @@ import {
   buildReleaseFilters,
   defaultReleaseFilters,
   defaultViewGenerationsLabel,
+  nextReleaseSortKey,
   parseReleaseSortKey,
   parseSelectedReleaseFilters,
   releaseMatchesSelectedFilters,
@@ -105,6 +106,21 @@ describe("release page filters", () => {
     expect(parseSelectedReleaseFilters("lts", FILTERS)).toEqual(["6000.3-lts", "6000.0-lts"]);
   });
 
+  test("?stream=lts resolves to LTS chips, never the non-LTS fallback", () => {
+    // Regression: the `lts` alias pointed at defaultReleaseFilters, which in a
+    // legacy-only DB falls back to update/beta/alpha - so ?stream=lts selected
+    // the exact opposite of LTS. It must resolve to the LTS chips that exist.
+    const legacyOnly = buildReleaseFilters([
+      { version: "2022.3.61f1", stream: "LTS" },
+      { version: "2021.3.45f1", stream: "LTS" },
+      { version: "2019.4.40f1", stream: "LTS" }
+    ]);
+    const selected = parseSelectedReleaseFilters("lts", legacyOnly);
+    expect(selected).toEqual(["2022.3-lts", "2021.3-lts", "2019.4-lts"]);
+    expect(selected).not.toContain("update");
+    expect(selected).not.toContain("beta");
+  });
+
   test("accepts the chip label 'supported' as an alias for its value 'update'", () => {
     // Hand-built share URLs use the visible label; before the alias,
     // ?stream=supported silently fell back to the defaults.
@@ -176,21 +192,20 @@ describe("release page filters", () => {
   });
 
   test("the sort cycle can return to unsorted", () => {
-    // Three-state: unsorted -> desc -> asc -> unsorted. This is load-bearing.
-    // Page links and the chip form both carry ?sort now (so paging out of a
-    // sorted list can't silently re-order), which removed the old "toggle a
-    // chip to clear the sort" escape hatch. If the header only alternated
-    // desc<->asc, sorting would be one-way with no way back to date order.
-    const cycle = (current: "score-desc" | "score-asc" | null) =>
-      current === "score-desc" ? "score-asc" : current === "score-asc" ? null : "score-desc";
-
-    expect(cycle(null)).toBe("score-desc");
-    expect(cycle("score-desc")).toBe("score-asc");
-    expect(cycle("score-asc")).toBeNull();
+    // Exercises the REAL production transition (imported), not a local copy -
+    // that copy was the round-2 tautology: reverting the page to a two-state
+    // desc<->asc toggle left the suite green. Three-state matters because page
+    // links and the chip form both carry ?sort now, so "toggle a chip to clear
+    // the sort" is gone; the header is the only way back to date order.
+    expect(nextReleaseSortKey(null)).toBe("score-desc");
+    expect(nextReleaseSortKey("score-desc")).toBe("score-asc");
+    expect(nextReleaseSortKey("score-asc")).toBeNull();
 
     // ...and the null step must produce a URL with no sort param at all.
     const defaults = defaultReleaseFilters(FILTERS);
-    expect(releasePageHref(1, defaults, cycle("score-asc"), defaults)).toBe("/releases");
+    expect(releasePageHref(1, defaults, nextReleaseSortKey("score-asc"), defaults)).toBe(
+      "/releases"
+    );
   });
 
   test("carries an active sort into page links", () => {

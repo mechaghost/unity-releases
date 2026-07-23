@@ -87,25 +87,50 @@ export function buildReleaseFilters(
   ];
 }
 
+/** Every LTS chip value in `available`; `modernOnly` keeps just the 6000+ ones. */
+function ltsFilterValues(
+  available: readonly ReleaseFilterOption[],
+  modernOnly: boolean
+): ReleaseFilterValue[] {
+  return available
+    .map((option) => ({ option, minorLine: minorLineOfLtsFilter(option.value) }))
+    .filter(({ minorLine }) => {
+      if (!minorLine) return false;
+      return !modernOnly || isModernMajor(Number(minorLine.split(".")[0]));
+    })
+    .map(({ option }) => option.value);
+}
+
 /**
  * Default selection: every modern-generation LTS line, matching the previous
  * hardcoded default of 6000.3 + 6000.0. Legacy lines stay off until ticked.
  *
- * Falls back to the stream chips if nothing is indexed yet, so a fresh
- * install doesn't render an empty page with no way to select anything.
+ * Falls back to the stream chips if no modern LTS line is indexed yet, so a
+ * fresh install (or a legacy-only DB) doesn't render an empty page with no way
+ * to select anything.
  */
 export function defaultReleaseFilters(
   available: readonly ReleaseFilterOption[]
 ): ReleaseFilterValue[] {
-  const modernLts = available
-    .map((option) => ({ option, minorLine: minorLineOfLtsFilter(option.value) }))
-    .filter(({ minorLine }) => {
-      if (!minorLine) return false;
-      return isModernMajor(Number(minorLine.split(".")[0]));
-    })
-    .map(({ option }) => option.value);
-
+  const modernLts = ltsFilterValues(available, true);
   return modernLts.length > 0 ? modernLts : STREAM_FILTERS.map((f) => f.value);
+}
+
+/**
+ * What `?stream=lts` resolves to: the LTS chips, never the stream-chip fallback.
+ *
+ * Historically `lts` meant "the default (modern) LTS lines". It cannot alias to
+ * `defaultReleaseFilters` directly, because in a legacy-only DB that function
+ * falls back to `update/beta/alpha` - so `?stream=lts` would have selected the
+ * exact opposite of LTS. Prefer modern LTS lines, fall back to any LTS line,
+ * and only if there are genuinely no LTS chips defer to the default selection.
+ */
+function ltsAliasFilters(available: readonly ReleaseFilterOption[]): ReleaseFilterValue[] {
+  const modern = ltsFilterValues(available, true);
+  if (modern.length > 0) return modern;
+  const all = ltsFilterValues(available, false);
+  if (all.length > 0) return all;
+  return defaultReleaseFilters(available);
 }
 
 export function parseSelectedReleaseFilters(
@@ -119,7 +144,7 @@ export function parseSelectedReleaseFilters(
   // instead of an array and flatMap spliced it into the result - which then
   // threw in minorLineOfLtsFilter and 500'd the page (there is no error.tsx).
   const aliases = new Map([
-    ["lts", defaults],
+    ["lts", ltsAliasFilters(available)],
     // The chip's label says "Supported" but its value is "update" - accept the
     // label as an alias so hand-built share URLs (?stream=supported) select the
     // stream the author meant instead of silently falling back to the defaults.
@@ -202,6 +227,21 @@ export function parseReleaseSortKey(
   const v = Array.isArray(raw) ? raw[0] : raw;
   if (v === "score-desc" || v === "score-asc") return v;
   return null;
+}
+
+/**
+ * The build-score header's three-state cycle: unsorted → desc → asc → unsorted.
+ *
+ * Three states, not two, so the header itself returns to the default
+ * newest-first order - page links and the chip form both carry `?sort` now, so
+ * "toggle a chip to clear the sort" is no longer an escape hatch. Exported (not
+ * inlined at the call site) so a test exercises this real transition: a
+ * regression back to a desc↔asc-only toggle must turn a test red.
+ */
+export function nextReleaseSortKey(current: ReleaseSortKey | null): ReleaseSortKey | null {
+  if (current === "score-desc") return "score-asc";
+  if (current === "score-asc") return null;
+  return "score-desc";
 }
 
 /**

@@ -73,9 +73,12 @@ export function VersionPill({
   const mark = streamMark(stream);
   const info = streamInfo(stream);
   // Without the popover the explanation has to live somewhere, so fall back
-  // to a native tooltip carrying the same text.
-  const plainTitle =
-    !hoverCard && info ? `${version} · ${info.label} - ${info.blurb}` : undefined;
+  // to a native tooltip carrying the SAME text the popover would - blurb AND
+  // guidance. Dropping guidance here silently lost the actionable half ("never
+  // for production work", "do not ship on this") from /releases. No leading
+  // version: the pill's own link text already announces it, so repeating it
+  // would double-announce on every one of ~50 rows.
+  const plainTitle = !hoverCard && info ? `${info.label} — ${info.blurb} ${info.guidance}` : undefined;
   const pill = target ? (
     <a className="chip chip--version" href={target} data-stream={mark} title={plainTitle}>
       {version}

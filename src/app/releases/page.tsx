@@ -6,6 +6,7 @@ import {
   buildReleaseFilters,
   defaultReleaseFilters,
   defaultViewGenerationsLabel,
+  nextReleaseSortKey,
   parseReleaseSortKey,
   parseSelectedReleaseFilters,
   releaseMatchesSelectedFilters,
@@ -82,14 +83,10 @@ export default async function ReleasesPage({
   const pagination = paginateItems(sorted, firstParam(params.page), RELEASES_PER_PAGE);
   const releases = pagination.items;
 
-  // Cycle: unsorted → desc → asc → unsorted. Three-state so the header itself
-  // returns to the default newest-first order. It has to: page links and the
-  // chip form now both carry the sort (otherwise paging out of a sorted list
-  // silently re-orders and repeats rows), which removed the old escape hatch
-  // of "toggle any chip to clear the sort". Without a third state the sort
-  // would be one-way - switchable between desc and asc, never off.
-  const nextSort: ReleaseSortKey | null =
-    sortKey === "score-desc" ? "score-asc" : sortKey === "score-asc" ? null : "score-desc";
+  // Three-state cycle unsorted → desc → asc → unsorted, so the header returns
+  // to the default order (page links + chip form carry ?sort now, so a chip
+  // toggle no longer clears it). Shared with the test via nextReleaseSortKey.
+  const nextSort = nextReleaseSortKey(sortKey);
   const scoreSortHref = releasePageHref(1, selectedFilters, nextSort, defaultFilters);
 
   return (
@@ -100,7 +97,7 @@ export default async function ReleasesPage({
           Every indexed Unity editor release.{" "}
           {defaultGenerations
             ? `${defaultGenerations} LTS lines are shown by default; tick a chip to add Supported / Beta / Alpha or the legacy LTS lines.`
-            : "No LTS line is indexed yet, so the stream chips are shown instead; tick a chip to change the scope."}{" "}
+            : "Supported, Beta, and Alpha releases are shown by default; tick a chip to change the scope."}{" "}
           Click a version for its lane-bucketed release notes, or use{" "}
           <a href="/">Upgrade Intelligence</a> to diff two of them.{" "}
           {filtered.length.toLocaleString()} of {all.length.toLocaleString()}{" "}

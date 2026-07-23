@@ -2,9 +2,14 @@ import type { MetadataRoute } from "next";
 import { listReleases, listTopIssueIds } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
 
-// Sitemap is regenerated at most once an hour - release pages change
-// when new versions ship and when notes get reparsed.
-export const revalidate = 3600;
+// Rendered per request, not prerendered. Like /llms.txt (F5), a bare
+// `revalidate` with no request-dependent API makes Next prerender this at BUILD
+// time - and Railway's builder can't reach the runtime Postgres, so both DB
+// reads below would throw, the catches would swallow them, and the built
+// artifact would ship only the ~10 static URLs for the first hour after every
+// deploy (crawlers told the whole site is 10 pages), with nothing logged.
+// Sitemaps are fetched rarely, so per-request is a fine trade for correctness.
+export const dynamic = "force-dynamic";
 
 type ReleaseRow = { version: string; release_date: string | Date | null };
 
@@ -30,10 +35,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let releases: ReleaseRow[] = [];
   try {
     releases = (await listReleases(500)) as ReleaseRow[];
-  } catch {
-    // If the DB is unreachable at build time, ship the static entries
-    // alone rather than failing the whole sitemap. Indexers will pick
-    // up release pages on the next regeneration.
+  } catch (error) {
+    // DB unreachable: ship the static entries alone rather than failing the
+    // whole sitemap. Now force-dynamic (above), so this only fires on a real
+    // runtime DB outage, not on every build - and it logs so that degradation
+    // is visible rather than silent.
+    console.error(
+      JSON.stringify({
+        route: "/sitemap.xml",
+        event: "release_entries_fallback",
+        error: error instanceof Error ? error.message : String(error)
+      })
+    );
     return staticEntries;
   }
 
@@ -51,7 +64,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let topIssues: string[] = [];
   try {
     topIssues = await listTopIssueIds(TOP_ISSUE_LIMIT);
-  } catch {
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        route: "/sitemap.xml",
+        event: "issue_entries_fallback",
+        error: error instanceof Error ? error.message : String(error)
+      })
+    );
     topIssues = [];
   }
   const issueEntries: MetadataRoute.Sitemap = topIssues.map((id) => ({

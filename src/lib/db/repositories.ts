@@ -658,6 +658,19 @@ export async function getRelease(version: string) {
   return result.rows[0] ?? null;
 }
 
+/**
+ * The currently-stored stream for a version, or null if it isn't stored yet.
+ * Reads on the passed client so an in-transaction ingest can consult the
+ * committed value before its own upsert overwrites it (see resolveIngestStream).
+ */
+export async function getStoredStream(client: PoolClient, version: string): Promise<string | null> {
+  const { rows } = await client.query<{ stream: string }>(
+    "SELECT stream FROM unity_releases WHERE version = $1",
+    [version]
+  );
+  return rows[0]?.stream ?? null;
+}
+
 export type TrackedVersionLineRow = {
   /** e.g. "6000.7". */
   minorLine: string;

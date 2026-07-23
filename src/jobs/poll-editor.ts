@@ -1,9 +1,13 @@
 import { fetchText } from "../lib/ingest/fetch";
-import { fetchApiStream } from "../lib/ingest/release-stream";
+import { fetchApiStream, resolveIngestStream } from "../lib/ingest/release-stream";
 import { normalizeReleaseForStorage } from "../lib/ingest/releases";
-import { recordSourceSnapshot, upsertReleaseBundle, withIngestionTransaction } from "../lib/db/repositories";
+import {
+  getStoredStream,
+  recordSourceSnapshot,
+  upsertReleaseBundle,
+  withIngestionTransaction
+} from "../lib/db/repositories";
 import { extractReleasePageMetadata } from "../lib/parsers/release-page";
-import { parseUnityVersion } from "../lib/parsers/version";
 
 const EDITOR_SOURCES = [
   "https://unity.com/releases/editor/latest",
@@ -20,14 +24,16 @@ async function main() {
 
       // This job runs first in the cron and `ingest:backfill` skips releases
       // it has already stored, so whatever stream lands here is the one that
-      // sticks. Ask Unity's release API rather than inferring from the
-      // version number - that's what keeps a newly-announced LTS line (6000.7,
-      // and Unity 7's first) correct with no code change. One cheap request
-      // per source; null on any failure falls back to the parsed stream.
+      // sticks. Ask Unity's release API rather than inferring from the version
+      // number - that's what keeps a newly-announced LTS line (6000.7, and
+      // Unity 7's first) correct with no code change. On API failure, keep the
+      // stored value for a final build rather than overwrite it with the map's
+      // guess (see resolveIngestStream). One cheap request per source.
       const apiStream = await fetchApiStream(scraped.version);
-      const metadata = apiStream
-        ? { ...scraped, stream: parseUnityVersion(scraped.version, { apiStream }).stream }
-        : scraped;
+      const storedStream = apiStream ? null : await getStoredStream(client, scraped.version);
+      const resolved = resolveIngestStream({ version: scraped.version, apiStream, storedStream });
+      const metadata =
+        resolved.stream === scraped.stream ? scraped : { ...scraped, stream: resolved.stream };
 
       const notes = metadata.releaseNotesUrl ? await fetchText(metadata.releaseNotesUrl) : null;
       const notesSnapshotId = notes
@@ -46,7 +52,7 @@ async function main() {
         finalUrl: fetched.finalUrl,
         version: metadata.version,
         stream: metadata.stream,
-        streamSource: apiStream ? "api" : "parsed"
+        streamSource: resolved.source
       }));
     });
   }
