@@ -25,9 +25,15 @@ const STREAM_FILTERS: ReleaseFilterOption[] = [
 
 const LTS_SUFFIX = "-lts";
 
-/** "6000.7-lts" -> "6000.7"; null for a non-LTS chip value. */
+/**
+ * "6000.7-lts" -> "6000.7"; null for a non-LTS chip value.
+ *
+ * Defensive `typeof` check because `ReleaseFilterValue` is now a bare `string`
+ * rather than a literal union, so TypeScript no longer proves what reaches
+ * here (and `noUncheckedIndexedAccess` is off).
+ */
 function minorLineOfLtsFilter(value: ReleaseFilterValue): string | null {
-  if (!value.endsWith(LTS_SUFFIX)) return null;
+  if (typeof value !== "string" || !value.endsWith(LTS_SUFFIX)) return null;
   const minorLine = value.slice(0, -LTS_SUFFIX.length);
   return /^\d+\.\d+$/.test(minorLine) ? minorLine : null;
 }
@@ -108,19 +114,24 @@ export function parseSelectedReleaseFilters(
 ): ReleaseFilterValue[] {
   const defaults = defaultReleaseFilters(available);
   const availableValues = new Set(available.map((option) => option.value));
-  const aliases: Record<string, ReleaseFilterValue[]> = {
-    lts: defaults,
-    // The chip's label says "Supported" but its value is "update" - accept
-    // the label as an alias so hand-built share URLs (?stream=supported)
-    // select the stream the author meant instead of silently falling back
-    // to the defaults.
-    supported: ["update"]
-  };
+  // A Map, not an object literal: `?stream=constructor` and `?stream=__proto__`
+  // hit Object.prototype on a plain object, so the lookup returned a function
+  // instead of an array and flatMap spliced it into the result - which then
+  // threw in minorLineOfLtsFilter and 500'd the page (there is no error.tsx).
+  const aliases = new Map([
+    ["lts", defaults],
+    // The chip's label says "Supported" but its value is "update" - accept the
+    // label as an alias so hand-built share URLs (?stream=supported) select the
+    // stream the author meant instead of silently falling back to the defaults.
+    ["supported", ["update"]]
+  ]);
 
   const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const selected = values.flatMap((value) => {
+    if (typeof value !== "string") return [];
     const normalized = value.toLowerCase();
-    if (aliases[normalized]) return aliases[normalized];
+    const alias = aliases.get(normalized);
+    if (alias) return alias;
     return availableValues.has(normalized) ? [normalized] : [];
   });
 
@@ -152,19 +163,30 @@ export function releaseMatchesSelectedFilters(
 }
 
 /**
- * Human-readable summary of the generations indexed, for the page intro -
- * e.g. "Unity 6 and 7" or "Unity 6". Keeps the copy from naming a
- * generation that isn't there (or omitting one that is).
+ * Describes the DEFAULT VIEW for the page intro, not merely what is indexed.
+ *
+ * Derived from the default chip selection rather than from every indexed
+ * release, because the two diverge: a generation whose only builds so far are
+ * alphas gets no `-lts` chip and contributes nothing to the default view, so
+ * naming it in "… LTS lines are shown by default" states something false. That
+ * is exactly the state the index enters the day the first 7000.x alpha lands.
+ *
+ * Returns null when the default selection has no LTS lines at all (the
+ * stream-chip fallback fired) - callers must then use different wording,
+ * since there is no "LTS lines are shown by default" to describe.
  */
-export function indexedGenerationsLabel(releases: readonly FilterableRelease[]): string {
+export function defaultViewGenerationsLabel(
+  defaults: readonly ReleaseFilterValue[]
+): string | null {
   const generations = new Set<number>();
-  for (const release of releases) {
-    const major = Number(release.version.match(/^(\d+)\./)?.[1]);
-    const generation = Number.isFinite(major) ? unityGeneration(major) : null;
+  for (const value of defaults) {
+    const minorLine = minorLineOfLtsFilter(value);
+    if (!minorLine) continue;
+    const generation = unityGeneration(Number(minorLine.split(".")[0]));
     if (generation !== null) generations.add(generation);
   }
   const sorted = [...generations].sort((a, b) => a - b);
-  if (sorted.length === 0) return "Unity";
+  if (sorted.length === 0) return null;
   if (sorted.length === 1) return `Unity ${sorted[0]}`;
   return `Unity ${sorted.slice(0, -1).join(", ")} and ${sorted[sorted.length - 1]}`;
 }

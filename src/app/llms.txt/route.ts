@@ -4,18 +4,25 @@ import { getTrackedVersionLines } from "@/lib/db/repositories";
 import { describeGeneration, groupTrackedLines } from "@/lib/tracked-versions";
 
 /**
- * The tracked-versions section reads the database, so this can't be
- * `force-static` any more. Ingestion runs twice a day; revalidating hourly
- * keeps the manifest accurate at close to static cost.
+ * Rendered per request, not prerendered.
+ *
+ * `revalidate` alone is not enough here: with no request-dependent API in the
+ * handler, Next prerenders this route at BUILD time. Railway's build container
+ * can't reach the runtime Postgres, so `getTrackedVersionLines()` would throw,
+ * the catch below would swallow it, and the built artifact would ship the
+ * hard-coded fallback - the exact generation-blind list this section exists to
+ * replace - with nothing logged. The `s-maxage` header on the response keeps
+ * origin load down instead.
  */
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 /**
  * Which Unity lines are indexed, in prose, generated from the database.
  *
- * A hard-coded list here goes stale silently - an LLM reading it would be
- * told Unity 6.7 isn't tracked when it is. Degrades to a generation-neutral
- * sentence if the DB is unreachable rather than asserting a stale list.
+ * A hard-coded list here goes stale silently - an LLM reading it would be told
+ * Unity 6.7 isn't tracked when it is. Degrades to a generation-neutral sentence
+ * if the DB is unreachable rather than asserting a stale list, and logs so the
+ * degradation is visible in Railway logs rather than silent.
  */
 async function trackedVersionsParagraph(): Promise<string> {
   try {
@@ -31,7 +38,14 @@ async function trackedVersionsParagraph(): Promise<string> {
         : [])
     ];
     return `Indexed editor lines (generated from the live index):\n\n${lines.join("\n")}`;
-  } catch {
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        route: "/llms.txt",
+        event: "tracked_versions_fallback",
+        error: error instanceof Error ? error.message : String(error)
+      })
+    );
     return (
       "Indexed editor lines: Unity 6 and newer (`6000.x` and up), plus the " +
       "legacy LTS lines (`2022.3`, `2021.3`, `2020.3`, `2019.4`)."

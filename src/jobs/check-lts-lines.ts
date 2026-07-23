@@ -99,7 +99,15 @@ async function main() {
   const missing: string[] = [];
   const stale: string[] = [];
 
-  for (const [minorLine, { major, minor, stream }] of [...lines].sort()) {
+  // Numeric, newest-first - matching every other surface here. A bare .sort()
+  // coerces the [key, value] tuples to strings, which puts 6000.10 before
+  // 6000.2 and would scramble the report once a generation reaches a
+  // double-digit minor or 6000/7000 coexist.
+  const orderedLines = [...lines].sort(
+    ([, a], [, b]) => b.major - a.major || b.minor - a.minor
+  );
+
+  for (const [minorLine, { major, minor, stream }] of orderedLines) {
     const apiSaysLts = stream === "LTS";
     const fallbackSaysLts = isLtsMinorLine(major, minor);
     if (apiSaysLts && !fallbackSaysLts) {

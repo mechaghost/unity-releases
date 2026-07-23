@@ -2,11 +2,15 @@ import { pageSocialMetadata } from "@/lib/site";
 import { TrackedVersionsAnswer } from "./_components/TrackedVersionsAnswer";
 
 /**
- * The tracked-versions answer reads the database, so the page can't be fully
- * static. Ingestion runs twice a day, so an hourly revalidate keeps the answer
- * accurate at close to static cost instead of hitting the DB per request.
+ * Rendered per request. Not a choice this page makes: the root layout calls
+ * `getUserVersion()` -> `cookies()`, which opts every route under it into
+ * dynamic rendering, so a `revalidate` here would be inert rather than hourly.
+ * The tracked-versions answer therefore runs one GROUP BY per request; it is a
+ * single indexed aggregate over unity_releases and the page is low-traffic, but
+ * if that ever matters, cache `getTrackedVersionLines` at the data layer rather
+ * than adding a page-level revalidate that cannot take effect.
  */
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 const FAQ_DESCRIPTION =
   "Where Unity Releases data comes from, how often it updates, what the impact lanes and risk levels mean, and the standard not-affiliated-with-Unity disclaimer.";

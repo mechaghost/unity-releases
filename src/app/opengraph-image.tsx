@@ -1,9 +1,11 @@
 import { ImageResponse } from "next/og";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 export const dynamic = "force-static";
 
-export const alt =
-  "Unity Releases - Unity 6 release & upgrade intelligence. Diff editor versions, see blockers, breaking changes, and known issues bucketed by impact.";
+// Derived from SITE_TAGLINE rather than restated, so the card can't drift from
+// the page title the way it did when the tagline was made generation-neutral.
+export const alt = `${SITE_NAME} - ${SITE_TAGLINE}. Diff editor versions, see blockers, breaking changes, and known issues bucketed by impact.`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -52,7 +54,7 @@ export default function OpenGraphImage() {
               letterSpacing: -0.5
             }}
           >
-            Unity Releases
+            {SITE_NAME}
           </div>
         </div>
 
@@ -67,7 +69,7 @@ export default function OpenGraphImage() {
             display: "flex"
           }}
         >
-          Unity 6 release &amp; upgrade intelligence
+          {SITE_TAGLINE}
         </div>
 
         <div

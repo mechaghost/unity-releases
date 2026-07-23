@@ -12,10 +12,39 @@ vi.mock("@/lib/db/repositories", () => ({
   searchReleaseNotesInRange: mocks.searchReleaseNotesInRange
 }));
 
-import { buildCompareMarkdownExport } from "@/lib/compare-export";
+import { buildCompareMarkdownExport, isComparableVersion } from "@/lib/compare-export";
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("isComparableVersion", () => {
+  test("accepts every generation of the modern scheme", () => {
+    // /llms.txt documents from/to as "one of the indexed editor lines listed
+    // above", and that list is generated from the DB. A hardcoded 6000 here
+    // would 400 exactly the diffs the manifest advertises once Unity 7 ships -
+    // including the 6000.7 -> 7000.0 transition diff.
+    expect(isComparableVersion("6000.0.74f1")).toBe(true);
+    expect(isComparableVersion("6000.7.0f1")).toBe(true);
+    expect(isComparableVersion("7000.0.0f1")).toBe(true);
+    expect(isComparableVersion("7000.12.3f1")).toBe(true);
+    expect(isComparableVersion("8000.0.0a1")).toBe(true);
+  });
+
+  test("accepts the indexed legacy LTS majors and their patch channel", () => {
+    expect(isComparableVersion("2022.3.40f1")).toBe(true);
+    expect(isComparableVersion("2020.3.48p1")).toBe(true);
+    expect(isComparableVersion("2019.4.40f1")).toBe(true);
+  });
+
+  test("rejects legacy majors we do not index, and malformed input", () => {
+    expect(isComparableVersion("2023.2.20f1")).toBe(false);
+    expect(isComparableVersion("2018.4.36f1")).toBe(false);
+    expect(isComparableVersion("6000.0.74")).toBe(false);
+    expect(isComparableVersion("not-a-version")).toBe(false);
+    expect(isComparableVersion("")).toBe(false);
+    expect(isComparableVersion("6000.0.74f1; DROP TABLE")).toBe(false);
+  });
 });
 
 describe("buildCompareMarkdownExport", () => {

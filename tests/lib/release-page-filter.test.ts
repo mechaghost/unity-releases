@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildReleaseFilters,
   defaultReleaseFilters,
-  indexedGenerationsLabel,
+  defaultViewGenerationsLabel,
   parseReleaseSortKey,
   parseSelectedReleaseFilters,
   releaseMatchesSelectedFilters,
@@ -119,6 +119,27 @@ describe("release page filters", () => {
     ]);
   });
 
+  test("Object.prototype keys in ?stream= cannot poison the result or crash", () => {
+    // The alias lookup used to be a plain object literal, so ?stream=constructor
+    // resolved to Object's constructor, flatMap spliced the function into the
+    // selection, and releaseMatchesSelectedFilters then threw
+    // "value.endsWith is not a function" -> HTTP 500 (there is no error.tsx).
+    for (const probe of ["constructor", "__proto__", "valueOf", "hasOwnProperty"]) {
+      const selected = parseSelectedReleaseFilters(probe, FILTERS);
+      expect(selected.every((v) => typeof v === "string")).toBe(true);
+      expect(selected).toEqual(defaultReleaseFilters(FILTERS));
+      expect(() =>
+        RELEASES.filter((r) => releaseMatchesSelectedFilters(r, selected))
+      ).not.toThrow();
+    }
+  });
+
+  test("a non-string chip value is ignored rather than throwing", () => {
+    // ReleaseFilterValue is a bare string now, so TS no longer proves this.
+    const hostile = [null, undefined, 42, {}] as unknown as string[];
+    expect(() => RELEASES.filter((r) => releaseMatchesSelectedFilters(r, hostile))).not.toThrow();
+  });
+
   test("matches LTS lines independently", () => {
     expect(
       releaseMatchesSelectedFilters({ version: "6000.0.74f1", stream: "LTS" }, ["6000.0-lts"])
@@ -153,18 +174,48 @@ describe("release page filters", () => {
       "/releases?page=2"
     );
   });
-});
 
-describe("indexedGenerationsLabel", () => {
-  test("names only the generations actually indexed", () => {
-    expect(indexedGenerationsLabel(RELEASES)).toBe("Unity 6");
-    expect(indexedGenerationsLabel([...RELEASES, { version: "7000.0.4f1", stream: "LTS" }])).toBe(
-      "Unity 6 and 7"
+  test("carries an active sort into page links", () => {
+    // Sorting happens before pagination, so dropping ?sort here served page 2
+    // from the date-ordered list - repeating rows already shown on page 1.
+    const defaults = defaultReleaseFilters(FILTERS);
+    expect(releasePageHref(2, defaults, "score-desc", defaults)).toBe(
+      "/releases?page=2&sort=score-desc"
+    );
+    expect(releasePageHref(2, ["6000.3-lts"], "score-asc", defaults)).toBe(
+      "/releases?stream=6000.3-lts&page=2&sort=score-asc"
     );
   });
+});
 
-  test("degrades gracefully with no modern releases", () => {
-    expect(indexedGenerationsLabel([{ version: "2022.3.61f1", stream: "LTS" }])).toBe("Unity");
+describe("defaultViewGenerationsLabel", () => {
+  const labelFor = (rows: typeof RELEASES) =>
+    defaultViewGenerationsLabel(defaultReleaseFilters(buildReleaseFilters(rows)));
+
+  test("names the generations actually in the default view", () => {
+    expect(labelFor(RELEASES)).toBe("Unity 6");
+    expect(labelFor([...RELEASES, { version: "7000.0.4f1", stream: "LTS" }])).toBe("Unity 6 and 7");
+  });
+
+  test("does NOT name a generation whose only builds are prereleases", () => {
+    // The state the index enters the day Unity ships its first 7000.x alpha.
+    // Deriving from every indexed release instead of the default chip set made
+    // the page claim "Unity 6 and 7 LTS lines are shown by default" while
+    // rendering no Unity 7 chip and no Unity 7 rows.
+    const withUnity7Alpha = [...RELEASES, { version: "7000.0.0a2", stream: "alpha" }];
+    expect(labelFor(withUnity7Alpha)).toBe("Unity 6");
+    expect(buildReleaseFilters(withUnity7Alpha).map((f) => f.value)).not.toContain("7000.0-lts");
+  });
+
+  test("returns null when no LTS line is indexed, so callers can reword", () => {
+    // defaultReleaseFilters falls back to the stream chips here; there is no
+    // "LTS lines are shown by default" to describe.
+    expect(labelFor([{ version: "7000.0.0a2", stream: "alpha" }])).toBeNull();
+    expect(defaultViewGenerationsLabel([])).toBeNull();
+  });
+
+  test("ignores legacy-only lines, which are never in the default view", () => {
+    expect(labelFor([{ version: "2022.3.61f1", stream: "LTS" }])).toBeNull();
   });
 });
 

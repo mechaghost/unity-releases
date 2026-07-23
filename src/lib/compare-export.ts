@@ -2,6 +2,7 @@ import { getIssueStatuses, resolveDiffRange } from "@/lib/db/repositories";
 import { compareToMarkdown } from "@/lib/compare-markdown";
 import { LANES, EXPORT_ROW_LIMIT, safeSearchInRange } from "@/lib/compare-lanes";
 import { parseCompareStreamSelection } from "@/lib/stream-filter";
+import { isModernMajor } from "@/lib/unity-generation";
 import type { IssueStatus } from "@/lib/issue-status";
 
 export type CompareExportError =
@@ -11,11 +12,32 @@ export type CompareExportError =
   | "empty-range";
 
 // Editor-version shape we accept. Tight enough to reject random query
-// strings, loose enough to allow indexed legacy LTS lines (2019.4,
-// 2020.3, 2021.3, 2022.3) alongside Unity 6 (6000.X.Y). Patch-channel
-// (`p`) is included because Unity shipped patch releases on the
-// 2019/2020 LTS lines (e.g. `2020.3.48p1`).
-const COMPARE_VERSION_RE = /^(2019|2020|2021|2022|6000)\.\d+\.\d+[abfp]\d+$/;
+// strings, loose enough to allow every line we actually index. Patch-channel
+// (`p`) is included because Unity shipped patch releases on the 2019/2020 LTS
+// lines (e.g. `2020.3.48p1`).
+const COMPARE_VERSION_SHAPE_RE = /^(\d+)\.\d+\.\d+[abfp]\d+$/;
+
+// Legacy year majors are an closed, EOL set - only these are indexed
+// (poll-legacy-lts walks exactly these sitemaps).
+const LEGACY_COMPARE_MAJORS = new Set([2019, 2020, 2021, 2022]);
+
+/**
+ * Accept any modern-scheme major rather than a hardcoded list.
+ *
+ * `/llms.txt` documents `from`/`to` as "one of the indexed editor lines listed
+ * above", and that list is generated from the database - so pinning this to
+ * `6000` would have started returning 400 for exactly the diffs the manifest
+ * advertises the day Unity 7 is ingested, including the 6000.7 -> 7000.0 jump.
+ * Shape first, then major: unknown-but-modern majors are allowed through and
+ * fail later as `range-not-found` if they genuinely aren't indexed, which is
+ * the honest error.
+ */
+export function isComparableVersion(version: string): boolean {
+  const match = version.match(COMPARE_VERSION_SHAPE_RE);
+  if (!match) return false;
+  const major = Number(match[1]);
+  return isModernMajor(major) || LEGACY_COMPARE_MAJORS.has(major);
+}
 
 export type CompareExportResult =
   | {
@@ -61,7 +83,7 @@ export async function buildCompareMarkdownExport(
     };
   }
 
-  if (!COMPARE_VERSION_RE.test(fromVersion) || !COMPARE_VERSION_RE.test(toVersion)) {
+  if (!isComparableVersion(fromVersion) || !isComparableVersion(toVersion)) {
     return {
       ok: false,
       error: "invalid-versions",

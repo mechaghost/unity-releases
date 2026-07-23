@@ -5,7 +5,7 @@ import { paginateItems, type PaginationResult } from "@/lib/pagination";
 import {
   buildReleaseFilters,
   defaultReleaseFilters,
-  indexedGenerationsLabel,
+  defaultViewGenerationsLabel,
   parseReleaseSortKey,
   parseSelectedReleaseFilters,
   releaseMatchesSelectedFilters,
@@ -66,6 +66,10 @@ export default async function ReleasesPage({
   const filterOptions = buildReleaseFilters(all);
   const selectedFilters = parseSelectedReleaseFilters(params.stream, filterOptions);
   const defaultFilters = defaultReleaseFilters(filterOptions);
+  // Describes the DEFAULT selection, not everything indexed - a generation with
+  // only prereleases has no chip and is not in the default view, so naming it
+  // would make the sentence below false. Null when no LTS line exists at all.
+  const defaultGenerations = defaultViewGenerationsLabel(defaultFilters);
   const { results: scoreResults } = scoreAllReleases(scoreInputs);
   // Note counts come straight from the cached score-inputs (which run a
   // single GROUP BY on release_note_items). Killed the parallel
@@ -89,16 +93,22 @@ export default async function ReleasesPage({
       <section className="page-header">
         <h1>Editor Releases</h1>
         <p>
-          Every indexed Unity editor release. {indexedGenerationsLabel(all)} LTS
-          lines are shown by default; tick a chip to add Supported / Beta /
-          Alpha or the legacy LTS lines. Click a version for its lane-bucketed
-          release notes, or use <a href="/">Upgrade Intelligence</a> to diff two
-          of them. {filtered.length.toLocaleString()} of{" "}
-          {all.length.toLocaleString()} shown.
+          Every indexed Unity editor release.{" "}
+          {defaultGenerations
+            ? `${defaultGenerations} LTS lines are shown by default; tick a chip to add Supported / Beta / Alpha or the legacy LTS lines.`
+            : "No LTS line is indexed yet, so the stream chips are shown instead; tick a chip to change the scope."}{" "}
+          Click a version for its lane-bucketed release notes, or use{" "}
+          <a href="/">Upgrade Intelligence</a> to diff two of them.{" "}
+          {filtered.length.toLocaleString()} of {all.length.toLocaleString()}{" "}
+          shown.
         </p>
       </section>
 
-      <ReleaseStreamChips selected={selectedFilters} options={filterOptions} />
+      <ReleaseStreamChips
+        selected={selectedFilters}
+        options={filterOptions}
+        sortKey={sortKey}
+      />
 
       {filtered.length === 0 ? (
         <div className="releases-table-wrap">
@@ -206,6 +216,7 @@ export default async function ReleasesPage({
             pagination={pagination}
             selectedFilters={selectedFilters}
             defaultFilters={defaultFilters}
+            sortKey={sortKey}
           />
         </div>
       )}
@@ -216,12 +227,19 @@ export default async function ReleasesPage({
 function ReleasePagination({
   pagination,
   selectedFilters,
-  defaultFilters
+  defaultFilters,
+  sortKey
 }: {
   pagination: PaginationResult<Release>;
   selectedFilters: ReleaseFilterValue[];
   /** Derived per-request; passed in so page links can omit a default selection. */
   defaultFilters: ReleaseFilterValue[];
+  /**
+   * Carried into the page links. Sorting happens before pagination, so without
+   * this, paging out of a score-sorted list silently reverts to date order and
+   * page 2 repeats rows already shown on page 1.
+   */
+  sortKey: ReleaseSortKey | null;
 }) {
   return (
     <nav className="lane__pagination" aria-label="Editor release pagination">
@@ -237,7 +255,7 @@ function ReleasePagination({
         {pagination.hasPrev ? (
           <a
             className="lane__pagination-btn"
-            href={releasePageHref(pagination.page - 1, selectedFilters, null, defaultFilters)}
+            href={releasePageHref(pagination.page - 1, selectedFilters, sortKey, defaultFilters)}
             rel="prev"
           >
             <Icon name="chevron-left" size={14} />
@@ -255,7 +273,7 @@ function ReleasePagination({
         {pagination.hasNext ? (
           <a
             className="lane__pagination-btn"
-            href={releasePageHref(pagination.page + 1, selectedFilters, null, defaultFilters)}
+            href={releasePageHref(pagination.page + 1, selectedFilters, sortKey, defaultFilters)}
             rel="next"
           >
             Next

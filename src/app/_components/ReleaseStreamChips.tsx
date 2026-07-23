@@ -1,4 +1,4 @@
-import type { ReleaseFilterOption } from "@/lib/release-page-filter";
+import type { ReleaseFilterOption, ReleaseSortKey } from "@/lib/release-page-filter";
 import { AutoSubmitOnChange } from "./AutoSubmitOnChange";
 import { Icon } from "./Icon";
 
@@ -14,10 +14,17 @@ import { Icon } from "./Icon";
  */
 export function ReleaseStreamChips({
   selected,
-  options
+  options,
+  sortKey = null
 }: {
   selected: string[];
   options: ReleaseFilterOption[];
+  /**
+   * Round-tripped through a hidden field. Submitting this form rebuilds the
+   * whole query string, so without it, toggling a chip silently discards an
+   * active ?sort= and drops the user back to date order.
+   */
+  sortKey?: ReleaseSortKey | null;
 }) {
   const selectedSet = new Set(selected);
 
@@ -28,6 +35,7 @@ export function ReleaseStreamChips({
       action="/releases"
       aria-label="Stream filter"
     >
+      {sortKey ? <input type="hidden" name="sort" value={sortKey} /> : null}
       {options.map((option) => {
         const checked = selectedSet.has(option.value);
         return (
