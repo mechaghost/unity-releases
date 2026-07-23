@@ -43,9 +43,9 @@ or ingestion; the full detail lives in `CLAUDE.md` ("Data And Ingestion").
 
 - The registry's `unity` field is **minor-line minimum** ("6000.0"), not exact;
   join `unity` + `unityRelease` for the precise minimum.
-- `getEditorBundledVersions()` (the /packages badge) counts **only Unity 6
-  (`6000.%`) editors** — a recent legacy-LTS patch must not masquerade as the
-  bundled version.
+- `getEditorBundledVersions()` (the /packages badge) counts **only modern
+  generation editors (`6000.x`, `7000.x`, …)** — a recent legacy-LTS patch must
+  not masquerade as the bundled version.
 - The unified note shows only when `isNewerVersion(docs, registry)` — never on a
   mere major.minor difference (that caused false positives on AR Foundation and
   packages with their own historical 6.x).

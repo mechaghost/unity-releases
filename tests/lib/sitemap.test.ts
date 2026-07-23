@@ -4,19 +4,19 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 // individual tests can rewrite the spy return values without redefining
 // the module mock.
 const repo = vi.hoisted(() => ({
-  listReleases: vi.fn(),
+  listReleaseSummaries: vi.fn(),
   listTopIssueIds: vi.fn()
 }));
 
 vi.mock("@/lib/db/repositories", () => ({
-  listReleases: repo.listReleases,
+  listReleaseSummaries: repo.listReleaseSummaries,
   listTopIssueIds: repo.listTopIssueIds
 }));
 
 import sitemap from "../../src/app/sitemap";
 
 beforeEach(() => {
-  repo.listReleases.mockReset();
+  repo.listReleaseSummaries.mockReset();
   repo.listTopIssueIds.mockReset();
   delete process.env.NEXT_PUBLIC_SITE_URL;
 });
@@ -27,7 +27,7 @@ afterEach(() => {
 
 describe("sitemap", () => {
   test("renders the static surface pages with no /upgrade or /explorer", async () => {
-    repo.listReleases.mockResolvedValue([]);
+    repo.listReleaseSummaries.mockResolvedValue([]);
     repo.listTopIssueIds.mockResolvedValue([]);
     const entries = await sitemap();
     const urls = entries.map((e) => e.url);
@@ -46,8 +46,8 @@ describe("sitemap", () => {
     expect(urls).not.toContain("https://unityreleases.com/explorer");
   });
 
-  test("appends one entry per release version returned by listReleases", async () => {
-    repo.listReleases.mockResolvedValue([
+  test("appends one entry per release version returned by listReleaseSummaries", async () => {
+    repo.listReleaseSummaries.mockResolvedValue([
       { version: "6000.3.15f1", release_date: "2026-05-08T05:39:58.493Z" },
       { version: "6000.5.0b7", release_date: "2026-05-07T14:14:10.613Z" }
     ]);
@@ -66,7 +66,7 @@ describe("sitemap", () => {
   });
 
   test("includes top issues as /issues/<id> entries", async () => {
-    repo.listReleases.mockResolvedValue([]);
+    repo.listReleaseSummaries.mockResolvedValue([]);
     repo.listTopIssueIds.mockResolvedValue(["UUM-12345", "UUM-67890"]);
     const entries = await sitemap();
     const urls = entries.map((e) => e.url);
@@ -75,7 +75,7 @@ describe("sitemap", () => {
   });
 
   test("falls back to static + (where available) release entries when issue lookup fails", async () => {
-    repo.listReleases.mockResolvedValue([
+    repo.listReleaseSummaries.mockResolvedValue([
       { version: "6000.3.15f1", release_date: null }
     ]);
     repo.listTopIssueIds.mockRejectedValue(new Error("db down"));
@@ -89,8 +89,8 @@ describe("sitemap", () => {
     expect(urls.some((u) => u.includes("/issues/"))).toBe(false);
   });
 
-  test("falls back to static entries when listReleases throws", async () => {
-    repo.listReleases.mockRejectedValue(new Error("db down"));
+  test("falls back to static entries when listReleaseSummaries throws", async () => {
+    repo.listReleaseSummaries.mockRejectedValue(new Error("db down"));
     repo.listTopIssueIds.mockResolvedValue(["UUM-12345"]);
     const entries = await sitemap();
     const urls = entries.map((e) => e.url);
@@ -103,7 +103,7 @@ describe("sitemap", () => {
 
   test("honors NEXT_PUBLIC_SITE_URL so staging builds emit the right origin", async () => {
     process.env.NEXT_PUBLIC_SITE_URL = "https://staging.unityreleases.com";
-    repo.listReleases.mockResolvedValue([
+    repo.listReleaseSummaries.mockResolvedValue([
       { version: "6000.3.15f1", release_date: null }
     ]);
     repo.listTopIssueIds.mockResolvedValue(["UUM-1"]);

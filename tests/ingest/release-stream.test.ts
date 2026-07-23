@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { resolveIngestStream } from "../../src/lib/ingest/release-stream";
+import {
+  resolveIngestStream,
+  storedReleaseCanBeSkipped
+} from "../../src/lib/ingest/release-stream";
 
 describe("resolveIngestStream", () => {
   test("prefers Unity's API stream for a final build, even with a stored value", () => {
@@ -52,5 +55,63 @@ describe("resolveIngestStream", () => {
     expect(
       resolveIngestStream({ version: "6000.7.0a2", apiStream: "ALPHA", storedStream: null })
     ).toEqual({ stream: "alpha", source: "api" });
+  });
+
+  test("an unknown API value is a failure, not an authoritative answer", () => {
+    expect(
+      resolveIngestStream({ version: "7000.0.0f1", apiStream: "TECH", storedStream: "LTS" })
+    ).toEqual({ stream: "LTS", source: "retained" });
+    expect(
+      resolveIngestStream({ version: "7000.0.0f1", apiStream: "TECH", storedStream: null })
+    ).toEqual({ stream: "Update/Supported", source: "parsed" });
+  });
+});
+
+describe("storedReleaseCanBeSkipped", () => {
+  const currentParserVersion = "2026-05-04";
+
+  test("forces backfill to repair a first-ingest fallback stream", () => {
+    expect(
+      storedReleaseCanBeSkipped({
+        version: "7000.0.0f1",
+        apiStream: "LTS",
+        storedStream: "Update/Supported",
+        storedParserVersion: currentParserVersion,
+        currentParserVersion
+      })
+    ).toBe(false);
+  });
+
+  test("skips only when parser and recognized API stream are current", () => {
+    expect(
+      storedReleaseCanBeSkipped({
+        version: "7000.0.0f1",
+        apiStream: "LTS",
+        storedStream: "LTS",
+        storedParserVersion: currentParserVersion,
+        currentParserVersion
+      })
+    ).toBe(true);
+    expect(
+      storedReleaseCanBeSkipped({
+        version: "7000.0.0f1",
+        apiStream: "LTS",
+        storedStream: "LTS",
+        storedParserVersion: "old-parser",
+        currentParserVersion
+      })
+    ).toBe(false);
+  });
+
+  test("does not replay a current row when the API value is unrecognized", () => {
+    expect(
+      storedReleaseCanBeSkipped({
+        version: "7000.0.0f1",
+        apiStream: "TECH",
+        storedStream: "LTS",
+        storedParserVersion: currentParserVersion,
+        currentParserVersion
+      })
+    ).toBe(true);
   });
 });

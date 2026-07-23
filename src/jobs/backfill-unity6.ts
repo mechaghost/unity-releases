@@ -4,8 +4,9 @@ import { normalizeReleaseForStorage } from "../lib/ingest/releases";
 import { recordSourceSnapshot, upsertReleaseBundle, withIngestionTransaction } from "../lib/db/repositories";
 import { query } from "../lib/db/client";
 import { extractApiReleaseMetadata, type ApiRelease, type ApiReleasesResponse } from "../lib/parsers/release-api";
-import { parseUnityVersion } from "../lib/parsers/version";
+import { apiStreamToUnityStream, parseUnityVersion } from "../lib/parsers/version";
 import { isModernMajor } from "../lib/unity-generation";
+import { storedReleaseCanBeSkipped } from "../lib/ingest/release-stream";
 
 // LTS first: that stream holds the 6000.0.x / 6000.3.x history (the
 // frozen-package baseline and the bulk of editor->package mappings), which
@@ -44,18 +45,24 @@ export function isInScope(release: ApiRelease): boolean {
   }
 }
 
-// A release is already done if we've stored it with the current parser
-// version - its notes (and editor_package_versions) are current. Skipping it
-// without fetching notes is what makes the backfill cheap to re-run and
-// resumable after a max-runtime kill. A PARSER_VERSION bump (or
-// FORCE_BACKFILL=1) re-walks everything.
-async function releaseAlreadyIngested(version: string): Promise<boolean> {
+// A release is already done only if both its parser version and authoritative
+// API stream are current. The stream comparison repairs a first-ingest fallback
+// guess without replaying the rest of the already-correct history.
+async function releaseAlreadyIngested(release: ApiRelease): Promise<boolean> {
   try {
-    const { rows } = await query(
-      `SELECT 1 FROM unity_releases WHERE version = $1 AND parser_version = $2 LIMIT 1`,
-      [version, PARSER_VERSION]
+    const { rows } = await query<{ stream: string; parser_version: string }>(
+      `SELECT stream, parser_version FROM unity_releases WHERE version = $1 LIMIT 1`,
+      [release.version]
     );
-    return rows.length > 0;
+    const stored = rows[0];
+    if (!stored) return false;
+    return storedReleaseCanBeSkipped({
+      version: release.version,
+      apiStream: typeof release.stream === "string" ? release.stream : null,
+      storedStream: stored.stream,
+      storedParserVersion: stored.parser_version,
+      currentParserVersion: PARSER_VERSION
+    });
   } catch {
     return false;
   }
@@ -68,13 +75,21 @@ async function ingestRelease(release: ApiRelease, stream: string): Promise<"crea
     return "skipped";
   }
 
-  if (!process.env.FORCE_BACKFILL && (await releaseAlreadyIngested(release.version))) {
+  // The endpoint stream is authoritative even if Unity ever omits or renames
+  // the per-result field. Normalize the object once so both the skip decision
+  // and metadata extraction see the same recognized value.
+  const apiRelease =
+    typeof release.stream === "string" && apiStreamToUnityStream(release.stream)
+      ? release
+      : { ...release, stream };
+
+  if (!process.env.FORCE_BACKFILL && (await releaseAlreadyIngested(apiRelease))) {
     return "skipped";
   }
 
   await withIngestionTransaction("editor_release", "backfill-unity6", async (client, runId) => {
-    const apiText = JSON.stringify(release);
-    const apiSnapshotUrl = `${API_BASE}?version=${release.version}`;
+    const apiText = JSON.stringify(apiRelease);
+    const apiSnapshotUrl = `${API_BASE}?version=${apiRelease.version}`;
     const apiSnapshotId = await recordSourceSnapshot(client, "editor_release_api", {
       url: apiSnapshotUrl,
       finalUrl: apiSnapshotUrl,
@@ -88,7 +103,7 @@ async function ingestRelease(release: ApiRelease, stream: string): Promise<"crea
     const notes = await fetchText(releaseNotesUrl);
     const notesSnapshotId = await recordSourceSnapshot(client, "editor_release_notes", notes);
 
-    const metadata = extractApiReleaseMetadata(release);
+    const metadata = extractApiReleaseMetadata(apiRelease);
     const bundle = normalizeReleaseForStorage({
       metadata,
       releaseNotesMarkdown: notes.text,

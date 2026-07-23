@@ -653,6 +653,32 @@ export async function listReleases(limit = 50) {
   return result.rows;
 }
 
+export type ReleaseSummaryRow = {
+  version: string;
+  stream: string | null;
+  release_date: string | null;
+  release_page_url: string;
+};
+
+/**
+ * Every indexed editor release in the narrow shape shared by the version
+ * pickers, release index, root dialog, and sitemap.
+ *
+ * Deliberately uncapped: these are canonical navigation surfaces, so silently
+ * dropping row 501 makes indexed releases unreachable. Keep `listReleases`
+ * bounded for API/feed callers that intentionally request a short recent list.
+ */
+export async function listReleaseSummaries(): Promise<ReleaseSummaryRow[]> {
+  const result = await query<ReleaseSummaryRow>(
+    `
+      SELECT version, stream, release_date, release_page_url
+      FROM unity_releases
+      ORDER BY release_date DESC NULLS LAST, version DESC
+    `
+  );
+  return result.rows;
+}
+
 export async function getRelease(version: string) {
   const result = await query("SELECT * FROM unity_releases WHERE version = $1", [version]);
   return result.rows[0] ?? null;

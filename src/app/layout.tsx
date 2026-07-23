@@ -6,7 +6,7 @@ import { MobileNavToggle } from "./_components/MobileNavToggle";
 import { NoFlashScript } from "./_components/NoFlashScript";
 import { PageviewBeacon } from "./_components/PageviewBeacon";
 import { UserVersionDialog, type DialogRelease } from "./_components/UserVersionDialog";
-import { listReleases } from "@/lib/db/repositories";
+import { listReleaseSummaries } from "@/lib/db/repositories";
 import { getUserVersion } from "@/lib/user-version";
 import {
   SITE_DESCRIPTION,
@@ -125,7 +125,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
 async function safeReleases(): Promise<ReleaseRow[]> {
   try {
-    return (await listReleases(500)) as ReleaseRow[];
+    return await listReleaseSummaries();
   } catch {
     return [];
   }

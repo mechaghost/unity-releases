@@ -4,7 +4,7 @@ import {
   getIssueStatuses,
   getReleaseRangeFacets,
   listDiscoursePosts,
-  listReleases,
+  listReleaseSummaries,
   packageVersionsAtBoundary,
   resolveDiffRange,
   searchReleaseNotesInRange,
@@ -1174,7 +1174,7 @@ function safeMinorLineOf(version: string): string | null {
 
 async function safeListReleases() {
   try {
-    return (await listReleases(500)) as { version: string; stream: string | null; release_date: string | null }[];
+    return await listReleaseSummaries();
   } catch {
     return [];
   }

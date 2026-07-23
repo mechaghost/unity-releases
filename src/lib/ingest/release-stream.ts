@@ -13,7 +13,11 @@
  */
 
 import { fetchText } from "./fetch";
-import { parseUnityVersion, type UnityStream } from "../parsers/version";
+import {
+  apiStreamToUnityStream,
+  parseUnityVersion,
+  type UnityStream
+} from "../parsers/version";
 
 export const RELEASE_API_BASE = "https://services.api.unity.com/unity/editor/release/v1/releases";
 
@@ -33,7 +37,11 @@ export async function fetchApiStream(version: string): Promise<string | null> {
     // The filter is exact, but match on version anyway so a future fuzzy
     // match can't hand us a neighbouring release's stream.
     const hit = body.results?.find((r) => r.version === version);
-    return typeof hit?.stream === "string" && hit.stream.length > 0 ? hit.stream : null;
+    const apiStream =
+      typeof hit?.stream === "string" && hit.stream.length > 0 ? hit.stream : null;
+    // A non-empty but unknown value is not authoritative. Treat it exactly like
+    // a failed lookup so callers can retain a known-good stored classification.
+    return apiStreamToUnityStream(apiStream) ? apiStream : null;
   } catch {
     return null;
   }
@@ -64,7 +72,7 @@ export function resolveIngestStream(opts: {
   apiStream: string | null;
   storedStream: string | null;
 }): ResolvedStream {
-  if (opts.apiStream) {
+  if (apiStreamToUnityStream(opts.apiStream)) {
     return {
       stream: parseUnityVersion(opts.version, { apiStream: opts.apiStream }).stream,
       source: "api"
@@ -76,4 +84,35 @@ export function resolveIngestStream(opts: {
     return { stream: opts.storedStream as UnityStream, source: "retained" };
   }
   return { stream: parsed, source: "parsed" };
+}
+
+/**
+ * Whether a backfill row is fully current, including its API-authoritative
+ * stream classification.
+ *
+ * Parser-version equality alone is insufficient: poll-editor may have first
+ * seen a brand-new LTS final while the single-version API lookup was down and
+ * stored the offline map's Supported guess. The later backfill already has the
+ * release API's stream, so a mismatch must force one normal re-ingest to repair
+ * the release row and its denormalized release-note rows.
+ */
+export function storedReleaseCanBeSkipped(opts: {
+  version: string;
+  apiStream: string | null;
+  storedStream: string | null;
+  storedParserVersion: string | null;
+  currentParserVersion: string;
+}): boolean {
+  if (opts.storedParserVersion !== opts.currentParserVersion) return false;
+
+  if (!apiStreamToUnityStream(opts.apiStream)) {
+    // The API cannot improve this row right now. Keep the current-parser data
+    // instead of replaying it with another fallback guess.
+    return true;
+  }
+
+  const authoritative = parseUnityVersion(opts.version, {
+    apiStream: opts.apiStream
+  }).stream;
+  return opts.storedStream === authoritative;
 }

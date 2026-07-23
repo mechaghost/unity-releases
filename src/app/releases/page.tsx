@@ -1,4 +1,4 @@
-import { listReleases } from "@/lib/db/repositories";
+import { listReleaseSummaries } from "@/lib/db/repositories";
 import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
 import { paginateItems, type PaginationResult } from "@/lib/pagination";
@@ -303,7 +303,7 @@ function firstParam(value: string | string[] | undefined): string | undefined {
 
 async function safeListReleases() {
   try {
-    return await listReleases(500);
+    return await listReleaseSummaries();
   } catch {
     return [];
   }

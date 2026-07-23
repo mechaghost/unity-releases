@@ -3,6 +3,8 @@ import { describe, expect, test } from "vitest";
 
 const comparePage = readFileSync("src/app/compare/page.tsx", "utf8");
 const releasesPage = readFileSync("src/app/releases/page.tsx", "utf8");
+const rootLayout = readFileSync("src/app/layout.tsx", "utf8");
+const sitemap = readFileSync("src/app/sitemap.ts", "utf8");
 
 describe("obsolete filter surfaces", () => {
   test("compare page does not render the old bottom filters card", () => {
@@ -33,6 +35,13 @@ describe("obsolete filter surfaces", () => {
     for (const call of pageLinkArgs) {
       expect(call).toContain("sortKey");
       expect(call).not.toMatch(/,\s*null\s*,/);
+    }
+  });
+
+  test("canonical release consumers use the uncapped lightweight summary query", () => {
+    for (const source of [comparePage, releasesPage, rootLayout, sitemap]) {
+      expect(source).toContain("listReleaseSummaries");
+      expect(source).not.toContain("listReleases(500)");
     }
   });
 });

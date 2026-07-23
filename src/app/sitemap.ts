@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { listReleases, listTopIssueIds } from "@/lib/db/repositories";
+import { listReleaseSummaries, listTopIssueIds } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
 
 // Rendered per request, not prerendered. Like /llms.txt (F5), a bare
@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let releases: ReleaseRow[] = [];
   try {
-    releases = (await listReleases(500)) as ReleaseRow[];
+    releases = await listReleaseSummaries();
   } catch (error) {
     // DB unreachable: ship the static entries alone rather than failing the
     // whole sitemap. Now force-dynamic (above), so this only fires on a real

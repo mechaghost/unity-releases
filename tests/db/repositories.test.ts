@@ -14,6 +14,7 @@ vi.mock("../../src/lib/db/client", () => ({
 import {
   diffRangeCounts,
   getIssueStatuses,
+  listReleaseSummaries,
   packageVersionsAtBoundary,
   resolveDiffRange,
   searchReleaseNotesInRange,
@@ -32,6 +33,38 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+// ─── listReleaseSummaries ───────────────────────────────────────
+
+describe("listReleaseSummaries", () => {
+  test("returns the complete lightweight release list without a LIMIT", async () => {
+    mocks.query.mockResolvedValueOnce(
+      rows(
+        {
+          version: "7000.0.0f1",
+          stream: "LTS",
+          release_date: "2027-01-01T00:00:00Z",
+          release_page_url: "https://unity.com/releases/editor/whats-new/7000.0.0f1"
+        },
+        {
+          version: "2019.4.40f1",
+          stream: "LTS",
+          release_date: "2021-05-10T00:00:00Z",
+          release_page_url: "https://unity.com/releases/editor/whats-new/2019.4.40f1"
+        }
+      )
+    );
+
+    const releases = await listReleaseSummaries();
+
+    expect(releases).toHaveLength(2);
+    const [sql, params] = mocks.query.mock.calls[0];
+    expect(sql).toContain("version, stream, release_date, release_page_url");
+    expect(sql).not.toContain("SELECT *");
+    expect(sql).not.toContain("LIMIT");
+    expect(params ?? []).toEqual([]);
+  });
 });
 
 // ─── resolveDiffRange ──────────────────────────────────────────
