@@ -18,9 +18,16 @@ export function siteUrl(): string {
 }
 
 export const SITE_NAME = "Unity Releases";
-export const SITE_TAGLINE = "Unity 6 release & upgrade intelligence";
+
+/**
+ * Generation-neutral on purpose. These are module constants feeding the root
+ * layout's metadata, so they can't read the database - and naming a single
+ * generation ("Unity 6") would need a manual edit the day Unity 7 ships. The
+ * data-driven version scope lives on /faq and /llms.txt instead.
+ */
+export const SITE_TAGLINE = "Unity release & upgrade intelligence";
 export const SITE_DESCRIPTION =
-  "Diff any two Unity 6 editor versions. Every blocker, breaking change, API change, package bump, and known issue - bucketed by impact and exportable as markdown for an LLM. Independent project, not affiliated with Unity Technologies.";
+  "Diff any two Unity editor versions. Every blocker, breaking change, API change, package bump, and known issue - bucketed by impact and exportable as markdown for an LLM. Independent project, not affiliated with Unity Technologies.";
 
 /**
  * Build per-page Open Graph + Twitter metadata so each route surfaces

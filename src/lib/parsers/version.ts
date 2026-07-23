@@ -1,4 +1,18 @@
+import { isModernMajor } from "../unity-generation";
+
 export type UnityStream = "LTS" | "Update/Supported" | "beta" | "alpha" | "patch";
+
+/** `stream` as Unity's release API reports it, verbatim. */
+export type UnityApiStream = "LTS" | "SUPPORTED" | "BETA" | "ALPHA";
+
+export type ParseUnityVersionOptions = {
+  /**
+   * Unity's own `stream` value for this release, when the caller has it
+   * (the release API returns one per release). Authoritative for final
+   * builds - see {@link resolveStream}.
+   */
+  apiStream?: string | null;
+};
 
 export type ParsedUnityVersion = {
   raw: string;
@@ -22,7 +36,10 @@ const CHANNEL_SORT_WEIGHT: Record<string, number> = {
   p: 3
 };
 
-export function parseUnityVersion(version: string): ParsedUnityVersion {
+export function parseUnityVersion(
+  version: string,
+  options: ParseUnityVersionOptions = {}
+): ParsedUnityVersion {
   const match = version.trim().match(UNITY_VERSION_RE);
 
   if (!match) {
@@ -44,21 +61,29 @@ export function parseUnityVersion(version: string): ParsedUnityVersion {
     suffixNumber,
     majorLine: String(major),
     minorLine: `${major}.${minor}`,
-    stream: streamForChannel(suffixChannel, major, minor),
+    stream: resolveStream(suffixChannel, major, minor, options.apiStream),
     isPrerelease: suffixChannel === "a" || suffixChannel === "b"
   };
 }
 
 /**
- * Officially-announced LTS minor lines per major.
+ * Offline fallback for which minor lines are LTS.
  *
- * Unity 6: 6000.0, 6000.3, and 6000.7 are LTS. The minor lines in
- * between are Update/Supported releases.
+ * This is *not* the primary source of truth any more - Unity's release API
+ * reports a `stream` per release and {@link resolveStream} prefers it, so a
+ * newly-announced LTS line is classified correctly without touching this map.
+ * The map still covers three cases the API can't:
  *
- * Pre-Unity-6: only the LTS branch of each major (e.g. 2022.3, 2021.3,
- * 2020.3, 2019.4) is in scope. Non-LTS lines (2019.1/2/3, 2020.1/2,
- * etc.) are not tracked since they're long-EOL and produce no
- * upgrade-decision signal for current users.
+ * - the release-page scrape path when the API lookup fails,
+ * - `poll-legacy-lts`, which selects which legacy lines to crawl at all,
+ * - pure/sync callers with no network (client components, unit tests).
+ *
+ * Unity 6: 6000.0, 6000.3, and 6000.7 are LTS; the lines in between are
+ * Update/Supported. Pre-Unity-6: only the LTS branch of each major (2022.3,
+ * 2021.3, 2020.3, 2019.4) is in scope - the other lines are long-EOL and
+ * produce no upgrade-decision signal.
+ *
+ * `npm run check:lts` reports drift between this map and Unity's API.
  */
 const LTS_MINOR_LINES_BY_MAJOR: Record<number, ReadonlySet<number>> = {
   2019: new Set([4]),
@@ -72,8 +97,33 @@ export function isLtsMinorLine(major: number, minor: number): boolean {
   return LTS_MINOR_LINES_BY_MAJOR[major]?.has(minor) ?? false;
 }
 
+/**
+ * True for Unity 6 and every generation after it (6000.x, 7000.x, …).
+ * Named for Unity 6 because that's where the modern scheme starts; the
+ * check itself is generation-agnostic.
+ */
 export function isUnity6OrNewer(version: string): boolean {
-  return parseUnityVersion(version).major >= 6000;
+  return isModernMajor(parseUnityVersion(version).major);
+}
+
+/**
+ * Map Unity's release-API `stream` onto our internal stream names.
+ * Returns null for anything unrecognised so callers fall back to
+ * classifying by version channel.
+ */
+export function apiStreamToUnityStream(apiStream: string | null | undefined): UnityStream | null {
+  switch (apiStream?.trim().toUpperCase()) {
+    case "LTS":
+      return "LTS";
+    case "SUPPORTED":
+      return "Update/Supported";
+    case "BETA":
+      return "beta";
+    case "ALPHA":
+      return "alpha";
+    default:
+      return null;
+  }
 }
 
 export function compareUnityVersions(a: string, b: string): number {
@@ -89,7 +139,27 @@ export function compareUnityVersions(a: string, b: string): number {
   );
 }
 
-function streamForChannel(channel: string, major: number, minor: number): UnityStream {
+/**
+ * Decide a release's stream.
+ *
+ * Alpha/beta/patch are read straight off the version channel - the version
+ * string already says it, and Unity's API vocabulary doesn't distinguish a
+ * `p` patch build from its LTS line, so delegating those would silently
+ * reclassify existing rows.
+ *
+ * Final (`f`) builds are the only ambiguous case: whether `6000.7.0f1` is
+ * LTS or Update/Supported isn't derivable from the number. Unity's release
+ * API knows, so prefer it when the caller supplies it - that's what lets a
+ * brand-new LTS line (6000.7, or Unity 7's first) classify correctly with
+ * no code change. A prerelease `apiStream` on an `f` build is ignored as
+ * inconsistent, falling through to the curated map.
+ */
+function resolveStream(
+  channel: string,
+  major: number,
+  minor: number,
+  apiStream?: string | null
+): UnityStream {
   if (channel === "a") {
     return "alpha";
   }
@@ -100,6 +170,11 @@ function streamForChannel(channel: string, major: number, minor: number): UnityS
 
   if (channel === "p") {
     return "patch";
+  }
+
+  const fromApi = apiStreamToUnityStream(apiStream);
+  if (fromApi === "LTS" || fromApi === "Update/Supported") {
+    return fromApi;
   }
 
   return isLtsMinorLine(major, minor) ? "LTS" : "Update/Supported";

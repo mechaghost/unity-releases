@@ -9,6 +9,8 @@
  * LTS line they can't reach the fix from.
  */
 
+import { unityMajorLabel } from "./unity-generation";
+
 /** Parse the leading numeric major from an editor version string. */
 export function majorOf(version: string): number | null {
   const dot = version.indexOf(".");
@@ -25,9 +27,13 @@ export function uniqueMajorsDesc(values: number[]): number[] {
   return [...new Set(values)].sort((a, b) => b - a);
 }
 
-/** Display label for a major (`6000` → `Unity 6`, else `Unity 20XX LTS`). */
+/**
+ * Display label for a major (`6000` → `Unity 6`, `7000` → `Unity 7`, else
+ * `Unity 20XX LTS`). Delegates so the compare picker's group labels and
+ * these chips can't drift apart.
+ */
 export function majorLabel(major: number): string {
-  return major === 6000 ? "Unity 6" : `Unity ${major} LTS`;
+  return unityMajorLabel(major);
 }
 
 /**

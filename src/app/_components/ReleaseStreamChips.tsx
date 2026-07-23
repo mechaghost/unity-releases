@@ -1,23 +1,34 @@
-"use client";
-
-import { useRef } from "react";
-import { RELEASE_FILTERS } from "@/lib/release-page-filter";
+import type { ReleaseFilterOption } from "@/lib/release-page-filter";
+import { AutoSubmitOnChange } from "./AutoSubmitOnChange";
 import { Icon } from "./Icon";
 
-export function ReleaseStreamFilter({ selected }: { selected: string[] }) {
-  const formRef = useRef<HTMLFormElement>(null);
+/**
+ * The /releases stream chip row.
+ *
+ * Fully server-rendered. `options` is derived per-request from the indexed
+ * lines (see `buildReleaseFilters`), so a new LTS line gets a chip with no
+ * code change - which is the whole point, but also why none of this data may
+ * cross into a client component: see {@link AutoSubmitOnChange} for the
+ * dropped-`VersionPill` bug that caused. Only the auto-submit behaviour is
+ * client-side, and it carries no payload.
+ */
+export function ReleaseStreamChips({
+  selected,
+  options
+}: {
+  selected: string[];
+  options: ReleaseFilterOption[];
+}) {
   const selectedSet = new Set(selected);
 
   return (
     <form
-      ref={formRef}
       className="filter-bar stream-checkbox-filter"
       method="get"
       action="/releases"
       aria-label="Stream filter"
-      onChange={() => formRef.current?.requestSubmit()}
     >
-      {RELEASE_FILTERS.map((option) => {
+      {options.map((option) => {
         const checked = selectedSet.has(option.value);
         return (
           <label
@@ -40,6 +51,7 @@ export function ReleaseStreamFilter({ selected }: { selected: string[] }) {
           </label>
         );
       })}
+      <AutoSubmitOnChange />
       <button type="submit" className="visually-hidden">
         Apply stream filters
       </button>

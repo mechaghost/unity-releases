@@ -31,9 +31,16 @@ describe("earlierUnityRange", () => {
     expect(earlierUnityRange("6.2")).toBe("6.0–6.1");
     expect(earlierUnityRange("6.1")).toBe("6.0");
   });
-  test("boundary falls back", () => {
-    expect(earlierUnityRange("6.0")).toBe("earlier Unity 6");
-    expect(earlierUnityRange("garbage")).toBe("earlier Unity 6");
+  test("works the same in a later generation", () => {
+    expect(earlierUnityRange("7.3")).toBe("7.0–7.2");
+    expect(earlierUnityRange("7.1")).toBe("7.0");
+  });
+  test("boundary and garbage compose with the caller's 'Unity ' prefix", () => {
+    // /packages renders `Unity {earlierUnityRange(...)}`, so no branch may
+    // repeat the word Unity - "Unity earlier Unity 6" was the old output.
+    expect(earlierUnityRange("6.0")).toBe("before 6.0");
+    expect(earlierUnityRange("7.0")).toBe("before 7.0");
+    expect(earlierUnityRange("garbage")).toBe("earlier releases");
   });
 });
 

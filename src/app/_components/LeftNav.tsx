@@ -120,7 +120,9 @@ export function LeftNav() {
     <nav className="lnav" id="primary-nav" aria-label="Primary">
       <a href="/" className="lnav__brand">
         <span className="lnav__brand-name">Unity Releases</span>
-        <span className="lnav__brand-tagline">Unity 6 release &amp; upgrade intel</span>
+        {/* Generation-neutral: naming a single Unity generation here would
+            need a manual edit the day the next one ships. */}
+        <span className="lnav__brand-tagline">Unity release &amp; upgrade intel</span>
       </a>
       <div className="lnav__sections">
         {NAV.map((section, idx) => (

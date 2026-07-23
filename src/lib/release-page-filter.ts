@@ -1,79 +1,172 @@
-export const RELEASE_FILTERS = [
-  { value: "6000.3-lts", label: "6.3 LTS" },
-  { value: "6000.0-lts", label: "6.0 LTS" },
-  { value: "update", label: "Supported" },
-  { value: "beta", label: "Beta" },
-  { value: "alpha", label: "Alpha" },
-  // Legacy LTS lines, off by default. Each chip only shows the
-  // canonical .X LTS minor of its major (2022.3, 2021.3, 2020.3,
-  // 2019.4) — non-LTS branches are not indexed.
-  { value: "2022.3-lts", label: "2022 LTS" },
-  { value: "2021.3-lts", label: "2021 LTS" },
-  { value: "2020.3-lts", label: "2020 LTS" },
-  { value: "2019.4-lts", label: "2019 LTS" }
-] as const;
+import { isModernMajor, marketingMinor, unityGeneration } from "./unity-generation";
 
-export type ReleaseFilterValue = (typeof RELEASE_FILTERS)[number]["value"];
+/**
+ * A chip value on /releases: either a fixed stream key ("update" / "beta" /
+ * "alpha") or a per-line LTS key shaped `<minorLine>-lts` (e.g. "6000.7-lts").
+ *
+ * Not a literal union any more - the LTS chips are derived from whatever
+ * lines are actually indexed, so the set isn't knowable at compile time.
+ */
+export type ReleaseFilterValue = string;
+
+export type ReleaseFilterOption = { value: ReleaseFilterValue; label: string };
 
 export type FilterableRelease = {
   version: string;
   stream: string | null;
 };
 
-const RELEASE_FILTER_VALUES = RELEASE_FILTERS.map((filter) => filter.value);
-const DEFAULT_RELEASE_FILTERS: ReleaseFilterValue[] = ["6000.3-lts", "6000.0-lts"];
-const LEGACY_ALIASES: Record<string, ReleaseFilterValue[]> = {
-  lts: DEFAULT_RELEASE_FILTERS,
-  // The chip's label says "Supported" but its value is "update" - accept
-  // the label as an alias so hand-built share URLs
-  // (?stream=supported) select the stream the author meant instead of
-  // silently falling back to the defaults.
-  supported: ["update"]
-};
+/** Stream chips that exist regardless of which lines are indexed. */
+const STREAM_FILTERS: ReleaseFilterOption[] = [
+  { value: "update", label: "Supported" },
+  { value: "beta", label: "Beta" },
+  { value: "alpha", label: "Alpha" }
+];
+
+const LTS_SUFFIX = "-lts";
+
+/** "6000.7-lts" -> "6000.7"; null for a non-LTS chip value. */
+function minorLineOfLtsFilter(value: ReleaseFilterValue): string | null {
+  if (!value.endsWith(LTS_SUFFIX)) return null;
+  const minorLine = value.slice(0, -LTS_SUFFIX.length);
+  return /^\d+\.\d+$/.test(minorLine) ? minorLine : null;
+}
+
+/** Chip label for an LTS line: "6000.7" -> "6.7 LTS", "2022.3" -> "2022 LTS". */
+function ltsFilterLabel(major: number, minor: number): string {
+  const marketing = marketingMinor(major, minor);
+  // Legacy lines are named by year alone - there has only ever been one
+  // indexed LTS branch per legacy major, so "2022 LTS" is unambiguous.
+  return marketing ? `${marketing} LTS` : `${major} LTS`;
+}
+
+/**
+ * Build the chip row from the releases actually indexed.
+ *
+ * Previously a hardcoded list naming 6000.3 and 6000.0. That had to be edited
+ * for every new LTS line, and until it was, releases on the new line were
+ * *unreachable*: no `-lts` chip matched them and they aren't "update"/"beta"/
+ * "alpha" either, so 6000.7.0f1 would have been invisible on /releases the
+ * day it shipped. Deriving the chips removes both problems at once.
+ *
+ * Order: modern LTS lines newest-first, then the stream chips, then legacy
+ * LTS lines newest-first - the same reading order as before.
+ */
+export function buildReleaseFilters(
+  releases: readonly FilterableRelease[]
+): ReleaseFilterOption[] {
+  const ltsLines = new Map<string, { major: number; minor: number }>();
+
+  for (const release of releases) {
+    if (!(release.stream ?? "").toLowerCase().includes("lts")) continue;
+    const match = release.version.match(/^(\d+)\.(\d+)\./);
+    if (!match) continue;
+    const major = Number(match[1]);
+    const minor = Number(match[2]);
+    ltsLines.set(`${major}.${minor}`, { major, minor });
+  }
+
+  const sorted = [...ltsLines.entries()].sort(
+    ([, a], [, b]) => b.major - a.major || b.minor - a.minor
+  );
+  const toOption = ([minorLine, { major, minor }]: (typeof sorted)[number]) => ({
+    value: `${minorLine}${LTS_SUFFIX}`,
+    label: ltsFilterLabel(major, minor)
+  });
+
+  return [
+    ...sorted.filter(([, l]) => isModernMajor(l.major)).map(toOption),
+    ...STREAM_FILTERS,
+    ...sorted.filter(([, l]) => !isModernMajor(l.major)).map(toOption)
+  ];
+}
+
+/**
+ * Default selection: every modern-generation LTS line, matching the previous
+ * hardcoded default of 6000.3 + 6000.0. Legacy lines stay off until ticked.
+ *
+ * Falls back to the stream chips if nothing is indexed yet, so a fresh
+ * install doesn't render an empty page with no way to select anything.
+ */
+export function defaultReleaseFilters(
+  available: readonly ReleaseFilterOption[]
+): ReleaseFilterValue[] {
+  const modernLts = available
+    .map((option) => ({ option, minorLine: minorLineOfLtsFilter(option.value) }))
+    .filter(({ minorLine }) => {
+      if (!minorLine) return false;
+      return isModernMajor(Number(minorLine.split(".")[0]));
+    })
+    .map(({ option }) => option.value);
+
+  return modernLts.length > 0 ? modernLts : STREAM_FILTERS.map((f) => f.value);
+}
 
 export function parseSelectedReleaseFilters(
-  raw: string | string[] | undefined
+  raw: string | string[] | undefined,
+  available: readonly ReleaseFilterOption[]
 ): ReleaseFilterValue[] {
+  const defaults = defaultReleaseFilters(available);
+  const availableValues = new Set(available.map((option) => option.value));
+  const aliases: Record<string, ReleaseFilterValue[]> = {
+    lts: defaults,
+    // The chip's label says "Supported" but its value is "update" - accept
+    // the label as an alias so hand-built share URLs (?stream=supported)
+    // select the stream the author meant instead of silently falling back
+    // to the defaults.
+    supported: ["update"]
+  };
+
   const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const selected = values.flatMap((value) => {
     const normalized = value.toLowerCase();
-    if (LEGACY_ALIASES[normalized]) return LEGACY_ALIASES[normalized];
-    return RELEASE_FILTER_VALUES.includes(normalized as ReleaseFilterValue)
-      ? [normalized as ReleaseFilterValue]
-      : [];
+    if (aliases[normalized]) return aliases[normalized];
+    return availableValues.has(normalized) ? [normalized] : [];
   });
 
-  return selected.length > 0 ? Array.from(new Set(selected)) : DEFAULT_RELEASE_FILTERS;
+  return selected.length > 0 ? Array.from(new Set(selected)) : defaults;
 }
 
 export function releaseMatchesSelectedFilters(
   release: FilterableRelease,
-  selected: ReleaseFilterValue[]
+  selected: readonly ReleaseFilterValue[]
 ) {
   const normalizedStream = (release.stream ?? "").toLowerCase();
   if (!normalizedStream) return false;
 
   return selected.some((value) => {
-    switch (value) {
-      case "6000.0-lts":
-        return normalizedStream.includes("lts") && release.version.startsWith("6000.0.");
-      case "6000.3-lts":
-        return normalizedStream.includes("lts") && release.version.startsWith("6000.3.");
-      case "2022.3-lts":
-        return normalizedStream.includes("lts") && release.version.startsWith("2022.3.");
-      case "2021.3-lts":
-        return normalizedStream.includes("lts") && release.version.startsWith("2021.3.");
-      case "2020.3-lts":
-        return normalizedStream.includes("lts") && release.version.startsWith("2020.3.");
-      case "2019.4-lts":
-        return normalizedStream.includes("lts") && release.version.startsWith("2019.4.");
-      case "update":
-        return normalizedStream.includes("update") || normalizedStream.includes("supported");
-      case "beta":
-      case "alpha":
-        return normalizedStream.includes(value);
+    const minorLine = minorLineOfLtsFilter(value);
+    if (minorLine) {
+      // Generic per-line match - no case per version, so a line Unity adds
+      // is filterable as soon as it's indexed.
+      return normalizedStream.includes("lts") && release.version.startsWith(`${minorLine}.`);
     }
+    if (value === "update") {
+      return normalizedStream.includes("update") || normalizedStream.includes("supported");
+    }
+    if (value === "beta" || value === "alpha") {
+      return normalizedStream.includes(value);
+    }
+    return false;
   });
+}
+
+/**
+ * Human-readable summary of the generations indexed, for the page intro -
+ * e.g. "Unity 6 and 7" or "Unity 6". Keeps the copy from naming a
+ * generation that isn't there (or omitting one that is).
+ */
+export function indexedGenerationsLabel(releases: readonly FilterableRelease[]): string {
+  const generations = new Set<number>();
+  for (const release of releases) {
+    const major = Number(release.version.match(/^(\d+)\./)?.[1]);
+    const generation = Number.isFinite(major) ? unityGeneration(major) : null;
+    if (generation !== null) generations.add(generation);
+  }
+  const sorted = [...generations].sort((a, b) => a - b);
+  if (sorted.length === 0) return "Unity";
+  if (sorted.length === 1) return `Unity ${sorted[0]}`;
+  return `Unity ${sorted.slice(0, -1).join(", ")} and ${sorted[sorted.length - 1]}`;
 }
 
 /** Supported sort keys on /releases. Only build-score sort is wired in
@@ -116,10 +209,11 @@ export function sortReleasesByScore<T extends { version: string }>(
 export function releasePageHref(
   page: number,
   selectedFilters: ReleaseFilterValue[],
-  sort: ReleaseSortKey | null = null
+  sort: ReleaseSortKey | null = null,
+  defaults: readonly ReleaseFilterValue[] = []
 ): string {
   const params = new URLSearchParams();
-  if (!selectedFiltersAreDefault(selectedFilters)) {
+  if (!selectedFiltersAreDefault(selectedFilters, defaults)) {
     for (const filter of selectedFilters) {
       params.append("stream", filter);
     }
@@ -130,9 +224,14 @@ export function releasePageHref(
   return qs ? `/releases?${qs}` : "/releases";
 }
 
-function selectedFiltersAreDefault(selectedFilters: ReleaseFilterValue[]) {
+/** Default selections are omitted from the URL so /releases stays clean. */
+function selectedFiltersAreDefault(
+  selectedFilters: readonly ReleaseFilterValue[],
+  defaults: readonly ReleaseFilterValue[]
+) {
   return (
-    selectedFilters.length === DEFAULT_RELEASE_FILTERS.length &&
-    DEFAULT_RELEASE_FILTERS.every((filter) => selectedFilters.includes(filter))
+    defaults.length > 0 &&
+    selectedFilters.length === defaults.length &&
+    defaults.every((filter) => selectedFilters.includes(filter))
   );
 }

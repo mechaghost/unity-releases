@@ -7,6 +7,7 @@ import {
 } from "../search";
 import { minorLinesBetween } from "../diff-grouping";
 import { compareUnityVersions } from "../parsers/version";
+import { modernMajorSql } from "../unity-generation";
 import { deriveIssueStatus, type IssueStatus } from "../issue-status";
 import type { FetchedSource } from "../ingest/fetch";
 import type { normalizePackageForStorage } from "../ingest/packages";
@@ -657,6 +658,54 @@ export async function getRelease(version: string) {
   return result.rows[0] ?? null;
 }
 
+export type TrackedVersionLineRow = {
+  /** e.g. "6000.7". */
+  minorLine: string;
+  /** Newest version on the line, preferring stable builds. */
+  latestVersion: string;
+  /** That release's stream - LTS / Update/Supported / beta / alpha / patch. */
+  stream: string;
+  releaseCount: number;
+};
+
+/**
+ * Every editor minor line we hold, with the stream it belongs to.
+ *
+ * Backs the "which Unity versions are tracked?" copy on /faq and /llms.txt so
+ * that answer reflects the database instead of a hand-written list that goes
+ * stale the moment Unity announces a line (it already had, omitting 6000.7).
+ *
+ * The per-line representative prefers a final/patch build over a beta/alpha:
+ * a line's stable releases are what define it as LTS or Supported, and an
+ * in-flight beta on a not-yet-shipped line shouldn't relabel it.
+ */
+export async function getTrackedVersionLines(): Promise<TrackedVersionLineRow[]> {
+  const result = await query<{
+    minor_line: string;
+    latest_version: string;
+    stream: string;
+    release_count: number;
+  }>(
+    `
+      SELECT
+        minor_line,
+        (ARRAY_AGG(version ORDER BY (suffix_channel IN ('f', 'p')) DESC,
+                                    release_date DESC NULLS LAST))[1] AS latest_version,
+        (ARRAY_AGG(stream  ORDER BY (suffix_channel IN ('f', 'p')) DESC,
+                                    release_date DESC NULLS LAST))[1] AS stream,
+        COUNT(*)::int AS release_count
+      FROM unity_releases
+      GROUP BY minor_line
+    `
+  );
+  return result.rows.map((row) => ({
+    minorLine: row.minor_line,
+    latestVersion: row.latest_version,
+    stream: row.stream,
+    releaseCount: Number(row.release_count)
+  }));
+}
+
 export type ArtifactStats = {
   /** Total Unity editor versions indexed. */
   editorReleases: number;
@@ -905,10 +954,10 @@ export async function getEditorBundledVersions(): Promise<Map<string, EditorBund
       FROM editor_package_versions epv
       JOIN unity_releases r ON r.id = epv.unity_release_id
       WHERE epv.to_version IS NOT NULL
-        -- Only Unity 6 editors: these packages are Unity-6-bound, and a
-        -- recent legacy-LTS patch (2022.3.x) must not outrank a 6000.x build
-        -- and report the wrong (legacy) bundled version.
-        AND r.version LIKE '6000.%'
+        -- Modern-scheme editors only (6000.x, 7000.x, …): these packages are
+        -- bound to the Editor, and a recent legacy-LTS patch (2022.3.x) must
+        -- not outrank them and report the wrong (legacy) bundled version.
+        AND ${modernMajorSql("r.version")}
       ORDER BY
         epv.package_name,
         (r.suffix_channel IN ('f', 'p')) DESC,

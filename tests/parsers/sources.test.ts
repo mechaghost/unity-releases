@@ -90,6 +90,33 @@ describe("extractApiReleaseMetadata", () => {
     expect(metadata.artifacts).toEqual([]);
     expect(metadata.modules).toEqual([]);
   });
+
+  test("takes the stream from Unity's API, so a new LTS line needs no code change", () => {
+    // 7000 has no entry in LTS_MINOR_LINES_BY_MAJOR. Unity's own label is
+    // what makes this land as LTS rather than Update/Supported.
+    const metadata = extractApiReleaseMetadata({
+      version: "7000.0.0f1",
+      releaseDate: "2027-04-01T00:00:00.000Z",
+      stream: "LTS"
+    });
+    expect(metadata.stream).toBe("LTS");
+  });
+
+  test("falls back to version-derived classification when the API omits a stream", () => {
+    const metadata = extractApiReleaseMetadata({
+      version: "6000.4.12f1",
+      releaseDate: "2026-06-01T00:00:00.000Z"
+    });
+    expect(metadata.stream).toBe("Update/Supported");
+  });
+
+  test("ignores a non-string stream instead of throwing", () => {
+    const metadata = extractApiReleaseMetadata({
+      version: "6000.3.20f1",
+      stream: { unexpected: true }
+    });
+    expect(metadata.stream).toBe("LTS");
+  });
 });
 
 describe("parsePackageRegistry", () => {

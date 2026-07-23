@@ -4,6 +4,7 @@ import { CompareStreamFilter } from "./CompareStreamFilter";
 import { Icon } from "./Icon";
 import type { StreamName } from "@/lib/stream-filter";
 import { compareUnityVersions, parseUnityVersion } from "@/lib/parsers/version";
+import { unityMajorLabel } from "@/lib/unity-generation";
 
 type ReleaseOption = {
   version: string;
@@ -25,17 +26,14 @@ type Props = {
 
 /**
  * Group label shown on each <optgroup> in the From/To dropdowns. Major
- * lines are presented in DESC version order (Unity 6 first, then the
- * legacy LTS lines newest-to-oldest), and inside each group the
+ * lines are presented in DESC version order (newest generation first,
+ * then the legacy LTS lines newest-to-oldest), and inside each group the
  * versions sort by `compareUnityVersions` DESC so a `6000.5.0b6`
  * appears before `6000.4.5f1` and well above `6000.0.x`. Without the
  * grouping the picker is a flat list of 400+ options interleaved by
  * release date, which is unreadable.
  */
-function majorLabel(major: number): string {
-  if (major === 6000) return "Unity 6";
-  return `Unity ${major} LTS`;
-}
+const majorLabel = unityMajorLabel;
 
 function groupReleasesByMajor(releases: ReleaseOption[]): Array<[number, ReleaseOption[]]> {
   const groups = new Map<number, ReleaseOption[]>();
@@ -53,7 +51,7 @@ function groupReleasesByMajor(releases: ReleaseOption[]): Array<[number, Release
   for (const bucket of groups.values()) {
     bucket.sort((a, b) => compareUnityVersions(b.version, a.version));
   }
-  // Major DESC: 6000 first, then 2022, 2021, 2020, 2019.
+  // Major DESC: newest generation first (7000 → 6000), then 2022 … 2019.
   return [...groups.entries()].sort(([a], [b]) => b - a);
 }
 

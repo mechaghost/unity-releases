@@ -12,7 +12,9 @@ describe("obsolete filter surfaces", () => {
   });
 
   test("releases page keeps the useful stream filter", () => {
-    expect(releasesPage).toContain("ReleaseStreamFilter");
+    // Renamed from ReleaseStreamFilter when the chip row became
+    // server-rendered and data-derived.
+    expect(releasesPage).toContain("ReleaseStreamChips");
     expect(releasesPage).toContain("selectedFilters");
   });
 });

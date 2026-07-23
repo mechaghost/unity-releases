@@ -22,7 +22,8 @@
     "ingest:github": "tsx src/jobs/poll-github.ts",
     "ingest:all": "tsx src/jobs/poll-all.ts",
     "health:ingest": "tsx src/jobs/health.ts",
-    "check:packages": "tsx src/jobs/check-missing-packages.ts"
+    "check:packages": "tsx src/jobs/check-missing-packages.ts",
+    "check:lts": "tsx src/jobs/check-lts-lines.ts"
   },
   "dependencies": {
     "@radix-ui/react-hover-card": "^1.1.15",

@@ -14,6 +14,15 @@ type VersionPillProps = {
    * fallback degrades to a plain `title` attribute.
    */
   compact?: boolean;
+  /**
+   * Skip the HoverInfo popover while keeping the full pill appearance
+   * (stream marker included). Set on /releases, where the stream is already
+   * spelled out in the very next column so the popover is redundant - and
+   * where 50 Radix roots in one table trigger a Next.js SSR bug that drops
+   * one trigger's markup from the HTML while leaving it in the RSC payload.
+   * The explanation degrades to a `title` attribute.
+   */
+  hoverCard?: boolean;
 };
 
 const STREAM_MARK: Record<string, string> = {
@@ -32,7 +41,13 @@ export function streamMark(stream?: string | null): string {
   return STREAM_MARK[key] ?? key.charAt(0).toUpperCase();
 }
 
-export function VersionPill({ version, stream, href, compact = false }: VersionPillProps) {
+export function VersionPill({
+  version,
+  stream,
+  href,
+  compact = false,
+  hoverCard = true
+}: VersionPillProps) {
   const target = href === undefined ? `/releases/${encodeURIComponent(version)}` : href;
   const label = streamLabel(stream);
 
@@ -57,17 +72,21 @@ export function VersionPill({ version, stream, href, compact = false }: VersionP
 
   const mark = streamMark(stream);
   const info = streamInfo(stream);
+  // Without the popover the explanation has to live somewhere, so fall back
+  // to a native tooltip carrying the same text.
+  const plainTitle =
+    !hoverCard && info ? `${version} · ${info.label} - ${info.blurb}` : undefined;
   const pill = target ? (
-    <a className="chip chip--version" href={target} data-stream={mark}>
+    <a className="chip chip--version" href={target} data-stream={mark} title={plainTitle}>
       {version}
     </a>
   ) : (
-    <span className="chip chip--version" data-stream={mark}>
+    <span className="chip chip--version" data-stream={mark} title={plainTitle}>
       {version}
     </span>
   );
 
-  if (!info) return pill;
+  if (!info || !hoverCard) return pill;
 
   return (
     <HoverInfo

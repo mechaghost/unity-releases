@@ -22,7 +22,7 @@ const CHANNEL_OPTIONS: { value: ChannelKey; label: string; title: string }[] = [
 
 /**
  * Filter row for /packages, modelled after the /releases stream filter
- * (`ReleaseStreamFilter`): a single `.filter-bar` form that auto-
+ * (`ReleaseStreamChips`): a single `.filter-bar` form that auto-
  * submits on change so chip toggles feel immediate, with the search
  * box debounced 300ms so a typing burst produces one navigation.
  *

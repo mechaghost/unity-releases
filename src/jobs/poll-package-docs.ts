@@ -22,33 +22,47 @@ import { fetchText } from "../lib/ingest/fetch";
 import { query } from "../lib/db/client";
 import { UNITY_OFFICIAL_PACKAGES } from "../lib/ingest/unity-packages";
 import { parseDocsChangelogTopVersion, unityMinorOfVersion } from "../lib/parsers/package-docs";
+import { marketingMinor, modernMajorSql } from "../lib/unity-generation";
 
 const DOCS_BASE = "https://docs.unity3d.com/Packages";
-// How many of the newest Unity 6 stable minors to probe. Four covers a
-// package whose latest version-aligned build lags up to three Unity minors
-// behind the current one, while still only adding a few cheap 404 probes per
-// package. The job records the highest aligned minor it finds.
+// How many of the newest stable minors to probe. Four covers a package whose
+// latest version-aligned build lags up to three Unity minors behind the
+// current one, while still only adding a few cheap 404 probes per package.
+// The job records the highest aligned minor it finds.
 const TARGET_MINOR_COUNT = 4;
+// Used only when the DB has no modern releases yet (fresh install): the
+// oldest minor known to use unified versioning, so a first run still probes
+// something meaningful.
+const SEED_MINOR = "6.4";
 
-/** Latest N Unity 6 stable minors as docs-style "6.N", newest first. */
+/**
+ * Latest N stable minors in docs form ("6.7", "7.0", …), newest first.
+ *
+ * Ordered numerically on (major, minor) rather than by string so the probe
+ * follows Unity across generations - a 7000.0 release must outrank 6000.7,
+ * which a lexical sort of the version text would get wrong.
+ */
 async function targetMinors(): Promise<string[]> {
   try {
-    const { rows } = await query<{ minor: string }>(
+    const { rows } = await query<{ major: string; minor: string }>(
       `
-        SELECT DISTINCT split_part(version, '.', 2) AS minor
+        SELECT DISTINCT
+          split_part(version, '.', 1) AS major,
+          split_part(version, '.', 2) AS minor
         FROM unity_releases
-        WHERE version LIKE '6000.%' AND suffix_channel IN ('f', 'p')
+        WHERE ${modernMajorSql("version")} AND suffix_channel IN ('f', 'p')
       `
     );
     const minors = rows
-      .map((r) => Number(r.minor))
-      .filter((n) => Number.isInteger(n))
-      .sort((a, b) => b - a)
+      .map((r) => ({ major: Number(r.major), minor: Number(r.minor) }))
+      .filter((r) => Number.isInteger(r.major) && Number.isInteger(r.minor))
+      .sort((a, b) => b.major - a.major || b.minor - a.minor)
       .slice(0, TARGET_MINOR_COUNT)
-      .map((n) => `6.${n}`);
-    return minors.length ? minors : ["6.4"];
+      .map((r) => marketingMinor(r.major, r.minor))
+      .filter((m): m is string => m !== null);
+    return minors.length ? minors : [SEED_MINOR];
   } catch {
-    return ["6.4"];
+    return [SEED_MINOR];
   }
 }
 

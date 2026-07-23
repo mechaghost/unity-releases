@@ -70,6 +70,7 @@ npm run ingest:github
 npm run ingest:discussions
 npm run ingest:backfill      # one-time Unity 6 history walk (also runs inside the cron, self-skipping)
 npm run check:packages       # surfaces com.unity.* mentioned in release notes but not in the curated list
+npm run check:lts            # reports drift between Unity's API and the offline LTS fallback map
 ```
 
 Production ingestion is one mega-cron on Railway running
@@ -86,6 +87,42 @@ Current local database was populated from real Unity sources:
 - Official Unity blog/news RSS
 
 Unity 6+ is the focus. The user explicitly does not care about pre-Unity-6 history right now.
+
+### Version scheme: generation-agnostic by design
+
+Since Unity 6 the editor major is `generation * 1000` — Unity 6.7 is `6000.7`,
+Unity 7 will be `7000.x`. `src/lib/unity-generation.ts` encodes that as
+arithmetic (`isModernMajor`, `unityGeneration`, `unityMajorLabel`,
+`marketingMinor`, `modernMajorSql`) so no code hardcodes `6000`. Use it
+instead of writing a new `6000` literal or a `LIKE '6000.%'` filter.
+
+**Which minor lines are LTS is learned from Unity, not hardcoded.** The
+release API returns a `stream` per release (`LTS` / `SUPPORTED` / `BETA` /
+`ALPHA`) and supports `?version=<v>`. `parseUnityVersion(v, { apiStream })`
+prefers it — but only for final (`f`) builds, since alpha/beta/patch are
+already unambiguous from the channel and delegating them would reclassify
+existing rows. `extractApiReleaseMetadata` reads it straight off the payload;
+`poll-editor` (which scrapes, and runs first in the cron) does one
+`?version=` lookup per source. The release *page* payload also has a `stream`
+field — don't use it, it tags LTS builds `TECH`.
+
+`LTS_MINOR_LINES_BY_MAJOR` in `src/lib/parsers/version.ts` survives only as an
+offline fallback for pure/sync callers. `npm run check:lts` reports drift
+against Unity's API. `tests/ingest/unity-api-contract.test.ts` (opt-in via
+`UNITY_API_CONTRACT=1`) fails if Unity ever drops the `stream` field, so the
+silent fallback can't go unnoticed.
+
+`/releases` chips, and the tracked-versions copy on `/faq` and `/llms.txt`,
+are all derived from the indexed lines — a new LTS line needs no edit.
+
+**Do not pass the derived chip list into a client component.** `/releases`
+renders it server-side (`ReleaseStreamChips`) with a payload-free
+`AutoSubmitOnChange` for the auto-apply behaviour, and the table's
+`VersionPill`s pass `hoverCard={false}`. Both work around a Next.js 15.5.19
+SSR bug: with ~50 Radix HoverCard roots in one table plus a data-derived chip
+row, one trigger's markup is dropped from the SSR HTML while remaining in the
+RSC payload, so one row renders a blank Version cell. Position varies between
+dev and prod builds and is non-monotonic in chip count.
 
 ### Catching missing packages
 
@@ -225,6 +262,8 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 - `src/lib/search.ts` - release-note SQL builder (filters + COUNT() OVER for pagination)
 - `src/lib/filters.ts` - filter state + presets + URL/cookie projection
+- `src/lib/unity-generation.ts` - generation math (6000→"Unity 6", 7000→"Unity 7"); use instead of any `6000` literal
+- `src/lib/tracked-versions.ts` - groups indexed minor lines for the /faq + /llms.txt version scope
 - `src/lib/classification.ts` - Unity-specific area/impact/risk classification
 - `src/lib/lane-catalog.ts` - canonical lane id → title/variant/impactPill map (shared by compare + release detail)
 - `src/lib/release-notes/format.ts` - shared release-note text cleanup and issue-link helpers

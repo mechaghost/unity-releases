@@ -22,6 +22,12 @@ export type ApiRelease = {
   unityHubDeepLink?: string;
   releaseNotes?: { url?: unknown; type?: unknown };
   downloads?: unknown;
+  /**
+   * Unity's own stream label - "LTS" | "SUPPORTED" | "BETA" | "ALPHA".
+   * Authoritative for final builds, and the reason a new LTS line needs
+   * no code change here.
+   */
+  stream?: unknown;
 };
 
 export type ApiReleasesResponse = {
@@ -32,7 +38,12 @@ export type ApiReleasesResponse = {
 };
 
 export function extractApiReleaseMetadata(release: ApiRelease): ReleasePageMetadata {
-  const parsedVersion = parseUnityVersion(release.version);
+  // Hand Unity's own stream label to the parser: for final builds it decides
+  // LTS vs Update/Supported, so newly-announced LTS lines are classified
+  // without editing LTS_MINOR_LINES_BY_MAJOR.
+  const parsedVersion = parseUnityVersion(release.version, {
+    apiStream: asString(release.stream)
+  });
   const downloads = asArray(release.downloads).map(asRecord);
   const releaseNotesUrl = asString(release.releaseNotes?.url);
   const shortRevision = asString(release.shortRevision);

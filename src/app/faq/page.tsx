@@ -1,4 +1,12 @@
 import { pageSocialMetadata } from "@/lib/site";
+import { TrackedVersionsAnswer } from "./_components/TrackedVersionsAnswer";
+
+/**
+ * The tracked-versions answer reads the database, so the page can't be fully
+ * static. Ingestion runs twice a day, so an hourly revalidate keeps the answer
+ * accurate at close to static cost instead of hitting the DB per request.
+ */
+export const revalidate = 3600;
 
 const FAQ_DESCRIPTION =
   "Where Unity Releases data comes from, how often it updates, what the impact lanes and risk levels mean, and the standard not-affiliated-with-Unity disclaimer.";
@@ -42,32 +50,9 @@ const SECTIONS: Section[] = [
       {
         id: "versions-tracked",
         question: "Which Unity versions are tracked?",
-        answer: (
-          <>
-            <p>
-              Unity 6 ({" "}<code>6000.x</code>) is the primary focus. The LTS
-              minor lines (<code>6000.0</code>, <code>6000.3</code>) get pinned
-              by default; <strong>Supported</strong>, <strong>Beta</strong>,
-              and <strong>Alpha</strong> chips reveal the rest of the Unity 6
-              stream.
-            </p>
-            <p>
-              Legacy LTS lines are also indexed for upgrade planning:{" "}
-              <code>2022.3</code>, <code>2021.3</code>, <code>2020.3</code>,
-              and <code>2019.4</code>. They appear on{" "}
-              <a href="/releases">Editor Releases</a> when their chip is
-              ticked, and they can be diffed against each other or against
-              Unity 6 — picking a 2022.3.x → 6000.x diff is fine if you're
-              evaluating the jump. Lane contents on cross-major diffs mix
-              release notes from two independent product lines, so expect
-              noisier output than a within-major diff.
-            </p>
-            <p>
-              Pre-2019 lines and non-LTS branches of legacy years (e.g.
-              2022.1) are not indexed.
-            </p>
-          </>
-        )
+        // Rendered from the database - the old static list named 6000.0 and
+        // 6000.3 as "the" LTS lines and went stale when Unity announced 6000.7.
+        answer: <TrackedVersionsAnswer />
       }
     ]
   },

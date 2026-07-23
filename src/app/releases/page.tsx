@@ -3,6 +3,9 @@ import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
 import { paginateItems, type PaginationResult } from "@/lib/pagination";
 import {
+  buildReleaseFilters,
+  defaultReleaseFilters,
+  indexedGenerationsLabel,
   parseReleaseSortKey,
   parseSelectedReleaseFilters,
   releaseMatchesSelectedFilters,
@@ -15,14 +18,16 @@ import { getScoreInputs } from "@/lib/visualizer";
 import { scoreAllReleases, type ScoreResult } from "@/lib/score";
 import { pageSocialMetadata } from "@/lib/site";
 import { VersionPill } from "../_components/VersionPill";
-import { ReleaseStreamFilter } from "../_components/ReleaseStreamFilter";
+import { ReleaseStreamChips } from "../_components/ReleaseStreamChips";
 import { Icon } from "../_components/Icon";
 
 export const dynamic = "force-dynamic";
 const RELEASES_PER_PAGE = 50;
 
+// Static metadata (evaluated at module load, no DB access), so it stays
+// generation-neutral rather than naming lines that will change.
 const RELEASES_DESCRIPTION =
-  "Every indexed Unity editor release — Unity 6 by default, plus the 2022 / 2021 / 2020 / 2019 LTS lines when their chips are ticked. Click a version for its lane-bucketed release notes, or diff two versions in Upgrade Intelligence.";
+  "Every indexed Unity editor release — current LTS lines by default, plus Supported, Beta, Alpha, and the legacy LTS lines when their chips are ticked. Click a version for its lane-bucketed release notes, or diff two versions in Upgrade Intelligence.";
 
 export const metadata = {
   title: "Editor Releases",
@@ -48,13 +53,19 @@ export default async function ReleasesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const selectedFilters = parseSelectedReleaseFilters(params.stream);
   const sortKey = parseReleaseSortKey(params.sort);
 
   const [all, scoreInputs] = await Promise.all([
     safeListReleases() as Promise<Release[]>,
     safeScoreInputs()
   ]);
+
+  // Chips are derived from the releases we actually hold, so a new LTS line
+  // (6000.7, or Unity 7's first) is filterable the moment it's ingested.
+  // The filter values depend on the data, so this has to come after the load.
+  const filterOptions = buildReleaseFilters(all);
+  const selectedFilters = parseSelectedReleaseFilters(params.stream, filterOptions);
+  const defaultFilters = defaultReleaseFilters(filterOptions);
   const { results: scoreResults } = scoreAllReleases(scoreInputs);
   // Note counts come straight from the cached score-inputs (which run a
   // single GROUP BY on release_note_items). Killed the parallel
@@ -71,24 +82,23 @@ export default async function ReleasesPage({
   // direction once a sort is active; users land on the default newest-first
   // view by removing the param manually or via filter chips).
   const nextSort: ReleaseSortKey = sortKey === "score-desc" ? "score-asc" : "score-desc";
-  const scoreSortHref = releasePageHref(1, selectedFilters, nextSort);
+  const scoreSortHref = releasePageHref(1, selectedFilters, nextSort, defaultFilters);
 
   return (
     <>
       <section className="page-header">
         <h1>Editor Releases</h1>
         <p>
-          Every indexed Unity editor release. Unity 6 LTS is shown by default;
-          tick a chip to add Supported / Beta / Alpha or the legacy LTS lines
-          (2019.4, 2020.3, 2021.3, 2022.3). Click a version for its
-          lane-bucketed release notes, or use{" "}
-          <a href="/">Upgrade Intelligence</a> to diff two of them.{" "}
-          {filtered.length.toLocaleString()} of {all.length.toLocaleString()}{" "}
-          shown.
+          Every indexed Unity editor release. {indexedGenerationsLabel(all)} LTS
+          lines are shown by default; tick a chip to add Supported / Beta /
+          Alpha or the legacy LTS lines. Click a version for its lane-bucketed
+          release notes, or use <a href="/">Upgrade Intelligence</a> to diff two
+          of them. {filtered.length.toLocaleString()} of{" "}
+          {all.length.toLocaleString()} shown.
         </p>
       </section>
 
-      <ReleaseStreamFilter selected={selectedFilters} />
+      <ReleaseStreamChips selected={selectedFilters} options={filterOptions} />
 
       {filtered.length === 0 ? (
         <div className="releases-table-wrap">
@@ -146,7 +156,7 @@ export default async function ReleasesPage({
                         href={`/releases/${encodeURIComponent(release.version)}`}
                         aria-label={`Open parsed notes for Unity ${release.version}`}
                       />
-                      <VersionPill version={release.version} stream={release.stream} />
+                      <VersionPill version={release.version} stream={release.stream} hoverCard={false} />
                     </td>
                     <td data-label="Stream">
                       <span className="release-stream">
@@ -192,7 +202,11 @@ export default async function ReleasesPage({
               })}
             </tbody>
           </table>
-          <ReleasePagination pagination={pagination} selectedFilters={selectedFilters} />
+          <ReleasePagination
+            pagination={pagination}
+            selectedFilters={selectedFilters}
+            defaultFilters={defaultFilters}
+          />
         </div>
       )}
     </>
@@ -201,10 +215,13 @@ export default async function ReleasesPage({
 
 function ReleasePagination({
   pagination,
-  selectedFilters
+  selectedFilters,
+  defaultFilters
 }: {
   pagination: PaginationResult<Release>;
   selectedFilters: ReleaseFilterValue[];
+  /** Derived per-request; passed in so page links can omit a default selection. */
+  defaultFilters: ReleaseFilterValue[];
 }) {
   return (
     <nav className="lane__pagination" aria-label="Editor release pagination">
@@ -220,7 +237,7 @@ function ReleasePagination({
         {pagination.hasPrev ? (
           <a
             className="lane__pagination-btn"
-            href={releasePageHref(pagination.page - 1, selectedFilters)}
+            href={releasePageHref(pagination.page - 1, selectedFilters, null, defaultFilters)}
             rel="prev"
           >
             <Icon name="chevron-left" size={14} />
@@ -238,7 +255,7 @@ function ReleasePagination({
         {pagination.hasNext ? (
           <a
             className="lane__pagination-btn"
-            href={releasePageHref(pagination.page + 1, selectedFilters)}
+            href={releasePageHref(pagination.page + 1, selectedFilters, null, defaultFilters)}
             rel="next"
           >
             Next

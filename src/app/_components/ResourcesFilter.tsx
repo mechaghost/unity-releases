@@ -13,7 +13,7 @@ type Props = {
 
 /**
  * Filter row for /resources, modelled after the /releases stream
- * filter (`ReleaseStreamFilter`): a single `.filter-bar` form that
+ * filter (`ReleaseStreamChips`): a single `.filter-bar` form that
  * auto-submits on change so checkbox toggles feel immediate. The
  * search box debounces 300ms so a typing burst produces one
  * navigation, not one per keystroke. No "Apply" button - the form

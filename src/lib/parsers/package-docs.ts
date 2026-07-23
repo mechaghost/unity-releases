@@ -11,6 +11,8 @@
  * like `[6.4.0] - 2025-10-16` (newest first).
  */
 
+import { marketingMinorOfEditor } from "../unity-generation";
+
 export type DocsChangelogEntry = {
   version: string;
   date: string | null;
@@ -37,8 +39,11 @@ export function unityMinorOfVersion(version: string): string | null {
   return match ? `${match[1]}.${match[2]}` : null;
 }
 
-/** "6000.4.11f1" -> "6.4" (the Unity marketing minor used in docs URLs). */
+/**
+ * "6000.4.11f1" -> "6.4", "7000.1.0f1" -> "7.1" (the Unity marketing minor
+ * used in docs URLs). Null for legacy year versions, which have no
+ * separate marketing number and no unified-versioning docs to probe.
+ */
 export function docsMinorOfEditor(editorVersion: string): string | null {
-  const match = editorVersion.match(/^6000\.(\d+)\./);
-  return match ? `6.${match[1]}` : null;
+  return marketingMinorOfEditor(editorVersion);
 }

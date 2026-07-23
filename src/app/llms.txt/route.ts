@@ -1,7 +1,43 @@
 import { NextResponse } from "next/server";
 import { siteUrl } from "@/lib/site";
+import { getTrackedVersionLines } from "@/lib/db/repositories";
+import { describeGeneration, groupTrackedLines } from "@/lib/tracked-versions";
 
-export const dynamic = "force-static";
+/**
+ * The tracked-versions section reads the database, so this can't be
+ * `force-static` any more. Ingestion runs twice a day; revalidating hourly
+ * keeps the manifest accurate at close to static cost.
+ */
+export const revalidate = 3600;
+
+/**
+ * Which Unity lines are indexed, in prose, generated from the database.
+ *
+ * A hard-coded list here goes stale silently - an LLM reading it would be
+ * told Unity 6.7 isn't tracked when it is. Degrades to a generation-neutral
+ * sentence if the DB is unreachable rather than asserting a stale list.
+ */
+async function trackedVersionsParagraph(): Promise<string> {
+  try {
+    const generations = groupTrackedLines(await getTrackedVersionLines());
+    if (generations.length === 0) throw new Error("no tracked lines");
+    const modern = generations.filter((g) => g.isModern);
+    const legacy = generations.filter((g) => !g.isModern);
+
+    const lines = [
+      ...modern.map((g) => `- ${g.label}: ${describeGeneration(g)}`),
+      ...(legacy.length > 0
+        ? [`- Legacy LTS: ${legacy.flatMap((g) => g.lines.map((l) => l.minorLine)).join(", ")}`]
+        : [])
+    ];
+    return `Indexed editor lines (generated from the live index):\n\n${lines.join("\n")}`;
+  } catch {
+    return (
+      "Indexed editor lines: Unity 6 and newer (`6000.x` and up), plus the " +
+      "legacy LTS lines (`2022.3`, `2021.3`, `2020.3`, `2019.4`)."
+    );
+  }
+}
 
 /**
  * GET /llms.txt
@@ -17,6 +53,7 @@ export const dynamic = "force-static";
  */
 export async function GET() {
   const origin = siteUrl();
+  const trackedVersions = await trackedVersionsParagraph();
   const body = `# Unity Releases
 
 > Independent release-first intelligence hub for Unity editor releases.
@@ -29,12 +66,13 @@ export async function GET() {
 ## What this site is for
 
 A Unity developer (or an LLM helping one) deciding whether and when to
-upgrade. Unity 6 (\`6000.x\`) is the primary focus; the legacy LTS
-lines \`2022.3\`, \`2021.3\`, \`2020.3\`, and \`2019.4\` are also indexed
-for upgrade planning, including the cross-major jump from any of those
-to Unity 6. The primary surface is a lane-bucketed diff between two
-versions; secondary surfaces list the underlying releases, packages,
-and Unity blog posts.
+upgrade. Unity 6 and newer (\`6000.x\` and up) is the primary focus; the
+legacy LTS lines are also indexed for upgrade planning, including the
+cross-major jump from any of those to Unity 6. The primary surface is a
+lane-bucketed diff between two versions; secondary surfaces list the
+underlying releases, packages, and Unity blog posts.
+
+${trackedVersions}
 
 Cross-major diffs (e.g. \`2022.3.50f1\` → \`6000.0.74f1\`) are allowed
 because that's the upgrade decision most legacy-LTS users care about,
@@ -56,8 +94,7 @@ ${origin}/compare.md?from=6000.0.50f1&to=6000.0.74f1
 
 Required query parameters:
 - \`from\` - the source Unity editor version (e.g. \`6000.0.50f1\` or
-  \`2022.3.40f1\`). Must be an indexed version on Unity 6 or one of the
-  legacy LTS lines (2019.4, 2020.3, 2021.3, 2022.3).
+  \`2022.3.40f1\`). Must be one of the indexed editor lines listed above.
 - \`to\` - the target Unity editor version. Same constraints as \`from\`;
   same-major or cross-major diffs are both supported.
 
@@ -109,8 +146,11 @@ filtering UI.
 
 - Issue IDs follow Unity's tracker format (e.g. \`UUM-12345\`) and link
   out to \`https://issuetracker.unity3d.com/issues/<id>\`.
-- Versions follow Unity's editor scheme: \`6000.<minor>.<patch><tag>\`
-  where \`<tag>\` is \`f<n>\` (final/LTS), \`b<n>\` (beta), or \`a<n>\` (alpha).
+- Versions follow Unity's editor scheme: \`<major>.<minor>.<patch><tag>\`
+  where \`<tag>\` is \`f<n>\` (final), \`b<n>\` (beta), or \`a<n>\` (alpha).
+  Since Unity 6 the major is the generation times 1000, so \`6000.7\` is
+  Unity 6.7 and \`7000.0\` would be Unity 7.0; majors below 6000 are the
+  older year-based scheme (\`2022.3\`).
 - "Lane" = the impact bucket a release-note row falls into (one of the
   ten lanes listed above). "Risk" = independent severity axis (blocker,
   caution, review, info).

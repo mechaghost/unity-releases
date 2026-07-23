@@ -48,8 +48,15 @@ describe("docsMinorOfEditor", () => {
   test("maps a 6000.x editor to its docs minor", () => {
     expect(docsMinorOfEditor("6000.4.11f1")).toBe("6.4");
     expect(docsMinorOfEditor("6000.0.23f1")).toBe("6.0");
+    expect(docsMinorOfEditor("6000.7.0a2")).toBe("6.7");
   });
-  test("null for non-Unity-6 editors", () => {
+  test("follows Unity into the next generation", () => {
+    // The old `/^6000\./` regex returned null here, which silently disabled
+    // unified-versioning discovery for every Unity 7 package.
+    expect(docsMinorOfEditor("7000.0.0f1")).toBe("7.0");
+    expect(docsMinorOfEditor("7000.1.3f1")).toBe("7.1");
+  });
+  test("null for legacy year-scheme editors", () => {
     expect(docsMinorOfEditor("2022.3.61f1")).toBeNull();
   });
 });

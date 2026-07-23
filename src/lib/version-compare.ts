@@ -46,15 +46,21 @@ export function editorPrereleaseLabel(
 }
 
 /**
- * The span of earlier Unity 6 minors a renumbered package's old line still
- * covers: "6.4" -> "6.0–6.3". Falls back to a generic phrase at the boundary.
+ * The span of earlier minors within a generation that a renumbered package's
+ * old line still covers: "6.4" -> "6.0–6.3", "7.2" -> "7.0–7.1".
+ *
+ * Every branch returns a phrase that reads correctly after the caller's
+ * "Unity " prefix (/packages renders `Unity {earlierUnityRange(...)}`), so
+ * the generation-boundary and unparseable cases say "before 6.0" and
+ * "earlier releases" rather than repeating the word Unity. Generation-neutral
+ * throughout - "7.2" works the same as "6.2" with no code change.
  */
 export function earlierUnityRange(unityMinor: string): string {
   const m = unityMinor.match(/^(\d+)\.(\d+)/);
-  if (!m) return "earlier Unity 6";
+  if (!m) return "earlier releases";
   const major = m[1];
   const minor = parseInt(m[2], 10);
-  if (minor <= 0) return `earlier Unity ${major}`;
+  if (minor <= 0) return `before ${major}.0`;
   if (minor === 1) return `${major}.0`;
   return `${major}.0–${major}.${minor - 1}`;
 }
