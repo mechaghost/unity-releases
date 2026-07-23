@@ -82,10 +82,14 @@ export default async function ReleasesPage({
   const pagination = paginateItems(sorted, firstParam(params.page), RELEASES_PER_PAGE);
   const releases = pagination.items;
 
-  // Cycle: no sort → desc → asc → desc → … (clicking the header alternates
-  // direction once a sort is active; users land on the default newest-first
-  // view by removing the param manually or via filter chips).
-  const nextSort: ReleaseSortKey = sortKey === "score-desc" ? "score-asc" : "score-desc";
+  // Cycle: unsorted → desc → asc → unsorted. Three-state so the header itself
+  // returns to the default newest-first order. It has to: page links and the
+  // chip form now both carry the sort (otherwise paging out of a sorted list
+  // silently re-orders and repeats rows), which removed the old escape hatch
+  // of "toggle any chip to clear the sort". Without a third state the sort
+  // would be one-way - switchable between desc and asc, never off.
+  const nextSort: ReleaseSortKey | null =
+    sortKey === "score-desc" ? "score-asc" : sortKey === "score-asc" ? null : "score-desc";
   const scoreSortHref = releasePageHref(1, selectedFilters, nextSort, defaultFilters);
 
   return (
@@ -141,7 +145,13 @@ export default async function ReleasesPage({
                   <a
                     className={`releases-table__sort ${sortKey ? "releases-table__sort--active" : ""}`}
                     href={scoreSortHref}
-                    aria-label={`Sort by build score ${nextSort === "score-desc" ? "descending" : "ascending"}`}
+                    aria-label={
+                      nextSort === "score-desc"
+                        ? "Sort by build score, highest first"
+                        : nextSort === "score-asc"
+                          ? "Sort by build score, lowest first"
+                          : "Clear build score sort and return to newest first"
+                    }
                   >
                     Build score
                     <span className="releases-table__sort-arrow" aria-hidden>

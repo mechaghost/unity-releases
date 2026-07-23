@@ -175,6 +175,24 @@ describe("release page filters", () => {
     );
   });
 
+  test("the sort cycle can return to unsorted", () => {
+    // Three-state: unsorted -> desc -> asc -> unsorted. This is load-bearing.
+    // Page links and the chip form both carry ?sort now (so paging out of a
+    // sorted list can't silently re-order), which removed the old "toggle a
+    // chip to clear the sort" escape hatch. If the header only alternated
+    // desc<->asc, sorting would be one-way with no way back to date order.
+    const cycle = (current: "score-desc" | "score-asc" | null) =>
+      current === "score-desc" ? "score-asc" : current === "score-asc" ? null : "score-desc";
+
+    expect(cycle(null)).toBe("score-desc");
+    expect(cycle("score-desc")).toBe("score-asc");
+    expect(cycle("score-asc")).toBeNull();
+
+    // ...and the null step must produce a URL with no sort param at all.
+    const defaults = defaultReleaseFilters(FILTERS);
+    expect(releasePageHref(1, defaults, cycle("score-asc"), defaults)).toBe("/releases");
+  });
+
   test("carries an active sort into page links", () => {
     // Sorting happens before pagination, so dropping ?sort here served page 2
     // from the date-ordered list - repeating rows already shown on page 1.
