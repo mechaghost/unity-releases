@@ -8,3 +8,8 @@ tsconfig.tsbuildinfo
 !.claude/skills/
 .env.local
 .env.*.local
+# Throwaway probe/inspection scripts (e.g. from review agents). Kept out of the
+# repo root and the TS compile scope so a stray `git add -A` can't ship one.
+.agents/
+__probe*.ts
+__inv*.ts
