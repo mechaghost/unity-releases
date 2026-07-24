@@ -42,6 +42,7 @@ export function IssueTable({
     return <p className="muted">{emptyMessage}</p>;
   }
   return (
+    <div className="table-wrap">
     <table className="issue-table dense-table tabnums">
       <thead>
         <tr>
@@ -96,15 +97,28 @@ export function IssueTable({
               </span>
             </td>
             <td className="issue-table__desc">
+              {/* The description is the internal-history link ("click any
+                  issue to see every release that mentioned it"); the UUM
+                  chip keeps pointing at Unity's tracker as the secondary,
+                  external destination. */}
               {cleaned ? (
-                <span className="issue-table__desc-text" title={cleaned}>
+                <a
+                  className="issue-table__desc-text issue-table__desc-link"
+                  href={`/issues/${encodeURIComponent(row.issueId)}`}
+                  title={cleaned}
+                >
                   {row.area ? (
                     <span className="issue-table__desc-area">{row.area}: </span>
                   ) : null}
                   {cleaned}
-                </span>
+                </a>
               ) : (
-                <span className="muted">—</span>
+                <a
+                  className="issue-table__desc-link"
+                  href={`/issues/${encodeURIComponent(row.issueId)}`}
+                >
+                  View mention history
+                </a>
               )}
             </td>
             <td>
@@ -144,6 +158,7 @@ export function IssueTable({
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 

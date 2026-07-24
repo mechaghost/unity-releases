@@ -75,12 +75,19 @@ export function LaneShell({
   variant,
   title,
   count,
+  countDetail,
   children
 }: {
   id: string;
   variant: LaneVariant;
   title: string;
   count: number;
+  /**
+   * Secondary count semantics when `count` isn't a plain row count -
+   * e.g. "47 mentions" when the count is deduped unique issues. Without
+   * it, a header "47" over a body of "9 unique issues" reads as broken.
+   */
+  countDetail?: string;
   children: ReactNode;
 }) {
   const { collapsed, toggle } = useLaneCollapse();
@@ -103,7 +110,12 @@ export function LaneShell({
           onClick={() => toggle(id)}
         >
           <span className="lane__header-title">{title}</span>
-          <span className="lane__header-count tabnums">{count.toLocaleString()}</span>
+          <span className="lane__header-count tabnums">
+            {count.toLocaleString()}
+            {countDetail ? (
+              <span className="lane__header-count-detail">{countDetail}</span>
+            ) : null}
+          </span>
         </button>
       </h2>
       <div className="lane__body" id={`lane-${id}-body`}>

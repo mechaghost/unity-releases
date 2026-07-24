@@ -136,15 +136,13 @@ const SECTIONS: Section[] = [
         answer: (
           <>
             <p>
-              Editor releases and packages are polled on a several-hour cadence;
-              resources and news poll less frequently because the upstream
-              changes far less often. The exact intervals are configured at the
-              deploy layer (Railway crons) rather than in the app, so the
-              authoritative answer is always the live{" "}
-              <a href="/api/health">/api/health</a> endpoint - it reports each
-              source&apos;s last-success timestamp and hours-since-success, with
-              a <code>stale</code> flag that flips when nothing has succeeded
-              for the better part of a month.
+              Everything refreshes together on one scheduled ingestion run,
+              twice a day - editor releases, packages, news, resources, GitHub,
+              and discussions in sequence. The authoritative answer is always
+              the live <a href="/api/health">/api/health</a> endpoint - it
+              reports each source&apos;s last-success timestamp and
+              hours-since-success, with a <code>stale</code> flag that flips
+              when nothing has succeeded for the better part of a month.
             </p>
             <p>
               Legacy LTS releases are bundled into the same{" "}
@@ -652,12 +650,14 @@ const SECTIONS: Section[] = [
         answer: (
           <>
             <p>
-              Starting with Unity 6.4, a few core packages adopted{" "}
+              Starting with Unity 6.4, a growing set of core packages adopted{" "}
               <strong>unified versioning</strong> - the package version is
               renumbered to match the Editor. <code>com.unity.entities</code>{" "}
               ships as <code>6.4.0</code> in Unity 6.4 (its changelog continues
-              straight from the old <code>1.4.x</code> line). Today this applies
-              to Entities, Entities Graphics, and Collections.
+              straight from the old <code>1.4.x</code> line). The{" "}
+              <a href="/packages">Packages</a> page detects and flags every
+              version-aligned package automatically, so it always shows the
+              current set - no hand-maintained list to go stale.
             </p>
             <p>
               The catch: that <code>6.4.0</code> build exists{" "}
@@ -988,7 +988,8 @@ const SECTIONS: Section[] = [
             The same body the <code>/compare.md</code> endpoint serves -
             a complete, lane-bucketed diff between the two versions, not
             just the rows currently visible on the page. Filenames follow
-            the pattern <code>unity-&lt;from&gt;-to-&lt;to&gt;-upgrade.md</code>
+            the pattern <code>unity-&lt;from&gt;-to-&lt;to&gt;-upgrade.md</code>{" "}
+            (or <code>…-downgrade.md</code> when the diff runs backwards)
             so they sort sensibly when you keep a folder of them.
           </>
         )

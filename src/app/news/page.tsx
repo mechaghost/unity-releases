@@ -37,8 +37,8 @@ export default async function NewsPage() {
         <p>
           Mirror of the official Unity blog. Secondary to release intelligence -
           included so you can see Unity-side announcements without leaving the
-          site. {news.length.toLocaleString()} posts indexed; click a title to
-          read it on unity.com.
+          site. Showing the {news.length.toLocaleString()} most recent posts;
+          click a title to read it on unity.com.
         </p>
       </section>
 

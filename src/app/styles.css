@@ -5669,6 +5669,31 @@ button.filter-section__head:focus-visible {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
+/* Muted secondary semantics next to a lane header count ("9  47 mentions"):
+   the count is deduped; the detail names what the raw total counts. */
+.lane__header-count-detail {
+  margin-left: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular, 400);
+}
+
+/* The description doubles as the internal mention-history link. Keep the
+   secondary text tone at rest; reveal link affordance on hover/focus. */
+.issue-table__desc-link {
+  text-decoration: none;
+  cursor: pointer;
+}
+.issue-table__desc-link:hover,
+.issue-table__desc-link:focus-visible {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* Seven fixed columns need ~860px; below that the .table-wrap scrolls
+   sideways instead of the body clipping columns (body is overflow-x:
+   hidden, so an unwrapped overflow is simply unreachable). */
+.issue-table { min-width: 860px; }
 
 
 /* /issues search box ---------------------------------------------- */

@@ -6,6 +6,7 @@ import {
   type ReleaseNoteSearchFilters
 } from "../search";
 import { minorLinesBetween } from "../diff-grouping";
+import { cleanFacetValues, isJunkFacetValue } from "../facet-hygiene";
 import { compareUnityVersions } from "../parsers/version";
 import { modernMajorSql } from "../unity-generation";
 import { deriveIssueStatus, type IssueStatus } from "../issue-status";
@@ -480,10 +481,24 @@ export async function getReleaseRangeFacets(versions: string[]): Promise<Release
     [versions]
   );
   const [platforms, packages, areas] = await Promise.all([platformsP, packagesP, areasP]);
+  // Same facet hygiene as listReleaseNoteFacets, but keep the count-ranked
+  // order (these rails are already most-frequent-first) instead of A-Z.
+  const cleanRanked = (rows: Array<{ value: string; count: string }>) => {
+    const seen = new Set<string>();
+    const out: Array<{ value: string; count: number }> = [];
+    for (const r of rows) {
+      if (isJunkFacetValue(r.value)) continue;
+      const key = r.value.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ value: r.value, count: Number(r.count) });
+    }
+    return out;
+  };
   return {
-    platforms: platforms.rows.map((r) => ({ value: r.value, count: Number(r.count) })),
+    platforms: cleanRanked(platforms.rows),
     packages: packages.rows.map((r) => ({ value: r.value, count: Number(r.count) })),
-    areas: areas.rows.map((r) => ({ value: r.value, count: Number(r.count) }))
+    areas: cleanRanked(areas.rows)
   };
 }
 
@@ -590,26 +605,39 @@ export async function listReleaseNoteFacets() {
         COALESCE((SELECT ARRAY_AGG(DISTINCT minor_line ORDER BY minor_line DESC) FROM release_note_items), '{}') AS minor_lines,
         COALESCE((SELECT ARRAY_AGG(DISTINCT stream ORDER BY stream) FROM release_note_items), '{}') AS streams,
         COALESCE((SELECT ARRAY_AGG(DISTINCT section ORDER BY section) FROM release_note_items), '{}') AS sections,
-        COALESCE((SELECT ARRAY_AGG(DISTINCT area ORDER BY area) FROM release_note_items WHERE area IS NOT NULL AND area !~ '^\\\\d{4}\\\\.\\\\d+\\\\.\\\\d+[abf]\\\\d+$'), '{}') AS areas,
-        COALESCE((SELECT ARRAY_AGG(DISTINCT platform ORDER BY platform) FROM release_note_items, UNNEST(platforms) AS platform), '{}') AS platforms,
+        COALESCE((SELECT ARRAY_AGG(area ORDER BY cnt DESC, area ASC) FROM (
+          SELECT area, COUNT(*) AS cnt FROM release_note_items
+          WHERE area IS NOT NULL GROUP BY area
+        ) area_counts), '{}') AS areas,
+        COALESCE((SELECT ARRAY_AGG(platform ORDER BY cnt DESC, platform ASC) FROM (
+          SELECT platform, COUNT(*) AS cnt FROM release_note_items, UNNEST(platforms) AS platform
+          GROUP BY platform
+        ) platform_counts), '{}') AS platforms,
         COALESCE((SELECT ARRAY_AGG(DISTINCT impact_kind ORDER BY impact_kind) FROM release_note_items), '{}') AS impacts,
         COALESCE((SELECT ARRAY_AGG(DISTINCT risk_level ORDER BY risk_level) FROM release_note_items), '{}') AS risks,
         COALESCE((SELECT ARRAY_AGG(DISTINCT package_name ORDER BY package_name) FROM release_note_items, UNNEST(package_names) AS package_name), '{}') AS packages
     `
   );
-  return (
-    result.rows[0] ?? {
-      versions: [],
-      minor_lines: [],
-      streams: [],
-      sections: [],
-      areas: [],
-      platforms: [],
-      impacts: [],
-      risks: [],
-      packages: []
-    }
-  );
+  const row = result.rows[0] ?? {
+    versions: [],
+    minor_lines: [],
+    streams: [],
+    sections: [],
+    areas: [],
+    platforms: [],
+    impacts: [],
+    risks: [],
+    packages: []
+  };
+  // Areas/platforms are free-text parser output - run facet hygiene so the
+  // dropdowns don't offer package ids, version strings, or tracker tokens.
+  // The SQL orders both most-frequent-first so a case-duplicate keeps the
+  // variant matching the most rows; cleanFacetValues re-sorts A-Z after.
+  return {
+    ...row,
+    areas: cleanFacetValues(row.areas),
+    platforms: cleanFacetValues(row.platforms)
+  };
 }
 
 export async function listFeedEvents(limit = 50): Promise<FeedEventRow[]> {

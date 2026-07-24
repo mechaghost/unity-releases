@@ -139,7 +139,7 @@ export async function buildCompareMarkdownExport(
   }).filter((l) => l.rows.length > 0);
 
   // Resolve issue statuses (open / closed / fixed) for every issue id
-  // mentioned, so the markdown can suffix `[fixed in 6000.x.y]` etc.
+  // mentioned, so the markdown can suffix `(fixed 6000.x.y)` etc.
   // Scope to majors covered by the diff so a fix in an unreachable
   // major doesn't get tagged "fixed" — e.g. UUM-113215 is fixed in
   // 6000.3.0b1 but stays a known issue for the 2019/2020/2021/2022

@@ -602,12 +602,31 @@ function Lane({
   issueStatuses: Map<string, IssueStatus>;
   buildPageUrl: (nextPage: number) => string;
 }) {
+  // Header semantics must match what the body renders. By-issue and
+  // by-package lanes dedupe/aggregate their rows, so a raw mention count
+  // in the header ("47") over a body of "9 unique issues" read as either
+  // inflated or broken. Show the deduped figure as the count and keep the
+  // mention total as muted detail. Grouping runs on the same fetched slice
+  // the body uses, so the two always agree - including in the over-cap
+  // edge where the slice is partial.
+  const groupedCount =
+    def.mode === "by-issue"
+      ? dedupeByIssue(fetchedRows).length
+      : def.mode === "by-package"
+        ? aggregateByPackage(fetchedRows).length
+        : null;
+  const headerCount = groupedCount ?? totalCount;
+  const countDetail =
+    groupedCount !== null && groupedCount !== totalCount
+      ? `${totalCount.toLocaleString()} ${def.mode === "by-issue" ? "mentions" : "updates"}`
+      : undefined;
   return (
     <LaneShell
       id={def.id}
       variant={def.variant}
       title={def.title}
-      count={totalCount}
+      count={headerCount}
+      countDetail={countDetail}
     >
       {totalCount === 0 ? (
         <div className="lane__empty">

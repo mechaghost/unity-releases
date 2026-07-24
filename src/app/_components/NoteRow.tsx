@@ -123,12 +123,30 @@ export function NoteRow({
         <div className="row__title row__title--wrap" title={cleanedBody}>
           {bodyTokens.map((tok, idx) =>
             tok.kind === "version" ? (
-              <VersionPill
-                key={`v-${idx}`}
-                version={tok.version}
-                stream={safeStreamForInline(tok.version)}
-                compact
-              />
+              // Unity's known-issue entries often lead with the build where
+              // the issue was first recorded ("6000.0.23f1: Crash on …").
+              // On another release's page that bare leading pill reads like
+              // a mislabel, so name what it is.
+              idx === 0 && row.impact_kind === "known_issue" ? (
+                <span
+                  key={`v-${idx}`}
+                  title="First noted in this build (per Unity's own note text)"
+                  aria-label={`First noted in ${tok.version}`}
+                >
+                  <VersionPill
+                    version={tok.version}
+                    stream={safeStreamForInline(tok.version)}
+                    compact
+                  />
+                </span>
+              ) : (
+                <VersionPill
+                  key={`v-${idx}`}
+                  version={tok.version}
+                  stream={safeStreamForInline(tok.version)}
+                  compact
+                />
+              )
             ) : (
               <Fragment key={`t-${idx}`}>{tok.value}</Fragment>
             )

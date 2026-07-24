@@ -240,7 +240,10 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
 function StatsStrip({ stats }: { stats: GithubStats }) {
   return (
     <dl className="discussion-stats" aria-label="GitHub tracking stats">
-      <Stat label="Repos" value={stats.activeRepos.toLocaleString()} />
+      {/* activeRepos excludes forks + archived repos; the org total is larger
+          (see /stats), so label the exclusion or the two pages look like a 2x
+          disagreement. */}
+      <Stat label="Active repos" value={stats.activeRepos.toLocaleString()} />
       <Stat label="Total stars" value={formatCompact(stats.totalStars)} />
       <Stat label="Notable" value={stats.notableRepos.toLocaleString()} />
       <Stat label="Languages" value={stats.languages.toLocaleString()} />

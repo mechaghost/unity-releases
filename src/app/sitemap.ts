@@ -29,7 +29,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${origin}/discussions`, lastModified: now, changeFrequency: "daily", priority: 0.6 },
     { url: `${origin}/news`, lastModified: now, changeFrequency: "daily", priority: 0.5 },
     { url: `${origin}/stats`, lastModified: now, changeFrequency: "daily", priority: 0.4 },
-    { url: `${origin}/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 }
+    { url: `${origin}/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    // Primary-nav pages that were missing from the static list (the per-issue
+    // URLs below already made /issues/* crawlable; the index pages weren't).
+    // /explorer stays out deliberately - it's robots-disallowed.
+    { url: `${origin}/issues`, lastModified: now, changeFrequency: "daily", priority: 0.6 },
+    { url: `${origin}/timeline`, lastModified: now, changeFrequency: "daily", priority: 0.4 },
+    { url: `${origin}/visualizer`, lastModified: now, changeFrequency: "weekly", priority: 0.5 }
   ];
 
   let releases: ReleaseRow[] = [];

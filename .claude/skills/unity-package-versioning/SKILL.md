@@ -37,7 +37,9 @@ or ingestion; the full detail lives in `CLAUDE.md` ("Data And Ingestion").
    `docs.unity3d.com/Packages/<pkg>@<minor>` and records aligned versions in
    `package_unified_versions`. Only surfaced when the docs version is **strictly
    newer** than the registry latest (so AR Foundation, already 6.x on the
-   registry, isn't mislabeled). Today: entities, entities.graphics, collections.
+   registry, isn't mislabeled). The set is detected automatically and grows
+   over time (seven packages as of 2026-07) — check /packages for the current
+   list instead of trusting a hand-written enumeration.
 
 ## Key invariants (don't regress these)
 

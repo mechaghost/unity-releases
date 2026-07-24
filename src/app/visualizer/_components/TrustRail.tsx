@@ -7,7 +7,9 @@ import type { IngestionFreshness } from "@/lib/db/repositories";
  */
 export function TrustRail({ freshness }: { freshness: IngestionFreshness[] }) {
   const editor = freshness.find((f) => f.sourceType === "editor_release");
-  const packages = freshness.find((f) => f.sourceType === "package_version");
+  // "package_registry" is the ingestion source key (see poll-packages.ts) -
+  // the old "package_version" lookup never matched and rendered "never".
+  const packages = freshness.find((f) => f.sourceType === "package_registry");
 
   return (
     <footer className="viz-trust-rail">
@@ -17,8 +19,9 @@ export function TrustRail({ freshness }: { freshness: IngestionFreshness[] }) {
           Editor releases ingested {formatLastSuccess(editor)} · package versions ingested {formatLastSuccess(packages)}.
         </li>
         <li>
-          Net-fix = <code>fixes − known_issues</code> per release. No
-          weighting, no synthetic 0–100 scores.
+          Net-fix (the heat strip) = <code>fixes − known_issues</code> per
+          release — a raw difference, no weighting. The 0–100 build score
+          shown elsewhere is a separate, documented formula.
         </li>
         <li>
           Issue lifespan = first <code>Known Issues</code> mention →

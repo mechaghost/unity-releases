@@ -205,9 +205,10 @@ and when the changelog's newest version matches the probed minor (which rules
 out docs that redirect to a package's own latest) records the highest match in
 `package_unified_versions`. `/packages`
 shows "Unity 6.4 ships as 6.4.0 (version-aligned)" only when that differs from
-the registry latest. Today's set is `entities`, `entities.graphics`,
-`collections`; it's self-maintaining (a row clears when a package stops being
-aligned).
+the registry latest. The set is self-maintaining (a row clears when a package
+stops being aligned) and has grown from the original three (entities,
+entities.graphics, collections) to seven as of 2026-07 — check /packages for
+the current list rather than trusting any hand-written enumeration.
 
 Some ids also moved off the registry entirely and must use the right name or
 be dropped: built-in modules `com.unity.2d.sprite` / `com.unity.2d.tilemap`
@@ -230,9 +231,14 @@ Primary navigation (sidebar on desktop, drawer on mobile):
 - `/resources` - Unity 6 ebooks/videos/webinars/podcasts/articles, marketing+enterprise filtered out by default
 - `/stats` - tracked-artifact counts, ingestion freshness, and traffic (self-hosted analytics, no third-party services)
 - `/faq` - source list + not-affiliated-with-Unity disclaimer
-- `/explorer` - global release-note workbench (faceted search)
-- `/upgrade` - upgrade review lanes
+- `/explorer` - global release-note workbench (faceted search; robots-disallowed)
+- `/upgrade` - redirect to `/compare` (kept for old links; not its own page)
+- `/issues` - issue explorer: status/longest-open/most-mentioned cuts of every UUM-id
 - `/issues/[issueId]` - every release-note that mentions a UUM-xxxxx
+- `/visualizer` - charts over the corpus (net-fix heat strip, lifespans, domains)
+- `/timeline` - Activity Feed: chronological ingested events + ingestion runs
+- `/discussions` - Unity staff posts mirrored from discussions.unity.com
+- `/github` - activity across Unity's public GitHub org
 
 Do not put `/api/health` back in primary navigation.
 
@@ -277,7 +283,7 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 527 tests across 54 files
+`npm test` runs the full Vitest suite — 535 tests across 55 files
 covering parsers, classification, search SQL, lane logic, ingestion
 normalization, package-version reconciliation (editor "Package changes"
 → `editor_package_versions`, the docs-probe unified-versioning parser,

@@ -34,6 +34,39 @@ describe("release note formatting", () => {
     ).toBe("Editor freezes when opening project");
   });
 
+  test("unescapes the full markdown-escapable set, not just parens", () => {
+    // All three shapes were rendering literally on production pages.
+    expect(cleanReleaseNoteText("Assert gPersistentManager \\!= NULL on exit")).toBe(
+      "Assert gPersistentManager != NULL on exit"
+    );
+    expect(cleanReleaseNoteText("\\[WebGPU\\] Fixed a crash when resizing the swapchain")).toBe(
+      "[WebGPU] Fixed a crash when resizing the swapchain"
+    );
+    expect(cleanReleaseNoteText("Crash in demangling\\_unexpected\\_handler")).toBe(
+      "Crash in demangling_unexpected_handler"
+    );
+  });
+
+  test("keeps escaped emphasis literal instead of stripping it as markdown", () => {
+    // Unescaping must run AFTER the emphasis strip - `\*ptr\*` means a
+    // literal asterisk, not italics to remove.
+    expect(cleanReleaseNoteText("Dereferencing \\*ptr\\* crashes il2cpp")).toBe(
+      "Dereferencing *ptr* crashes il2cpp"
+    );
+  });
+
+  test("decodes HTML entities, including the double-encoded arrow", () => {
+    expect(cleanReleaseNoteText("Project Settings -&gt; Physics resets values")).toBe(
+      "Project Settings -> Physics resets values"
+    );
+    expect(cleanReleaseNoteText("Project Settings -&amp;gt; Physics resets values")).toBe(
+      "Project Settings -> Physics resets values"
+    );
+    expect(cleanReleaseNoteText("Templates use &quot;2D Mobile&quot; &amp; &#39;3D&#39;")).toBe(
+      "Templates use \"2D Mobile\" & '3D'"
+    );
+  });
+
   test("normalizes issue tracker links into compact UUM links", () => {
     expect(
       normalizeIssueLinks(

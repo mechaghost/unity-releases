@@ -15,17 +15,35 @@ const TRAILING_ISSUE_IDS_RE = /\s*\(\s*UUM-\d+(?:\s*,\s*UUM-\d+)*\s*\)\s*$/i;
 const UNITY_VERSION_INLINE_RE = /(?<!\d)(\d+\.\d+\.\d+[abfp]\d+)(?!\d)/g;
 
 export function cleanReleaseNoteText(body: string): string {
-  return body
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\\([()])/g, "$1")
-    .replace(/^:\s*/, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(TRAILING_ISSUE_IDS_RE, "")
-    .trim();
+  return (
+    body
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+      // Emphasis strip skips backslash-escaped asterisks: `\*ptr\*` is a
+      // literal asterisk pair, restored by the unescape pass below - the
+      // naive form ate the `*`s here before unescaping could see them.
+      .replace(/(?<!\\)\*([^*]+)(?<!\\)\*/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      // HTML entities survive scraping (sometimes double-encoded:
+      // `-&amp;gt;`). `&amp;` first so a double-encoded entity collapses in
+      // one pass; React re-escapes on render, so decoding is safe.
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&(?:#39|apos);/g, "'")
+      .replace(/&nbsp;/g, " ")
+      // Unescape the full markdown-escapable set (`\[WebGPU\]`, `\!=`,
+      // `demangling\_unexpected\_handler`, …) - AFTER the markdown strips
+      // above, so `\*literal\*` isn't first unescaped into emphasis and
+      // then stripped.
+      .replace(/\\([\\`*_{}[\]()#+\-.!|<>~])/g, "$1")
+      .replace(/^:\s*/, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(TRAILING_ISSUE_IDS_RE, "")
+      .trim()
+  );
 }
 
 export type ReleaseNoteToken =

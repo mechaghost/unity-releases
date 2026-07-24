@@ -83,7 +83,7 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
         <p>
           Showing <strong>{filtered.length.toLocaleString()}</strong> of{" "}
           <strong>{allPackages.length.toLocaleString()}</strong> official Unity packages.
-          Search, filter, and click column names to sort.
+          Search and filter; on desktop, click column headers to sort.
         </p>
       </section>
 

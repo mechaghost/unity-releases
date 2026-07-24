@@ -89,8 +89,8 @@ export default async function StatsPage() {
         <p>
           Live counts of every artifact this site tracks, ingestion freshness
           per data source, and recent site traffic. Updates roughly every
-          5 minutes (page-level revalidate); the raw rows live in your
-          Postgres so the data is always yours.
+          5 minutes. Analytics are self-hosted in our own database — no
+          third-party trackers, no cookies, no IPs stored.
         </p>
       </section>
 

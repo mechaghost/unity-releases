@@ -120,8 +120,8 @@ Optional query parameters:
 Response: \`text/markdown; charset=utf-8\`. The body is bucketed into
 lanes (Active known blockers, Breaking changes, Other known issues,
 Security & install impact, Package updates, API changes, Fixes,
-Improvements, Features, Other changes), with issue-tracker links and
-status suffixes (\`open\`, \`fixed in 6000.x.y\`) on every issue ID. Each
+Improvements, New features, Other changes), with issue-tracker links and
+status suffixes (\`open 6000.x.y\`, \`fixed 6000.x.y\`) on every issue ID. Each
 per-release bullet carries the release date inline, e.g.
 \`- **6000.0.74f1** (2026-04-29) Fixed editor crash on launch\`, so
 chronology is available without a second lookup.
@@ -145,8 +145,23 @@ filtering UI.
 - [Packages](${origin}/packages) - latest versions of tracked official
   Unity packages (Input System, Addressables, URP, HDRP, Cinemachine,
   Burst, etc.) with release histories.
+- [Issue Explorer](${origin}/issues) - open/known issues ranked by
+  mention count; each issue links to a per-issue page
+  (\`/issues/<UUM-id>\`) listing every release note that mentioned it.
+- [Activity Feed](${origin}/timeline) - chronological feed of ingested
+  releases, package versions, news, and ingestion runs.
+- [Release Visualizer](${origin}/visualizer) - charts over the release
+  corpus: net-fix heat strip, issue lifespans, domain trends.
+- [Staff Discussions](${origin}/discussions) - Unity staff posts
+  mirrored from discussions.unity.com.
+- [Unity GitHub](${origin}/github) - activity across Unity's public
+  GitHub repos.
 - [News](${origin}/news) - mirror of the official Unity blog. Secondary
   to release intelligence; included for completeness.
+- [Resources](${origin}/resources) - official Unity 6 ebooks, videos,
+  webinars, and articles.
+- [Site Stats](${origin}/stats) - live artifact counts and per-source
+  ingestion freshness.
 - [FAQ](${origin}/faq) - explanations of the impact lanes, risk levels,
   data sources, refresh cadence, and filter semantics.
 
