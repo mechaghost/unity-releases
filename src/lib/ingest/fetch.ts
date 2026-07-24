@@ -14,7 +14,16 @@ export type FetchedSource = {
 
 export async function fetchText(
   url: string,
-  opts?: { userAgent?: string }
+  opts?: {
+    userAgent?: string;
+    /**
+     * Abort the request (throwing TimeoutError) after this many ms. Opt-in:
+     * only callers that hold scarce resources while waiting - e.g. the
+     * poll-editor stream lookup inside an open ingestion transaction -
+     * should bound the wait; plain polls keep undici's defaults.
+     */
+    timeoutMs?: number;
+  }
 ): Promise<FetchedSource> {
   const response = await fetch(url, {
     headers: {
@@ -24,7 +33,8 @@ export async function fetchText(
       "user-agent": opts?.userAgent ?? process.env.INGESTION_USER_AGENT ?? DEFAULT_USER_AGENT,
       accept: "text/html,application/rss+xml,application/xml,text/xml,application/json,text/plain,*/*"
     },
-    redirect: "follow"
+    redirect: "follow",
+    signal: opts?.timeoutMs !== undefined ? AbortSignal.timeout(opts.timeoutMs) : undefined
   });
   const text = await response.text();
 

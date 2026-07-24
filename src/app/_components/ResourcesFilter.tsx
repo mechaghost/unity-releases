@@ -135,7 +135,7 @@ export function ResourcesFilter({
         <span>Enterprise</span>
       </label>
 
-      <button type="submit" className="visually-hidden">
+      <button type="submit" className="visually-hidden-focusable">
         Apply resource filters
       </button>
     </form>

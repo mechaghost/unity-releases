@@ -14,6 +14,7 @@ vi.mock("../../src/lib/db/client", () => ({
 import {
   diffRangeCounts,
   getIssueStatuses,
+  getTrackedVersionLines,
   listReleaseSummaries,
   packageVersionsAtBoundary,
   resolveDiffRange,
@@ -64,6 +65,52 @@ describe("listReleaseSummaries", () => {
     expect(sql).not.toContain("SELECT *");
     expect(sql).not.toContain("LIMIT");
     expect(params ?? []).toEqual([]);
+  });
+
+  test("tie-breaks same-day releases numerically, not as text", async () => {
+    // A text `version DESC` puts "6000.9.x" above "6000.10.x", misordering
+    // the canonical navigation order once a double-digit minor ships. The
+    // ORDER BY must compare the numeric major.minor.patch, bounded so a
+    // malformed component can't overflow the int cast.
+    mocks.query.mockResolvedValueOnce(rows());
+    await listReleaseSummaries();
+
+    const [sql] = mocks.query.mock.calls[0];
+    expect(sql).toContain("regexp_match(version, '^(\\d{1,9})\\.(\\d{1,9})\\.(\\d{1,9})')");
+    expect(sql).toContain("::int DESC NULLS LAST");
+    expect(sql).not.toMatch(/ORDER BY release_date DESC NULLS LAST,\s*version DESC/);
+  });
+});
+
+// ─── getTrackedVersionLines ─────────────────────────────────────
+
+describe("getTrackedVersionLines", () => {
+  test("picks a deterministic per-line representative (numeric version tie-break)", async () => {
+    // Two same-day finals on one line must not make `latest_version` an
+    // arbitrary pick - /faq and /llms.txt render it as the line's "latest".
+    mocks.query.mockResolvedValueOnce(
+      rows({ minor_line: "6000.3", latest_version: "6000.3.15f1", stream: "LTS", release_count: "42" })
+    );
+
+    const lines = await getTrackedVersionLines();
+    expect(lines).toEqual([
+      { minorLine: "6000.3", latestVersion: "6000.3.15f1", stream: "LTS", releaseCount: 42 }
+    ]);
+
+    const [sql] = mocks.query.mock.calls[0];
+    // Both aggregates need the tie-break, after their stable-build preference
+    // and date ordering.
+    const [versionAggregate, rest] = sql.split("AS latest_version");
+    const streamAggregate = rest.split("AS stream")[0];
+    for (const aggregate of [versionAggregate, streamAggregate]) {
+      expect(aggregate).toContain("release_date DESC NULLS LAST");
+      expect(aggregate).toContain("regexp_match(version, '^(\\d{1,9})\\.(\\d{1,9})\\.(\\d{1,9})')");
+    }
+    // latest_version = newest stable build of either channel; stream = f-first,
+    // so a newer p hotfix can't relabel an LTS line's stream to "patch".
+    expect(versionAggregate).toContain("suffix_channel IN ('f', 'p')");
+    expect(streamAggregate).toContain("(suffix_channel = 'f') DESC");
+    expect(streamAggregate).toContain("(suffix_channel = 'p') DESC");
   });
 });
 

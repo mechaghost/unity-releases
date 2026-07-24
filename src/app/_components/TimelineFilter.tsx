@@ -85,7 +85,7 @@ export function TimelineFilter({ q: initialQ, filter }: Props) {
         );
       })}
 
-      <button type="submit" className="visually-hidden">
+      <button type="submit" className="visually-hidden-focusable">
         Apply filters
       </button>
     </form>

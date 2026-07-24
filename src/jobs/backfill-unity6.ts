@@ -75,9 +75,10 @@ async function ingestRelease(release: ApiRelease, stream: string): Promise<"crea
     return "skipped";
   }
 
-  // The endpoint stream is authoritative even if Unity ever omits or renames
-  // the per-result field. Normalize the object once so both the skip decision
-  // and metadata extraction see the same recognized value.
+  // The per-result stream wins when it's recognized; the endpoint's stream
+  // param is the fallback that fills the gap if Unity ever omits or renames
+  // the field. Normalize the object once so both the skip decision and
+  // metadata extraction see the same recognized value.
   const apiRelease =
     typeof release.stream === "string" && apiStreamToUnityStream(release.stream)
       ? release

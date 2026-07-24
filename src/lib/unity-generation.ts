@@ -60,13 +60,18 @@ export function marketingMinorOfEditor(editorVersion: string | null | undefined)
  * `CASE` is used rather than a bare `AND` guard because Postgres does not
  * promise evaluation order for `AND`, so an unguarded `::int` cast could
  * abort the whole query on one malformed `version`. `CASE` short-circuits.
+ * The bounded `{1,9}` quantifier closes the second abort path: a major
+ * above int range (a garbage row like "99999999999.0.0f1" passes the
+ * ingest parser's unbounded `^(\d+)\.`) would make the cast itself raise
+ * 22003. Nine digits can't overflow, and anything longer is not a Unity
+ * version - it lands in ELSE 0 like any other malformed value.
  *
  * `versionColumn` is interpolated directly - callers must pass a trusted
  * column reference (a literal in our source), never user input.
  */
 export function modernMajorSql(versionColumn: string): string {
   return (
-    `(CASE WHEN ${versionColumn} ~ '^[0-9]+\\.'` +
+    `(CASE WHEN ${versionColumn} ~ '^[0-9]{1,9}\\.'` +
     ` THEN split_part(${versionColumn}, '.', 1)::int ELSE 0 END) >= ${MODERN_MIN_MAJOR}`
   );
 }

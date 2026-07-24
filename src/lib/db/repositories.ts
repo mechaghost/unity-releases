@@ -640,12 +640,31 @@ export async function listFeedEventsByType(eventType: string, limit = 30): Promi
 }
 
 
+/**
+ * ORDER BY fragment sorting a version column newest-first by its numeric
+ * major.minor.patch - a bare text `version DESC` puts "6000.9.x" above
+ * "6000.10.x", which misorders same-day releases once a double-digit minor
+ * exists. The trailing text compare settles the suffix ("f2" after "f1").
+ *
+ * `column` must be a source-literal column reference, never user input.
+ * The bounded {1,9} quantifier keeps a malformed huge component from
+ * overflowing the int cast and aborting the query; a version that doesn't
+ * match the numeric shape at all sorts last.
+ */
+function numericVersionDesc(column: string): string {
+  const parts = `regexp_match(${column}, '^(\\d{1,9})\\.(\\d{1,9})\\.(\\d{1,9})')`;
+  return [1, 2, 3]
+    .map((i) => `(${parts})[${i}]::int DESC NULLS LAST`)
+    .concat(`${column} DESC`)
+    .join(", ");
+}
+
 export async function listReleases(limit = 50) {
   const result = await query(
     `
       SELECT *
       FROM unity_releases
-      ORDER BY release_date DESC NULLS LAST, version DESC
+      ORDER BY release_date DESC NULLS LAST, ${numericVersionDesc("version")}
       LIMIT $1
     `,
     [limit]
@@ -673,7 +692,7 @@ export async function listReleaseSummaries(): Promise<ReleaseSummaryRow[]> {
     `
       SELECT version, stream, release_date, release_page_url
       FROM unity_releases
-      ORDER BY release_date DESC NULLS LAST, version DESC
+      ORDER BY release_date DESC NULLS LAST, ${numericVersionDesc("version")}
     `
   );
   return result.rows;
@@ -714,9 +733,14 @@ export type TrackedVersionLineRow = {
  * that answer reflects the database instead of a hand-written list that goes
  * stale the moment Unity announces a line (it already had, omitting 6000.7).
  *
- * The per-line representative prefers a final/patch build over a beta/alpha:
- * a line's stable releases are what define it as LTS or Supported, and an
- * in-flight beta on a not-yet-shipped line shouldn't relabel it.
+ * The two representatives deliberately use different orderings:
+ * - `latest_version` prefers any stable build (f or p) by date - the newest
+ *   shipped build is the line's "latest", even when it's a p hotfix.
+ * - `stream` prefers f builds outright: only f builds carry the line's
+ *   LTS-vs-Supported identity, so a newer p hotfix must not relabel an LTS
+ *   line's stream to "patch" (which would drop it from the LTS bucket).
+ * Both fall back to beta/alpha so an in-flight, not-yet-shipped line still
+ * reports what it is.
  */
 export async function getTrackedVersionLines(): Promise<TrackedVersionLineRow[]> {
   const result = await query<{
@@ -729,9 +753,12 @@ export async function getTrackedVersionLines(): Promise<TrackedVersionLineRow[]>
       SELECT
         minor_line,
         (ARRAY_AGG(version ORDER BY (suffix_channel IN ('f', 'p')) DESC,
-                                    release_date DESC NULLS LAST))[1] AS latest_version,
-        (ARRAY_AGG(stream  ORDER BY (suffix_channel IN ('f', 'p')) DESC,
-                                    release_date DESC NULLS LAST))[1] AS stream,
+                                    release_date DESC NULLS LAST,
+                                    ${numericVersionDesc("version")}))[1] AS latest_version,
+        (ARRAY_AGG(stream  ORDER BY (suffix_channel = 'f') DESC,
+                                    (suffix_channel = 'p') DESC,
+                                    release_date DESC NULLS LAST,
+                                    ${numericVersionDesc("version")}))[1] AS stream,
         COUNT(*)::int AS release_count
       FROM unity_releases
       GROUP BY minor_line

@@ -77,7 +77,7 @@ export function CompareStreamFilter({ selected }: Props) {
       {preserved.map(([key, value], i) => (
         <input key={`${key}-${i}`} type="hidden" name={key} value={value} />
       ))}
-      <button type="submit" className="visually-hidden">
+      <button type="submit" className="visually-hidden-focusable">
         Apply stream scope
       </button>
     </form>

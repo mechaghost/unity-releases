@@ -277,7 +277,7 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 439 tests across 48 files
+`npm test` runs the full Vitest suite — 527 tests across 54 files
 covering parsers, classification, search SQL, lane logic, ingestion
 normalization, package-version reconciliation (editor "Package changes"
 → `editor_package_versions`, the docs-probe unified-versioning parser,

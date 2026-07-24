@@ -105,31 +105,30 @@ function ltsFilterValues(
  * Default selection: every modern-generation LTS line, matching the previous
  * hardcoded default of 6000.3 + 6000.0. Legacy lines stay off until ticked.
  *
- * Falls back to the stream chips if no modern LTS line is indexed yet, so a
- * fresh install (or a legacy-only DB) doesn't render an empty page with no way
- * to select anything.
+ * In a legacy-only DB the legacy LTS chips are the default instead - the
+ * stream chips (`update/beta/alpha`) match nothing there, so falling straight
+ * to them rendered "No releases match this filter" while releases existed.
+ * Only when there are no LTS chips at all (a fresh install mid-seed that has
+ * only prerelease rows) do the stream chips become the fallback.
  */
 export function defaultReleaseFilters(
   available: readonly ReleaseFilterOption[]
 ): ReleaseFilterValue[] {
   const modernLts = ltsFilterValues(available, true);
-  return modernLts.length > 0 ? modernLts : STREAM_FILTERS.map((f) => f.value);
+  if (modernLts.length > 0) return modernLts;
+  const anyLts = ltsFilterValues(available, false);
+  if (anyLts.length > 0) return anyLts;
+  return STREAM_FILTERS.map((f) => f.value);
 }
 
 /**
- * What `?stream=lts` resolves to: the LTS chips, never the stream-chip fallback.
- *
- * Historically `lts` meant "the default (modern) LTS lines". It cannot alias to
- * `defaultReleaseFilters` directly, because in a legacy-only DB that function
- * falls back to `update/beta/alpha` - so `?stream=lts` would have selected the
- * exact opposite of LTS. Prefer modern LTS lines, fall back to any LTS line,
- * and only if there are genuinely no LTS chips defer to the default selection.
+ * What `?stream=lts` resolves to. Behaviorally identical to the default
+ * selection today (modern LTS lines, then any LTS line, then the stream
+ * chips), but kept as its own name: the alias's contract is "lts means the
+ * LTS chips", the default's is "what a bare /releases shows", and the two
+ * are allowed to diverge again.
  */
 function ltsAliasFilters(available: readonly ReleaseFilterOption[]): ReleaseFilterValue[] {
-  const modern = ltsFilterValues(available, true);
-  if (modern.length > 0) return modern;
-  const all = ltsFilterValues(available, false);
-  if (all.length > 0) return all;
   return defaultReleaseFilters(available);
 }
 

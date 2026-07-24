@@ -97,4 +97,16 @@ describe("describeGeneration", () => {
 
     expect(describeGeneration(generation)).toBe("6000.0 (LTS) · 6000.7, 6000.6 (pre-release)");
   });
+
+  test("a 'patch' representative is stable, not pre-release", () => {
+    // p builds are shipped hotfixes of a stable line. A line surfacing one
+    // must land in the Supported bucket - "pre-release" would be factually
+    // wrong about shippability.
+    const [generation] = groupTrackedLines([
+      row("6000.4", "patch", "6000.4.2p1"),
+      row("6000.0", "LTS")
+    ]);
+
+    expect(describeGeneration(generation)).toBe("6000.0 (LTS) · 6000.4 (Supported)");
+  });
 });

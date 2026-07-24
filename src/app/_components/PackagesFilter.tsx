@@ -140,7 +140,7 @@ export function PackagesFilter({ q: initialQ, scope, channel, sort, manifestPack
         </select>
       </label>
 
-      <button type="submit" className="visually-hidden">
+      <button type="submit" className="visually-hidden-focusable">
         Apply package filters
       </button>
     </form>

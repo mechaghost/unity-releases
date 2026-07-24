@@ -32,24 +32,36 @@ async function fetchStream(stream: string): Promise<ApiRelease[]> {
   return body.results ?? [];
 }
 
+/**
+ * Backfill enumerates history through these exact enum values as `?stream=`
+ * query params (src/jobs/backfill-unity6.ts). If Unity renamed one and
+ * answered 200-with-empty instead of 400, that stream's walk would silently
+ * stop forever - so every value answering non-empty is part of the contract,
+ * not just the field's presence on LTS results.
+ */
+const STREAM_PARAMS = ["LTS", "SUPPORTED", "BETA", "ALPHA"] as const;
+
 describe.skipIf(!ENABLED)("Unity release API contract", () => {
   test(
-    "every release carries a stream we understand",
+    "every stream backfill walks answers, and every release carries a stream we understand",
     async () => {
-      const results = await fetchStream("LTS");
-      expect(results.length).toBeGreaterThan(0);
+      for (const stream of STREAM_PARAMS) {
+        const results = await fetchStream(stream);
+        expect(results.length, `?stream=${stream} returned no releases`).toBeGreaterThan(0);
 
-      for (const release of results) {
-        expect(typeof release.stream, `missing stream on ${String(release.version)}`).toBe(
-          "string"
-        );
-        expect(
-          apiStreamToUnityStream(release.stream as string),
-          `unmapped stream "${String(release.stream)}"`
-        ).not.toBeNull();
+        for (const release of results) {
+          expect(
+            typeof release.stream,
+            `missing stream on ${String(release.version)} (?stream=${stream})`
+          ).toBe("string");
+          expect(
+            apiStreamToUnityStream(release.stream as string),
+            `unmapped stream "${String(release.stream)}" (?stream=${stream})`
+          ).not.toBeNull();
+        }
       }
     },
-    TIMEOUT_MS
+    TIMEOUT_MS * STREAM_PARAMS.length
   );
 
   test(

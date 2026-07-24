@@ -1,7 +1,7 @@
 ---
 name: unity-package-versioning
 description: >-
-  Understand how unity-releases models modern Unity package versions before
+  Understand how unity-releases models Unity 6 package versions before
   changing /packages, the package dialog, or package ingestion.
 ---
 

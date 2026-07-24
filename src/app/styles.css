@@ -233,6 +233,35 @@ input, select, textarea {
   border: 0;
 }
 
+/*
+ * Same clipping, but only while unfocused - for the filter bars' hidden
+ * submit buttons (their no-JS path). Those are real, tabbable controls, and
+ * a control must stay visible while it holds keyboard focus (WCAG 2.4.7);
+ * plain .visually-hidden left the user tabbed onto nothing.
+ */
+.visually-hidden-focusable:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.visually-hidden-focusable:focus {
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: 0;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
 /* Skip-to-main link, hidden until keyboard-focused. */
 .skip-link {
   position: absolute;

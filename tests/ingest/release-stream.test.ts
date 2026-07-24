@@ -65,6 +65,19 @@ describe("resolveIngestStream", () => {
       resolveIngestStream({ version: "7000.0.0f1", apiStream: "TECH", storedStream: null })
     ).toEqual({ stream: "Update/Supported", source: "parsed" });
   });
+
+  test("a prerelease API stream on a final build is a failure, not an answer", () => {
+    // resolveStream discards BETA/ALPHA for an f build as inconsistent, so the
+    // parse falls back to the curated-map guess. That guess must go through the
+    // same retention path as any other API failure - not overwrite a stored
+    // LTS labelled as if Unity said so.
+    expect(
+      resolveIngestStream({ version: "7000.0.0f1", apiStream: "BETA", storedStream: "LTS" })
+    ).toEqual({ stream: "LTS", source: "retained" });
+    expect(
+      resolveIngestStream({ version: "7000.0.0f1", apiStream: "BETA", storedStream: null })
+    ).toEqual({ stream: "Update/Supported", source: "parsed" });
+  });
 });
 
 describe("storedReleaseCanBeSkipped", () => {
@@ -108,6 +121,20 @@ describe("storedReleaseCanBeSkipped", () => {
       storedReleaseCanBeSkipped({
         version: "7000.0.0f1",
         apiStream: "TECH",
+        storedStream: "LTS",
+        storedParserVersion: currentParserVersion,
+        currentParserVersion
+      })
+    ).toBe(true);
+  });
+
+  test("does not churn on a prerelease API stream for a final build", () => {
+    // The parse ignores BETA for an f build, so "repairing" the row would just
+    // re-store the fallback guess on every cron run. Skip instead.
+    expect(
+      storedReleaseCanBeSkipped({
+        version: "7000.0.0f1",
+        apiStream: "BETA",
         storedStream: "LTS",
         storedParserVersion: currentParserVersion,
         currentParserVersion

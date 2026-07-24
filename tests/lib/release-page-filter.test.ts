@@ -102,6 +102,17 @@ describe("release page filters", () => {
     expect(defaultReleaseFilters(filters)).toEqual(["update", "beta", "alpha"]);
   });
 
+  test("a legacy-only DB defaults to its LTS chips, not an empty stream view", () => {
+    // The stream chips match nothing in a DB of legacy `LTS` rows, so the old
+    // fallback rendered "No releases match this filter" while releases existed
+    // and their chips sat unticked.
+    const legacyOnly = buildReleaseFilters([
+      { version: "2022.3.61f1", stream: "LTS" },
+      { version: "2019.4.40f1", stream: "LTS" }
+    ]);
+    expect(defaultReleaseFilters(legacyOnly)).toEqual(["2022.3-lts", "2019.4-lts"]);
+  });
+
   test("maps the legacy combined LTS query to the split LTS filters", () => {
     expect(parseSelectedReleaseFilters("lts", FILTERS)).toEqual(["6000.3-lts", "6000.0-lts"]);
   });

@@ -29,7 +29,11 @@ type VersionLookupResponse = {
 export async function fetchApiStream(version: string): Promise<string | null> {
   try {
     const url = `${RELEASE_API_BASE}?version=${encodeURIComponent(version)}`;
-    const fetched = await fetchText(url);
+    // Bounded: this lookup runs inside poll-editor's open ingestion
+    // transaction, so a stalled API must fail fast into the null path (and
+    // the stored-stream retention) rather than hold the transaction open
+    // for undici's ~300s default.
+    const fetched = await fetchText(url, { timeoutMs: 15_000 });
     if (fetched.status !== 200) {
       return null;
     }
@@ -66,17 +70,25 @@ export type ResolvedStream = {
  * So on API failure we KEEP the stored value for a final build rather than
  * downgrade it. Alpha/beta/patch are channel-derived and always correct, so they
  * always take the parsed value.
+ *
+ * "API failure" includes a recognized-but-inconsistent answer: a prerelease
+ * stream reported for a final build is discarded by the parser (same class of
+ * data hiccup as the page payload's "TECH"), so what the parse returns in that
+ * case is the offline map's guess, not Unity's answer - it must not be stored
+ * as `source: "api"` over a previously-correct value.
  */
 export function resolveIngestStream(opts: {
   version: string;
   apiStream: string | null;
   storedStream: string | null;
 }): ResolvedStream {
-  if (apiStreamToUnityStream(opts.apiStream)) {
-    return {
-      stream: parseUnityVersion(opts.version, { apiStream: opts.apiStream }).stream,
-      source: "api"
-    };
+  const mapped = apiStreamToUnityStream(opts.apiStream);
+  if (mapped) {
+    const stream = parseUnityVersion(opts.version, { apiStream: opts.apiStream }).stream;
+    // Authoritative only when the parse actually consumed the API value.
+    if (stream === mapped) {
+      return { stream, source: "api" };
+    }
   }
   const parsed = parseUnityVersion(opts.version).stream;
   const isFinalBuild = parsed === "LTS" || parsed === "Update/Supported";
@@ -105,7 +117,8 @@ export function storedReleaseCanBeSkipped(opts: {
 }): boolean {
   if (opts.storedParserVersion !== opts.currentParserVersion) return false;
 
-  if (!apiStreamToUnityStream(opts.apiStream)) {
+  const mapped = apiStreamToUnityStream(opts.apiStream);
+  if (!mapped) {
     // The API cannot improve this row right now. Keep the current-parser data
     // instead of replaying it with another fallback guess.
     return true;
@@ -114,5 +127,11 @@ export function storedReleaseCanBeSkipped(opts: {
   const authoritative = parseUnityVersion(opts.version, {
     apiStream: opts.apiStream
   }).stream;
+  if (authoritative !== mapped) {
+    // Recognized value the parse refused to consume (a prerelease stream on a
+    // final build). Re-ingesting would just re-store the fallback guess on
+    // every run - churn, not repair. Same treatment as an unrecognized value.
+    return true;
+  }
   return opts.storedStream === authoritative;
 }

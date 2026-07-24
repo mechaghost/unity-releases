@@ -88,7 +88,7 @@ export function GithubFilter({
       <Toggle name="notable" checked={notableOnly} label="Notable only" title="Hand-curated highlight repos" />
       <Toggle name="forks" checked={includeForks} label="Forks" title="Include forked repos" />
 
-      <button type="submit" className="visually-hidden">
+      <button type="submit" className="visually-hidden-focusable">
         Apply repository filters
       </button>
     </form>

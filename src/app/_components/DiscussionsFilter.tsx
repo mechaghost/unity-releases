@@ -158,7 +158,7 @@ export function DiscussionsFilter({
         <span>Automated posts</span>
       </label>
 
-      <button type="submit" className="visually-hidden">
+      <button type="submit" className="visually-hidden-focusable">
         Apply discussion filters
       </button>
     </form>

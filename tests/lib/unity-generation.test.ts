@@ -89,12 +89,16 @@ describe("marketingMinorOfEditor", () => {
 describe("modernMajorSql", () => {
   test("guards the ::int cast behind CASE so a malformed version can't abort the query", () => {
     const sql = modernMajorSql("r.version");
-    expect(sql).toContain("CASE WHEN r.version ~ '^[0-9]+\\.'");
+    // The {1,9} bound matters as much as the CASE: an unbounded [0-9]+ lets
+    // an over-int-range major ("99999999999.0.0f1") through to the cast,
+    // which raises 22003 and aborts the query the guard exists to protect.
+    expect(sql).toContain("CASE WHEN r.version ~ '^[0-9]{1,9}\\.'");
     expect(sql).toContain("split_part(r.version, '.', 1)::int");
     expect(sql).toContain(`>= ${MODERN_MIN_MAJOR}`);
+    expect(sql).not.toContain("[0-9]+");
     // A bare `AND`-guarded cast is what this replaces: Postgres doesn't
     // promise AND evaluation order, so the cast could still run on garbage.
-    expect(sql).not.toMatch(/~\s*'\^\[0-9\]\+\\\.'\s+AND/);
+    expect(sql).not.toMatch(/~\s*'\^\[0-9\][^']*'\s+AND/);
   });
 
   test("interpolates the caller's column reference", () => {

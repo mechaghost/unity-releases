@@ -80,23 +80,42 @@ export function groupTrackedLines(rows: readonly InputRow[]): TrackedGeneration[
     }));
 }
 
+export type GenerationBuckets = {
+  lts: TrackedLine[];
+  supported: TrackedLine[];
+  prerelease: TrackedLine[];
+};
+
 /**
- * One-line summary of a generation's lines, e.g.
- * "6000.7, 6000.0 (LTS) · 6000.5, 6000.4 (Supported) · 6000.8 (pre-release)".
+ * Split a generation's lines into the three buckets /faq and /llms.txt render.
+ * One implementation for both surfaces - the conditions were duplicated once
+ * and drifted risk with every stream-vocabulary change.
  *
  * Three buckets rather than LTS/not-LTS: a line whose only builds so far are
  * alphas or betas (6000.7 was exactly this for months) is not "Supported",
  * and telling an LLM otherwise would be a factual error about what's shippable.
+ *
+ * A "patch" representative counts as stable: p builds are shipped hotfixes of
+ * a stable line, so a line surfacing one belongs with Supported, never with
+ * the pre-release bucket.
+ */
+export function bucketGenerationLines(generation: TrackedGeneration): GenerationBuckets {
+  const isStable = (line: TrackedLine) =>
+    line.stream === "Update/Supported" || line.stream === "patch";
+  return {
+    lts: generation.lines.filter((line) => line.isLts),
+    supported: generation.lines.filter((line) => !line.isLts && isStable(line)),
+    prerelease: generation.lines.filter((line) => !line.isLts && !isStable(line))
+  };
+}
+
+/**
+ * One-line summary of a generation's lines, e.g.
+ * "6000.7, 6000.0 (LTS) · 6000.5, 6000.4 (Supported) · 6000.8 (pre-release)".
  * Buckets with no lines are omitted entirely.
  */
 export function describeGeneration(generation: TrackedGeneration): string {
-  const lts = generation.lines.filter((line) => line.isLts);
-  const supported = generation.lines.filter(
-    (line) => !line.isLts && line.stream === "Update/Supported"
-  );
-  const prerelease = generation.lines.filter(
-    (line) => !line.isLts && line.stream !== "Update/Supported"
-  );
+  const { lts, supported, prerelease } = bucketGenerationLines(generation);
 
   const parts: string[] = [];
   const join = (lines: TrackedLine[]) => lines.map((l) => l.minorLine).join(", ");

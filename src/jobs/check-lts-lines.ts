@@ -15,7 +15,9 @@
  *
  * Exit code:
  *   0 - fallback agrees with Unity
- *   1 - at least one line drifted (add/remove it in LTS_MINOR_LINES_BY_MAJOR)
+ *   1 - at least one line drifted (add/remove it in LTS_MINOR_LINES_BY_MAJOR),
+ *       or the walk couldn't see the full history (no data / truncated) so
+ *       agreement can't be concluded
  *
  * Read-only: hits the public release API and touches no database.
  */
@@ -52,13 +54,17 @@ async function fetchPage(stream: string, offset: number): Promise<ApiListRespons
  * majors are collected: the legacy year lines are a fixed, EOL set that we
  * choose to crawl deliberately, not something Unity's current API should be
  * allowed to expand.
+ *
+ * Returns true when the walk saw the stream's full listing, false when it hit
+ * the MAX_PAGES safety valve - the caller must not conclude "agrees" from a
+ * truncated walk, since a line absent from partial data can't be flagged.
  */
-async function collectLines(stream: string, into: LineStreams): Promise<void> {
+async function collectLines(stream: string, into: LineStreams): Promise<boolean> {
   let offset = 0;
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const body = await fetchPage(stream, offset);
     const results = body.results ?? [];
-    if (results.length === 0) return;
+    if (results.length === 0) return true;
 
     for (const release of results) {
       if (typeof release.version !== "string") continue;
@@ -71,23 +77,33 @@ async function collectLines(stream: string, into: LineStreams): Promise<void> {
       if (!isModernMajor(parsed.major)) continue;
       // Only final builds carry an LTS-vs-Supported distinction.
       if (parsed.suffixChannel !== "f") continue;
-      into.set(parsed.minorLine, {
-        major: parsed.major,
-        minor: parsed.minor,
-        stream
-      });
+      // A line mid-promotion can appear in both listings while Unity retags
+      // its builds. LTS wins the merge: walking ["LTS", "SUPPORTED"] in order,
+      // the first writer is the LTS pass, and the SUPPORTED pass must not
+      // overwrite it - that would suppress the "missing from fallback" alert
+      // exactly when a new LTS line appears.
+      if (stream === "LTS" || !into.has(parsed.minorLine)) {
+        into.set(parsed.minorLine, {
+          major: parsed.major,
+          minor: parsed.minor,
+          stream
+        });
+      }
     }
 
     offset += results.length;
-    if (typeof body.total === "number" && offset >= body.total) return;
+    if (typeof body.total === "number" && offset >= body.total) return true;
   }
   console.warn(`warning: stopped walking ${stream} after ${MAX_PAGES} pages`);
+  return false;
 }
 
 async function main() {
   const lines: LineStreams = new Map();
+  let truncated = false;
   for (const stream of STREAMS) {
-    await collectLines(stream, lines);
+    const complete = await collectLines(stream, lines);
+    if (!complete) truncated = true;
   }
 
   if (lines.size === 0) {
@@ -120,6 +136,13 @@ async function main() {
   console.log(`Checked ${lines.size} modern minor line(s) across ${STREAMS.join(" + ")}.`);
 
   if (missing.length === 0 && stale.length === 0) {
+    if (truncated) {
+      console.log(
+        "No drift in the pages walked, but the walk was truncated - can't conclude agreement."
+      );
+      process.exitCode = 1;
+      return;
+    }
     console.log("LTS_MINOR_LINES_BY_MAJOR agrees with Unity's release API.");
     return;
   }

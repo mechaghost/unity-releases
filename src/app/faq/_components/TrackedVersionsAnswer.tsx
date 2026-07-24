@@ -14,7 +14,11 @@
  */
 
 import { getTrackedVersionLines } from "@/lib/db/repositories";
-import { groupTrackedLines, type TrackedGeneration } from "@/lib/tracked-versions";
+import {
+  bucketGenerationLines,
+  groupTrackedLines,
+  type TrackedGeneration
+} from "@/lib/tracked-versions";
 
 async function safeTrackedGenerations(): Promise<TrackedGeneration[]> {
   try {
@@ -68,13 +72,7 @@ export async function TrackedVersionsAnswer() {
       </p>
 
       {modern.map((generation) => {
-        const lts = generation.lines.filter((line) => line.isLts);
-        const supported = generation.lines.filter(
-          (line) => !line.isLts && line.stream === "Update/Supported"
-        );
-        const prerelease = generation.lines.filter(
-          (line) => !line.isLts && line.stream !== "Update/Supported"
-        );
+        const { lts, supported, prerelease } = bucketGenerationLines(generation);
         return (
           <p key={generation.major}>
             <strong>{generation.label}</strong>

@@ -60,7 +60,7 @@ export function ReleaseStreamChips({
         );
       })}
       <AutoSubmitOnChange />
-      <button type="submit" className="visually-hidden">
+      <button type="submit" className="visually-hidden-focusable">
         Apply stream filters
       </button>
     </form>
