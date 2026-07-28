@@ -33,7 +33,7 @@ const PRODUCT_RULES: Array<[RegExp, Omit<UgsProduct, "componentKey">]> = [
   [/leaderboards/i, product("unity-leaderboards", "Unity Leaderboards", "Cross-platform player leaderboards.")],
   [/\blobby\b/i, product("unity-lobby", "Unity Lobby", "Player grouping and lobby discovery.")],
   [/matchmaker/i, product("unity-matchmaker", "Unity Matchmaker", "Rule-based multiplayer matchmaking.")],
-  [/multiplay|game server hosting/i, product("unity-multiplay", "Unity Multiplay", "Managed game server hosting.")],
+  [/\bmultiplay\b|game server hosting/i, product("unity-multiplay", "Unity Multiplay", "Managed game server hosting.")],
   [/multiplayer/i, product("unity-multiplayer", "Unity Multiplayer", "Multiplayer services and development SDKs.")],
   [/moderation|safe voice|safe text/i, product("unity-moderation", "Unity Moderation", "Player safety, voice, and text moderation.")],
   [/push notifications/i, product("unity-push-notifications", "Unity Push Notifications", "Player push-notification delivery.")],
@@ -52,7 +52,7 @@ export const ugsAdapter: ProductUpdateAdapter = {
     sourceKey: "ugs",
     displayName: "Unity Gaming Services release notes",
     family: "platform-services",
-    parserVersion: "ugs-html-v1",
+    parserVersion: "ugs-html-v2",
     displayPriority: 50,
     cadenceHours: 24,
     timeoutMs: 45_000,
@@ -93,12 +93,15 @@ export function parseUgsReleaseNotes(
     }
     const parsed = parseUgsHeading(title);
     const mapped = mapUgsProduct(parsed.productName);
+    // IAP is already canonical in the package registry. Emitting it here
+    // would create a second product-owned release history.
+    if (mapped.key === "unity-iap") return;
     const items = extractUnityDocsItems($, $(heading).nextUntil("h2,h3"), "Updates");
     const canonicalKey = parsed.version
       ? `version:${parsed.version.toLowerCase()}`
       : `month:${month.key}:${productUpdateSlug(title)}`;
     const updateSlug = parsed.version
-      ? parsed.version.toLowerCase()
+      ? versionUpdateSlug(mapped, parsed.version)
       : `${month.key}-${productUpdateSlug(title)}`.slice(0, 160);
     const sourceKey = parsed.version
       ? `${month.key}:${mapped.key}:${mapped.componentKey}:${parsed.version.toLowerCase()}:${productUpdateSlug(parsed.productName)}`
@@ -148,7 +151,7 @@ function mapUgsProduct(value: string): UgsProduct {
     if (pattern.test(normalized)) {
       return {
         ...mapped,
-        componentKey: mapped.key === "vivox-unity" ? "unity" : "main"
+        componentKey: mappedComponentKey(mapped.key, normalized)
       };
     }
   }
@@ -159,6 +162,28 @@ function mapUgsProduct(value: string): UgsProduct {
     componentKey: productUpdateSlug(normalized) || "aggregate",
     description: "Shared online services and SDK updates for connected games."
   };
+}
+
+function mappedComponentKey(productKey: string, productName: string) {
+  if (productKey === "vivox-unity") return "unity";
+  if (productKey === "unity-multiplayer" && /playmode/i.test(productName)) {
+    return "playmode";
+  }
+  if (productKey === "unity-ugc" && /\bbridge\b/i.test(productName)) {
+    return "bridge";
+  }
+  return "main";
+}
+
+function versionUpdateSlug(mapped: UgsProduct, version: string) {
+  const normalizedVersion = version.toLowerCase();
+  if (
+    mapped.componentKey === "main" ||
+    (mapped.key === "vivox-unity" && mapped.componentKey === "unity")
+  ) {
+    return normalizedVersion;
+  }
+  return `${mapped.componentKey}-${normalizedVersion}`;
 }
 
 function parseUnityMonth(value: string) {

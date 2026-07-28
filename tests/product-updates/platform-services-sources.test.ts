@@ -71,6 +71,52 @@ describe("Platform and services Product Update adapters", () => {
     );
   });
 
+  test("keeps UGS component identities collision-free and package data excluded", () => {
+    const observations = parseFixture(ugsAdapter, "ugs-collisions.html");
+    expect(observations).toHaveLength(6);
+    expect(observations.some((row) => row.productKey === "unity-iap")).toBe(
+      false
+    );
+    expect(
+      new Set(
+        observations.map((row) => `${row.productSlug}:${row.updateSlug}`)
+      ).size
+    ).toBe(observations.length);
+    expect(
+      new Set(
+        observations.map(
+          (row) =>
+            `${row.productKey}:${row.componentKey}:${row.canonicalKey}`
+        )
+      ).size
+    ).toBe(observations.length);
+    expect(
+      observations.find((row) => row.title === "Multiplayer SDK 2.0.0")
+    ).toMatchObject({
+      productKey: "unity-multiplayer",
+      componentKey: "main",
+      updateSlug: "2.0.0"
+    });
+    expect(
+      observations.find(
+        (row) => row.title === "Multiplayer Playmode SDK 2.0.0"
+      )
+    ).toMatchObject({
+      productKey: "unity-multiplayer",
+      componentKey: "playmode",
+      updateSlug: "playmode-2.0.0"
+    });
+    expect(
+      observations.find(
+        (row) => row.title === "User Generated Content Bridge 3.0.0"
+      )
+    ).toMatchObject({
+      productKey: "unity-ugc",
+      componentKey: "bridge",
+      updateSlug: "bridge-3.0.0"
+    });
+  });
+
   test("keeps all three Vivox SDK histories independent", () => {
     const unity = parseFixture(vivoxUnityAdapter, "vivox-unity.html");
     const core = parseFixture(vivoxCoreAdapter, "vivox-core.html");
