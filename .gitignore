@@ -12,3 +12,5 @@ tsconfig.tsbuildinfo
 # repo root and the TS compile scope so a stray `git add -A` can't ship one.
 __probe*.ts
 __inv*.ts
+test-results/
+playwright-report/

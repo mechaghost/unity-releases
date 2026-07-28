@@ -9,6 +9,8 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "e2e:serve": "tsx tests/e2e/setup-db.ts && next build && next start --port 3100",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx src/jobs/migrate.ts",
     "ingest:backfill": "tsx src/jobs/backfill-unity6.ts",
@@ -40,6 +42,8 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.0",
     "@types/node": "^22.15.3",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
