@@ -1,7 +1,10 @@
 import type { ProductUpdateAdapter } from "../types";
 import { assetManagerAdapter } from "./asset-manager";
+import { levelPlaySdkAdapters } from "./levelplay";
+import { levelPlayMediationAdapterSources } from "./levelplay-mediation-adapters";
 import { licensingServerAdapter } from "./licensing-server";
 import { ugsAdapter } from "./ugs";
+import { unityAdsAdapters } from "./unity-ads";
 import { unityCliAdapter } from "./unity-cli";
 import { unityHubAdapter } from "./unity-hub";
 import { unityVersionControlAdapter } from "./unity-version-control";
@@ -20,7 +23,10 @@ export const PRODUCT_UPDATE_ADAPTERS: readonly ProductUpdateAdapter[] = [
   ugsAdapter,
   vivoxUnityAdapter,
   vivoxCoreAdapter,
-  vivoxUnrealAdapter
+  vivoxUnrealAdapter,
+  ...unityAdsAdapters,
+  ...levelPlaySdkAdapters,
+  ...levelPlayMediationAdapterSources
 ];
 
 export function findProductUpdateAdapter(sourceKey: string) {
