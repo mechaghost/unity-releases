@@ -27,9 +27,11 @@ export async function runProductUpdateGroup(argv = process.argv.slice(2)) {
       });
       summary.push({ sourceKey: adapter.manifest.sourceKey, ok: true, results });
     } catch (error) {
+      const partialResults = productUpdateFailureResults(error);
       summary.push({
         sourceKey: adapter.manifest.sourceKey,
         ok: false,
+        ...(partialResults ? { results: partialResults } : {}),
         error: error instanceof Error ? error.message : String(error)
       });
     }
@@ -43,6 +45,18 @@ export async function runProductUpdateGroup(argv = process.argv.slice(2)) {
   );
   if (summary.some((source) => !source.ok)) process.exitCode = 1;
   return summary;
+}
+
+function productUpdateFailureResults(error: unknown) {
+  if (
+    !error ||
+    typeof error !== "object" ||
+    !("results" in error) ||
+    !Array.isArray(error.results)
+  ) {
+    return null;
+  }
+  return error.results as Awaited<ReturnType<typeof runProductUpdateAdapter>>;
 }
 
 async function main() {

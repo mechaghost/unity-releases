@@ -121,6 +121,60 @@ async function main() {
     /intentional parser drift/
   );
 
+  const multiTargetAdapter = {
+    ...adapter,
+    manifest: {
+      ...adapter.manifest,
+      sourceKey: "db-multi-target",
+      displayName: "DB Multi-target Contract",
+      parserVersion: "db-multi-v1",
+      targets: [
+        {
+          targetKey: "broken",
+          url: "https://unity.com/db-multi-target/broken",
+          allowedHosts: ["unity.com"]
+        },
+        {
+          targetKey: "healthy",
+          url: "https://unity.com/db-multi-target/healthy",
+          allowedHosts: ["unity.com"]
+        }
+      ]
+    },
+    parse: (snapshot: { targetKey: string }) => {
+      if (snapshot.targetKey === "broken") {
+        throw new Error("isolated target drift");
+      }
+      return adapter.parse();
+    }
+  };
+  await assert.rejects(
+    async () => {
+      await runProductUpdateAdapter(multiTargetAdapter, {
+        force: true,
+        dryRun: true,
+        fetchImpl: async () => response()
+      });
+    },
+    (error: unknown) => {
+      assert.ok(error && typeof error === "object" && "results" in error);
+      const results = (
+        error as {
+          results: Array<{ targetKey: string; status: string; error?: string }>;
+        }
+      ).results;
+      assert.deepEqual(
+        results.map(({ targetKey, status }) => ({ targetKey, status })),
+        [
+          { targetKey: "broken", status: "quarantined" },
+          { targetKey: "healthy", status: "dry-run" }
+        ]
+      );
+      assert.match(results[0].error ?? "", /isolated target drift/);
+      return true;
+    }
+  );
+
   const afterQuarantine = await repositories.listProductUpdateHealth();
   const quarantined = afterQuarantine.find(
     (source) => source.sourceKey === "db-contract"

@@ -32,6 +32,23 @@ export type RunProductUpdateOptions = {
   now?: () => Date;
 };
 
+export class ProductUpdateAdapterRunError extends Error {
+  constructor(
+    public readonly sourceKey: string,
+    public readonly results: ProductUpdateRunResult[]
+  ) {
+    const failures = results.filter(
+      (result) => result.status === "failed" || result.status === "quarantined"
+    );
+    super(
+      `${sourceKey} failed for ${failures.length} ${failures.length === 1 ? "target" : "targets"}: ${failures
+        .map((failure) => `${failure.targetKey} (${failure.error ?? failure.status})`)
+        .join(", ")}`
+    );
+    this.name = "ProductUpdateAdapterRunError";
+  }
+}
+
 export async function runProductUpdateAdapter(
   adapter: ProductUpdateAdapter,
   options: RunProductUpdateOptions = {}
@@ -84,9 +101,39 @@ export async function runProductUpdateAdapter(
 
   const results: ProductUpdateRunResult[] = [];
   for (const targetManifest of selectedTargets) {
-    results.push(await runTarget(adapter, targetManifest.targetKey, options));
+    try {
+      results.push(await runTarget(adapter, targetManifest.targetKey, options));
+    } catch (error) {
+      if (error instanceof ProductUpdateTargetRunError) {
+        results.push({
+          ...result(adapter, targetManifest.targetKey, error.status),
+          error: error.message
+        });
+        continue;
+      }
+      throw error;
+    }
+  }
+  if (
+    results.some(
+      (targetResult) =>
+        targetResult.status === "failed" ||
+        targetResult.status === "quarantined"
+    )
+  ) {
+    throw new ProductUpdateAdapterRunError(adapter.manifest.sourceKey, results);
   }
   return results;
+}
+
+class ProductUpdateTargetRunError extends Error {
+  constructor(
+    public readonly status: "failed" | "quarantined",
+    message: string
+  ) {
+    super(message);
+    this.name = "ProductUpdateTargetRunError";
+  }
 }
 
 async function runTarget(
@@ -229,7 +276,10 @@ async function runTarget(
       status: stage === "parse" ? "quarantined" : "failed",
       error: message
     }).catch(() => undefined);
-    throw error;
+    throw new ProductUpdateTargetRunError(
+      stage === "parse" ? "quarantined" : "failed",
+      message
+    );
   } finally {
     clearInterval(heartbeat);
     await releaseProductUpdateLease(lease.target.targetId, lease.token).catch(() => undefined);

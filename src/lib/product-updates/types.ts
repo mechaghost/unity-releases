@@ -127,9 +127,12 @@ export type ProductUpdateRunResult = {
     | "skipped-not-due"
     | "skipped-overlap"
     | "skipped-circuit-open"
-    | "not-configured";
+    | "not-configured"
+    | "failed"
+    | "quarantined";
   recordsObserved: number;
   recordsCreated: number;
   recordsUpdated: number;
   snapshotId?: number;
+  error?: string;
 };
