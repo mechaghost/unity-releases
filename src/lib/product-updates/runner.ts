@@ -30,6 +30,7 @@ export type RunProductUpdateOptions = {
   fetchOptions?: Partial<ProductUpdateFetchOptions>;
   fetchImpl?: typeof fetch;
   now?: () => Date;
+  replaySnapshotId?: number;
 };
 
 export class ProductUpdateAdapterRunError extends Error {
@@ -144,12 +145,24 @@ async function runTarget(
   const targetManifest = adapter.manifest.targets.find((target) => target.targetKey === targetKey)!;
   const target = await getProductUpdateTarget(adapter.manifest.sourceKey, targetKey);
   if (!target) throw new Error(`Target registration failed for ${adapter.manifest.sourceKey}/${targetKey}`);
+  const replaySnapshot = options.replaySnapshotId
+    ? await loadProductUpdateSnapshot(options.replaySnapshotId)
+    : null;
+  if (options.replaySnapshotId && !replaySnapshot) {
+    throw new Error(`Snapshot ${options.replaySnapshotId} is unavailable for replay`);
+  }
+  if (replaySnapshot && Number(replaySnapshot.target_id) !== target.targetId) {
+    throw new Error(
+      `Snapshot ${replaySnapshot.id} belongs to another Product Updates target`
+    );
+  }
   const now = options.now?.() ?? new Date();
-  if (!options.force && target.nextDueAt && new Date(target.nextDueAt) > now) {
+  const bypassSchedule = options.force || replaySnapshot !== null;
+  if (!bypassSchedule && target.nextDueAt && new Date(target.nextDueAt) > now) {
     return result(adapter, targetKey, "skipped-not-due");
   }
   if (
-    !options.force &&
+    !bypassSchedule &&
     target.circuitOpenUntil &&
     new Date(target.circuitOpenUntil) > now &&
     process.env.PRODUCT_UPDATE_CIRCUIT_BREAKER_ENABLED !== "false"
@@ -178,13 +191,29 @@ async function runTarget(
 
   let stage: "fetch" | "parse" | "publish" = "fetch";
   try {
-    let fetched = await fetchProductUpdateTarget(targetManifest, lease.target, {
-      timeoutMs: adapter.manifest.timeoutMs,
-      maxResponseBytes: adapter.manifest.maxResponseBytes,
-      fetchImpl: options.fetchImpl,
-      ...options.fetchOptions
-    });
-    let snapshotId: number;
+    let fetched: ProductUpdateFetchResult;
+    let snapshotId: number | null = null;
+
+    if (replaySnapshot) {
+      snapshotId = Number(replaySnapshot.id);
+      fetched = {
+        kind: "content",
+        requestedUrl: replaySnapshot.requested_url,
+        finalUrl: replaySnapshot.final_url,
+        status: replaySnapshot.http_status,
+        etag: replaySnapshot.etag,
+        lastModified: replaySnapshot.last_modified,
+        sha256: replaySnapshot.content_sha256,
+        text: replaySnapshot.content_text
+      };
+    } else {
+      fetched = await fetchProductUpdateTarget(targetManifest, lease.target, {
+        timeoutMs: adapter.manifest.timeoutMs,
+        maxResponseBytes: adapter.manifest.maxResponseBytes,
+        fetchImpl: options.fetchImpl,
+        ...options.fetchOptions
+      });
+    }
 
     if (fetched.kind === "not-modified") {
       if (
@@ -216,10 +245,13 @@ async function runTarget(
         sha256: replay.content_sha256,
         text: replay.content_text
       };
-    } else {
+    } else if (!replaySnapshot) {
       snapshotId = await recordProductUpdateSnapshot(lease.target, runId, fetched);
     }
 
+    if (snapshotId === null) {
+      throw new Error("Product Updates snapshot resolution failed");
+    }
     stage = "parse";
     const snapshot: ProductUpdateSnapshot = {
       sourceKey: adapter.manifest.sourceKey,

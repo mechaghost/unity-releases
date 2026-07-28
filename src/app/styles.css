@@ -6259,6 +6259,11 @@ button.filter-section__head:focus-visible {
   border-color: var(--color-info);
   color: var(--color-info-fg);
 }
+.timeline__node--product {
+  background: var(--color-caution-bg);
+  border-color: var(--color-caution);
+  color: var(--color-caution-fg);
+}
 .timeline__node--failure {
   background: var(--color-blocker-bg);
   border-color: var(--color-blocker);

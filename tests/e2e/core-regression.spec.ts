@@ -79,6 +79,66 @@ test.describe("core surface contract", () => {
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
+  test("default activity surfaces stay core-only while product updates require explicit scope", async ({
+    page,
+    request
+  }) => {
+    const coreResponse = await request.get("/api/events");
+    expect(coreResponse.status()).toBe(200);
+    const coreBody = await coreResponse.json();
+    expect(coreBody.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ event_type: "unity_release" })
+      ])
+    );
+    expect(coreBody.events).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ event_type: "product_update" })
+      ])
+    );
+
+    await page.goto("/timeline");
+    await expect(page.getByText("Editor Released:")).toBeVisible();
+    await expect(page.getByText("Unity Hub 3.14.0")).toHaveCount(0);
+
+    await page.goto("/timeline?filter=products");
+    await expect(
+      page.getByRole("link", { name: /Product Update: Unity Hub 3\.14\.0/ })
+    ).toBeVisible();
+    await expect(page.getByText("Editor Released:")).toHaveCount(0);
+
+    const productResponse = await request.get(
+      "/api/events?scope=product-updates"
+    );
+    expect(productResponse.status()).toBe(200);
+    await expect(productResponse.json()).resolves.toMatchObject({
+      events: [
+        expect.objectContaining({
+          event_type: "product_update",
+          title: "Unity Hub 3.14.0"
+        })
+      ]
+    });
+  });
+
+  test("stats preserve core-first information architecture and isolate optional health", async ({
+    page
+  }) => {
+    await page.goto("/stats");
+    const headings = await page.locator("main h2").allTextContents();
+    expect(headings.indexOf("Tracked Artifacts")).toBeLessThan(
+      headings.indexOf("Ingestion Freshness")
+    );
+    expect(headings.indexOf("Ingestion Freshness")).toBeLessThan(
+      headings.indexOf("Optional Product Updates")
+    );
+    const productUpdateCard = page
+      .locator(".stats-card")
+      .filter({ hasText: "Product updates" });
+    await expect(productUpdateCard).toBeVisible();
+    await expect(productUpdateCard.locator(".stats-card__value")).toHaveText("1");
+  });
+
   test("desktop navigation preserves every existing destination and one current item", async ({
     page
   }, testInfo) => {

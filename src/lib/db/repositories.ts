@@ -640,11 +640,24 @@ export async function listReleaseNoteFacets() {
   };
 }
 
-export async function listFeedEvents(limit = 50): Promise<FeedEventRow[]> {
+export type ProductUpdateFeedMode = "exclude" | "only" | "include";
+
+export async function listFeedEvents(
+  limit = 50,
+  options: { productUpdates?: ProductUpdateFeedMode } = {}
+): Promise<FeedEventRow[]> {
+  const productUpdates = options.productUpdates ?? "exclude";
+  const where =
+    productUpdates === "only"
+      ? "WHERE product_update_id IS NOT NULL"
+      : productUpdates === "exclude"
+        ? "WHERE product_update_id IS NULL"
+        : "";
   const result = await query<FeedEventRow>(
     `
       SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
       FROM content_events
+      ${where}
       ORDER BY event_time DESC
       LIMIT $1
     `,
@@ -658,7 +671,7 @@ export async function listFeedEventsByType(eventType: string, limit = 30): Promi
     `
       SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
       FROM content_events
-      WHERE event_type = $1
+      WHERE event_type = $1 AND product_update_id IS NULL
       ORDER BY event_time DESC
       LIMIT $2
     `,
@@ -1830,26 +1843,41 @@ export type TimelineEvent =
       }>;
     };
 
-export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
+export async function listTimelineFeed(
+  limit = 100,
+  options: { productUpdates?: ProductUpdateFeedMode } = {}
+): Promise<TimelineEvent[]> {
+  const productUpdates = options.productUpdates ?? "exclude";
+  const contentWhere =
+    productUpdates === "only"
+      ? "WHERE product_update_id IS NOT NULL"
+      : productUpdates === "exclude"
+        ? "WHERE product_update_id IS NULL"
+        : "";
   const contentPromise = query<FeedEventRow>(
     `SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags, ingestion_run_id
      FROM content_events
+     ${contentWhere}
      ORDER BY event_time DESC
      LIMIT $1`,
     [limit * 2]
   );
 
-  const ingestionPromise = query<IngestionRunRow>(
-    `SELECT id::text, source_type, job_name, started_at, finished_at, status, records_created, records_updated, records_deleted, error_message
-     FROM ingestion_runs
-     ORDER BY started_at DESC
-     LIMIT $1`,
-    [limit]
-  );
+  const ingestionPromise =
+    productUpdates === "only"
+      ? Promise.resolve({ rows: [] as IngestionRunRow[] })
+      : query<IngestionRunRow>(
+          `SELECT id::text, source_type, job_name, started_at, finished_at, status, records_created, records_updated, records_deleted, error_message
+           FROM ingestion_runs
+           ORDER BY started_at DESC
+           LIMIT $1`,
+          [limit]
+        );
 
   const [contentResult, ingestionResult] = await Promise.all([contentPromise, ingestionPromise]);
+  const ingestionRows = ingestionResult.rows;
 
-  const runIds = ingestionResult.rows.map((row) => Number(row.id)).filter((id) => !isNaN(id));
+  const runIds = ingestionRows.map((row) => Number(row.id)).filter((id) => !isNaN(id));
   const updatesByRunId: Record<number, Array<{ id: string; eventType: string; title: string; sourceUrl: string }>> = {};
 
   if (runIds.length > 0) {
@@ -1963,7 +1991,7 @@ export async function listTimelineFeed(limit = 100): Promise<TimelineEvent[]> {
 
   const events: TimelineEvent[] = [
     ...contentEvents,
-    ...ingestionResult.rows.map((row) => {
+    ...ingestionRows.map((row) => {
       const runIdNum = Number(row.id);
       return {
         type: "ingestion" as const,

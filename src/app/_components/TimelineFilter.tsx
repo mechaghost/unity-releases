@@ -3,21 +3,27 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../_components/Icon";
 
-type FilterKey = "all" | "content" | "system" | "failures";
+type FilterKey = "all" | "content" | "products" | "system" | "failures";
 
 type Props = {
   q: string;
   filter: FilterKey;
+  showProductUpdates?: boolean;
 };
 
 const FILTER_OPTIONS: { value: FilterKey; label: string; title: string }[] = [
   { value: "all", label: "All Activity", title: "Show all content updates and scraping runs" },
   { value: "content", label: "Data Updates", title: "Show only editor, package, and blog releases" },
+  { value: "products", label: "Product Updates", title: "Show only optional Unity product release notes" },
   { value: "system", label: "Ingestion Runs", title: "Show all scraping job logs" },
   { value: "failures", label: "System Failures", title: "Show only failed scraping attempts" }
 ];
 
-export function TimelineFilter({ q: initialQ, filter }: Props) {
+export function TimelineFilter({
+  q: initialQ,
+  filter,
+  showProductUpdates = false
+}: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   const [q, setQ] = useState(initialQ);
   const debounceRef = useRef<number | null>(null);
@@ -60,7 +66,9 @@ export function TimelineFilter({ q: initialQ, filter }: Props) {
 
       <span className="filter-bar__divider" aria-hidden="true" />
 
-      {FILTER_OPTIONS.map((option) => {
+      {FILTER_OPTIONS.filter(
+        (option) => option.value !== "products" || showProductUpdates
+      ).map((option) => {
         const checked = filter === option.value;
         return (
           <label

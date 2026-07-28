@@ -13,6 +13,14 @@ import {
 import { streamLabel } from "@/lib/stream-labels";
 import { formatReleaseDate } from "@/lib/format-date";
 import { pageSocialMetadata } from "@/lib/site";
+import {
+  getProductUpdateStats,
+  listProductUpdateHealth,
+  type ProductUpdateHealth,
+  type ProductUpdateStats
+} from "@/lib/product-updates/repositories";
+import { PRODUCT_UPDATE_FAMILY_DETAILS } from "@/lib/product-updates/catalog";
+import type { ProductUpdateFamily } from "@/lib/product-updates/types";
 
 // Keep ISR (5-minute revalidate) for /stats — the counts only move on
 // the 2×/day cron, so per-request rendering is pure waste. `force-dynamic`
@@ -71,13 +79,30 @@ async function safeGithub(): Promise<GithubStats | null> {
   }
 }
 
+async function safeProductUpdates(): Promise<{
+  stats: ProductUpdateStats | null;
+  health: ProductUpdateHealth[];
+} | null> {
+  if (process.env.PRODUCT_UPDATE_UI_ENABLED !== "true") return null;
+  try {
+    const [stats, health] = await Promise.all([
+      getProductUpdateStats(),
+      listProductUpdateHealth()
+    ]);
+    return { stats, health };
+  } catch {
+    return { stats: null, health: [] };
+  }
+}
+
 export default async function StatsPage() {
-  const [artifacts, traffic, freshness, discourse, github] = await Promise.all([
+  const [artifacts, traffic, freshness, discourse, github, productUpdates] = await Promise.all([
     safeArtifacts(),
     safeTraffic(),
     safeFreshness(),
     safeDiscourse(),
-    safeGithub()
+    safeGithub(),
+    safeProductUpdates()
   ]);
 
   return (
@@ -96,8 +121,137 @@ export default async function StatsPage() {
 
       <ArtifactsSection stats={artifacts} discourse={discourse} github={github} />
       <FreshnessSection freshness={freshness} />
+      {productUpdates ? (
+        <ProductUpdatesSection
+          stats={productUpdates.stats}
+          health={productUpdates.health}
+        />
+      ) : null}
       <TrafficSection stats={traffic} />
     </>
+  );
+}
+
+function ProductUpdatesSection({
+  stats,
+  health
+}: {
+  stats: ProductUpdateStats | null;
+  health: ProductUpdateHealth[];
+}) {
+  if (!stats) {
+    return (
+      <section className="stats-section">
+        <h2>Optional Product Updates</h2>
+        <p className="muted">
+          Product Updates is enabled, but its additive database schema is not
+          available yet.
+        </p>
+      </section>
+    );
+  }
+  const now = Date.now();
+  const degraded = health.filter(
+    (target) =>
+      target.status !== "active" ||
+      target.consecutiveFailures > 0 ||
+      (target.circuitOpenUntil !== null &&
+        new Date(target.circuitOpenUntil).getTime() > now)
+  );
+  const neverRun = health.filter((target) => target.lastSuccessAt === null);
+  const healthy = health.length - new Set([...degraded, ...neverRun]).size;
+  const cards: StatCard[] = [
+    { label: "Unity products", value: stats.products },
+    { label: "Product updates", value: stats.updates },
+    { label: "Parsed update items", value: stats.items },
+    {
+      label: "Optional sources",
+      value: stats.sources,
+      hint: `${formatNumber(stats.targets)} independently monitored targets`
+    },
+    {
+      label: "Healthy targets",
+      value: Math.max(healthy, 0),
+      hint: `${formatNumber(degraded.length)} degraded · ${formatNumber(neverRun.length)} never successful`
+    }
+  ];
+
+  return (
+    <section className="stats-section">
+      <h2>Optional Product Updates</h2>
+      <p className="muted">
+        Secondary Unity product changelogs. These counts and health signals use
+        the isolated Product Updates tables and do not contribute to core
+        Editor ingestion freshness.
+      </p>
+      <div className="stats-grid">
+        {cards.map((card) => (
+          <StatCardView key={card.label} card={card} />
+        ))}
+      </div>
+
+      {stats.families.length > 0 ? (
+        <div className="stats-breakdown">
+          <h3 className="stats-breakdown__title">Updates by product family</h3>
+          <ul className="stats-breakdown__list">
+            {stats.families.map((family) => (
+              <li key={family.family} className="stats-breakdown__row">
+                <span>
+                  {PRODUCT_UPDATE_FAMILY_DETAILS[
+                    family.family as ProductUpdateFamily
+                  ]?.shortName ?? family.family}{" "}
+                  <span className="muted">
+                    ({formatNumber(family.products)} products)
+                  </span>
+                </span>
+                <strong className="tabnums">
+                  {formatNumber(family.updates)}
+                </strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {degraded.length > 0 ? (
+        <div className="stats-breakdown">
+          <h3 className="stats-breakdown__title">Targets needing attention</h3>
+          <table className="stats-table">
+            <thead>
+              <tr>
+                <th scope="col">Source / target</th>
+                <th scope="col">Last success</th>
+                <th scope="col">Failures</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {degraded.map((target) => (
+                <tr key={`${target.sourceKey}:${target.targetKey}`}>
+                  <td>
+                    {target.sourceKey} / {target.targetKey}
+                  </td>
+                  <td>
+                    {target.lastSuccessAt
+                      ? new Date(target.lastSuccessAt)
+                          .toISOString()
+                          .replace("T", " ")
+                          .slice(0, 16) + " UTC"
+                      : "—"}
+                  </td>
+                  <td className="tabnums">{target.consecutiveFailures}</td>
+                  <td>
+                    <span className="stats-status stats-status--stale">
+                      {target.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

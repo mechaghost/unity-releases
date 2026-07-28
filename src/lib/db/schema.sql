@@ -492,6 +492,7 @@ CREATE TABLE IF NOT EXISTS content_events (
   package_version_id BIGINT REFERENCES package_versions(id) ON DELETE CASCADE,
   blog_post_id BIGINT REFERENCES blog_posts(id) ON DELETE CASCADE,
   hub_release_id BIGINT REFERENCES hub_releases(id) ON DELETE CASCADE,
+  product_update_id BIGINT REFERENCES product_updates(id) ON DELETE CASCADE,
   tags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   stable_guid TEXT NOT NULL UNIQUE,
   risk_level TEXT,
@@ -499,6 +500,9 @@ CREATE TABLE IF NOT EXISTS content_events (
   ingestion_run_id BIGINT REFERENCES ingestion_runs(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE content_events
+  ADD COLUMN IF NOT EXISTS product_update_id BIGINT REFERENCES product_updates(id) ON DELETE CASCADE;
 
 CREATE INDEX IF NOT EXISTS idx_release_note_items_search ON release_note_items USING GIN (search_vector);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_body_trgm ON release_note_items USING GIN (body gin_trgm_ops);
@@ -546,6 +550,7 @@ CREATE INDEX IF NOT EXISTS idx_release_note_items_impact_version ON release_note
 CREATE INDEX IF NOT EXISTS idx_package_versions_package_id ON package_versions (package_id);
 CREATE INDEX IF NOT EXISTS idx_content_events_time ON content_events (event_time DESC);
 CREATE INDEX IF NOT EXISTS idx_content_events_type ON content_events (event_type);
+CREATE INDEX IF NOT EXISTS idx_content_events_product_update ON content_events (product_update_id, event_time DESC);
 CREATE INDEX IF NOT EXISTS idx_unity_products_family ON unity_products (family, display_name);
 CREATE INDEX IF NOT EXISTS idx_product_update_targets_due ON product_update_targets (status, next_due_at);
 CREATE INDEX IF NOT EXISTS idx_product_update_targets_lease ON product_update_targets (lease_expires_at);

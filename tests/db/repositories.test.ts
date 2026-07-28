@@ -530,6 +530,7 @@ describe("listTimelineFeed", () => {
     // Check content events query parameters
     const [contentSql, contentParams] = mocks.query.mock.calls[0];
     expect(contentSql).toContain("FROM content_events");
+    expect(contentSql).toContain("product_update_id IS NULL");
     expect(contentParams).toEqual([20]);
 
     // Check ingestion runs query parameters
@@ -574,5 +575,36 @@ describe("listTimelineFeed", () => {
     expect(singleEvent.eventType).toBe("unity_release");
     expect(singleEvent.title).toBe("6000.0.1f1");
     expect(singleEvent.riskLevel).toBe("low");
+  });
+
+  test("returns only optional product events and suppresses core ingestion runs when selected", async () => {
+    mocks.query.mockResolvedValueOnce(
+      rows({
+        id: 9,
+        event_type: "product_update",
+        title: "Unity Hub 3.14.0",
+        summary: "Hub update",
+        event_time: "2026-07-24T00:00:00Z",
+        source_url: "/updates/products/unity-hub/3.14.0",
+        stable_guid: "product-update:9",
+        risk_level: null,
+        tags: ["editor-tooling", "unity-hub"],
+        ingestion_run_id: null
+      })
+    );
+    const result = await listTimelineFeed(10, {
+      productUpdates: "only"
+    });
+
+    // Product-only reads must not depend on the core ingestion-run domain.
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+    const [contentSql] = mocks.query.mock.calls[0];
+    expect(contentSql).toContain("product_update_id IS NOT NULL");
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      type: "content",
+      eventType: "product_update",
+      title: "Unity Hub 3.14.0"
+    });
   });
 });

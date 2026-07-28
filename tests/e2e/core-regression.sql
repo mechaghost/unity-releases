@@ -60,8 +60,9 @@ FROM unity_releases
 WHERE version = '6000.0.2f1';
 
 -- Optional Product Updates fixture. It is deliberately absent from
--- ingestion_runs and content_events so the core freshness and Activity Feed
--- contracts above remain unchanged when the optional UI is enabled.
+-- ingestion_runs. Its content event is foreign-key tagged so default core
+-- feed reads exclude it while the explicit Product Updates filter can render
+-- it from the same append-only timeline table.
 INSERT INTO product_update_sources (
   source_key, display_name, family, parser_version, enabled_by_default
 )
@@ -146,6 +147,23 @@ SELECT
   'e2e-hub-item'
 FROM product_update_observations
 WHERE source_update_key = '3.14.0';
+
+INSERT INTO content_events (
+  event_type, title, summary, event_time, source_url, product_update_id,
+  stable_guid, tags, risk_level
+)
+SELECT
+  'product_update',
+  title,
+  summary,
+  COALESCE(release_date::timestamptz, created_at),
+  '/updates/products/unity-hub/3.14.0',
+  id,
+  'product-update:' || id,
+  ARRAY['editor-tooling', 'unity-hub', 'desktop'],
+  'info'
+FROM product_updates
+WHERE canonical_key = 'version:3.14.0';
 
 INSERT INTO issue_mentions (
   issue_id, issue_url, unity_release_id, release_note_item_id, section,

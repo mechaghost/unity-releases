@@ -61,32 +61,106 @@ describe("Product Updates jobs", () => {
     });
   });
 
+  test("accepts named source, target, and explicit snapshot replay options", async () => {
+    mocks.findAdapter.mockReturnValue(hub);
+    mocks.runAdapter.mockResolvedValue([
+      {
+        sourceKey: "unity-hub",
+        targetKey: "all-channels",
+        status: "dry-run",
+        recordsObserved: 2,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        snapshotId: 42
+      }
+    ]);
+
+    await runProductUpdateJob([
+      "--source",
+      "unity-hub",
+      "--target",
+      "all-channels",
+      "--replay",
+      "42",
+      "--dry-run"
+    ]);
+
+    expect(mocks.runAdapter).toHaveBeenCalledWith(hub, {
+      targetKey: "all-channels",
+      force: false,
+      dryRun: true,
+      replaySnapshotId: 42
+    });
+  });
+
   test("continues a family run after one adapter fails", async () => {
     mocks.adaptersForFamily.mockReturnValue([hub, cli]);
-    mocks.runAdapter
-      .mockRejectedValueOnce(new Error("Hub page drift"))
-      .mockResolvedValueOnce([
-        {
-          sourceKey: "unity-cli",
-          targetKey: "standalone",
-          status: "success",
-          recordsObserved: 2,
-          recordsCreated: 2,
-          recordsUpdated: 0
-        }
-      ]);
+    const runSource = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        exitCode: 1,
+        signal: null,
+        timedOut: false,
+        durationMs: 20,
+        error: "Hub page drift"
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        durationMs: 10,
+        output: { event: "product_update_job_complete" }
+      });
 
     const summary = await runProductUpdateGroup([
       "editor-tooling",
       "--force"
-    ]);
+    ], { runSource, concurrency: 1 });
 
     expect(summary).toMatchObject([
-      { sourceKey: "unity-hub", ok: false, error: "Hub page drift" },
-      { sourceKey: "unity-cli", ok: true }
+      {
+        sourceKey: "unity-hub",
+        ok: false,
+        status: "failed",
+        error: "Hub page drift"
+      },
+      { sourceKey: "unity-cli", ok: true, status: "success" }
     ]);
-    expect(mocks.runAdapter).toHaveBeenCalledTimes(2);
+    expect(runSource).toHaveBeenCalledTimes(2);
     expect(process.exitCode).toBe(1);
+  });
+
+  test("records unstarted work as skipped when the group budget expires", async () => {
+    mocks.adaptersForFamily.mockReturnValue([hub, cli]);
+    let clock = 0;
+    const runSource = vi.fn(async () => {
+      clock = 10_000;
+      return {
+        ok: true,
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        durationMs: 10_000
+      };
+    });
+    const summary = await runProductUpdateGroup(
+      ["editor-tooling", "--force"],
+      {
+        runSource,
+        concurrency: 1,
+        groupDeadlineMs: 10_000,
+        sourceDeadlineMs: 10_000,
+        now: () => clock
+      }
+    );
+    expect(summary).toMatchObject([
+      { sourceKey: "unity-hub", status: "success", ok: true },
+      { sourceKey: "unity-cli", status: "skipped-budget", ok: true }
+    ]);
+    expect(runSource).toHaveBeenCalledTimes(1);
+    expect(process.exitCode).toBeUndefined();
   });
 
   test("rejects unknown sources and families before running", async () => {

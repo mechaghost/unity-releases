@@ -28,6 +28,7 @@ async function main() {
     );
   const coreFreshnessBefore = JSON.stringify(await stableFreshness());
   const coreTimelineBefore = JSON.stringify(await coreRepositories.listTimelineFeed());
+  const productStatsBefore = await repositories.getProductUpdateStats();
   const adapter = {
     manifest: {
       sourceKey: "db-contract",
@@ -93,6 +94,45 @@ async function main() {
   });
   assert.equal(first[0].status, "success");
   assert.equal(first[0].recordsCreated, 1);
+  assert.ok(first[0].snapshotId);
+
+  process.env.PRODUCT_UPDATE_SOURCES = "db-contract";
+  const explicitReplay = await runProductUpdateAdapter(adapter, {
+    dryRun: true,
+    replaySnapshotId: first[0].snapshotId,
+    fetchImpl: async () => {
+      throw new Error("explicit replay must not fetch");
+    }
+  });
+  assert.equal(explicitReplay[0].status, "dry-run");
+  assert.equal(explicitReplay[0].snapshotId, first[0].snapshotId);
+
+  const productEvents = await coreRepositories.listFeedEvents(10, {
+    productUpdates: "only"
+  });
+  const contractEvent = productEvents.find(
+    (event) => event.title === "DB Contract 1.0.0"
+  );
+  assert.ok(contractEvent);
+  assert.equal(contractEvent.event_type, "product_update");
+  assert.equal(
+    contractEvent.source_url,
+    "/updates/products/db-contract-product/1.0.0"
+  );
+  const defaultEvents = await coreRepositories.listFeedEvents();
+  assert.equal(
+    defaultEvents.some((event) => event.event_type === "product_update"),
+    false
+  );
+  const productStats = await repositories.getProductUpdateStats();
+  assert.equal(
+    productStats?.products,
+    (productStatsBefore?.products ?? 0) + 1
+  );
+  assert.equal(
+    productStats?.updates,
+    (productStatsBefore?.updates ?? 0) + 1
+  );
 
   const second = await runProductUpdateAdapter(adapter, {
     force: true,

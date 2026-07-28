@@ -29,10 +29,20 @@ type SearchParams = Promise<{
 export default async function TimelinePage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const q = (params.q ?? "").trim().toLowerCase();
-  const filterKey = (params.filter ?? "all") as "all" | "content" | "system" | "failures";
+  const showProductUpdates = process.env.PRODUCT_UPDATE_UI_ENABLED === "true";
+  const requestedFilter = params.filter ?? "all";
+  const filterKey =
+    requestedFilter === "content" ||
+    requestedFilter === "system" ||
+    requestedFilter === "failures" ||
+    (requestedFilter === "products" && showProductUpdates)
+      ? requestedFilter
+      : "all";
 
   // Fetch unified timeline history
-  const allEvents = await safeListTimelineFeed();
+  const allEvents = await safeListTimelineFeed(
+    filterKey === "products" ? "only" : "exclude"
+  );
 
   // Apply filters
   let filtered = allEvents;
@@ -42,6 +52,10 @@ export default async function TimelinePage({ searchParams }: { searchParams: Sea
     filtered = filtered.filter((e) => e.type === "ingestion");
   } else if (filterKey === "failures") {
     filtered = filtered.filter((e) => e.type === "ingestion" && e.status === "failed");
+  } else if (filterKey === "products") {
+    filtered = filtered.filter(
+      (e) => e.type === "content" && e.eventType === "product_update"
+    );
   }
 
   if (q) {
@@ -74,7 +88,11 @@ export default async function TimelinePage({ searchParams }: { searchParams: Sea
       </section>
 
       <div className="packages-settings">
-        <TimelineFilter q={params.q ?? ""} filter={filterKey} />
+        <TimelineFilter
+          q={params.q ?? ""}
+          filter={filterKey}
+          showProductUpdates={showProductUpdates}
+        />
       </div>
 
       <div className="timeline-section">
@@ -124,6 +142,9 @@ function TimelineNode({ event }: { event: TimelineEvent }) {
     } else if (event.eventType === "blog_post" || event.eventType === "blog_post_group") {
       iconName = "newspaper";
       variant = "news";
+    } else if (event.eventType === "product_update") {
+      iconName = "layers";
+      variant = "product";
     }
   } else {
     // Ingestion run
@@ -210,6 +231,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
     const isEditor = event.eventType === "unity_release";
     const isPackage = event.eventType === "package_version";
     const isNews = event.eventType === "blog_post";
+    const isProductUpdate = event.eventType === "product_update";
 
     return (
       <div className="timeline-content">
@@ -227,6 +249,11 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
           {isNews && (
             <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer">
               News: <strong>{event.title}</strong>
+            </a>
+          )}
+          {isProductUpdate && (
+            <a href={event.sourceUrl}>
+              Product Update: <strong>{event.title}</strong>
             </a>
           )}
         </h2>
@@ -250,12 +277,21 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
           )}
           <a
             href={isEditor ? `/releases/${encodeURIComponent(event.title)}` : event.sourceUrl}
-            target={isEditor ? undefined : "_blank"}
-            rel={isEditor ? undefined : "noopener noreferrer"}
+            target={isEditor || isProductUpdate ? undefined : "_blank"}
+            rel={isEditor || isProductUpdate ? undefined : "noopener noreferrer"}
             className="timeline-content__link"
           >
-            <span>{isEditor ? "View release notes" : "View source"}</span>
-            <Icon name="external-link" size={12} />
+            <span>
+              {isEditor
+                ? "View release notes"
+                : isProductUpdate
+                  ? "View product update"
+                  : "View source"}
+            </span>
+            <Icon
+              name={isEditor || isProductUpdate ? "arrow-right" : "external-link"}
+              size={12}
+            />
           </a>
         </div>
       </div>
@@ -373,9 +409,11 @@ function formatDateTime(value: string | Date): string {
   });
 }
 
-async function safeListTimelineFeed(): Promise<TimelineEvent[]> {
+async function safeListTimelineFeed(
+  productUpdates: "exclude" | "only"
+): Promise<TimelineEvent[]> {
   try {
-    return await listTimelineFeed(200);
+    return await listTimelineFeed(200, { productUpdates });
   } catch (err) {
     console.error("Failed to load timeline feed:", err);
     return [];

@@ -25,6 +25,7 @@
     "ingest:github": "tsx src/jobs/poll-github.ts",
     "ingest:product-update": "tsx src/jobs/poll-product-update.ts",
     "ingest:product-updates": "tsx src/jobs/poll-product-update-group.ts",
+    "product-updates:sources": "tsx src/jobs/list-product-update-sources.ts",
     "ingest:all": "tsx src/jobs/poll-all.ts",
     "health:ingest": "tsx src/jobs/health.ts",
     "check:packages": "tsx src/jobs/check-missing-packages.ts",

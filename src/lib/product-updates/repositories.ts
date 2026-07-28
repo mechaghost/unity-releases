@@ -359,6 +359,8 @@ export async function recordProductUpdateSnapshot(
 export async function loadProductUpdateSnapshot(snapshotId: number) {
   const result = await query<{
     id: number;
+    source_id: number;
+    target_id: number;
     requested_url: string;
     final_url: string;
     fetched_at: string;
@@ -369,7 +371,7 @@ export async function loadProductUpdateSnapshot(snapshotId: number) {
     content_text: string;
   }>(
     `
-      SELECT id, requested_url, final_url, fetched_at, http_status, etag,
+      SELECT id, source_id, target_id, requested_url, final_url, fetched_at, http_status, etag,
              last_modified, content_sha256, content_text
       FROM product_update_snapshots
       WHERE id = $1
@@ -587,6 +589,34 @@ export async function publishProductUpdateObservations(options: {
         `,
         [productUpdateId]
       );
+      await client.query(
+        `
+          INSERT INTO content_events (
+            event_type, title, summary, event_time, source_url,
+            product_update_id, tags, stable_guid
+          )
+          SELECT
+            'product_update',
+            canonical_update.title,
+            canonical_update.summary,
+            COALESCE(canonical_update.release_date, canonical_update.first_seen_at),
+            '/updates/products/' || product.slug || '/' || canonical_update.slug,
+            canonical_update.id,
+            ARRAY[product.family, product.slug, canonical_update.component_key],
+            'product-update:' || canonical_update.id::text
+          FROM product_updates canonical_update
+          JOIN unity_products product ON product.id = canonical_update.product_id
+          WHERE canonical_update.id = $1
+          ON CONFLICT (stable_guid) DO UPDATE SET
+            title = EXCLUDED.title,
+            summary = EXCLUDED.summary,
+            event_time = EXCLUDED.event_time,
+            source_url = EXCLUDED.source_url,
+            product_update_id = EXCLUDED.product_update_id,
+            tags = EXCLUDED.tags
+        `,
+        [productUpdateId]
+      );
     }
 
     await client.query(
@@ -750,7 +780,19 @@ export async function failProductUpdateRun(options: {
   }
 }
 
-export async function listProductUpdateHealth() {
+export type ProductUpdateHealth = {
+  sourceKey: string;
+  targetKey: string;
+  url: string;
+  status: string;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  consecutiveFailures: number;
+  circuitOpenUntil: string | null;
+  lastError: string | null;
+};
+
+export async function listProductUpdateHealth(): Promise<ProductUpdateHealth[]> {
   if (!(await productUpdatesSchemaReady())) return [];
   const result = await query<{
     source_key: string;
@@ -783,6 +825,70 @@ export async function listProductUpdateHealth() {
     circuitOpenUntil: row.circuit_open_until,
     lastError: row.last_error
   }));
+}
+
+export type ProductUpdateStats = {
+  products: number;
+  updates: number;
+  items: number;
+  sources: number;
+  targets: number;
+  families: Array<{
+    family: string;
+    products: number;
+    updates: number;
+  }>;
+};
+
+export async function getProductUpdateStats(): Promise<ProductUpdateStats | null> {
+  if (!(await productUpdatesSchemaReady())) return null;
+  const [totals, families] = await Promise.all([
+    query<{
+      products: string;
+      updates: string;
+      items: string;
+      sources: string;
+      targets: string;
+    }>(`
+      SELECT
+        (SELECT COUNT(*) FROM unity_products) AS products,
+        (SELECT COUNT(*) FROM product_updates) AS updates,
+        (SELECT COUNT(*) FROM product_update_observation_items) AS items,
+        (SELECT COUNT(*) FROM product_update_sources) AS sources,
+        (SELECT COUNT(*) FROM product_update_targets) AS targets
+    `),
+    query<{ family: string; products: string; updates: string }>(`
+      SELECT
+        product.family,
+        COUNT(DISTINCT product.id)::text AS products,
+        COUNT(update.id)::text AS updates
+      FROM unity_products product
+      LEFT JOIN product_updates update ON update.product_id = product.id
+      GROUP BY product.family
+      ORDER BY
+        CASE product.family
+          WHEN 'editor-tooling' THEN 1
+          WHEN 'platform-services' THEN 2
+          WHEN 'monetization' THEN 3
+          WHEN 'industry-enterprise' THEN 4
+          ELSE 5
+        END
+    `)
+  ]);
+  const row = totals.rows[0];
+  if (!row) return null;
+  return {
+    products: Number(row.products),
+    updates: Number(row.updates),
+    items: Number(row.items),
+    sources: Number(row.sources),
+    targets: Number(row.targets),
+    families: families.rows.map((family) => ({
+      family: family.family,
+      products: Number(family.products),
+      updates: Number(family.updates)
+    }))
+  };
 }
 
 export async function listProductUpdates(options: {

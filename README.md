@@ -39,6 +39,11 @@ npm run ingest:packages
 npm run ingest:news
 ```
 
+Optional Product Updates has separate jobs and is disabled by default. See
+[`docs/product-updates-operations.md`](docs/product-updates-operations.md) for
+feature flags, source allowlists, dry runs, snapshot replay, health, and
+rollback.
+
 ## Railway Deployment
 
 Build is configured for **Railpack** in `railway.json` (auto-detects the
@@ -66,6 +71,10 @@ you want production to update.
 | `cron-editor` | `config/railway/cron-editor.json` | `0 */12 * * *` (every 12h) | `npm run ingest:editor` |
 | `cron-packages` | `config/railway/cron-packages.json` | `0 */12 * * *` (every 12h) | `npm run ingest:packages` |
 | `cron-news` | `config/railway/cron-news.json` | `0 5 * * *` (daily 5am UTC) | `npm run ingest:news` |
+| `cron-updates-editor-tooling` | `config/railway/cron-updates-editor-tooling.json` | `15 */6 * * *` | `npm run ingest:product-updates -- editor-tooling` |
+| `cron-updates-platform-services` | `config/railway/cron-updates-platform-services.json` | `30 4 * * *` | `npm run ingest:product-updates -- platform-services` |
+| `cron-updates-monetization` | `config/railway/cron-updates-monetization.json` | `45 4 * * *` | `npm run ingest:product-updates -- monetization` |
+| `cron-updates-industry-enterprise` | `config/railway/cron-updates-industry-enterprise.json` | `0 5 * * 1` | `npm run ingest:product-updates -- industry-enterprise` |
 
 Each cron config sets `deploy.cronSchedule` + `deploy.startCommand` and
 uses `restartPolicyType: NEVER` so a failed run doesn't loop. Jobs all
@@ -126,7 +135,10 @@ shipped the schema) and let the cron services keep the data fresh.
 - `/upgrade`: rule-based upgrade-impact page
 - `/issues/[issueId]`: every release-note that mentions a UUM-xxxxx
 - `/faq`: source list + disclaimer
+- `/updates`, `/updates/[family]`, `/updates/products/[product]`: optional,
+  family-tiered Unity product changelogs
 - `/api/health`: health endpoint (used by Railway)
+- `/api/updates`, `/api/updates/health`: optional Product Updates data and health
 - `/api/release-notes`: search API
 - `/api/releases`, `/api/packages`, `/api/events`: JSON APIs
 
