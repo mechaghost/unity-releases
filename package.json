@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:db": "tsx tests/product-updates/db-contract.ts",
     "e2e:serve": "tsx tests/e2e/setup-db.ts && next build && next start --port 3100",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx src/jobs/migrate.ts",

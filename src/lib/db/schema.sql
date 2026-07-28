@@ -277,6 +277,202 @@ CREATE TABLE IF NOT EXISTS hub_releases (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Optional Unity product changelogs live in a completely separate data and
+-- run domain. In particular, do not put their jobs in ingestion_runs:
+-- /api/health and the default Activity Feed intentionally treat every row in
+-- that legacy table as core release-intelligence state.
+CREATE TABLE IF NOT EXISTS unity_products (
+  id BIGSERIAL PRIMARY KEY,
+  product_key TEXT NOT NULL UNIQUE,
+  slug TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  family TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'active',
+  canonical_url TEXT,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS product_update_sources (
+  id BIGSERIAL PRIMARY KEY,
+  source_key TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  family TEXT NOT NULL,
+  parser_version TEXT NOT NULL,
+  enabled_by_default BOOLEAN NOT NULL DEFAULT false,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS product_update_targets (
+  id BIGSERIAL PRIMARY KEY,
+  source_id BIGINT NOT NULL REFERENCES product_update_sources(id) ON DELETE CASCADE,
+  target_key TEXT NOT NULL,
+  url TEXT NOT NULL,
+  cadence_hours INTEGER NOT NULL DEFAULT 24,
+  next_due_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'active',
+  last_attempt_at TIMESTAMPTZ,
+  last_success_at TIMESTAMPTZ,
+  observed_etag TEXT,
+  observed_last_modified TEXT,
+  observed_body_hash TEXT,
+  observed_snapshot_id BIGINT,
+  validated_etag TEXT,
+  validated_last_modified TEXT,
+  validated_body_hash TEXT,
+  validated_parser_version TEXT,
+  validated_snapshot_id BIGINT,
+  published_etag TEXT,
+  published_last_modified TEXT,
+  published_body_hash TEXT,
+  published_parser_version TEXT,
+  published_snapshot_id BIGINT,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  circuit_open_until TIMESTAMPTZ,
+  lease_token TEXT,
+  lease_owner TEXT,
+  lease_expires_at TIMESTAMPTZ,
+  heartbeat_at TIMESTAMPTZ,
+  last_error TEXT,
+  last_validated_record_count INTEGER,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (source_id, target_key)
+);
+
+CREATE TABLE IF NOT EXISTS product_update_runs (
+  id BIGSERIAL PRIMARY KEY,
+  source_id BIGINT NOT NULL REFERENCES product_update_sources(id) ON DELETE CASCADE,
+  target_id BIGINT NOT NULL REFERENCES product_update_targets(id) ON DELETE CASCADE,
+  job_name TEXT NOT NULL,
+  parser_version TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deadline_at TIMESTAMPTZ,
+  heartbeat_at TIMESTAMPTZ,
+  finished_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'running',
+  records_observed INTEGER NOT NULL DEFAULT 0,
+  records_created INTEGER NOT NULL DEFAULT 0,
+  records_updated INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS product_update_snapshots (
+  id BIGSERIAL PRIMARY KEY,
+  source_id BIGINT NOT NULL REFERENCES product_update_sources(id) ON DELETE CASCADE,
+  target_id BIGINT NOT NULL REFERENCES product_update_targets(id) ON DELETE CASCADE,
+  run_id BIGINT REFERENCES product_update_runs(id) ON DELETE SET NULL,
+  requested_url TEXT NOT NULL,
+  final_url TEXT NOT NULL,
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  http_status INTEGER,
+  etag TEXT,
+  last_modified TEXT,
+  content_sha256 TEXT NOT NULL,
+  content_text TEXT NOT NULL,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  UNIQUE (target_id, content_sha256)
+);
+
+-- Add target snapshot references after both tables exist. The guarded DO
+-- blocks keep schema.sql idempotent on populated databases.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'fk_product_update_targets_observed_snapshot'
+      AND conrelid = 'product_update_targets'::regclass
+  ) THEN
+    ALTER TABLE product_update_targets
+      ADD CONSTRAINT fk_product_update_targets_observed_snapshot
+      FOREIGN KEY (observed_snapshot_id) REFERENCES product_update_snapshots(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'fk_product_update_targets_validated_snapshot'
+      AND conrelid = 'product_update_targets'::regclass
+  ) THEN
+    ALTER TABLE product_update_targets
+      ADD CONSTRAINT fk_product_update_targets_validated_snapshot
+      FOREIGN KEY (validated_snapshot_id) REFERENCES product_update_snapshots(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'fk_product_update_targets_published_snapshot'
+      AND conrelid = 'product_update_targets'::regclass
+  ) THEN
+    ALTER TABLE product_update_targets
+      ADD CONSTRAINT fk_product_update_targets_published_snapshot
+      FOREIGN KEY (published_snapshot_id) REFERENCES product_update_snapshots(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS product_updates (
+  id BIGSERIAL PRIMARY KEY,
+  product_id BIGINT NOT NULL REFERENCES unity_products(id) ON DELETE CASCADE,
+  component_key TEXT NOT NULL DEFAULT 'main',
+  canonical_key TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  version TEXT,
+  channel TEXT,
+  release_date TIMESTAMPTZ,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
+  normalized_sha256 TEXT NOT NULL,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (product_id, component_key, canonical_key),
+  UNIQUE (product_id, slug)
+);
+
+CREATE TABLE IF NOT EXISTS product_update_observations (
+  id BIGSERIAL PRIMARY KEY,
+  product_update_id BIGINT NOT NULL REFERENCES product_updates(id) ON DELETE CASCADE,
+  source_id BIGINT NOT NULL REFERENCES product_update_sources(id) ON DELETE CASCADE,
+  target_id BIGINT NOT NULL REFERENCES product_update_targets(id) ON DELETE CASCADE,
+  source_update_key TEXT NOT NULL,
+  source_snapshot_id BIGINT NOT NULL REFERENCES product_update_snapshots(id) ON DELETE RESTRICT,
+  run_id BIGINT REFERENCES product_update_runs(id) ON DELETE SET NULL,
+  parser_version TEXT NOT NULL,
+  normalized_sha256 TEXT NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  published_at TIMESTAMPTZ,
+  source_title TEXT NOT NULL,
+  source_summary TEXT NOT NULL DEFAULT '',
+  source_version TEXT,
+  source_release_date TIMESTAMPTZ,
+  source_url TEXT NOT NULL,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (source_id, target_id, source_update_key)
+);
+
+CREATE TABLE IF NOT EXISTS product_update_observation_items (
+  id BIGSERIAL PRIMARY KEY,
+  observation_id BIGINT NOT NULL REFERENCES product_update_observations(id) ON DELETE CASCADE,
+  item_key TEXT NOT NULL,
+  section TEXT NOT NULL DEFAULT 'Updates',
+  change_kind TEXT NOT NULL DEFAULT 'change',
+  body TEXT NOT NULL,
+  platforms TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  tags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  source_order INTEGER NOT NULL,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  normalized_sha256 TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (observation_id, item_key)
+);
+
 CREATE TABLE IF NOT EXISTS content_events (
   id BIGSERIAL PRIMARY KEY,
   event_type TEXT NOT NULL,
@@ -342,6 +538,15 @@ CREATE INDEX IF NOT EXISTS idx_release_note_items_impact_version ON release_note
 CREATE INDEX IF NOT EXISTS idx_package_versions_package_id ON package_versions (package_id);
 CREATE INDEX IF NOT EXISTS idx_content_events_time ON content_events (event_time DESC);
 CREATE INDEX IF NOT EXISTS idx_content_events_type ON content_events (event_type);
+CREATE INDEX IF NOT EXISTS idx_unity_products_family ON unity_products (family, display_name);
+CREATE INDEX IF NOT EXISTS idx_product_update_targets_due ON product_update_targets (status, next_due_at);
+CREATE INDEX IF NOT EXISTS idx_product_update_targets_lease ON product_update_targets (lease_expires_at);
+CREATE INDEX IF NOT EXISTS idx_product_update_runs_target_time ON product_update_runs (target_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_product_update_runs_status ON product_update_runs (status, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_product_update_snapshots_target_time ON product_update_snapshots (target_id, fetched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_product_updates_family_date ON product_updates (product_id, release_date DESC NULLS LAST, id DESC);
+CREATE INDEX IF NOT EXISTS idx_product_update_observations_update ON product_update_observations (product_update_id);
+CREATE INDEX IF NOT EXISTS idx_product_update_items_observation ON product_update_observation_items (observation_id, source_order);
 CREATE INDEX IF NOT EXISTS idx_resources_date ON resources (resource_date DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_resources_type ON resources (resource_type);
 CREATE INDEX IF NOT EXISTS idx_resources_industry ON resources (industry);

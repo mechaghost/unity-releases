@@ -1,11 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import pg from "pg";
 import { baseDatabaseUrl, E2E_SCHEMA } from "./test-database";
 
 const { Client } = pg;
 
-async function main() {
+export async function setupE2eDatabase() {
   const client = new Client({ connectionString: baseDatabaseUrl() });
   await client.connect();
   try {
@@ -23,7 +24,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  setupE2eDatabase().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
