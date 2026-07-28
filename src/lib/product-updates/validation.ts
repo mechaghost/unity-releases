@@ -45,6 +45,7 @@ export const adapterManifestSchema = z.object({
   displayName: z.string().min(1).max(200),
   family: z.enum(PRODUCT_UPDATE_FAMILIES),
   parserVersion: z.string().min(1).max(120),
+  displayPriority: z.number().int().min(0).max(10_000).optional(),
   cadenceHours: z.number().int().positive().max(24 * 31),
   timeoutMs: z.number().int().positive().max(120_000),
   maxResponseBytes: z.number().int().positive().max(20 * 1024 * 1024),

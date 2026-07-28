@@ -82,7 +82,9 @@ export function extractStructuredListItems(
           changeKind: classifyProductUpdateChange(section, body),
           body,
           platforms: detectPlatforms(body),
-          tags: section ? [productUpdateSlug(section)].filter(Boolean) : [],
+          tags: section
+            ? [productUpdateSlug(section).slice(0, 80)].filter(Boolean)
+            : [],
           sourceOrder
         };
         item.itemKey = stableProductUpdateItemKey(item);

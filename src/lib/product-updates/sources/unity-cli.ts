@@ -20,6 +20,7 @@ export const unityCliAdapter: ProductUpdateAdapter = {
     displayName: "Unity CLI release notes",
     family: "editor-tooling",
     parserVersion: "unity-cli-html-v1",
+    displayPriority: 10,
     cadenceHours: 12,
     timeoutMs: 30_000,
     maxResponseBytes: 2 * 1024 * 1024,

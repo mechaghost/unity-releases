@@ -301,11 +301,15 @@ CREATE TABLE IF NOT EXISTS product_update_sources (
   display_name TEXT NOT NULL,
   family TEXT NOT NULL,
   parser_version TEXT NOT NULL,
+  display_priority INTEGER NOT NULL DEFAULT 100,
   enabled_by_default BOOLEAN NOT NULL DEFAULT false,
   metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE product_update_sources
+  ADD COLUMN IF NOT EXISTS display_priority INTEGER NOT NULL DEFAULT 100;
 
 CREATE TABLE IF NOT EXISTS product_update_targets (
   id BIGSERIAL PRIMARY KEY,
@@ -448,6 +452,7 @@ CREATE TABLE IF NOT EXISTS product_update_observations (
   source_title TEXT NOT NULL,
   source_summary TEXT NOT NULL DEFAULT '',
   source_version TEXT,
+  source_channel TEXT,
   source_release_date TIMESTAMPTZ,
   source_url TEXT NOT NULL,
   metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -455,6 +460,9 @@ CREATE TABLE IF NOT EXISTS product_update_observations (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (source_id, target_id, source_update_key)
 );
+
+ALTER TABLE product_update_observations
+  ADD COLUMN IF NOT EXISTS source_channel TEXT;
 
 CREATE TABLE IF NOT EXISTS product_update_observation_items (
   id BIGSERIAL PRIMARY KEY,

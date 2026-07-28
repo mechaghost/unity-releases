@@ -158,6 +158,101 @@ async function main() {
   assert.equal(detail?.observations.length, 1);
   assert.equal(detail?.observations[0].items.length, 1);
 
+  const sharedObservation = (title: string, summary: string) => [
+    {
+      productKey: "db-shared-product",
+      productSlug: "db-shared-product",
+      productName: "DB Shared Product",
+      componentKey: "unity",
+      sourceUpdateKey: "1.0.0",
+      canonicalKey: "version:1.0.0",
+      updateSlug: "1.0.0",
+      version: "1.0.0",
+      releaseDate: null,
+      title,
+      summary,
+      sourceUrl: "https://docs.unity.com/db-shared/1.0.0",
+      items: [
+        {
+          itemKey: "shared-change",
+          section: "Changes",
+          changeKind: "change",
+          body: summary,
+          platforms: [],
+          tags: [],
+          sourceOrder: 0
+        }
+      ]
+    }
+  ];
+  const aggregateAdapter = {
+    manifest: {
+      ...adapter.manifest,
+      sourceKey: "db-aggregate",
+      displayName: "DB Aggregate",
+      family: "platform-services" as const,
+      parserVersion: "aggregate-v1",
+      displayPriority: 50,
+      targets: [
+        {
+          targetKey: "aggregate",
+          url: "https://docs.unity.com/db-aggregate",
+          allowedHosts: ["docs.unity.com"]
+        }
+      ]
+    },
+    parse: () => sharedObservation("Aggregate title", "Aggregate summary")
+  };
+  const specificAdapter = {
+    manifest: {
+      ...aggregateAdapter.manifest,
+      sourceKey: "db-specific",
+      displayName: "DB Specific",
+      parserVersion: "specific-v1",
+      displayPriority: 10,
+      targets: [
+        {
+          targetKey: "specific",
+          url: "https://docs.unity.com/db-specific",
+          allowedHosts: ["docs.unity.com"]
+        }
+      ]
+    },
+    parse: () => sharedObservation("Specific title", "Specific summary")
+  };
+  const productResponse = (body: string) =>
+    new Response(body, {
+      status: 200,
+      headers: { "content-type": "text/html", etag: `"${body}"` }
+    });
+  await runProductUpdateAdapter(aggregateAdapter, {
+    force: true,
+    fetchImpl: async () => productResponse("aggregate-v1")
+  });
+  await runProductUpdateAdapter(specificAdapter, {
+    force: true,
+    fetchImpl: async () => productResponse("specific-v1")
+  });
+  await runProductUpdateAdapter(
+    {
+      ...aggregateAdapter,
+      manifest: { ...aggregateAdapter.manifest, parserVersion: "aggregate-v2" },
+      parse: () =>
+        sharedObservation("Changed aggregate title", "Changed aggregate summary")
+    },
+    {
+      force: true,
+      fetchImpl: async () => productResponse("aggregate-v2")
+    }
+  );
+  const reconciled = await repositories.listProductUpdates({
+    product: "db-shared-product"
+  });
+  assert.equal(reconciled.length, 1);
+  assert.equal(reconciled[0].title, "Specific title");
+  assert.equal(reconciled[0].summary, "Specific summary");
+  assert.equal(reconciled[0].sourceCount, 2);
+
   const health = await repositories.listProductUpdateHealth();
   assert.equal(
     health.find((source) => source.sourceKey === "db-contract")

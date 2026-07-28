@@ -34,13 +34,15 @@ export async function registerProductUpdateAdapter(adapter: ProductUpdateAdapter
     const sourceResult = await client.query<{ id: number }>(
       `
         INSERT INTO product_update_sources (
-          source_key, display_name, family, parser_version, enabled_by_default
+          source_key, display_name, family, parser_version, display_priority,
+          enabled_by_default
         )
-        VALUES ($1, $2, $3, $4, false)
+        VALUES ($1, $2, $3, $4, $5, false)
         ON CONFLICT (source_key) DO UPDATE SET
           display_name = EXCLUDED.display_name,
           family = EXCLUDED.family,
           parser_version = EXCLUDED.parser_version,
+          display_priority = EXCLUDED.display_priority,
           updated_at = now()
         RETURNING id
       `,
@@ -48,7 +50,8 @@ export async function registerProductUpdateAdapter(adapter: ProductUpdateAdapter
         adapter.manifest.sourceKey,
         adapter.manifest.displayName,
         adapter.manifest.family,
-        adapter.manifest.parserVersion
+        adapter.manifest.parserVersion,
+        adapter.manifest.displayPriority ?? 100
       ]
     );
     const sourceId = sourceResult.rows[0].id;
@@ -475,9 +478,10 @@ export async function publishProductUpdateObservations(options: {
             product_update_id, source_id, target_id, source_update_key,
             source_snapshot_id, run_id, parser_version, normalized_sha256,
             observed_at, published_at, source_title, source_summary,
-            source_version, source_release_date, source_url, metadata_json
+            source_version, source_channel, source_release_date, source_url,
+            metadata_json
           )
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now(),now(),$9,$10,$11,$12,$13,$14)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now(),now(),$9,$10,$11,$12,$13,$14,$15)
           ON CONFLICT (source_id, target_id, source_update_key) DO UPDATE SET
             product_update_id = EXCLUDED.product_update_id,
             source_snapshot_id = EXCLUDED.source_snapshot_id,
@@ -489,6 +493,7 @@ export async function publishProductUpdateObservations(options: {
             source_title = EXCLUDED.source_title,
             source_summary = EXCLUDED.source_summary,
             source_version = EXCLUDED.source_version,
+            source_channel = EXCLUDED.source_channel,
             source_release_date = EXCLUDED.source_release_date,
             source_url = EXCLUDED.source_url,
             metadata_json = EXCLUDED.metadata_json,
@@ -507,6 +512,7 @@ export async function publishProductUpdateObservations(options: {
           observation.title,
           observation.summary ?? "",
           observation.version ?? null,
+          observation.channel ?? null,
           observation.releaseDate ?? null,
           observation.sourceUrl,
           observation.metadata ?? {}
@@ -540,6 +546,47 @@ export async function publishProductUpdateObservations(options: {
           ]
         );
       }
+
+      // Canonical display fields are projected from the highest-priority
+      // supporting source, not whichever adapter happened to run last.
+      // Product-specific notes use a lower display_priority than aggregate
+      // feeds such as UGS. Ties resolve by stable source key.
+      await client.query(
+        `
+          UPDATE product_updates canonical
+          SET version = preferred.source_version,
+              channel = preferred.source_channel,
+              release_date = COALESCE(
+                preferred.source_release_date,
+                (
+                  SELECT MAX(candidate.source_release_date)
+                  FROM product_update_observations candidate
+                  WHERE candidate.product_update_id = canonical.id
+                )
+              ),
+              title = preferred.source_title,
+              summary = preferred.source_summary,
+              normalized_sha256 = preferred.normalized_sha256,
+              updated_at = now()
+          FROM (
+            SELECT
+              candidate.product_update_id,
+              candidate.source_version,
+              candidate.source_channel,
+              candidate.source_release_date,
+              candidate.source_title,
+              candidate.source_summary,
+              candidate.normalized_sha256
+            FROM product_update_observations candidate
+            JOIN product_update_sources source ON source.id = candidate.source_id
+            WHERE candidate.product_update_id = $1
+            ORDER BY source.display_priority, source.source_key, candidate.id
+            LIMIT 1
+          ) preferred
+          WHERE canonical.id = preferred.product_update_id
+        `,
+        [productUpdateId]
+      );
     }
 
     await client.query(
@@ -925,6 +972,7 @@ export async function getProductUpdateDetail(productSlug: string, updateSlug: st
     source_title: string;
     source_summary: string;
     source_version: string | null;
+    source_channel: string | null;
     source_release_date: string | null;
     source_url: string;
     published_at: string | null;
@@ -937,6 +985,7 @@ export async function getProductUpdateDetail(productSlug: string, updateSlug: st
         o.source_title,
         o.source_summary,
         o.source_version,
+        o.source_channel,
         o.source_release_date,
         o.source_url,
         o.published_at
@@ -1012,6 +1061,7 @@ export async function getProductUpdateDetail(productSlug: string, updateSlug: st
       title: observation.source_title,
       summary: observation.source_summary,
       version: observation.source_version,
+      channel: observation.source_channel,
       releaseDate: observation.source_release_date,
       sourceUrl: observation.source_url,
       publishedAt: observation.published_at,

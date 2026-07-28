@@ -25,6 +25,7 @@ export const unityHubAdapter: ProductUpdateAdapter = {
     displayName: "Unity Hub release notes",
     family: "editor-tooling",
     parserVersion: "unity-hub-html-v1",
+    displayPriority: 10,
     cadenceHours: 12,
     timeoutMs: 30_000,
     maxResponseBytes: 3 * 1024 * 1024,

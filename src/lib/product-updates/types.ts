@@ -18,6 +18,7 @@ export type ProductUpdateAdapterManifest = {
   displayName: string;
   family: ProductUpdateFamily;
   parserVersion: string;
+  displayPriority?: number;
   cadenceHours: number;
   timeoutMs: number;
   maxResponseBytes: number;
