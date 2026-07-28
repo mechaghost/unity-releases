@@ -1,6 +1,6 @@
 # Unity Product Updates — Implementation Plan
 
-> **Status:** Ready for implementation after plan approval
+> **Status:** Approved; execution in progress
 >
 > **Working branch:** `codex/product-updates-ia`
 >
@@ -54,7 +54,7 @@ The following behavior is frozen unless a phase explicitly names an additive cha
 - `npm run ingest:editor`, `ingest:legacy-lts`, `ingest:packages`, `ingest:package-docs`, and `ingest:all`.
 - Existing Editor tables, package tables, scoring rules, search indexes, and freshness semantics.
 
-Existing routes may move under visible navigation headings, but their paths, labels, links, and behavior must remain present.
+Existing routes may move under visible navigation headings, but their paths, labels, links, and behavior must remain present. The existing `Search Notes` label remains unchanged.
 
 ### Explicit non-goals
 
@@ -103,12 +103,12 @@ The current left navigation gains visible section labels.
 - Upgrade Intelligence
 - Editor Releases
 - Release Visualizer
-- Search Release Notes
+- Search Notes
 - Issue Explorer
 - Packages
 - Editor Tooling Updates
 
-`Editor Tooling Updates` is the only product-update link allowed in the primary section. It opens the Editor-adjacent family containing Hub, CLI, and Licensing Server.
+`Editor Tooling Updates` is the only product-update link allowed in the primary section. It opens the Editor-adjacent family containing Hub and CLI. Licensing Server belongs to platform and development infrastructure because its primary workflow is organizational license administration.
 
 #### Unity Products — secondary
 
@@ -135,8 +135,8 @@ Keep all existing routes unchanged. Add:
 ```text
 /updates
 /updates/[family]
-/updates/[family]/[product]
-/updates/[family]/[product]/[update]
+/updates/products/[product]
+/updates/products/[product]/[update]
 ```
 
 Allowed family slugs:
@@ -152,14 +152,20 @@ Examples:
 
 ```text
 /updates/editor-tooling
-/updates/editor-tooling/unity-hub
-/updates/editor-tooling/unity-hub/3.14.0
-/updates/platform-services/vivox-core
-/updates/monetization/levelplay-unity
-/updates/industry-enterprise/asset-transformer
+/updates/products/unity-hub
+/updates/products/unity-hub/3.14.0
+/updates/products/vivox-core
+/updates/products/levelplay-unity
+/updates/products/asset-transformer
 ```
 
-The family remains in the URL so navigation state and breadcrumbs do not need a client-side product lookup.
+Family routes are browse filters. Canonical product and update URLs are family-independent, so a future Unity reorganization does not break stable URLs. Product and update slugs are stored, URL-safe, collision-resistant identifiers rather than normalized titles.
+
+Exactly one sidebar item owns `aria-current="page"` for each path:
+
+- `Editor Tooling Updates` owns `/updates/editor-tooling`;
+- `Product Updates` owns `/updates`, every other family route, and all canonical product/update routes;
+- no matcher may mark both items active.
 
 ### Product Updates landing page
 
@@ -211,7 +217,6 @@ Product pages show a compact chronological history. Update detail pages show nor
 |---|---|---:|---|
 | `unity-hub` | Unity Hub | Every 6 hours | Highest new-source priority |
 | `unity-cli` | Unity CLI | Every 6 hours | Highest new-source priority |
-| `licensing-server` | Unity Licensing Server | Daily | Editor-adjacent |
 
 ### Family 2: Platform and services
 
@@ -219,6 +224,7 @@ Product pages show a compact chronological history. Update detail pages show nor
 |---|---|---:|---|
 | `unity-version-control` | Unity Version Control | Daily | Plastic/UVCS history |
 | `asset-manager` | Unity Asset Manager | Daily | Cloud product updates |
+| `licensing-server` | Unity Licensing Server | Daily | Development infrastructure |
 | `ugs` | Unity Gaming Services | Daily | Aggregate service feed |
 | `vivox-unity` | Vivox Unity SDK | Daily | May overlap UGS |
 | `vivox-core` | Vivox Core SDK | Daily | Separate SDK identity |
@@ -302,10 +308,12 @@ Each adapter implements one shared contract:
 type ProductUpdateAdapter = {
   manifest: {
     sourceKey: string;
-    productKey: string;
     family: ProductUpdateFamily;
-    urls: readonly string[];
-    allowedHosts: readonly string[];
+    targets: readonly {
+      targetKey: string;
+      url: string;
+      allowedHosts: readonly string[];
+    }[];
     parserVersion: string;
     cadence: "six-hourly" | "daily" | "weekly";
     timeoutMs: number;
@@ -314,9 +322,11 @@ type ProductUpdateAdapter = {
     maximumExpectedRecords?: number;
     maximumRecordDropFraction?: number;
   };
-  parse(snapshot: ProductUpdateSnapshot): NormalizedProductUpdate[];
+  parse(snapshot: ProductUpdateSnapshot): NormalizedProductUpdateObservation[];
 };
 ```
+
+Every parsed observation supplies its own canonical `productKey`, normalized non-null `componentKey`, and source-local `sourceUpdateKey`. This lets aggregate adapters such as UGS emit observations for several products and lets Unity, Android, and iOS SDK components share one parser without identity collisions.
 
 Shared runner responsibilities:
 
@@ -325,6 +335,7 @@ Shared runner responsibilities:
 - timeout and retry handling;
 - snapshot persistence;
 - validation and quarantine;
+- per-target advisory locking and run leases;
 - transaction control;
 - structured logging;
 - circuit-breaker state;
@@ -344,7 +355,7 @@ Adapters never open database transactions.
 
 ## 7. Additive data model
 
-Reuse `ingestion_runs` and `source_snapshots`, but write new-source run and snapshot records outside the normalized-content transaction.
+Product Updates does not reuse `ingestion_runs`. The existing health, Stats, and Activity Feed readers treat every row in that table as core, so reuse would violate the isolation guarantee. Product Updates uses dedicated runs, snapshots, target state, and health queries.
 
 Add the following tables:
 
@@ -359,13 +370,66 @@ Canonical product catalog:
 - status: active, paused, suspected-retired, retired
 - canonical Unity URL
 
+### `product_update_sources`
+
+Checked-in adapter identities:
+
+- source key
+- display name
+- family
+- parser version
+- enabled metadata
+
+### `product_update_targets`
+
+One independently fetched URL per target:
+
+- source ID and stable target key
+- current URL
+- cadence and next-due timestamp
+- last attempt and last success
+- last observed ETag, Last-Modified, body hash, and snapshot ID
+- last validated ETag, Last-Modified, body hash, parser version, and snapshot ID
+- last published ETag, Last-Modified, body hash, parser version, and snapshot ID
+- consecutive failures and state-machine status
+- circuit open-until time
+- active run lease and heartbeat
+- last error and last validated record count
+
+Conditional requests use only the last validated validator. Observed or quarantined validators are never promoted until normalized content commits successfully. A parser-version change replays the newest observed snapshot before accepting a 304.
+
+### `product_update_runs`
+
+Dedicated operational history:
+
+- source and target IDs
+- job name and parser version
+- start, deadline, heartbeat, and finish timestamps
+- status: running, success, failed, quarantined, timed-out, abandoned, skipped-overlap, skipped-budget, or skipped-not-due
+- observed/created/updated counts
+- error and structured metadata
+
+Runs are outside the core `ingestion_runs` table and therefore cannot affect core freshness or default Activity Feed ordering.
+
+### `product_update_snapshots`
+
+Bounded internal source evidence:
+
+- source and target IDs
+- requested and final URLs
+- fetch timestamp and HTTP status
+- ETag and Last-Modified
+- content hash and bounded raw text
+- response metadata
+
 ### `product_updates`
 
-Normalized update identity:
+Canonical, source-independent update identity:
 
 - product ID
-- component key, if applicable
+- non-null normalized component key
 - canonical update key
+- stable URL slug
 - nullable version
 - nullable channel
 - nullable release date
@@ -374,15 +438,32 @@ Normalized update identity:
 - normalized hash
 - first-seen and last-seen timestamps
 
-Unique identity: product plus canonical update key.
+Unique identity: product, component, and canonical update key.
 
-Date-only and monthly feeds must not invent versions. Their canonical key uses stable source identity, date, and normalized title.
+Date-only and monthly feeds must not invent versions. Their canonical key uses canonical product/component identity, date, and normalized title; it never contains source identity.
 
-### `product_update_items`
+### `product_update_observations`
 
-Structured note entries:
+Source-local normalized reports:
 
-- product update ID
+- canonical product update ID
+- source and target IDs
+- source-local update key
+- source snapshot and run IDs
+- parser version and normalized hash
+- observed and published timestamps
+- source title, summary, version, date, and URL
+
+Unique identity: source, target, and source-local update key.
+
+Multiple observations can link to one canonical update. Explicit product/component mappings reconcile UGS, Vivox, IAP/package documentation, and other duplicated reports.
+
+### `product_update_observation_items`
+
+Structured entries owned by one observation:
+
+- observation ID
+- stable item key
 - section
 - change kind
 - body
@@ -390,37 +471,13 @@ Structured note entries:
 - tags
 - source order
 - metadata JSON
+- normalized hash
 
-### `product_update_evidence`
-
-One update can be reported by more than one Unity page:
-
-- product update ID
-- source key
-- source URL
-- source snapshot ID
-- observed timestamp
-
-This table prevents duplicate UGS/Vivox or package/documentation events while retaining provenance.
-
-### `product_update_source_state`
-
-Operational state per source:
-
-- last attempt
-- last success
-- ETag
-- Last-Modified
-- last body hash
-- consecutive failures
-- circuit open-until time
-- current status
-- last error
-- last validated record count
+After a complete observation validates, replace only that observation's item set in the same transaction. Never delete a canonical update merely because it disappears from a listing. Canonical display projection uses deterministic source precedence and retains links to every supporting observation.
 
 ### APIs and events
 
-Prefer a dedicated `/api/updates` read API.
+Add a dedicated `/api/updates` read API with bounded cursor pagination, stable ordering, validated filters, explicit 404s, and deliberate disabled/not-configured responses.
 
 Do not require `content_events` integration for the first source rollout. Phase 7 adds a nullable `product_update_id` and opt-in Product Updates events after the Phase 0 timeline and API contracts are in place.
 
@@ -429,7 +486,10 @@ Do not require `content_events` integration for the first source rollout. Phase 
 - Use additive, idempotent SQL.
 - Do not rename or drop existing columns or tables.
 - Do not repurpose `hub_releases`.
+- Use explicit `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, guarded named FK creation, and FK indexes for changes to existing tables.
+- Add a schema capability preflight. Missing Product Updates tables produce a safe not-configured UI/API state and ingestion no-op while every original route remains operational.
 - Apply the schema to a populated local database.
+- Test new code against the pre-feature schema and current core code against the expanded schema.
 - Verify existing row counts and representative Editor/package queries before and after migration.
 - Keep the legacy Hub table until a separate, production-informed cleanup decision.
 
@@ -439,19 +499,22 @@ Do not require `content_events` integration for the first source rollout. Phase 
 
 Every source run uses these stages:
 
-1. Create and commit an ingestion-run record.
-2. Fetch using a real `AbortController`.
-3. Enforce allowed hosts after every redirect.
-4. Enforce maximum response size.
-5. Honor ETag and Last-Modified.
-6. Retry only transient failures with bounded exponential backoff, jitter, and `Retry-After`.
-7. Commit a changed raw snapshot before parsing.
-8. Parse and normalize in memory.
-9. Validate structure and record-count invariants.
-10. Quarantine suspicious output without touching last known-good rows.
-11. Open a transaction scoped to one source.
-12. Upsert normalized updates, items, and evidence.
-13. Commit and mark the source successful.
+1. Acquire a PostgreSQL advisory lock and fenced lease for one source target.
+2. Reconcile expired prior leases as timed-out or abandoned.
+3. Create and commit a dedicated Product Updates run record.
+4. Fetch using a real `AbortController`.
+5. Follow redirects manually, validating HTTPS, host, port, and credentials before every hop.
+6. Stream the decompressed response and abort when it exceeds the configured byte limit.
+7. Use only the last validated ETag and Last-Modified for conditional requests.
+8. Retry only transient failures with bounded exponential backoff, jitter, and `Retry-After`.
+9. Commit a changed raw snapshot and observed validators before parsing.
+10. Parse and normalize in memory.
+11. Validate structure and record-count invariants.
+12. Quarantine suspicious output without promoting validated or published state.
+13. Open a transaction scoped to one source target.
+14. Upsert source-local observations, replace their owned items, and reconcile canonical updates.
+15. Promote validated/published validators, commit, and mark the run successful.
+16. Release the fenced lease.
 
 ### Quarantine conditions
 
@@ -463,13 +526,15 @@ Every source run uses these stages:
 - dates or versions are malformed;
 - normalized output exceeds configured size limits.
 
-An unchanged 304 response is a successful no-op, not a zero-record parse.
+An unchanged 304 response is a successful no-op only when the validator, content hash, and parser version match the last published success. Otherwise replay the newest observed snapshot.
 
 ### Last known-good rule
 
 - Never delete normalized records because they disappeared from a page.
 - Never replace good rows with quarantined output.
-- Treat repeated 404 or 410 responses as `suspected-retired`.
+- Classify failures as transient, rate-limited, access/configuration blocked, not-found candidate, suspected-retired, or manually retired.
+- Move repeated 404 or 410 responses through time-separated not-found-candidate probes before `suspected-retired`.
+- Probe suspected-retired targets on a long cadence and require a manual decision for final retirement or reactivation.
 - Require an explicit code/config decision to mark a product retired.
 
 ### Circuit breaker
@@ -479,11 +544,14 @@ An unchanged 304 response is a successful no-op, not a zero-record parse.
 - Keep the source visible as degraded.
 - Support `--force` for a manual probe.
 - Reset only after a successful validated run.
+- Parent processes and subsequent invocations reconcile hard-killed children so abandoned runs count toward breaker state.
 
 ### Security
 
 - Fetch only fixed, checked-in URLs or URLs produced by an adapter's checked-in allowlist.
-- Validate every final redirect host.
+- Use `redirect: "manual"` and validate every redirect before contacting the next target.
+- Reject non-HTTPS URLs, credentials, nonstandard ports, redirect loops, and excessive hops.
+- Enforce response limits while streaming, including chunked and compressed bodies without trusted `Content-Length`.
 - Store source HTML only in internal snapshots.
 - Render normalized plain text or React-escaped content.
 - Do not return source snapshots from public APIs.
@@ -505,8 +573,12 @@ config/railway/cron-updates-industry-enterprise.json
 
 Each group runner:
 
-- launches each enabled source as a separate child process;
+- selects enabled targets that are due, unless `--force` is supplied;
+- launches targets with a small configurable concurrency limit and priority order;
 - enforces a per-source hard deadline;
+- enforces a total group deadline below the Railway service limit;
+- records not-started work as `skipped-budget`, not source failure;
+- sends SIGTERM to the child process group, waits briefly, then sends SIGKILL;
 - continues after an individual source fails;
 - prints a structured per-source summary;
 - exits nonzero after all children finish if any failed.
@@ -515,7 +587,9 @@ Feature controls:
 
 | Variable | Safe default | Meaning |
 |---|---|---|
-| `PRODUCT_UPDATES_ENABLED` | `false` | Global ingestion and UI kill switch |
+| `PRODUCT_UPDATE_INGEST_ENABLED` | `false` | Global fetch and publish kill switch |
+| `PRODUCT_UPDATE_UI_ENABLED` | `false` | Allows direct read access to validated historical data |
+| `PRODUCT_UPDATE_NAV_ENABLED` | `false` | Exposes Product Updates in site navigation and discoverability surfaces |
 | `PRODUCT_UPDATE_SOURCES` | empty | Explicit comma-separated source-key allowlist |
 | `PRODUCT_UPDATE_CIRCUIT_BREAKER_ENABLED` | `true` | Enables per-source cooldown after repeated failures |
 
@@ -523,7 +597,9 @@ Feature controls:
 
 New adapters must merge disabled by default. Enable one source only after its fixture, replay, live-contract, and failure-injection tests pass.
 
-Core `/api/health` remains unchanged. Add optional-source status to `/stats` and a separate `/api/updates/health` endpoint.
+Disabling ingestion leaves validated historical data readable when the UI flag remains enabled. Sitemap and `llms.txt` follow the navigation/public-read flag.
+
+Core `/api/health` remains unchanged. Add optional-source status to `/stats` and a separate `/api/updates/health` endpoint backed only by Product Updates tables.
 
 ---
 
@@ -535,7 +611,7 @@ Core `/api/health` remains unchanged. Add optional-source status to `/stats` and
 
 - Add a route manifest test covering every current page and API.
 - Add navigation contract tests for all existing labels and hrefs.
-- Add representative output tests for:
+- Add exact output contracts for:
   - Editor release index;
   - release detail;
   - compare;
@@ -545,8 +621,11 @@ Core `/api/health` remains unchanged. Add optional-source status to `/stats` and
   - timeline defaults;
   - core health.
 - Add a lightweight Playwright smoke suite and `test:e2e` script.
-- Cover desktop and mobile navigation.
-- Record representative Editor/package database counts from the local populated database.
+- Add Playwright configuration, deterministic setup, production-server startup, Chromium desktop/mobile projects, and CI execution.
+- Add a versioned deterministic database fixture created from the branch-point schema and data contract.
+- Add a public-surface manifest covering every route/API, method, representative query/cookie/server-action state, expected status or redirect, required fields/headings, and relevant headers.
+- Treat mutable local Editor/package counts only as supplemental evidence.
+- Define accessibility gates: semantic nav section headings, one current item, no new automated violations, logical tab order, Escape and focus restoration, drawer background focus containment, and 200% zoom/reflow.
 
 **Exit gate**
 
@@ -610,7 +689,7 @@ feat: add isolated product update ingestion foundation
 - Regroup existing links without changing their routes.
 - Add `Editor Tooling Updates` to the primary section.
 - Add one `Product Updates` entry to the secondary section.
-- Add `/updates` and family routes with empty and unavailable states.
+- Add `/updates`, family browse routes, and stable `/updates/products/...` routes with empty and unavailable states.
 - Add shared family/product filter components.
 - Add product-update metadata, sitemap, and `llms.txt` descriptions without changing current route descriptions.
 
@@ -643,7 +722,6 @@ Implement one adapter per commit:
 
 1. Unity Hub
 2. Unity CLI
-3. Licensing Server
 
 For each adapter:
 
@@ -658,11 +736,11 @@ For each adapter:
 - run twice to prove idempotency;
 - review the resulting product and detail pages.
 
-After all three pass, enable the Editor tooling cron configuration in a non-production environment or manual Railway run. Require two consecutive validated scheduled runs before considering the family complete.
+After both pass, enable the Editor tooling cron configuration in a non-production environment or manual Railway run. Require two consecutive validated scheduled runs before considering the family complete.
 
 **Exit gate**
 
-- A broken Hub page cannot affect CLI or Licensing data.
+- A broken Hub page cannot affect CLI data.
 - Last known-good updates survive a broken fixture.
 - No Editor ingestion, page, API, or health output changes.
 
@@ -671,21 +749,21 @@ After all three pass, enable the Editor tooling cron configuration in a non-prod
 ```text
 feat: track Unity Hub updates
 feat: track Unity CLI updates
-feat: track Unity Licensing Server updates
 ```
 
 ### Phase 4 — Platform and services
 
 Implement separately:
 
-1. Unity Version Control
-2. Asset Manager
-3. UGS aggregate updates
-4. Vivox Unity
-5. Vivox Core
-6. Vivox Unreal
+1. Licensing Server
+2. Unity Version Control
+3. Asset Manager
+4. UGS aggregate updates
+5. Vivox Unity
+6. Vivox Core
+7. Vivox Unreal
 
-Add canonical evidence merging before enabling UGS and Vivox together. A duplicated announcement may have several evidence rows but must not produce duplicate product updates or activity events.
+Add canonical observation reconciliation before enabling UGS and Vivox together. A duplicated announcement may have several observations but must not produce duplicate canonical updates or activity events.
 
 **Exit gate**
 
@@ -911,9 +989,10 @@ Rollback order:
 
 1. Disable an individual source by removing it from `PRODUCT_UPDATE_SOURCES`.
 2. Disable a source family by removing its keys.
-3. Set `PRODUCT_UPDATES_ENABLED=false`.
-4. Hide Product Updates navigation only if the read UI cannot safely render stored data.
-5. Revert the phase checkpoint commit if code rollback is required.
+3. Set `PRODUCT_UPDATE_INGEST_ENABLED=false`.
+4. Keep historical data readable with `PRODUCT_UPDATE_UI_ENABLED=true` unless the read surface itself is unsafe.
+5. Set `PRODUCT_UPDATE_NAV_ENABLED=false` to remove discoverability without deleting data.
+6. Revert the phase checkpoint commit if code rollback is required.
 
 Disabling Product Updates must not:
 
@@ -933,7 +1012,7 @@ Stored Product Updates data may remain in additive tables while the feature is d
 
 **Critique:** The first design risked becoming a core ingestion and migration rewrite.
 
-**Decision:** Keep the current pipeline untouched. Build a parallel `product-updates` module, separate jobs, additive tables, and separate state. Any future core runner cleanup is a different project.
+**Decision:** Keep the current pipeline untouched. Build a parallel `product-updates` module, separate jobs, dedicated runs/snapshots/targets, additive canonical and observation tables, and separate health. Any future core runner cleanup is a different project.
 
 ### Regression and data-integrity review
 
@@ -947,7 +1026,15 @@ Stored Product Updates data may remain in additive tables while the feature is d
 
 **Decision:** Keep Engine & Editor primary. Add one primary Editor-tooling entry and one secondary Product Updates entry. All other products live inside ordered families with compact filters.
 
-The three reviews converge on an additive, branch-only implementation with independently reversible phases.
+### Reliability and operations review
+
+**Critique:** Shared run state, promoted quarantined validators, overlapping jobs, automatic redirects, and fail-open schema activation could breach isolation or strand data.
+
+**Decision:** Use dedicated run tables, observed/validated/published validator states, source-target advisory locks and leases, streamed/manual redirects, bounded group execution, explicit failure states, and schema-capability preflight.
+
+### Swarm-review acceptance
+
+The architecture, reliability, and IA/regression reviews converge on an additive, branch-only implementation with independently reversible phases. These amended decisions supersede earlier drafts.
 
 ---
 
