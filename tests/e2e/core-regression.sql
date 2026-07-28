@@ -59,6 +59,94 @@ SELECT
 FROM unity_releases
 WHERE version = '6000.0.2f1';
 
+-- Optional Product Updates fixture. It is deliberately absent from
+-- ingestion_runs and content_events so the core freshness and Activity Feed
+-- contracts above remain unchanged when the optional UI is enabled.
+INSERT INTO product_update_sources (
+  source_key, display_name, family, parser_version, enabled_by_default
+)
+VALUES (
+  'unity-hub', 'Unity Hub release notes', 'editor-tooling', 'e2e-v1', false
+);
+
+INSERT INTO product_update_targets (
+  source_id, target_key, url, cadence_hours, next_due_at, last_success_at
+)
+SELECT
+  id, 'main', 'https://unity.com/unity-hub/release-notes', 12,
+  '2026-07-29T00:00:00Z', '2026-07-28T00:00:00Z'
+FROM product_update_sources
+WHERE source_key = 'unity-hub';
+
+INSERT INTO product_update_snapshots (
+  source_id, target_id, requested_url, final_url, http_status,
+  content_sha256, content_text
+)
+SELECT
+  s.id, t.id,
+  'https://unity.com/unity-hub/release-notes',
+  'https://unity.com/unity-hub/release-notes',
+  200, 'e2e-hub-snapshot', '<html>deterministic Hub fixture</html>'
+FROM product_update_sources s
+JOIN product_update_targets t ON t.source_id = s.id
+WHERE s.source_key = 'unity-hub' AND t.target_key = 'main';
+
+INSERT INTO unity_products (
+  product_key, slug, display_name, family, description, canonical_url
+)
+VALUES (
+  'unity-hub',
+  'unity-hub',
+  'Unity Hub',
+  'editor-tooling',
+  'Install and manage Unity Editor versions and projects.',
+  'https://unity.com/unity-hub'
+);
+
+INSERT INTO product_updates (
+  product_id, component_key, canonical_key, slug, version, channel,
+  release_date, title, summary, normalized_sha256
+)
+SELECT
+  id, 'desktop', 'version:3.14.0', '3.14.0', '3.14.0', 'stable',
+  '2026-07-24T00:00:00Z',
+  'Unity Hub 3.14.0',
+  'A deterministic Unity Hub release used to verify the optional product IA.',
+  'e2e-hub-update'
+FROM unity_products
+WHERE product_key = 'unity-hub';
+
+INSERT INTO product_update_observations (
+  product_update_id, source_id, target_id, source_update_key,
+  source_snapshot_id, parser_version, normalized_sha256, published_at,
+  source_title, source_summary, source_version, source_release_date, source_url
+)
+SELECT
+  u.id, s.id, t.id, '3.14.0', snapshot.id, 'e2e-v1',
+  'e2e-hub-observation', '2026-07-28T00:00:00Z',
+  'Unity Hub 3.14.0',
+  'A deterministic Unity Hub release used to verify the optional product IA.',
+  '3.14.0', '2026-07-24T00:00:00Z',
+  'https://unity.com/unity-hub/release-notes'
+FROM product_updates u
+JOIN unity_products p ON p.id = u.product_id
+JOIN product_update_sources s ON s.source_key = 'unity-hub'
+JOIN product_update_targets t ON t.source_id = s.id AND t.target_key = 'main'
+JOIN product_update_snapshots snapshot ON snapshot.target_id = t.id
+WHERE p.product_key = 'unity-hub' AND u.canonical_key = 'version:3.14.0';
+
+INSERT INTO product_update_observation_items (
+  observation_id, item_key, section, change_kind, body, platforms,
+  tags, source_order, normalized_sha256
+)
+SELECT
+  id, 'e2e-hub-change', 'Improvements', 'improvement',
+  'Improved deterministic project launch behavior.',
+  ARRAY['Windows', 'macOS', 'Linux'], ARRAY['projects'], 0,
+  'e2e-hub-item'
+FROM product_update_observations
+WHERE source_update_key = '3.14.0';
+
 INSERT INTO issue_mentions (
   issue_id, issue_url, unity_release_id, release_note_item_id, section,
   area, platforms, mention_kind

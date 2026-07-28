@@ -9,17 +9,19 @@ type NavItem = {
   label: string;
   icon: IconName;
   match: (pathname: string) => boolean;
+  productUpdatesOnly?: boolean;
 };
 
 type NavSection = {
-  /** Optional separator label shown above the group (sr-only). Visually a thin <hr>. */
-  separator?: boolean;
+  label: string;
+  priority: "primary" | "secondary";
   items: NavItem[];
 };
 
 const NAV: NavSection[] = [
-  // Primary: release-intelligence surfaces — the user's main tasks.
   {
+    label: "Engine & Editor",
+    priority: "primary",
     items: [
       {
         // Compare is the landing page - `/` re-exports the compare route, and
@@ -61,6 +63,35 @@ const NAV: NavSection[] = [
         match: (pathname) => pathname === "/packages"
       },
       {
+        href: "/updates/editor-tooling",
+        label: "Editor Tooling Updates",
+        icon: "terminal",
+        match: (pathname) => pathname === "/updates/editor-tooling",
+        productUpdatesOnly: true
+      }
+    ]
+  },
+  {
+    label: "Unity Products",
+    priority: "secondary",
+    items: [
+      {
+        href: "/updates",
+        label: "Product Updates",
+        icon: "layers",
+        match: (pathname) =>
+          pathname === "/updates" ||
+          (pathname.startsWith("/updates/") &&
+            pathname !== "/updates/editor-tooling"),
+        productUpdatesOnly: true
+      }
+    ]
+  },
+  {
+    label: "Community & Reference",
+    priority: "secondary",
+    items: [
+      {
         href: "/github",
         label: "Unity GitHub",
         icon: "github",
@@ -77,14 +108,7 @@ const NAV: NavSection[] = [
         label: "Activity Feed",
         icon: "clock",
         match: (pathname) => pathname === "/timeline"
-      }
-    ]
-  },
-  // Secondary: ambient / reference content. Divider above creates a
-  // visual break so the eye can land on the primary group first.
-  {
-    separator: true,
-    items: [
+      },
       {
         href: "/news",
         label: "News",
@@ -113,7 +137,11 @@ const NAV: NavSection[] = [
   }
 ];
 
-export function LeftNav() {
+export function LeftNav({
+  productUpdatesEnabled
+}: {
+  productUpdatesEnabled: boolean;
+}) {
   const pathname = usePathname() ?? "/";
 
   return (
@@ -125,26 +153,42 @@ export function LeftNav() {
         <span className="lnav__brand-tagline">Unity release &amp; upgrade intel</span>
       </a>
       <div className="lnav__sections">
-        {NAV.map((section, idx) => (
-          <div className="lnav__section" key={idx}>
-            {section.separator ? <hr className="lnav__divider" aria-hidden /> : null}
-            {section.items.map((item) => {
-              const active = item.match(pathname);
-              return (
-                <div className="lnav__group" key={item.href}>
-                  <a
-                    href={item.href}
-                    className="lnav__item"
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <Icon name={item.icon} size={20} className="lnav__item-icon" />
-                    {item.label}
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-        ))}
+        {NAV.map((section) => {
+          const visibleItems = section.items.filter(
+            (item) => !item.productUpdatesOnly || productUpdatesEnabled
+          );
+          if (visibleItems.length === 0) return null;
+          return (
+            <section
+              className="lnav__section"
+              data-priority={section.priority}
+              aria-labelledby={`lnav-${section.label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+              key={section.label}
+            >
+              <h2
+                className="lnav__section-label"
+                id={`lnav-${section.label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+              >
+                {section.label}
+              </h2>
+              {visibleItems.map((item) => {
+                const active = item.match(pathname);
+                return (
+                  <div className="lnav__group" key={item.href}>
+                    <a
+                      href={item.href}
+                      className="lnav__item"
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon name={item.icon} size={20} className="lnav__item-icon" />
+                      {item.label}
+                    </a>
+                  </div>
+                );
+              })}
+            </section>
+          );
+        })}
       </div>
       <div className="lnav__footer">
         <ThemeToggle />

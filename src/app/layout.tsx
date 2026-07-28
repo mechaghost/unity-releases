@@ -14,6 +14,7 @@ import {
   SITE_TAGLINE,
   siteUrl
 } from "@/lib/site";
+import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -105,7 +106,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <MobileNavToggle />
           <aside className="app-shell__nav" aria-label="Primary navigation">
             <Suspense fallback={<nav className="lnav" id="primary-nav" aria-label="Primary" />}>
-              <LeftNav />
+              <LeftNav productUpdatesEnabled={productUpdateNavigationEnabled()} />
             </Suspense>
           </aside>
           <main className="app-shell__content" id="main" tabIndex={-1}>

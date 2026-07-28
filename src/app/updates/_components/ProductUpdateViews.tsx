@@ -1,0 +1,299 @@
+import { ExternalLink } from "../../_components/ExternalLink";
+import {
+  PRODUCT_UPDATE_FAMILY_CATALOG,
+  PRODUCT_UPDATE_FAMILY_DETAILS
+} from "@/lib/product-updates/catalog";
+import type {
+  getProductUpdateDetail,
+  listProductUpdates,
+  listUnityProducts
+} from "@/lib/product-updates/repositories";
+import type { ProductUpdateFamily } from "@/lib/product-updates/types";
+
+export type ProductSummary = Awaited<ReturnType<typeof listUnityProducts>>[number];
+export type UpdateSummary = Awaited<ReturnType<typeof listProductUpdates>>[number];
+export type UpdateDetail = NonNullable<
+  Awaited<ReturnType<typeof getProductUpdateDetail>>
+>;
+
+export function ProductUpdateFamilyNav({
+  activeFamily
+}: {
+  activeFamily?: ProductUpdateFamily;
+}) {
+  return (
+    <nav className="product-family-nav" aria-label="Product update families">
+      <a
+        href="/updates"
+        className="product-family-nav__item"
+        aria-current={activeFamily === undefined ? "page" : undefined}
+      >
+        All products
+      </a>
+      {PRODUCT_UPDATE_FAMILY_CATALOG.map((family) => (
+        <a
+          href={`/updates/${family.key}`}
+          className="product-family-nav__item"
+          aria-current={activeFamily === family.key ? "page" : undefined}
+          key={family.key}
+        >
+          {family.shortName}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+export function ProductFamilyGrid({
+  products
+}: {
+  products: ProductSummary[];
+}) {
+  const productCounts = new Map<ProductUpdateFamily, number>();
+  const updateCounts = new Map<ProductUpdateFamily, number>();
+  for (const product of products) {
+    const family = product.family as ProductUpdateFamily;
+    productCounts.set(family, (productCounts.get(family) ?? 0) + 1);
+    updateCounts.set(family, (updateCounts.get(family) ?? 0) + product.updateCount);
+  }
+
+  return (
+    <ul className="product-family-grid" aria-label="Unity product families">
+      {PRODUCT_UPDATE_FAMILY_CATALOG.map((family) => (
+        <li
+          className="product-family-card"
+          data-priority={family.priority}
+          key={family.key}
+        >
+          <div>
+            <span className="product-family-card__eyebrow">
+              {family.priority === "core-adjacent"
+                ? "Editor-adjacent"
+                : "Optional intelligence"}
+            </span>
+            <h2>
+              <a href={`/updates/${family.key}`}>{family.name}</a>
+            </h2>
+            <p>{family.description}</p>
+          </div>
+          <dl className="product-family-card__counts">
+            <div>
+              <dt>Products</dt>
+              <dd>{(productCounts.get(family.key) ?? 0).toLocaleString()}</dd>
+            </div>
+            <div>
+              <dt>Updates</dt>
+              <dd>{(updateCounts.get(family.key) ?? 0).toLocaleString()}</dd>
+            </div>
+          </dl>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function ProductGrid({
+  products,
+  emptyMessage = "No products have been published in this family yet."
+}: {
+  products: ProductSummary[];
+  emptyMessage?: string;
+}) {
+  if (products.length === 0) {
+    return (
+      <div className="empty-state product-updates-empty">
+        <h2>No product updates yet.</h2>
+        <p>{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  return (
+    <ul className="product-grid" aria-label="Unity products">
+      {products.map((product) => (
+        <li className="product-card" key={product.productKey}>
+          <div>
+            <span className="product-card__family">
+              {PRODUCT_UPDATE_FAMILY_DETAILS[
+                product.family as ProductUpdateFamily
+              ]?.shortName ?? product.family}
+            </span>
+            <h2>
+              <a href={`/updates/products/${product.slug}`}>
+                {product.displayName}
+              </a>
+            </h2>
+            {product.description ? <p>{product.description}</p> : null}
+          </div>
+          <div className="product-card__meta">
+            <span>
+              <strong>{product.updateCount.toLocaleString()}</strong>{" "}
+              {product.updateCount === 1 ? "update" : "updates"}
+            </span>
+            <span>
+              {product.latestUpdateAt
+                ? `Latest ${formatProductUpdateDate(product.latestUpdateAt)}`
+                : "Awaiting first update"}
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function ProductUpdateList({
+  updates,
+  heading = "Recent updates",
+  emptyMessage = "No validated updates have been published yet."
+}: {
+  updates: UpdateSummary[];
+  heading?: string;
+  emptyMessage?: string;
+}) {
+  return (
+    <section className="product-update-section" aria-labelledby="recent-product-updates">
+      <div className="product-update-section__header">
+        <h2 id="recent-product-updates">{heading}</h2>
+        <span>{updates.length.toLocaleString()} shown</span>
+      </div>
+      {updates.length === 0 ? (
+        <div className="empty-state product-updates-empty">
+          <h3>Nothing published yet.</h3>
+          <p>{emptyMessage}</p>
+        </div>
+      ) : (
+        <ol className="product-update-list">
+          {updates.map((update) => (
+            <li className="product-update-row" key={update.id}>
+              <div className="product-update-row__date tabnums">
+                {formatProductUpdateDate(update.releaseDate ?? update.sortTime)}
+              </div>
+              <div className="product-update-row__body">
+                <div className="product-update-row__context">
+                  <a href={`/updates/products/${update.productSlug}`}>
+                    {update.productName}
+                  </a>
+                  {update.version ? <span>{update.version}</span> : null}
+                  {update.channel ? <span>{update.channel}</span> : null}
+                </div>
+                <h3>
+                  <a
+                    href={`/updates/products/${update.productSlug}/${update.slug}`}
+                  >
+                    {update.title}
+                  </a>
+                </h3>
+                {update.summary ? <p>{update.summary}</p> : null}
+              </div>
+              <div className="product-update-row__sources">
+                {update.sourceCount} {update.sourceCount === 1 ? "source" : "sources"}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+export function ProductUpdateDetailView({ detail }: { detail: UpdateDetail }) {
+  return (
+    <>
+      <div className="product-update-detail__summary">
+        {detail.update.summary ? <p>{detail.update.summary}</p> : null}
+        <dl>
+          {detail.update.version ? (
+            <div>
+              <dt>Version</dt>
+              <dd>{detail.update.version}</dd>
+            </div>
+          ) : null}
+          {detail.update.releaseDate ? (
+            <div>
+              <dt>Released</dt>
+              <dd>{formatProductUpdateDate(detail.update.releaseDate)}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>Product</dt>
+            <dd>
+              <a href={`/updates/products/${detail.product.slug}`}>
+                {detail.product.displayName}
+              </a>
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="product-update-observations">
+        {detail.observations.map((observation) => (
+          <section
+            className="product-update-observation"
+            aria-labelledby={`observation-${observation.id}`}
+            key={observation.id}
+          >
+            <header>
+              <div>
+                <span className="product-card__family">{observation.sourceName}</span>
+                <h2 id={`observation-${observation.id}`}>{observation.title}</h2>
+              </div>
+              <ExternalLink href={observation.sourceUrl}>Official notes</ExternalLink>
+            </header>
+            {observation.summary &&
+            observation.summary !== detail.update.summary ? (
+              <p>{observation.summary}</p>
+            ) : null}
+            {observation.items.length > 0 ? (
+              <ol className="product-update-items">
+                {observation.items.map((item) => (
+                  <li key={item.itemKey}>
+                    <div className="product-update-items__meta">
+                      <span>{item.section}</span>
+                      <span>{item.changeKind}</span>
+                    </div>
+                    <p>{item.body}</p>
+                    {item.tags.length > 0 ? (
+                      <ul className="product-update-items__tags" aria-label="Tags">
+                        {item.tags.map((tag) => (
+                          <li key={tag}>{tag}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="muted">
+                This source publishes release-level notes without individual change
+                items.
+              </p>
+            )}
+          </section>
+        ))}
+      </div>
+    </>
+  );
+}
+
+export function ProductUpdatesUnavailable() {
+  return (
+    <div className="empty-state product-updates-empty">
+      <h2>Product Updates is temporarily unavailable.</h2>
+      <p>
+        The optional product index is not configured. Editor releases, package
+        intelligence, issues, and upgrade comparisons are unaffected.
+      </p>
+    </div>
+  );
+}
+
+export function formatProductUpdateDate(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+}

@@ -20,7 +20,12 @@ const PAGE_CONTRACTS = [
   ["/news", "News"],
   ["/resources", "Resources"],
   ["/stats", "Site Stats"],
-  ["/faq", "FAQ"]
+  ["/faq", "FAQ"],
+  ["/updates", "Product Updates"],
+  ["/updates/editor-tooling", "Editor Tooling Updates"],
+  ["/updates/platform-services", "Platform & Services Updates"],
+  ["/updates/products/unity-hub", "Unity Hub"],
+  ["/updates/products/unity-hub/3.14.0", "Unity Hub 3.14.0"]
 ] as const satisfies ReadonlyArray<readonly [string, string | RegExp]>;
 
 const HTTP_CONTRACTS = [
@@ -34,6 +39,8 @@ const HTTP_CONTRACTS = [
   "/api/packages/com.unity.inputsystem/versions",
   "/api/release-notes?q=UUM-10001",
   "/api/releases",
+  "/api/updates",
+  "/api/updates/health",
   "/icon",
   "/apple-icon",
   "/opengraph-image"
@@ -85,6 +92,8 @@ test.describe("core surface contract", () => {
       "Search Notes",
       "Issue Explorer",
       "Packages",
+      "Editor Tooling Updates",
+      "Product Updates",
       "Unity GitHub",
       "Staff Discussions",
       "Activity Feed",
@@ -95,7 +104,28 @@ test.describe("core surface contract", () => {
     ]) {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
+    for (const label of [
+      "Engine & Editor",
+      "Unity Products",
+      "Community & Reference"
+    ]) {
+      await expect(nav.getByRole("heading", { name: label })).toBeVisible();
+    }
     await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+  });
+
+  test("stable product detail routes keep exactly one navigation item current", async ({
+    page
+  }, testInfo) => {
+    await page.goto("/updates/products/unity-hub/3.14.0");
+    if (testInfo.project.name.startsWith("mobile")) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+    }
+    const nav = page.locator("#primary-nav");
+    await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+    await expect(
+      nav.getByRole("link", { name: "Product Updates" })
+    ).toHaveAttribute("aria-current", "page");
   });
 
   test("mobile drawer opens, closes with Escape, and restores focus", async ({ page }, testInfo) => {

@@ -26,8 +26,8 @@ export default defineConfig({
       DATABASE_URL: scopedDatabaseUrl(),
       APP_BASE_URL: baseURL,
       PRODUCT_UPDATE_INGEST_ENABLED: "false",
-      PRODUCT_UPDATE_UI_ENABLED: "false",
-      PRODUCT_UPDATE_NAV_ENABLED: "false"
+      PRODUCT_UPDATE_UI_ENABLED: "true",
+      PRODUCT_UPDATE_NAV_ENABLED: "true"
     }
   },
   projects: [

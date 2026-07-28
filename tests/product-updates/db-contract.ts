@@ -122,8 +122,11 @@ async function main() {
   );
 
   const afterQuarantine = await repositories.listProductUpdateHealth();
-  assert.equal(afterQuarantine[0].status, "quarantined");
-  assert.equal(afterQuarantine[0].consecutiveFailures, 1);
+  const quarantined = afterQuarantine.find(
+    (source) => source.sourceKey === "db-contract"
+  );
+  assert.equal(quarantined?.status, "quarantined");
+  assert.equal(quarantined?.consecutiveFailures, 1);
 
   const repairedAdapter = {
     ...adapter,
@@ -144,8 +147,10 @@ async function main() {
   });
   assert.deepEqual(nextPage, []);
   const products = await repositories.listUnityProducts("editor-tooling");
-  assert.equal(products.length, 1);
-  assert.equal(products[0].updateCount, 1);
+  const contractProduct = products.find(
+    (product) => product.productKey === "db-contract-product"
+  );
+  assert.equal(contractProduct?.updateCount, 1);
   const detail = await repositories.getProductUpdateDetail(
     "db-contract-product",
     "1.0.0"
@@ -154,8 +159,11 @@ async function main() {
   assert.equal(detail?.observations[0].items.length, 1);
 
   const health = await repositories.listProductUpdateHealth();
-  assert.equal(health.length, 1);
-  assert.equal(health[0].consecutiveFailures, 0);
+  assert.equal(
+    health.find((source) => source.sourceKey === "db-contract")
+      ?.consecutiveFailures,
+    0
+  );
 
   const coreRunsAfter = await query<{ count: string }>("SELECT COUNT(*)::text AS count FROM ingestion_runs");
   assert.equal(coreRunsAfter.rows[0].count, coreRunsBefore.rows[0].count);
@@ -163,10 +171,22 @@ async function main() {
   assert.equal(JSON.stringify(await coreRepositories.listTimelineFeed()), coreTimelineBefore);
 
   const canonicalCount = await query<{ count: string }>(
-    "SELECT COUNT(*)::text AS count FROM product_updates"
+    `
+      SELECT COUNT(*)::text AS count
+      FROM product_updates u
+      JOIN unity_products p ON p.id = u.product_id
+      WHERE p.product_key = 'db-contract-product'
+    `
   );
   const itemCount = await query<{ count: string }>(
-    "SELECT COUNT(*)::text AS count FROM product_update_observation_items"
+    `
+      SELECT COUNT(*)::text AS count
+      FROM product_update_observation_items i
+      JOIN product_update_observations o ON o.id = i.observation_id
+      JOIN product_updates u ON u.id = o.product_update_id
+      JOIN unity_products p ON p.id = u.product_id
+      WHERE p.product_key = 'db-contract-product'
+    `
   );
   assert.equal(canonicalCount.rows[0].count, "1");
   assert.equal(itemCount.rows[0].count, "1");
@@ -177,8 +197,9 @@ async function main() {
   }>(
     `
       SELECT validated_etag, validated_parser_version, observed_etag
-      FROM product_update_targets
-      WHERE target_key = 'main'
+      FROM product_update_targets t
+      JOIN product_update_sources s ON s.id = t.source_id
+      WHERE s.source_key = 'db-contract' AND t.target_key = 'main'
     `
   );
   assert.equal(accepted.rows[0].observed_etag, '"db-contract-v2"');
