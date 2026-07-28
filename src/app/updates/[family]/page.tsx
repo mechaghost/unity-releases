@@ -2,11 +2,16 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   ProductGrid,
+  ProductUpdateFilters,
   ProductUpdateFamilyNav,
   ProductUpdateList,
   ProductUpdatesUnavailable
 } from "../_components/ProductUpdateViews";
-import { loadProductUpdates, requireProductUpdateUi } from "../_data";
+import {
+  loadProductUpdates,
+  parseProductUpdateFilters,
+  requireProductUpdateUi
+} from "../_data";
 import { getProductUpdateFamily } from "@/lib/product-updates/catalog";
 import { pageSocialMetadata } from "@/lib/site";
 
@@ -31,15 +36,23 @@ export async function generateMetadata({
 }
 
 export default async function ProductUpdateFamilyPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ family: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   requireProductUpdateUi();
   const { family: familyKey } = await params;
   const family = getProductUpdateFamily(familyKey);
   if (!family) notFound();
-  const data = await loadProductUpdates({ family: family.key, limit: 60 });
+  const filters = parseProductUpdateFilters(await searchParams);
+  const data = await loadProductUpdates({
+    family: family.key,
+    ...filters,
+    limit: 60,
+    includeFacets: true
+  });
 
   return (
     <>
@@ -61,11 +74,24 @@ export default async function ProductUpdateFamilyPage({
 
       {data ? (
         <>
-          <ProductGrid products={data.products} />
+          <ProductUpdateFilters
+            values={filters}
+            facets={
+              data.facets ?? {
+                versions: [],
+                channels: [],
+                changeKinds: [],
+                platforms: []
+              }
+            }
+            products={data.products}
+            clearHref={`/updates/${family.key}`}
+          />
           <ProductUpdateList
             updates={data.updates}
             heading={`${family.name} release notes`}
           />
+          <ProductGrid products={data.products} />
         </>
       ) : (
         <ProductUpdatesUnavailable />

@@ -11,6 +11,7 @@ export type ProductUpdateTargetManifest = {
   targetKey: string;
   url: string;
   allowedHosts: readonly string[];
+  retired?: boolean;
 };
 
 export type ProductUpdateAdapterManifest = {
@@ -84,6 +85,7 @@ export type ProductUpdateTargetState = {
   targetKey: string;
   url: string;
   status: string;
+  failureKind: ProductUpdateFailureKind | null;
   nextDueAt: string | null;
   circuitOpenUntil: string | null;
   validatedEtag: string | null;
@@ -95,6 +97,14 @@ export type ProductUpdateTargetState = {
   publishedParserVersion: string | null;
   lastValidatedRecordCount: number | null;
 };
+
+export type ProductUpdateFailureKind =
+  | "transient"
+  | "rate-limited"
+  | "access-configuration-blocked"
+  | "not-found-candidate"
+  | "parser-drift"
+  | "unknown";
 
 export type ProductUpdateFetchResult =
   | {
@@ -127,6 +137,7 @@ export type ProductUpdateRunResult = {
     | "skipped-not-due"
     | "skipped-overlap"
     | "skipped-circuit-open"
+    | "skipped-retired"
     | "not-configured"
     | "failed"
     | "quarantined";

@@ -110,8 +110,14 @@ export default async function TimelinePage({ searchParams }: { searchParams: Sea
                   <TimelineNode event={item} />
                   <div className="timeline__card">
                     <header className="timeline__card-header">
-                      <span className="timeline__card-time" title={formatDateTime(item.timestamp)}>
-                        {formatDateTime(item.timestamp)} · <span className="timeline__card-relative">{formatRelativeDate(item.timestamp)}</span>
+                      <span
+                        className="timeline__card-time"
+                        title={formatTimelineTimestamp(item)}
+                      >
+                        {formatTimelineTimestamp(item)} ·{" "}
+                        <span className="timeline__card-relative">
+                          {formatRelativeDate(item.timestamp)}
+                        </span>
                       </span>
                     </header>
                     <div className="timeline__card-body">
@@ -407,6 +413,18 @@ function formatDateTime(value: string | Date): string {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function formatTimelineTimestamp(event: TimelineEvent): string {
+  if (event.type === "content" && event.eventType === "product_update") {
+    return new Date(event.timestamp).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC"
+    });
+  }
+  return formatDateTime(event.timestamp);
 }
 
 async function safeListTimelineFeed(

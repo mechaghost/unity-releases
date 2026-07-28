@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { siteUrl } from "@/lib/site";
 import { getTrackedVersionLines } from "@/lib/db/repositories";
 import { describeGeneration, groupTrackedLines } from "@/lib/tracked-versions";
+import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
 
 /**
  * Rendered per request, not prerendered.
@@ -68,6 +69,24 @@ async function trackedVersionsParagraph(): Promise<string> {
 export async function GET() {
   const origin = siteUrl();
   const trackedVersions = await trackedVersionsParagraph();
+  const productUpdates = productUpdateNavigationEnabled()
+    ? `
+## Secondary product intelligence
+
+These routes are deliberately separate from Editor release and upgrade data:
+
+- [Product Updates](${origin}/updates) - validated Unity Hub, CLI, services,
+  monetization, and enterprise product changelogs grouped by priority.
+- [Editor Tooling Updates](${origin}/updates/editor-tooling) - Unity Hub and
+  Unity CLI histories adjacent to, but not merged into, Editor releases.
+- [Product Updates API](${origin}/api/updates) - cursor-paginated normalized
+  update summaries. Product events require explicit scope at
+  \`${origin}/api/events?scope=product-updates\`.
+- [Product Updates Health](${origin}/api/updates/health) - independent source
+  and target status; it does not contribute to core Editor health.
+
+`
+    : "";
   const body = `# Unity Releases
 
 > Independent release-first intelligence hub for Unity editor releases.
@@ -165,7 +184,7 @@ filtering UI.
 - [FAQ](${origin}/faq) - explanations of the impact lanes, risk levels,
   data sources, refresh cadence, and filter semantics.
 
-## Operational
+${productUpdates}## Operational
 
 - [Sitemap](${origin}/sitemap.xml)
 - [Robots](${origin}/robots.txt)

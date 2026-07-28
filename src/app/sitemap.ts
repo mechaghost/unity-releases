@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 import { listReleaseSummaries, listTopIssueIds } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
+import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
+import { PRODUCT_UPDATE_FAMILY_CATALOG } from "@/lib/product-updates/catalog";
+import { listProductUpdateSitemapEntries } from "@/lib/product-updates/repositories";
 
 // Rendered per request, not prerendered. Like /llms.txt (F5), a bare
 // `revalidate` with no request-dependent API makes Next prerender this at BUILD
@@ -37,6 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${origin}/timeline`, lastModified: now, changeFrequency: "daily", priority: 0.4 },
     { url: `${origin}/visualizer`, lastModified: now, changeFrequency: "weekly", priority: 0.5 }
   ];
+  const productEntries = await optionalProductUpdateEntries(origin, now);
 
   let releases: ReleaseRow[] = [];
   try {
@@ -53,7 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         error: error instanceof Error ? error.message : String(error)
       })
     );
-    return staticEntries;
+    return [...staticEntries, ...productEntries];
   }
 
   const releaseEntries: MetadataRoute.Sitemap = releases.map((r) => ({
@@ -87,5 +91,58 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5
   }));
 
-  return [...staticEntries, ...releaseEntries, ...issueEntries];
+  return [
+    ...staticEntries,
+    ...releaseEntries,
+    ...issueEntries,
+    ...productEntries
+  ];
+}
+
+async function optionalProductUpdateEntries(
+  origin: string,
+  now: Date
+): Promise<MetadataRoute.Sitemap> {
+  if (!productUpdateNavigationEnabled()) return [];
+  const familyEntries: MetadataRoute.Sitemap = [
+    {
+      url: `${origin}/updates`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.55
+    },
+    ...PRODUCT_UPDATE_FAMILY_CATALOG.map((family) => ({
+      url: `${origin}/updates/${family.key}`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: family.priority === "core-adjacent" ? 0.55 : 0.35
+    }))
+  ];
+  try {
+    const entries = await listProductUpdateSitemapEntries();
+    return [
+      ...familyEntries,
+      ...entries.products.map((product) => ({
+        url: `${origin}/updates/products/${encodeURIComponent(product.slug)}`,
+        lastModified: product.updatedAt ? new Date(product.updatedAt) : now,
+        changeFrequency: "daily" as const,
+        priority: 0.4
+      })),
+      ...entries.updates.map((update) => ({
+        url: `${origin}/updates/products/${encodeURIComponent(update.productSlug)}/${encodeURIComponent(update.updateSlug)}`,
+        lastModified: new Date(update.updatedAt),
+        changeFrequency: "weekly" as const,
+        priority: 0.3
+      }))
+    ];
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        route: "/sitemap.xml",
+        event: "product_update_entries_fallback",
+        error: error instanceof Error ? error.message : String(error)
+      })
+    );
+    return familyEntries;
+  }
 }

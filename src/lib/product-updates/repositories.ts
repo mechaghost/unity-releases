@@ -6,6 +6,7 @@ import { normalizedObservationHash } from "./normalization";
 import type {
   NormalizedProductUpdateObservation,
   ProductUpdateAdapter,
+  ProductUpdateFailureKind,
   ProductUpdateFetchResult,
   ProductUpdateTargetState
 } from "./types";
@@ -60,15 +61,26 @@ export async function registerProductUpdateAdapter(adapter: ProductUpdateAdapter
       await client.query(
         `
           INSERT INTO product_update_targets (
-            source_id, target_key, url, cadence_hours, next_due_at
+            source_id, target_key, url, cadence_hours, next_due_at, status
           )
-          VALUES ($1, $2, $3, $4, now())
+          VALUES ($1, $2, $3, $4, now(), $5)
           ON CONFLICT (source_id, target_key) DO UPDATE SET
             url = EXCLUDED.url,
             cadence_hours = EXCLUDED.cadence_hours,
+            status = CASE
+              WHEN EXCLUDED.status = 'manually-retired' THEN 'manually-retired'
+              WHEN product_update_targets.status = 'manually-retired' THEN 'active'
+              ELSE product_update_targets.status
+            END,
             updated_at = now()
         `,
-        [sourceId, target.targetKey, target.url, adapter.manifest.cadenceHours]
+        [
+          sourceId,
+          target.targetKey,
+          target.url,
+          adapter.manifest.cadenceHours,
+          target.retired ? "manually-retired" : "active"
+        ]
       );
     }
 
@@ -92,6 +104,7 @@ export async function getProductUpdateTarget(
     target_key: string;
     url: string;
     status: string;
+    failure_kind: ProductUpdateFailureKind | null;
     cadence_hours: number;
     next_due_at: string | null;
     circuit_open_until: string | null;
@@ -112,6 +125,7 @@ export async function getProductUpdateTarget(
         t.target_key,
         t.url,
         t.status,
+        t.failure_kind,
         t.cadence_hours,
         t.next_due_at,
         t.circuit_open_until,
@@ -138,6 +152,7 @@ export async function getProductUpdateTarget(
     targetKey: row.target_key,
     url: row.url,
     status: row.status,
+    failureKind: row.failure_kind,
     cadenceHours: Number(row.cadence_hours),
     nextDueAt: row.next_due_at,
     circuitOpenUntil: row.circuit_open_until,
@@ -211,6 +226,7 @@ export async function tryAcquireProductUpdateLease(
         `
           UPDATE product_update_targets
           SET consecutive_failures = consecutive_failures + $2,
+              failure_kind = 'transient',
               last_error = 'Prior run lease expired before completion',
               updated_at = now()
           WHERE id = $1
@@ -638,6 +654,9 @@ export async function publishProductUpdateObservations(options: {
             published_snapshot_id = $7,
             consecutive_failures = 0,
             circuit_open_until = NULL,
+            failure_kind = NULL,
+            not_found_probe_count = 0,
+            not_found_first_at = NULL,
             last_error = NULL,
             last_validated_record_count = $8,
             updated_at = now()
@@ -693,6 +712,10 @@ export async function finishProductUpdateNoChange(options: {
             next_due_at = now() + (cadence_hours::text || ' hours')::interval,
             consecutive_failures = 0,
             circuit_open_until = NULL,
+            status = 'active',
+            failure_kind = NULL,
+            not_found_probe_count = 0,
+            not_found_first_at = NULL,
             last_error = NULL,
             updated_at = now()
         WHERE id = $1 AND lease_token = $2
@@ -742,26 +765,77 @@ export async function failProductUpdateRun(options: {
   leaseToken: string;
   runId: number;
   status: "failed" | "quarantined" | "timed-out";
+  failureKind: ProductUpdateFailureKind;
   error: string;
 }) {
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+    const targetState = await client.query<{
+      status: string;
+      not_found_probe_count: number;
+      probe_is_spaced: boolean;
+    }>(
+      `
+        SELECT
+          status,
+          not_found_probe_count,
+          last_attempt_at IS NULL
+            OR last_attempt_at <= now() - interval '6 hours' AS probe_is_spaced
+        FROM product_update_targets
+        WHERE id = $1 AND lease_token = $2
+        FOR UPDATE
+      `,
+      [options.target.targetId, options.leaseToken]
+    );
+    const current = targetState.rows[0];
+    const notFoundProbeCount =
+      options.failureKind === "not-found-candidate"
+        ? Number(current?.not_found_probe_count ?? 0) +
+          (current?.probe_is_spaced ? 1 : 0)
+        : Number(current?.not_found_probe_count ?? 0);
+    const targetStatus =
+      options.failureKind === "parser-drift"
+        ? "quarantined"
+        : options.failureKind === "not-found-candidate"
+          ? notFoundProbeCount >= 3
+            ? "suspected-retired"
+            : "not-found-candidate"
+          : current?.status ?? "active";
     await client.query(
       `
         UPDATE product_update_targets
         SET last_attempt_at = now(),
-            status = CASE WHEN $3 = 'quarantined' THEN 'quarantined' ELSE status END,
+            status = $3,
+            failure_kind = $4,
+            not_found_probe_count = $5,
+            not_found_first_at = CASE
+              WHEN $4 = 'not-found-candidate'
+                THEN COALESCE(not_found_first_at, now())
+              ELSE not_found_first_at
+            END,
+            next_due_at = CASE
+              WHEN $3 = 'suspected-retired' THEN now() + interval '7 days'
+              WHEN $4 = 'not-found-candidate' THEN now() + interval '24 hours'
+              ELSE next_due_at
+            END,
             consecutive_failures = consecutive_failures + 1,
             circuit_open_until = CASE
               WHEN consecutive_failures + 1 >= 3 THEN now() + interval '6 hours'
               ELSE circuit_open_until
             END,
-            last_error = $4,
+            last_error = $6,
             updated_at = now()
         WHERE id = $1 AND lease_token = $2
       `,
-      [options.target.targetId, options.leaseToken, options.status, options.error]
+      [
+        options.target.targetId,
+        options.leaseToken,
+        targetStatus,
+        options.failureKind,
+        notFoundProbeCount,
+        options.error
+      ]
     );
     await client.query(
       `
@@ -785,9 +859,11 @@ export type ProductUpdateHealth = {
   targetKey: string;
   url: string;
   status: string;
+  failureKind: ProductUpdateFailureKind | null;
   lastAttemptAt: string | null;
   lastSuccessAt: string | null;
   consecutiveFailures: number;
+  notFoundProbeCount: number;
   circuitOpenUntil: string | null;
   lastError: string | null;
 };
@@ -799,16 +875,18 @@ export async function listProductUpdateHealth(): Promise<ProductUpdateHealth[]> 
     target_key: string;
     url: string;
     status: string;
+    failure_kind: ProductUpdateFailureKind | null;
     last_attempt_at: string | null;
     last_success_at: string | null;
     consecutive_failures: number;
+    not_found_probe_count: number;
     circuit_open_until: string | null;
     last_error: string | null;
   }>(
     `
-      SELECT s.source_key, t.target_key, t.url, t.status, t.last_attempt_at,
-             t.last_success_at, t.consecutive_failures, t.circuit_open_until,
-             t.last_error
+      SELECT s.source_key, t.target_key, t.url, t.status, t.failure_kind,
+             t.last_attempt_at, t.last_success_at, t.consecutive_failures,
+             t.not_found_probe_count, t.circuit_open_until, t.last_error
       FROM product_update_targets t
       JOIN product_update_sources s ON s.id = t.source_id
       ORDER BY s.source_key, t.target_key
@@ -819,9 +897,11 @@ export async function listProductUpdateHealth(): Promise<ProductUpdateHealth[]> 
     targetKey: row.target_key,
     url: row.url,
     status: row.status,
+    failureKind: row.failure_kind,
     lastAttemptAt: row.last_attempt_at,
     lastSuccessAt: row.last_success_at,
     consecutiveFailures: Number(row.consecutive_failures),
+    notFoundProbeCount: Number(row.not_found_probe_count),
     circuitOpenUntil: row.circuit_open_until,
     lastError: row.last_error
   }));
@@ -894,6 +974,12 @@ export async function getProductUpdateStats(): Promise<ProductUpdateStats | null
 export async function listProductUpdates(options: {
   family?: string;
   product?: string;
+  changeKind?: string;
+  platform?: string;
+  version?: string;
+  channel?: string;
+  from?: string;
+  to?: string;
   limit?: number;
   before?: { sortTime: string; id: number } | null;
 } = {}) {
@@ -908,6 +994,52 @@ export async function listProductUpdates(options: {
   if (options.product) {
     params.push(options.product);
     where.push(`p.slug = $${params.length}`);
+  }
+  if (options.changeKind) {
+    params.push(options.changeKind);
+    where.push(
+      `EXISTS (
+        SELECT 1
+        FROM product_update_observations filter_observation
+        JOIN product_update_observation_items filter_item
+          ON filter_item.observation_id = filter_observation.id
+        WHERE filter_observation.product_update_id = u.id
+          AND filter_item.change_kind = $${params.length}
+      )`
+    );
+  }
+  if (options.platform) {
+    params.push(options.platform);
+    where.push(
+      `EXISTS (
+        SELECT 1
+        FROM product_update_observations platform_observation
+        JOIN product_update_observation_items platform_item
+          ON platform_item.observation_id = platform_observation.id
+        WHERE platform_observation.product_update_id = u.id
+          AND $${params.length} = ANY(platform_item.platforms)
+      )`
+    );
+  }
+  if (options.version) {
+    params.push(options.version);
+    where.push(`u.version = $${params.length}`);
+  }
+  if (options.channel) {
+    params.push(options.channel);
+    where.push(`u.channel = $${params.length}`);
+  }
+  if (options.from) {
+    params.push(options.from);
+    where.push(
+      `COALESCE(u.release_date, u.first_seen_at) >= $${params.length}::date`
+    );
+  }
+  if (options.to) {
+    params.push(options.to);
+    where.push(
+      `COALESCE(u.release_date, u.first_seen_at) < $${params.length}::date + interval '1 day'`
+    );
   }
   if (options.before) {
     params.push(options.before.sortTime, options.before.id);
@@ -976,6 +1108,80 @@ export async function listProductUpdates(options: {
   }));
 }
 
+export type ProductUpdateFacets = {
+  versions: string[];
+  channels: string[];
+  changeKinds: string[];
+  platforms: string[];
+};
+
+export async function listProductUpdateFacets(options: {
+  family?: string;
+  product?: string;
+} = {}): Promise<ProductUpdateFacets> {
+  if (!(await productUpdatesSchemaReady())) {
+    return { versions: [], channels: [], changeKinds: [], platforms: [] };
+  }
+  const result = await query<{
+    versions: string[];
+    channels: string[];
+    change_kinds: string[];
+    platforms: string[];
+  }>(
+    `
+      WITH scoped_updates AS (
+        SELECT scoped_update.id, scoped_update.version, scoped_update.channel
+        FROM product_updates scoped_update
+        JOIN unity_products product ON product.id = scoped_update.product_id
+        WHERE ($1::text IS NULL OR product.family = $1)
+          AND ($2::text IS NULL OR product.slug = $2)
+      )
+      SELECT
+        ARRAY(
+          SELECT DISTINCT version
+          FROM scoped_updates
+          WHERE version IS NOT NULL AND version <> ''
+          ORDER BY version
+        ) AS versions,
+        ARRAY(
+          SELECT DISTINCT channel
+          FROM scoped_updates
+          WHERE channel IS NOT NULL AND channel <> ''
+          ORDER BY channel
+        ) AS channels,
+        ARRAY(
+          SELECT DISTINCT item.change_kind
+          FROM scoped_updates scoped
+          JOIN product_update_observations observation
+            ON observation.product_update_id = scoped.id
+          JOIN product_update_observation_items item
+            ON item.observation_id = observation.id
+          WHERE item.change_kind <> ''
+          ORDER BY item.change_kind
+        ) AS change_kinds,
+        ARRAY(
+          SELECT DISTINCT platform
+          FROM scoped_updates scoped
+          JOIN product_update_observations observation
+            ON observation.product_update_id = scoped.id
+          JOIN product_update_observation_items item
+            ON item.observation_id = observation.id
+          CROSS JOIN LATERAL UNNEST(item.platforms) AS platform
+          WHERE platform <> ''
+          ORDER BY platform
+        ) AS platforms
+    `,
+    [options.family ?? null, options.product ?? null]
+  );
+  const row = result.rows[0];
+  return {
+    versions: row?.versions ?? [],
+    channels: row?.channels ?? [],
+    changeKinds: row?.change_kinds ?? [],
+    platforms: row?.platforms ?? []
+  };
+}
+
 export async function listUnityProducts(family?: string) {
   if (!(await productUpdatesSchemaReady())) return [];
   const result = await query<{
@@ -1027,6 +1233,73 @@ export async function listUnityProducts(family?: string) {
     updateCount: Number(row.update_count),
     latestUpdateAt: row.latest_update_at
   }));
+}
+
+export type ProductUpdateSitemapEntries = {
+  products: Array<{
+    slug: string;
+    updatedAt: string | null;
+  }>;
+  updates: Array<{
+    productSlug: string;
+    updateSlug: string;
+    updatedAt: string;
+  }>;
+};
+
+export async function listProductUpdateSitemapEntries(
+  limit = 10_000
+): Promise<ProductUpdateSitemapEntries> {
+  if (!(await productUpdatesSchemaReady())) {
+    return { products: [], updates: [] };
+  }
+  const boundedLimit = Math.min(Math.max(limit, 1), 10_000);
+  const [products, updates] = await Promise.all([
+    query<{ slug: string; updated_at: string | null }>(
+      `
+        SELECT
+          product.slug,
+          MAX(COALESCE(product_update.updated_at, product.updated_at)) AS updated_at
+        FROM unity_products product
+        LEFT JOIN product_updates product_update
+          ON product_update.product_id = product.id
+        GROUP BY product.id
+        ORDER BY product.slug
+      `
+    ),
+    query<{
+      product_slug: string;
+      update_slug: string;
+      updated_at: string;
+    }>(
+      `
+        SELECT
+          product.slug AS product_slug,
+          product_update.slug AS update_slug,
+          product_update.updated_at
+        FROM product_updates product_update
+        JOIN unity_products product ON product.id = product_update.product_id
+        ORDER BY COALESCE(
+                   product_update.release_date,
+                   product_update.first_seen_at
+                 ) DESC,
+                 product_update.id DESC
+        LIMIT $1
+      `,
+      [boundedLimit]
+    )
+  ]);
+  return {
+    products: products.rows.map((row) => ({
+      slug: row.slug,
+      updatedAt: row.updated_at
+    })),
+    updates: updates.rows.map((row) => ({
+      productSlug: row.product_slug,
+      updateSlug: row.update_slug,
+      updatedAt: row.updated_at
+    }))
+  };
 }
 
 export async function getProductUpdateDetail(productSlug: string, updateSlug: string) {

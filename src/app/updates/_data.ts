@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import {
   getProductUpdateDetail,
+  listProductUpdateFacets,
   listProductUpdates,
   listUnityProducts,
-  productUpdatesSchemaReady
+  productUpdatesSchemaReady,
+  type ProductUpdateFacets
 } from "@/lib/product-updates/repositories";
 import { productUpdateUiEnabled } from "@/lib/product-updates/flags";
 
@@ -11,22 +13,71 @@ export function requireProductUpdateUi() {
   if (!productUpdateUiEnabled()) notFound();
 }
 
+type ProductUpdateSearchParams = Record<
+  string,
+  string | string[] | undefined
+>;
+
+export function parseProductUpdateFilters(params: ProductUpdateSearchParams) {
+  const text = (key: string, maximum: number) => {
+    const raw = params[key];
+    const value = (Array.isArray(raw) ? raw[0] : raw)?.trim();
+    return value && value.length <= maximum ? value : undefined;
+  };
+  const date = (key: string) => {
+    const value = text(key, 10);
+    return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+  };
+  const product = text("product", 120);
+  return {
+    product:
+      product && /^[a-z0-9][a-z0-9-]*$/.test(product)
+        ? product
+        : undefined,
+    changeKind: text("kind", 80),
+    platform: text("platform", 80),
+    version: text("version", 120),
+    channel: text("channel", 80),
+    from: date("from"),
+    to: date("to")
+  };
+}
+
 export async function loadProductUpdates(options: {
   family?: string;
   product?: string;
+  changeKind?: string;
+  platform?: string;
+  version?: string;
+  channel?: string;
+  from?: string;
+  to?: string;
   limit?: number;
+  includeFacets?: boolean;
 } = {}) {
   try {
     if (!(await productUpdatesSchemaReady())) return null;
-    const [products, updates] = await Promise.all([
+    const [products, updates, facets] = await Promise.all([
       listUnityProducts(options.family),
       listProductUpdates({
         family: options.family,
         product: options.product,
+        changeKind: options.changeKind,
+        platform: options.platform,
+        version: options.version,
+        channel: options.channel,
+        from: options.from,
+        to: options.to,
         limit: options.limit
-      })
+      }),
+      options.includeFacets
+        ? listProductUpdateFacets({
+            family: options.family,
+            product: options.product
+          })
+        : Promise.resolve(null)
     ]);
-    return { products, updates };
+    return { products, updates, facets: facets as ProductUpdateFacets | null };
   } catch {
     return null;
   }

@@ -17,7 +17,8 @@ console.log(
       targetCount: adapter.manifest.targets.length,
       targets: adapter.manifest.targets.map((target) => ({
         targetKey: target.targetKey,
-        url: target.url
+        url: target.url,
+        retired: target.retired ?? false
       }))
     })),
     null,

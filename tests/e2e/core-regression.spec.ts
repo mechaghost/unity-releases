@@ -52,6 +52,13 @@ test.describe("core surface contract", () => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
       await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
+      expect(
+        await page.evaluate(
+          () =>
+            document.documentElement.scrollWidth <=
+            document.documentElement.clientWidth
+        )
+      ).toBe(true);
     });
   }
 
@@ -79,6 +86,19 @@ test.describe("core surface contract", () => {
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
+  test("public discovery follows the enabled Product Updates navigation", async ({
+    request
+  }) => {
+    const sitemapResponse = await request.get("/sitemap.xml");
+    expect(await sitemapResponse.text()).toContain(
+      "/updates/products/unity-hub/3.14.0"
+    );
+    const llmsResponse = await request.get("/llms.txt");
+    expect(await llmsResponse.text()).toContain(
+      "## Secondary product intelligence"
+    );
+  });
+
   test("default activity surfaces stay core-only while product updates require explicit scope", async ({
     page,
     request
@@ -102,6 +122,9 @@ test.describe("core surface contract", () => {
     await expect(page.getByText("Unity Hub 3.14.0")).toHaveCount(0);
 
     await page.goto("/timeline?filter=products");
+    await expect(page.locator(".timeline__card-time")).toContainText(
+      "Jul 24, 2026"
+    );
     await expect(
       page.getByRole("link", { name: /Product Update: Unity Hub 3\.14\.0/ })
     ).toBeVisible();
@@ -137,6 +160,28 @@ test.describe("core surface contract", () => {
       .filter({ hasText: "Product updates" });
     await expect(productUpdateCard).toBeVisible();
     await expect(productUpdateCard.locator(".stats-card__value")).toHaveText("1");
+  });
+
+  test("product update dates preserve their UTC release day", async ({ page }) => {
+    await page.goto("/updates");
+    await expect(page.getByText("Jul 24, 2026", { exact: true })).toBeVisible();
+  });
+
+  test("product browse filters are URL-stable and scoped to optional data", async ({
+    page
+  }) => {
+    await page.goto(
+      "/updates/editor-tooling?product=unity-hub&kind=improvement&platform=Windows&version=3.14.0&channel=stable&from=2026-07-01&to=2026-07-31"
+    );
+    await expect(
+      page.getByRole("form", { name: "Product update filters" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Unity Hub 3.14.0" })
+    ).toBeVisible();
+
+    await page.goto("/updates/editor-tooling?channel=beta");
+    await expect(page.getByText("Nothing published yet.")).toBeVisible();
   });
 
   test("desktop navigation preserves every existing destination and one current item", async ({

@@ -57,7 +57,8 @@ export const adapterManifestSchema = z.object({
       z.object({
         targetKey: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(120),
         url: httpsUrl,
-        allowedHosts: z.array(z.string().min(1)).min(1)
+        allowedHosts: z.array(z.string().min(1)).min(1),
+        retired: z.boolean().optional()
       })
     )
     .min(1)

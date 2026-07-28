@@ -77,9 +77,10 @@ you want production to update.
 | `cron-updates-industry-enterprise` | `config/railway/cron-updates-industry-enterprise.json` | `0 5 * * 1` | `npm run ingest:product-updates -- industry-enterprise` |
 
 Each cron config sets `deploy.cronSchedule` + `deploy.startCommand` and
-uses `restartPolicyType: NEVER` so a failed run doesn't loop. Jobs all
-exit cleanly via `withIngestionTransaction` so Railway's "skip if
-already running" guard never triggers.
+uses `restartPolicyType: NEVER` so a failed run doesn't loop. Core jobs
+exit cleanly via `withIngestionTransaction`; Product Updates family jobs
+run bounded child processes, close their database pool, and report all
+source outcomes before exiting.
 
 For each cron service in the dashboard:
 1. **+ New** → **Empty Service** (or use the CLI:

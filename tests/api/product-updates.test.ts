@@ -63,9 +63,41 @@ describe("Product Updates API", () => {
     expect(mocks.listUpdates).toHaveBeenCalledWith({
       family: "editor-tooling",
       product: undefined,
+      changeKind: undefined,
+      platform: undefined,
+      version: undefined,
+      channel: undefined,
+      from: undefined,
+      to: undefined,
       limit: 1,
       before: null
     });
+  });
+
+  test("passes bounded product filters to the isolated repository", async () => {
+    process.env.PRODUCT_UPDATE_UI_ENABLED = "true";
+    mocks.schemaReady.mockResolvedValue(true);
+    mocks.listUpdates.mockResolvedValue([]);
+
+    const response = await getUpdates(
+      new Request(
+        "https://example.test/api/updates?family=editor-tooling&product=unity-hub&kind=improvement&platform=Windows&version=3.14.0&channel=stable&from=2026-07-01&to=2026-07-31"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.listUpdates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        family: "editor-tooling",
+        product: "unity-hub",
+        changeKind: "improvement",
+        platform: "Windows",
+        version: "3.14.0",
+        channel: "stable",
+        from: "2026-07-01",
+        to: "2026-07-31"
+      })
+    );
   });
 
   test("rejects malformed cursors and unknown families", async () => {

@@ -5,6 +5,7 @@ import {
 } from "@/lib/product-updates/catalog";
 import type {
   getProductUpdateDetail,
+  ProductUpdateFacets,
   listProductUpdates,
   listUnityProducts
 } from "@/lib/product-updates/repositories";
@@ -15,6 +16,16 @@ export type UpdateSummary = Awaited<ReturnType<typeof listProductUpdates>>[numbe
 export type UpdateDetail = NonNullable<
   Awaited<ReturnType<typeof getProductUpdateDetail>>
 >;
+
+export type ProductUpdateFilterValues = {
+  product?: string;
+  changeKind?: string;
+  platform?: string;
+  version?: string;
+  channel?: string;
+  from?: string;
+  to?: string;
+};
 
 export function ProductUpdateFamilyNav({
   activeFamily
@@ -65,7 +76,7 @@ export function ProductFamilyGrid({
           data-priority={family.priority}
           key={family.key}
         >
-          <div>
+          <div className="product-family-card__identity">
             <span className="product-family-card__eyebrow">
               {family.priority === "core-adjacent"
                 ? "Editor-adjacent"
@@ -74,8 +85,10 @@ export function ProductFamilyGrid({
             <h2>
               <a href={`/updates/${family.key}`}>{family.name}</a>
             </h2>
-            <p>{family.description}</p>
           </div>
+          <p className="product-family-card__description">
+            {family.description}
+          </p>
           <dl className="product-family-card__counts">
             <div>
               <dt>Products</dt>
@@ -109,37 +122,156 @@ export function ProductGrid({
   }
 
   return (
-    <ul className="product-grid" aria-label="Unity products">
-      {products.map((product) => (
-        <li className="product-card" key={product.productKey}>
-          <div>
-            <span className="product-card__family">
-              {PRODUCT_UPDATE_FAMILY_DETAILS[
-                product.family as ProductUpdateFamily
-              ]?.shortName ?? product.family}
-            </span>
-            <h2>
-              <a href={`/updates/products/${product.slug}`}>
-                {product.displayName}
-              </a>
-            </h2>
-            {product.description ? <p>{product.description}</p> : null}
-          </div>
-          <div className="product-card__meta">
-            <span>
-              <strong>{product.updateCount.toLocaleString()}</strong>{" "}
-              {product.updateCount === 1 ? "update" : "updates"}
-            </span>
-            <span>
-              {product.latestUpdateAt
-                ? `Latest ${formatProductUpdateDate(product.latestUpdateAt)}`
-                : "Awaiting first update"}
-            </span>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <details className="product-directory">
+      <summary>
+        Browse {products.length.toLocaleString()} tracked{" "}
+        {products.length === 1 ? "product" : "products"}
+      </summary>
+      <ul className="product-grid" aria-label="Unity products">
+        {products.map((product) => (
+          <li className="product-card" key={product.productKey}>
+            <div>
+              <span className="product-card__family">
+                {PRODUCT_UPDATE_FAMILY_DETAILS[
+                  product.family as ProductUpdateFamily
+                ]?.shortName ?? product.family}
+              </span>
+              <h2>
+                <a href={`/updates/products/${product.slug}`}>
+                  {product.displayName}
+                </a>
+              </h2>
+              {product.description ? <p>{product.description}</p> : null}
+            </div>
+            <div className="product-card__meta">
+              <span>
+                <strong>{product.updateCount.toLocaleString()}</strong>{" "}
+                {product.updateCount === 1 ? "update" : "updates"}
+              </span>
+              <span>
+                {product.latestUpdateAt
+                  ? `Latest ${formatProductUpdateDate(product.latestUpdateAt)}`
+                  : "Awaiting first update"}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
+}
+
+export function ProductUpdateFilters({
+  values,
+  facets,
+  products = [],
+  clearHref,
+  showProduct = true
+}: {
+  values: ProductUpdateFilterValues;
+  facets: ProductUpdateFacets;
+  products?: ProductSummary[];
+  clearHref: string;
+  showProduct?: boolean;
+}) {
+  const hasFilters = Object.values(values).some(Boolean);
+  return (
+    <form
+      className="product-update-filters"
+      method="get"
+      aria-label="Product update filters"
+    >
+      <div className="product-update-filters__fields">
+        {showProduct ? (
+          <FilterSelect
+            label="Product"
+            name="product"
+            value={values.product}
+            options={products.map((product) => ({
+              value: product.slug,
+              label: product.displayName
+            }))}
+          />
+        ) : null}
+        <FilterSelect
+          label="Change kind"
+          name="kind"
+          value={values.changeKind}
+          options={facets.changeKinds.map(option)}
+        />
+        <FilterSelect
+          label="Platform / SDK"
+          name="platform"
+          value={values.platform}
+          options={facets.platforms.map(option)}
+        />
+        <FilterSelect
+          label="Version"
+          name="version"
+          value={values.version}
+          options={facets.versions.map(option)}
+        />
+        <FilterSelect
+          label="Channel"
+          name="channel"
+          value={values.channel}
+          options={facets.channels.map(option)}
+        />
+        <label className="product-update-filters__field">
+          <span>From</span>
+          <input type="date" name="from" defaultValue={values.from ?? ""} />
+        </label>
+        <label className="product-update-filters__field">
+          <span>To</span>
+          <input type="date" name="to" defaultValue={values.to ?? ""} />
+        </label>
+      </div>
+      <div className="product-update-filters__actions">
+        <button className="btn btn--primary" type="submit">
+          Apply filters
+        </button>
+        {hasFilters ? (
+          <a className="btn btn--secondary" href={clearHref}>
+            Clear
+          </a>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
+function FilterSelect({
+  label,
+  name,
+  value,
+  options
+}: {
+  label: string;
+  name: string;
+  value?: string;
+  options: Array<{ value: string; label: string }>;
+}) {
+  const normalizedOptions =
+    value && !options.some((candidate) => candidate.value === value)
+      ? [{ value, label: value }, ...options]
+      : options;
+  return (
+    <label className="product-update-filters__field">
+      <span>{label}</span>
+      <select name={name} defaultValue={value ?? ""}>
+        <option value="">All</option>
+        {normalizedOptions.map((item) => (
+          <option value={item.value} key={item.value}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function option(value: string) {
+  return { value, label: value };
 }
 
 export function ProductUpdateList({
@@ -294,6 +426,7 @@ export function formatProductUpdateDate(value: string) {
   return date.toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
-    day: "numeric"
+    day: "numeric",
+    timeZone: "UTC"
   });
 }

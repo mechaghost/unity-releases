@@ -10,6 +10,12 @@ export const dynamic = "force-dynamic";
 const paramsSchema = z.object({
   family: z.enum(PRODUCT_UPDATE_FAMILIES).optional(),
   product: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(120).optional(),
+  kind: z.string().min(1).max(80).optional(),
+  platform: z.string().min(1).max(80).optional(),
+  version: z.string().min(1).max(120).optional(),
+  channel: z.string().min(1).max(80).optional(),
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().max(500).optional()
 });
@@ -52,6 +58,12 @@ export async function GET(request: Request) {
   const updates = await listProductUpdates({
     family: parsed.data.family,
     product: parsed.data.product,
+    changeKind: parsed.data.kind,
+    platform: parsed.data.platform,
+    version: parsed.data.version,
+    channel: parsed.data.channel,
+    from: parsed.data.from,
+    to: parsed.data.to,
     limit: parsed.data.limit,
     before
   });

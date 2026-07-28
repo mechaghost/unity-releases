@@ -14,9 +14,14 @@ import {
   releaseProductUpdateLease,
   tryAcquireProductUpdateLease
 } from "./repositories";
-import { fetchProductUpdateTarget, type ProductUpdateFetchOptions } from "./fetcher";
+import {
+  fetchProductUpdateTarget,
+  ProductUpdateHttpError,
+  type ProductUpdateFetchOptions
+} from "./fetcher";
 import type {
   ProductUpdateAdapter,
+  ProductUpdateFailureKind,
   ProductUpdateFetchResult,
   ProductUpdateRunResult,
   ProductUpdateSnapshot
@@ -145,6 +150,9 @@ async function runTarget(
   const targetManifest = adapter.manifest.targets.find((target) => target.targetKey === targetKey)!;
   const target = await getProductUpdateTarget(adapter.manifest.sourceKey, targetKey);
   if (!target) throw new Error(`Target registration failed for ${adapter.manifest.sourceKey}/${targetKey}`);
+  if (target.status === "manually-retired") {
+    return result(adapter, targetKey, "skipped-retired");
+  }
   const replaySnapshot = options.replaySnapshotId
     ? await loadProductUpdateSnapshot(options.replaySnapshotId)
     : null;
@@ -306,6 +314,7 @@ async function runTarget(
       leaseToken: lease.token,
       runId,
       status: stage === "parse" ? "quarantined" : "failed",
+      failureKind: classifyProductUpdateFailure(error, stage),
       error: message
     }).catch(() => undefined);
     throw new ProductUpdateTargetRunError(
@@ -316,6 +325,32 @@ async function runTarget(
     clearInterval(heartbeat);
     await releaseProductUpdateLease(lease.target.targetId, lease.token).catch(() => undefined);
   }
+}
+
+export function classifyProductUpdateFailure(
+  error: unknown,
+  stage: "fetch" | "parse" | "publish"
+): ProductUpdateFailureKind {
+  if (stage === "parse") return "parser-drift";
+  if (error instanceof ProductUpdateHttpError) {
+    if (error.status === 429) return "rate-limited";
+    if (error.status === 404 || error.status === 410) {
+      return "not-found-candidate";
+    }
+    if (error.status === 401 || error.status === 403) {
+      return "access-configuration-blocked";
+    }
+    if (error.status >= 500) return "transient";
+    return "unknown";
+  }
+  if (
+    error instanceof TypeError ||
+    (error instanceof Error &&
+      (error.name === "AbortError" || error.name === "TimeoutError"))
+  ) {
+    return "transient";
+  }
+  return "unknown";
 }
 
 function result(

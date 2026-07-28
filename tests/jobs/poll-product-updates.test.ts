@@ -171,6 +171,16 @@ describe("Product Updates jobs", () => {
     await expect(runProductUpdateGroup(["unknown"])).rejects.toThrow(/Usage/);
     expect(mocks.runAdapter).not.toHaveBeenCalled();
   });
+
+  test("fails closed when named option values are missing", async () => {
+    await expect(
+      runProductUpdateJob(["--source", "--force"])
+    ).rejects.toThrow(/Usage/);
+    await expect(
+      runProductUpdateJob(["--target", "all-channels", "unity-hub"])
+    ).rejects.toThrow(/Usage/);
+    expect(mocks.findAdapter).not.toHaveBeenCalled();
+  });
 });
 
 function adapter(sourceKey: string): ProductUpdateAdapter {

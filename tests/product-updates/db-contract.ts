@@ -347,6 +347,98 @@ async function main() {
   assert.equal(reconciled[0].summary, "Specific summary");
   assert.equal(reconciled[0].sourceCount, 2);
 
+  const retirementAdapter = {
+    manifest: {
+      ...adapter.manifest,
+      sourceKey: "db-retirement",
+      displayName: "DB Retirement",
+      parserVersion: "retirement-v1",
+      targets: [
+        {
+          targetKey: "main",
+          url: "https://unity.com/db-retirement",
+          allowedHosts: ["unity.com"]
+        }
+      ]
+    },
+    parse: () => [
+      {
+        ...adapter.parse()[0],
+        productKey: "db-retirement-product",
+        productSlug: "db-retirement-product",
+        productName: "DB Retirement Product",
+        sourceUrl: "https://unity.com/db-retirement/1.0.0"
+      }
+    ]
+  };
+  for (let probe = 1; probe <= 3; probe += 1) {
+    await assert.rejects(
+      runProductUpdateAdapter(retirementAdapter, {
+        force: true,
+        fetchImpl: async () =>
+          new Response("missing", {
+            status: 404,
+            headers: { "content-type": "text/plain" }
+          })
+      }),
+      /HTTP 404/
+    );
+    const retirementHealth = (
+      await repositories.listProductUpdateHealth()
+    ).find((source) => source.sourceKey === "db-retirement");
+    assert.equal(retirementHealth?.notFoundProbeCount, probe);
+    assert.equal(
+      retirementHealth?.status,
+      probe === 3 ? "suspected-retired" : "not-found-candidate"
+    );
+    if (probe < 3) {
+      await query(
+        `
+          UPDATE product_update_targets target
+          SET last_attempt_at = now() - interval '7 hours'
+          FROM product_update_sources source
+          WHERE target.source_id = source.id
+            AND source.source_key = 'db-retirement'
+            AND target.target_key = 'main'
+        `
+      );
+    }
+  }
+
+  const retirementRecovery = await runProductUpdateAdapter(
+    retirementAdapter,
+    {
+      force: true,
+      fetchImpl: async () => productResponse("retirement-recovered")
+    }
+  );
+  assert.equal(retirementRecovery[0].status, "success");
+  const recoveredHealth = (
+    await repositories.listProductUpdateHealth()
+  ).find((source) => source.sourceKey === "db-retirement");
+  assert.equal(recoveredHealth?.status, "active");
+  assert.equal(recoveredHealth?.notFoundProbeCount, 0);
+
+  const manualRetirement = await runProductUpdateAdapter(
+    {
+      ...retirementAdapter,
+      manifest: {
+        ...retirementAdapter.manifest,
+        targets: retirementAdapter.manifest.targets.map((target) => ({
+          ...target,
+          retired: true
+        }))
+      }
+    },
+    { force: true }
+  );
+  assert.equal(manualRetirement[0].status, "skipped-retired");
+  const reactivated = await runProductUpdateAdapter(retirementAdapter, {
+    force: true,
+    fetchImpl: async () => productResponse("retirement-reactivated")
+  });
+  assert.equal(reactivated[0].status, "success");
+
   const health = await repositories.listProductUpdateHealth();
   assert.equal(
     health.find((source) => source.sourceKey === "db-contract")

@@ -337,6 +337,9 @@ CREATE TABLE IF NOT EXISTS product_update_targets (
   published_snapshot_id BIGINT,
   consecutive_failures INTEGER NOT NULL DEFAULT 0,
   circuit_open_until TIMESTAMPTZ,
+  failure_kind TEXT,
+  not_found_probe_count INTEGER NOT NULL DEFAULT 0,
+  not_found_first_at TIMESTAMPTZ,
   lease_token TEXT,
   lease_owner TEXT,
   lease_expires_at TIMESTAMPTZ,
@@ -348,6 +351,13 @@ CREATE TABLE IF NOT EXISTS product_update_targets (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (source_id, target_key)
 );
+
+ALTER TABLE product_update_targets
+  ADD COLUMN IF NOT EXISTS failure_kind TEXT;
+ALTER TABLE product_update_targets
+  ADD COLUMN IF NOT EXISTS not_found_probe_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE product_update_targets
+  ADD COLUMN IF NOT EXISTS not_found_first_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS product_update_runs (
   id BIGSERIAL PRIMARY KEY,

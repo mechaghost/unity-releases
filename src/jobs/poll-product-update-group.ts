@@ -62,30 +62,27 @@ export async function runProductUpdateGroup(
   ];
   const now = options.now ?? Date.now;
   const startedAt = now();
-  const groupDeadlineMs =
-    options.groupDeadlineMs ??
-    boundedInteger(
+  const groupDeadlineMs = boundedInteger(
+    options.groupDeadlineMs?.toString() ??
       process.env.PRODUCT_UPDATE_GROUP_DEADLINE_MS,
-      DEFAULT_GROUP_DEADLINE_MS,
-      10_000,
-      60 * 60_000
-    );
-  const sourceDeadlineMs =
-    options.sourceDeadlineMs ??
-    boundedInteger(
+    DEFAULT_GROUP_DEADLINE_MS,
+    10_000,
+    60 * 60_000
+  );
+  const sourceDeadlineMs = boundedInteger(
+    options.sourceDeadlineMs?.toString() ??
       process.env.PRODUCT_UPDATE_SOURCE_DEADLINE_MS,
-      DEFAULT_SOURCE_DEADLINE_MS,
-      10_000,
-      30 * 60_000
-    );
-  const concurrency =
-    options.concurrency ??
-    boundedInteger(
+    DEFAULT_SOURCE_DEADLINE_MS,
+    10_000,
+    30 * 60_000
+  );
+  const concurrency = boundedInteger(
+    options.concurrency?.toString() ??
       process.env.PRODUCT_UPDATE_GROUP_CONCURRENCY,
-      DEFAULT_CONCURRENCY,
-      1,
-      4
-    );
+    DEFAULT_CONCURRENCY,
+    1,
+    4
+  );
   const runSource = options.runSource ?? runSourceProcess;
   const sourceAllowlist = new Set(
     (process.env.PRODUCT_UPDATE_SOURCES ?? "")
@@ -192,6 +189,7 @@ async function runSourceProcess(
   let stdout = "";
   let stderr = "";
   let timedOut = false;
+  let killTimer: NodeJS.Timeout | null = null;
   const append = (current: string, chunk: Buffer | string) =>
     `${current}${chunk.toString()}`.slice(-MAX_CAPTURED_OUTPUT);
   child.stdout?.on("data", (chunk) => {
@@ -204,7 +202,7 @@ async function runSourceProcess(
   const timeout = setTimeout(() => {
     timedOut = true;
     terminateProcessGroup(child.pid, "SIGTERM");
-    const killTimer = setTimeout(
+    killTimer = setTimeout(
       () => terminateProcessGroup(child.pid, "SIGKILL"),
       TERMINATION_GRACE_MS
     );
@@ -215,6 +213,7 @@ async function runSourceProcess(
   return await new Promise<SourceProcessResult>((resolve) => {
     child.once("error", (error) => {
       clearTimeout(timeout);
+      if (killTimer) clearTimeout(killTimer);
       resolve({
         ok: false,
         exitCode: null,
@@ -226,6 +225,7 @@ async function runSourceProcess(
     });
     child.once("close", (exitCode, signal) => {
       clearTimeout(timeout);
+      if (killTimer) clearTimeout(killTimer);
       const output = parseStructuredOutput(stdout);
       const errorText = normalizeChildError(stderr || stdout);
       resolve({
@@ -284,6 +284,7 @@ function boundedInteger(
   minimum: number,
   maximum: number
 ) {
+  if (raw === undefined || raw.trim() === "") return fallback;
   const parsed = Number(raw);
   if (!Number.isInteger(parsed)) return fallback;
   return Math.min(Math.max(parsed, minimum), maximum);

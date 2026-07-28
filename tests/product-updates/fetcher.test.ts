@@ -18,6 +18,7 @@ const state: ProductUpdateTargetState = {
   targetKey: "main",
   url: target.url,
   status: "active",
+  failureKind: null,
   nextDueAt: null,
   circuitOpenUntil: null,
   validatedEtag: '"accepted"',

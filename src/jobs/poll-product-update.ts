@@ -6,7 +6,7 @@ import { findProductUpdateAdapter } from "../lib/product-updates/sources";
 export async function runProductUpdateJob(argv = process.argv.slice(2)) {
   const sourceKey =
     argumentValue(argv, "--source") ??
-    argv.find((value) => !value.startsWith("--"));
+    (argv[0] && !argv[0].startsWith("--") ? argv[0] : undefined);
   if (!sourceKey) {
     throw new Error(
       "Usage: npm run ingest:product-update -- [--source] <source-key> [--target=<key>] [--replay=<snapshot-id>] [--force] [--dry-run]"
@@ -50,7 +50,8 @@ function argumentValue(argv: string[], name: string) {
   const equals = argv.find((value) => value.startsWith(`${name}=`));
   if (equals) return equals.slice(name.length + 1);
   const index = argv.indexOf(name);
-  return index >= 0 ? argv[index + 1] : undefined;
+  const value = index >= 0 ? argv[index + 1] : undefined;
+  return value && !value.startsWith("--") ? value : undefined;
 }
 
 async function main() {

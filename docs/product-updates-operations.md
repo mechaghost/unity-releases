@@ -94,6 +94,11 @@ For a multi-target source such as Unity Studio, `--target` is required with
 
 - `/api/health` is core-only and intentionally unchanged.
 - `/api/updates/health` reports optional target state and circuit breakers.
+- Fetch failures are classified as transient, rate-limited,
+  access/configuration blocked, not-found candidates, parser drift, or unknown.
+  Three 404/410 probes separated by at least six hours move a target to
+  `suspected-retired` and a weekly probe cadence. A successful validated run
+  restores `active`.
 - `/stats` shows optional counts and degraded targets only while the Product
   Updates UI flag is enabled.
 - `/timeline` excludes Product Updates by default. The Product Updates filter
@@ -102,12 +107,22 @@ For a multi-target source such as Unity Studio, `--target` is required with
   snapshot and preserves the last known-good published rows.
 - Conditional requests replay the validated snapshot automatically when a
   parser version changes and the upstream returns `304`.
+- Set a checked-in target manifest to `retired: true` only after a manual
+  retirement decision. This yields `skipped-retired`; removing the property
+  reactivates the target without deleting its history.
+- When navigation is enabled, `sitemap.xml` and `llms.txt` expose the optional
+  family and stable detail routes. They contain no Product Updates routes while
+  the flags remain off.
+- Family and product histories accept URL-stable product, change-kind,
+  platform/SDK, version, channel, and date filters. The same optional filters
+  are available on `/api/updates`.
 
 When a source breaks:
 
 1. Remove only its exact key from `PRODUCT_UPDATE_SOURCES`.
 2. Inspect its target in `/api/updates/health` and replay the saved snapshot
-   with the candidate parser.
+   with the candidate parser. Add `--force` when the source has already been
+   removed from the allowlist.
 3. Disable the family by removing that family’s keys if several related pages
    changed.
 4. Set `PRODUCT_UPDATE_INGEST_ENABLED=false` for the global fetch kill switch.

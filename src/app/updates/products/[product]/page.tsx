@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
+  ProductUpdateFilters,
   ProductUpdateFamilyNav,
   ProductUpdateList,
   ProductUpdatesUnavailable
 } from "../../_components/ProductUpdateViews";
-import { loadProductUpdates, requireProductUpdateUi } from "../../_data";
+import {
+  loadProductUpdates,
+  parseProductUpdateFilters,
+  requireProductUpdateUi
+} from "../../_data";
 import { getProductUpdateFamily } from "@/lib/product-updates/catalog";
 import type { ProductUpdateFamily } from "@/lib/product-updates/types";
 
@@ -24,13 +29,21 @@ export async function generateMetadata({
 }
 
 export default async function ProductUpdateHistoryPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ product: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   requireProductUpdateUi();
   const { product: productSlug } = await params;
-  const data = await loadProductUpdates({ product: productSlug, limit: 100 });
+  const filters = parseProductUpdateFilters(await searchParams);
+  const data = await loadProductUpdates({
+    ...filters,
+    product: productSlug,
+    limit: 100,
+    includeFacets: true
+  });
   if (!data) {
     return (
       <>
@@ -57,6 +70,19 @@ export default async function ProductUpdateHistoryPage({
       ) : (
         <ProductUpdateFamilyNav />
       )}
+      <ProductUpdateFilters
+        values={filters}
+        facets={
+          data.facets ?? {
+            versions: [],
+            channels: [],
+            changeKinds: [],
+            platforms: []
+          }
+        }
+        clearHref={`/updates/products/${product.slug}`}
+        showProduct={false}
+      />
       <ProductUpdateList
         updates={data.updates}
         heading={`${product.displayName} release history`}
