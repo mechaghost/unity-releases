@@ -18,9 +18,35 @@ type RegisteredTarget = ProductUpdateTargetState & {
 export async function productUpdatesSchemaReady() {
   try {
     const result = await query<{ ready: boolean }>(
-      `SELECT to_regclass('product_update_runs') IS NOT NULL
-          AND to_regclass('product_update_targets') IS NOT NULL
-          AND to_regclass('product_update_observations') IS NOT NULL AS ready`
+      `
+        SELECT
+          NOT EXISTS (
+            SELECT 1
+            FROM (
+              VALUES
+                ('unity_products'),
+                ('product_update_sources'),
+                ('product_update_targets'),
+                ('product_update_runs'),
+                ('product_update_snapshots'),
+                ('product_updates'),
+                ('product_update_observations'),
+                ('product_update_observation_items')
+            ) AS required_relation(name)
+            WHERE to_regclass(
+              format('%I.%I', current_schema(), required_relation.name)
+            ) IS NULL
+          )
+          AND EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = to_regclass(
+              format('%I.content_events', current_schema())
+            )
+              AND attname = 'product_update_id'
+              AND NOT attisdropped
+          ) AS ready
+      `
     );
     return result.rows[0]?.ready ?? false;
   } catch {
@@ -61,11 +87,12 @@ export async function registerProductUpdateAdapter(adapter: ProductUpdateAdapter
       await client.query(
         `
           INSERT INTO product_update_targets (
-            source_id, target_key, url, cadence_hours, next_due_at, status
+            source_id, target_key, url, display_priority, cadence_hours, next_due_at, status
           )
-          VALUES ($1, $2, $3, $4, now(), $5)
+          VALUES ($1, $2, $3, $4, $5, now(), $6)
           ON CONFLICT (source_id, target_key) DO UPDATE SET
             url = EXCLUDED.url,
+            display_priority = EXCLUDED.display_priority,
             cadence_hours = EXCLUDED.cadence_hours,
             status = CASE
               WHEN EXCLUDED.status = 'manually-retired' THEN 'manually-retired'
@@ -78,6 +105,7 @@ export async function registerProductUpdateAdapter(adapter: ProductUpdateAdapter
           sourceId,
           target.targetKey,
           target.url,
+          target.displayPriority ?? 100,
           adapter.manifest.cadenceHours,
           target.retired ? "manually-retired" : "active"
         ]
@@ -227,6 +255,12 @@ export async function tryAcquireProductUpdateLease(
           UPDATE product_update_targets
           SET consecutive_failures = consecutive_failures + $2,
               failure_kind = 'transient',
+              last_attempt_at = now(),
+              next_due_at = now() + (cadence_hours::text || ' hours')::interval,
+              circuit_open_until = CASE
+                WHEN consecutive_failures + $2 >= 3 THEN now() + interval '6 hours'
+                ELSE circuit_open_until
+              END,
               last_error = 'Prior run lease expired before completion',
               updated_at = now()
           WHERE id = $1
@@ -241,8 +275,7 @@ export async function tryAcquireProductUpdateLease(
         SET lease_token = $2,
             lease_owner = $3,
             lease_expires_at = now() + ($4::text || ' milliseconds')::interval,
-            heartbeat_at = now(),
-            updated_at = now()
+            heartbeat_at = now()
         WHERE id = $1
           AND (lease_token IS NULL OR lease_expires_at IS NULL OR lease_expires_at < now())
         RETURNING id
@@ -274,8 +307,7 @@ export async function heartbeatProductUpdateLease(targetId: number, token: strin
     `
       UPDATE product_update_targets
       SET heartbeat_at = now(),
-          lease_expires_at = now() + ($3::text || ' milliseconds')::interval,
-          updated_at = now()
+          lease_expires_at = now() + ($3::text || ' milliseconds')::interval
       WHERE id = $1 AND lease_token = $2
     `,
     [targetId, token, leaseMs]
@@ -290,8 +322,7 @@ export async function releaseProductUpdateLease(targetId: number, token: string)
       SET lease_token = NULL,
           lease_owner = NULL,
           lease_expires_at = NULL,
-          heartbeat_at = NULL,
-          updated_at = now()
+          heartbeat_at = NULL
       WHERE id = $1 AND lease_token = $2
     `,
     [targetId, token]
@@ -324,8 +355,10 @@ export async function createProductUpdateRun(
 
 export async function recordProductUpdateSnapshot(
   target: ProductUpdateTargetState,
+  leaseToken: string,
   runId: number,
-  fetched: Extract<ProductUpdateFetchResult, { kind: "content" }>
+  fetched: Extract<ProductUpdateFetchResult, { kind: "content" }>,
+  options: { promoteObserved?: boolean } = {}
 ) {
   const result = await query<{ id: number }>(
     `
@@ -335,11 +368,7 @@ export async function recordProductUpdateSnapshot(
       )
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       ON CONFLICT (target_id, content_sha256) DO UPDATE SET
-        run_id = EXCLUDED.run_id,
-        fetched_at = now(),
-        http_status = EXCLUDED.http_status,
-        etag = EXCLUDED.etag,
-        last_modified = EXCLUDED.last_modified
+        content_sha256 = product_update_snapshots.content_sha256
       RETURNING id
     `,
     [
@@ -356,7 +385,8 @@ export async function recordProductUpdateSnapshot(
     ]
   );
   const snapshotId = Number(result.rows[0].id);
-  await query(
+  if (options.promoteObserved === false) return snapshotId;
+  const promotion = await query(
     `
       UPDATE product_update_targets
       SET last_attempt_at = now(),
@@ -365,10 +395,20 @@ export async function recordProductUpdateSnapshot(
           observed_body_hash = $4,
           observed_snapshot_id = $5,
           updated_at = now()
-      WHERE id = $1
+      WHERE id = $1 AND lease_token = $6
     `,
-    [target.targetId, fetched.etag, fetched.lastModified, fetched.sha256, snapshotId]
+    [
+      target.targetId,
+      fetched.etag,
+      fetched.lastModified,
+      fetched.sha256,
+      snapshotId,
+      leaseToken
+    ]
   );
+  if ((promotion.rowCount ?? 0) !== 1) {
+    throw new Error("Product Updates target lease was lost before snapshot promotion");
+  }
   return snapshotId;
 }
 
@@ -400,20 +440,53 @@ export async function loadProductUpdateSnapshot(snapshotId: number) {
 async function upsertProduct(
   client: PoolClient,
   observation: NormalizedProductUpdateObservation,
-  family: string
+  family: string,
+  sourceKey: string,
+  displayPriority: number,
+  targetKey: string,
+  targetDisplayPriority: number
 ) {
+  const precedenceRank = [
+    String(displayPriority).padStart(5, "0"),
+    sourceKey,
+    String(targetDisplayPriority).padStart(5, "0"),
+    targetKey
+  ].join(":");
   const result = await client.query<{ id: number }>(
     `
       INSERT INTO unity_products (
-        product_key, slug, display_name, family, description, canonical_url
+        product_key, slug, display_name, family, description, canonical_url,
+        metadata_json
       )
-      VALUES ($1,$2,$3,$4,$5,$6)
+      VALUES (
+        $1,$2,$3,$4,$5,$6,
+        jsonb_build_object('precedenceRank', $7::text)
+      )
       ON CONFLICT (product_key) DO UPDATE SET
-        slug = EXCLUDED.slug,
-        display_name = EXCLUDED.display_name,
-        family = EXCLUDED.family,
-        description = EXCLUDED.description,
-        canonical_url = EXCLUDED.canonical_url,
+        slug = CASE WHEN
+          EXCLUDED.metadata_json->>'precedenceRank' <=
+            COALESCE(unity_products.metadata_json->>'precedenceRank', '99999')
+          THEN EXCLUDED.slug ELSE unity_products.slug END,
+        display_name = CASE WHEN
+          EXCLUDED.metadata_json->>'precedenceRank' <=
+            COALESCE(unity_products.metadata_json->>'precedenceRank', '99999')
+          THEN EXCLUDED.display_name ELSE unity_products.display_name END,
+        family = CASE WHEN
+          EXCLUDED.metadata_json->>'precedenceRank' <=
+            COALESCE(unity_products.metadata_json->>'precedenceRank', '99999')
+          THEN EXCLUDED.family ELSE unity_products.family END,
+        description = CASE WHEN
+          EXCLUDED.metadata_json->>'precedenceRank' <=
+            COALESCE(unity_products.metadata_json->>'precedenceRank', '99999')
+          THEN EXCLUDED.description ELSE unity_products.description END,
+        canonical_url = CASE WHEN
+          EXCLUDED.metadata_json->>'precedenceRank' <=
+            COALESCE(unity_products.metadata_json->>'precedenceRank', '99999')
+          THEN EXCLUDED.canonical_url ELSE unity_products.canonical_url END,
+        metadata_json = CASE WHEN
+          EXCLUDED.metadata_json->>'precedenceRank' <=
+            COALESCE(unity_products.metadata_json->>'precedenceRank', '99999')
+          THEN EXCLUDED.metadata_json ELSE unity_products.metadata_json END,
         updated_at = now()
       RETURNING id
     `,
@@ -423,7 +496,8 @@ async function upsertProduct(
       observation.productName,
       family,
       observation.productDescription ?? "",
-      observation.productCanonicalUrl ?? null
+      observation.productCanonicalUrl ?? null,
+      precedenceRank
     ]
   );
   return Number(result.rows[0].id);
@@ -441,6 +515,7 @@ export async function publishProductUpdateObservations(options: {
   const client = await getPool().connect();
   let created = 0;
   let updated = 0;
+  const productIds = new Map<string, number>();
   try {
     await client.query("BEGIN");
     const lease = await client.query(
@@ -452,7 +527,21 @@ export async function publishProductUpdateObservations(options: {
     }
 
     for (const observation of options.observations) {
-      const productId = await upsertProduct(client, observation, options.adapter.manifest.family);
+      let productId = productIds.get(observation.productKey);
+      if (productId === undefined) {
+        productId = await upsertProduct(
+          client,
+          observation,
+          options.adapter.manifest.family,
+          options.adapter.manifest.sourceKey,
+          options.adapter.manifest.displayPriority ?? 100,
+          options.target.targetKey,
+          options.adapter.manifest.targets.find(
+            (target) => target.targetKey === options.target.targetKey
+          )?.displayPriority ?? 100
+        );
+        productIds.set(observation.productKey, productId);
+      }
       const observationHash = normalizedObservationHash(observation);
       const updateResult = await client.query<{ id: number; inserted: boolean }>(
         `
@@ -541,26 +630,55 @@ export async function publishProductUpdateObservations(options: {
         `DELETE FROM product_update_observation_items WHERE observation_id = $1`,
         [observationId]
       );
-      for (const item of observation.items) {
+      if (observation.items.length > 0) {
         await client.query(
           `
             INSERT INTO product_update_observation_items (
               observation_id, item_key, section, change_kind, body, platforms,
               tags, source_order, metadata_json, normalized_sha256
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            SELECT
+              $1,
+              item.item_key,
+              item.section,
+              item.change_kind,
+              item.body,
+              ARRAY(
+                SELECT jsonb_array_elements_text(item.platforms)
+              ),
+              ARRAY(
+                SELECT jsonb_array_elements_text(item.tags)
+              ),
+              item.source_order,
+              item.metadata_json,
+              item.normalized_sha256
+            FROM jsonb_to_recordset($2::jsonb) AS item(
+              item_key text,
+              section text,
+              change_kind text,
+              body text,
+              platforms jsonb,
+              tags jsonb,
+              source_order integer,
+              metadata_json jsonb,
+              normalized_sha256 text
+            )
           `,
           [
             observationId,
-            item.itemKey,
-            item.section,
-            item.changeKind,
-            item.body,
-            item.platforms,
-            item.tags,
-            item.sourceOrder,
-            item.metadata ?? {},
-            sha256(item)
+            JSON.stringify(
+              observation.items.map((item) => ({
+                item_key: item.itemKey,
+                section: item.section,
+                change_kind: item.changeKind,
+                body: item.body,
+                platforms: item.platforms,
+                tags: item.tags,
+                source_order: item.sourceOrder,
+                metadata_json: item.metadata ?? {},
+                normalized_sha256: sha256(item)
+              }))
+            )
           ]
         );
       }
@@ -597,8 +715,14 @@ export async function publishProductUpdateObservations(options: {
               candidate.normalized_sha256
             FROM product_update_observations candidate
             JOIN product_update_sources source ON source.id = candidate.source_id
+            JOIN product_update_targets target ON target.id = candidate.target_id
             WHERE candidate.product_update_id = $1
-            ORDER BY source.display_priority, source.source_key, candidate.id
+            ORDER BY
+              source.display_priority,
+              source.source_key,
+              target.display_priority,
+              candidate.published_at DESC NULLS LAST,
+              candidate.id DESC
             LIMIT 1
           ) preferred
           WHERE canonical.id = preferred.product_update_id
@@ -760,6 +884,24 @@ export async function finishProductUpdateDryRun(options: {
   );
 }
 
+export async function finishProductUpdateDryRunFailure(options: {
+  runId: number;
+  error: string;
+}) {
+  await query(
+    `
+      UPDATE product_update_runs
+      SET status = 'failed',
+          finished_at = now(),
+          heartbeat_at = now(),
+          error_message = $2,
+          metadata_json = metadata_json || '{"dryRun":true}'::jsonb
+      WHERE id = $1
+    `,
+    [options.runId, options.error]
+  );
+}
+
 export async function failProductUpdateRun(options: {
   target: ProductUpdateTargetState;
   leaseToken: string;
@@ -862,9 +1004,12 @@ export type ProductUpdateHealth = {
   failureKind: ProductUpdateFailureKind | null;
   lastAttemptAt: string | null;
   lastSuccessAt: string | null;
+  cadenceHours: number;
+  nextDueAt: string | null;
   consecutiveFailures: number;
   notFoundProbeCount: number;
   circuitOpenUntil: string | null;
+  leaseExpiresAt: string | null;
   lastError: string | null;
 };
 
@@ -878,15 +1023,19 @@ export async function listProductUpdateHealth(): Promise<ProductUpdateHealth[]> 
     failure_kind: ProductUpdateFailureKind | null;
     last_attempt_at: string | null;
     last_success_at: string | null;
+    cadence_hours: number;
+    next_due_at: string | null;
     consecutive_failures: number;
     not_found_probe_count: number;
     circuit_open_until: string | null;
+    lease_expires_at: string | null;
     last_error: string | null;
   }>(
     `
       SELECT s.source_key, t.target_key, t.url, t.status, t.failure_kind,
-             t.last_attempt_at, t.last_success_at, t.consecutive_failures,
-             t.not_found_probe_count, t.circuit_open_until, t.last_error
+             t.last_attempt_at, t.last_success_at, t.cadence_hours,
+             t.next_due_at, t.consecutive_failures, t.not_found_probe_count,
+             t.circuit_open_until, t.lease_expires_at, t.last_error
       FROM product_update_targets t
       JOIN product_update_sources s ON s.id = t.source_id
       ORDER BY s.source_key, t.target_key
@@ -900,9 +1049,12 @@ export async function listProductUpdateHealth(): Promise<ProductUpdateHealth[]> 
     failureKind: row.failure_kind,
     lastAttemptAt: row.last_attempt_at,
     lastSuccessAt: row.last_success_at,
+    cadenceHours: Number(row.cadence_hours),
+    nextDueAt: row.next_due_at,
     consecutiveFailures: Number(row.consecutive_failures),
     notFoundProbeCount: Number(row.not_found_probe_count),
     circuitOpenUntil: row.circuit_open_until,
+    leaseExpiresAt: row.lease_expires_at,
     lastError: row.last_error
   }));
 }
@@ -971,7 +1123,7 @@ export async function getProductUpdateStats(): Promise<ProductUpdateStats | null
   };
 }
 
-export async function listProductUpdates(options: {
+export type ProductUpdateListOptions = {
   family?: string;
   product?: string;
   changeKind?: string;
@@ -982,9 +1134,13 @@ export async function listProductUpdates(options: {
   to?: string;
   limit?: number;
   before?: { sortTime: string; id: number } | null;
-} = {}) {
-  if (!(await productUpdatesSchemaReady())) return [];
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  offset?: number;
+};
+
+function productUpdateFilterSql(
+  options: ProductUpdateListOptions,
+  includeCursor = true
+) {
   const params: unknown[] = [];
   const where: string[] = [];
   if (options.family) {
@@ -1041,13 +1197,23 @@ export async function listProductUpdates(options: {
       `COALESCE(u.release_date, u.first_seen_at) < $${params.length}::date + interval '1 day'`
     );
   }
-  if (options.before) {
+  if (includeCursor && options.before) {
     params.push(options.before.sortTime, options.before.id);
     where.push(
       `(COALESCE(u.release_date, u.first_seen_at), u.id) < ($${params.length - 1}::timestamptz, $${params.length}::bigint)`
     );
   }
+  return { params, where };
+}
+
+export async function listProductUpdates(options: ProductUpdateListOptions = {}) {
+  if (!(await productUpdatesSchemaReady())) return [];
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  const offset = Math.min(Math.max(options.offset ?? 0, 0), 100_000);
+  const { params, where } = productUpdateFilterSql(options);
   params.push(limit);
+  const limitParam = params.length;
+  if (offset > 0) params.push(offset);
   const result = await query<{
     id: number;
     product_key: string;
@@ -1063,6 +1229,8 @@ export async function listProductUpdates(options: {
     title: string;
     summary: string;
     source_count: string;
+    product_status: string;
+    last_validated_at: string | null;
   }>(
     `
       SELECT
@@ -1079,14 +1247,38 @@ export async function listProductUpdates(options: {
         COALESCE(u.release_date, u.first_seen_at) AS sort_time,
         u.title,
         u.summary,
-        COUNT(o.id)::text AS source_count
+        COUNT(DISTINCT o.id)::text AS source_count,
+        CASE
+          WHEN p.status <> 'active' THEN p.status
+          WHEN BOOL_OR(
+            target.id IS NOT NULL AND (
+              target.status <> 'active'
+              OR target.last_success_at IS NULL
+              OR target.consecutive_failures > 0
+              OR (
+                target.lease_expires_at IS NOT NULL
+                AND target.lease_expires_at < now()
+              )
+              OR (
+                target.next_due_at IS NOT NULL
+                AND target.next_due_at
+                  + interval '1 hour' * GREATEST(1, target.cadence_hours / 4)
+                  < now()
+              )
+            )
+          ) THEN 'degraded'
+          ELSE 'active'
+        END AS product_status,
+        MAX(target.last_success_at) AS last_validated_at
       FROM product_updates u
       JOIN unity_products p ON p.id = u.product_id
       LEFT JOIN product_update_observations o ON o.product_update_id = u.id
+      LEFT JOIN product_update_targets target ON target.id = o.target_id
       ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
       GROUP BY u.id, p.id
       ORDER BY COALESCE(u.release_date, u.first_seen_at) DESC, u.id DESC
-      LIMIT $${params.length}
+      LIMIT $${limitParam}
+      ${offset > 0 ? `OFFSET $${params.length}` : ""}
     `,
     params
   );
@@ -1104,8 +1296,27 @@ export async function listProductUpdates(options: {
     sortTime: row.sort_time,
     title: row.title,
     summary: row.summary,
-    sourceCount: Number(row.source_count)
+    sourceCount: Number(row.source_count),
+    productStatus: row.product_status,
+    lastValidatedAt: row.last_validated_at
   }));
+}
+
+export async function countProductUpdates(
+  options: Omit<ProductUpdateListOptions, "limit" | "before" | "offset"> = {}
+) {
+  if (!(await productUpdatesSchemaReady())) return 0;
+  const { params, where } = productUpdateFilterSql(options, false);
+  const result = await query<{ count: string }>(
+    `
+      SELECT COUNT(*)::text AS count
+      FROM product_updates u
+      JOIN unity_products p ON p.id = u.product_id
+      ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
+    `,
+    params
+  );
+  return Number(result.rows[0]?.count ?? 0);
 }
 
 export type ProductUpdateFacets = {
@@ -1194,6 +1405,8 @@ export async function listUnityProducts(family?: string) {
     canonical_url: string | null;
     update_count: string;
     latest_update_at: string | null;
+    effective_status: string;
+    last_validated_at: string | null;
   }>(
     `
       SELECT
@@ -1204,10 +1417,36 @@ export async function listUnityProducts(family?: string) {
         p.description,
         p.status,
         p.canonical_url,
-        COUNT(u.id)::text AS update_count,
-        MAX(COALESCE(u.release_date, u.first_seen_at)) AS latest_update_at
+        COUNT(DISTINCT u.id)::text AS update_count,
+        MAX(COALESCE(u.release_date, u.first_seen_at)) AS latest_update_at,
+        CASE
+          WHEN p.status <> 'active' THEN p.status
+          WHEN BOOL_OR(
+            target.id IS NOT NULL AND (
+              target.status <> 'active'
+              OR target.last_success_at IS NULL
+              OR target.consecutive_failures > 0
+              OR (
+                target.lease_expires_at IS NOT NULL
+                AND target.lease_expires_at < now()
+              )
+              OR (
+                target.next_due_at IS NOT NULL
+                AND target.next_due_at
+                  + interval '1 hour' * GREATEST(1, target.cadence_hours / 4)
+                  < now()
+              )
+            )
+          ) THEN 'degraded'
+          ELSE 'active'
+        END AS effective_status,
+        MAX(target.last_success_at) AS last_validated_at
       FROM unity_products p
       LEFT JOIN product_updates u ON u.product_id = p.id
+      LEFT JOIN product_update_observations observation
+        ON observation.product_update_id = u.id
+      LEFT JOIN product_update_targets target
+        ON target.id = observation.target_id
       WHERE ($1::text IS NULL OR p.family = $1)
       GROUP BY p.id
       ORDER BY
@@ -1228,11 +1467,88 @@ export async function listUnityProducts(family?: string) {
     displayName: row.display_name,
     family: row.family,
     description: row.description,
-    status: row.status,
+    status: row.effective_status,
     canonicalUrl: row.canonical_url,
     updateCount: Number(row.update_count),
-    latestUpdateAt: row.latest_update_at
+    latestUpdateAt: row.latest_update_at,
+    lastValidatedAt: row.last_validated_at
   }));
+}
+
+export async function getUnityProductBySlug(slug: string) {
+  if (!(await productUpdatesSchemaReady())) return null;
+  const result = await query<{
+    product_key: string;
+    slug: string;
+    display_name: string;
+    family: string;
+    description: string;
+    status: string;
+    canonical_url: string | null;
+    update_count: string;
+    latest_update_at: string | null;
+    effective_status: string;
+    last_validated_at: string | null;
+  }>(
+    `
+      SELECT
+        p.product_key,
+        p.slug,
+        p.display_name,
+        p.family,
+        p.description,
+        p.status,
+        p.canonical_url,
+        COUNT(DISTINCT u.id)::text AS update_count,
+        MAX(COALESCE(u.release_date, u.first_seen_at)) AS latest_update_at,
+        CASE
+          WHEN p.status <> 'active' THEN p.status
+          WHEN BOOL_OR(
+            target.id IS NOT NULL AND (
+              target.status <> 'active'
+              OR target.last_success_at IS NULL
+              OR target.consecutive_failures > 0
+              OR (
+                target.lease_expires_at IS NOT NULL
+                AND target.lease_expires_at < now()
+              )
+              OR (
+                target.next_due_at IS NOT NULL
+                AND target.next_due_at
+                  + interval '1 hour' * GREATEST(1, target.cadence_hours / 4)
+                  < now()
+              )
+            )
+          ) THEN 'degraded'
+          ELSE 'active'
+        END AS effective_status,
+        MAX(target.last_success_at) AS last_validated_at
+      FROM unity_products p
+      LEFT JOIN product_updates u ON u.product_id = p.id
+      LEFT JOIN product_update_observations observation
+        ON observation.product_update_id = u.id
+      LEFT JOIN product_update_targets target
+        ON target.id = observation.target_id
+      WHERE p.slug = $1
+      GROUP BY p.id
+    `,
+    [slug]
+  );
+  const row = result.rows[0];
+  return row
+    ? {
+        productKey: row.product_key,
+        slug: row.slug,
+        displayName: row.display_name,
+        family: row.family,
+        description: row.description,
+        status: row.effective_status,
+        canonicalUrl: row.canonical_url,
+        updateCount: Number(row.update_count),
+        latestUpdateAt: row.latest_update_at,
+        lastValidatedAt: row.last_validated_at
+      }
+    : null;
 }
 
 export type ProductUpdateSitemapEntries = {
@@ -1311,6 +1627,8 @@ export async function getProductUpdateDetail(productSlug: string, updateSlug: st
     product_name: string;
     family: string;
     product_description: string;
+    product_status: string;
+    last_validated_at: string | null;
     canonical_url: string | null;
     component_key: string;
     slug: string;
@@ -1328,6 +1646,40 @@ export async function getProductUpdateDetail(productSlug: string, updateSlug: st
         p.display_name AS product_name,
         p.family,
         p.description AS product_description,
+        CASE
+          WHEN p.status <> 'active' THEN p.status
+          WHEN EXISTS (
+            SELECT 1
+            FROM product_update_observations health_observation
+            JOIN product_update_targets health_target
+              ON health_target.id = health_observation.target_id
+            WHERE health_observation.product_update_id = u.id
+              AND (
+                health_target.status <> 'active'
+                OR health_target.last_success_at IS NULL
+                OR health_target.consecutive_failures > 0
+                OR (
+                  health_target.lease_expires_at IS NOT NULL
+                  AND health_target.lease_expires_at < now()
+                )
+                OR (
+                  health_target.next_due_at IS NOT NULL
+                  AND health_target.next_due_at
+                    + interval '1 hour'
+                      * GREATEST(1, health_target.cadence_hours / 4)
+                    < now()
+                )
+              )
+          ) THEN 'degraded'
+          ELSE 'active'
+        END AS product_status,
+        (
+          SELECT MAX(health_target.last_success_at)
+          FROM product_update_observations health_observation
+          JOIN product_update_targets health_target
+            ON health_target.id = health_observation.target_id
+          WHERE health_observation.product_update_id = u.id
+        ) AS last_validated_at,
         p.canonical_url,
         u.component_key,
         u.slug,
@@ -1421,6 +1773,8 @@ export async function getProductUpdateDetail(productSlug: string, updateSlug: st
       displayName: update.product_name,
       family: update.family,
       description: update.product_description,
+      status: update.product_status,
+      lastValidatedAt: update.last_validated_at,
       canonicalUrl: update.canonical_url
     },
     update: {

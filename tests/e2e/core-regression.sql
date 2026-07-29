@@ -165,6 +165,66 @@ SELECT
 FROM product_updates
 WHERE canonical_key = 'version:3.14.0';
 
+-- A long-lived optional product verifies that HTML history never truncates
+-- older releases even though the first page remains intentionally bounded.
+INSERT INTO unity_products (
+  product_key, slug, display_name, family, description, canonical_url
+)
+VALUES (
+  'pagination-product',
+  'pagination-product',
+  'Pagination Product',
+  'platform-services',
+  'Deterministic long product history for pagination coverage.',
+  'https://unity.com/pagination-product'
+);
+
+INSERT INTO product_updates (
+  product_id, component_key, canonical_key, slug, version, channel,
+  release_date, title, summary, normalized_sha256
+)
+SELECT
+  product.id,
+  'main',
+  'version:1.0.' || value,
+  '1.0.' || value,
+  '1.0.' || value,
+  'stable',
+  '2026-07-28T00:00:00Z'::timestamptz - value * interval '1 day',
+  'Pagination Product 1.0.' || value,
+  'Deterministic pagination release ' || value || '.',
+  'pagination-update-' || value
+FROM unity_products product
+CROSS JOIN generate_series(1, 105) AS value
+WHERE product.product_key = 'pagination-product';
+
+INSERT INTO product_update_observations (
+  product_update_id, source_id, target_id, source_update_key,
+  source_snapshot_id, parser_version, normalized_sha256, published_at,
+  source_title, source_summary, source_version, source_release_date, source_url
+)
+SELECT
+  product_update.id,
+  source.id,
+  target.id,
+  'pagination:' || product_update.slug,
+  snapshot.id,
+  'e2e-v1',
+  'pagination-observation-' || product_update.id,
+  '2026-07-28T00:00:00Z',
+  product_update.title,
+  product_update.summary,
+  product_update.version,
+  product_update.release_date,
+  'https://unity.com/pagination-product/' || product_update.slug
+FROM product_updates product_update
+JOIN unity_products product ON product.id = product_update.product_id
+JOIN product_update_sources source ON source.source_key = 'unity-hub'
+JOIN product_update_targets target
+  ON target.source_id = source.id AND target.target_key = 'main'
+JOIN product_update_snapshots snapshot ON snapshot.target_id = target.id
+WHERE product.product_key = 'pagination-product';
+
 INSERT INTO issue_mentions (
   issue_id, issue_url, unity_release_id, release_note_item_id, section,
   area, platforms, mention_kind

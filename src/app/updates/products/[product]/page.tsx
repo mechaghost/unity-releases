@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import {
   ProductUpdateFilters,
   ProductUpdateFamilyNav,
+  ProductUpdateFreshnessNotice,
   ProductUpdateList,
   ProductUpdatesUnavailable
 } from "../../_components/ProductUpdateViews";
 import {
   loadProductUpdates,
   parseProductUpdateFilters,
+  parseProductUpdatePage,
   requireProductUpdateUi
 } from "../../_data";
 import {
@@ -16,6 +18,8 @@ import {
   getProductUpdatePrimaryAction
 } from "@/lib/product-updates/catalog";
 import type { ProductUpdateFamily } from "@/lib/product-updates/types";
+import { getUnityProductBySlug } from "@/lib/product-updates/repositories";
+import { pageSocialMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +28,20 @@ export async function generateMetadata({
 }: {
   params: Promise<{ product: string }>;
 }): Promise<Metadata> {
-  const { product } = await params;
+  const { product: productSlug } = await params;
+  const product = await getUnityProductBySlug(productSlug).catch(() => null);
+  if (!product) {
+    return { robots: { index: false, follow: false } };
+  }
+  const title = `${product.displayName} Updates`;
+  const description =
+    product.description || `Validated ${product.displayName} release history.`;
+  const path = `/updates/products/${encodeURIComponent(product.slug)}`;
   return {
-    title: `${humanizeSlug(product)} Updates`,
-    alternates: { canonical: `/updates/products/${encodeURIComponent(product)}` }
+    title,
+    description,
+    alternates: { canonical: path },
+    ...pageSocialMetadata({ title, description, path })
   };
 }
 
@@ -40,11 +54,14 @@ export default async function ProductUpdateHistoryPage({
 }) {
   requireProductUpdateUi();
   const { product: productSlug } = await params;
-  const filters = parseProductUpdateFilters(await searchParams);
+  const rawSearchParams = await searchParams;
+  const filters = parseProductUpdateFilters(rawSearchParams);
+  const page = parseProductUpdatePage(rawSearchParams);
   const data = await loadProductUpdates({
     ...filters,
     product: productSlug,
     limit: 100,
+    page,
     includeFacets: true
   });
   if (!data) {
@@ -67,6 +84,8 @@ export default async function ProductUpdateHistoryPage({
         description={product.description}
         canonicalUrl={product.canonicalUrl}
         primaryAction={primaryAction}
+        status={product.status}
+        lastValidatedAt={product.lastValidatedAt}
       />
       {family ? (
         <ProductUpdateFamilyNav
@@ -92,6 +111,11 @@ export default async function ProductUpdateHistoryPage({
         updates={data.updates}
         heading={`${product.displayName} release history`}
         emptyMessage="The product is registered, but no validated release notes have been published."
+        total={data.total}
+        page={data.page}
+        pageSize={data.pageSize}
+        baseHref={`/updates/products/${product.slug}`}
+        filters={filters}
       />
     </>
   );
@@ -101,12 +125,16 @@ function ProductPageHeader({
   productName,
   description,
   canonicalUrl,
-  primaryAction
+  primaryAction,
+  status,
+  lastValidatedAt
 }: {
   productName: string;
   description?: string;
   canonicalUrl?: string | null;
   primaryAction?: { href: string; label: string } | null;
+  status?: string;
+  lastValidatedAt?: string | null;
 }) {
   return (
     <section className="page-header product-updates-header">
@@ -136,6 +164,10 @@ function ProductPageHeader({
         ) : null}
       </div>
       {description ? <p>{description}</p> : null}
+      <ProductUpdateFreshnessNotice
+        status={status ?? "active"}
+        lastValidatedAt={lastValidatedAt}
+      />
     </section>
   );
 }

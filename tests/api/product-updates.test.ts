@@ -120,8 +120,12 @@ describe("Product Updates API", () => {
         sourceKey: "unity-hub",
         targetKey: "main",
         status: "quarantined",
+        lastSuccessAt: null,
+        cadenceHours: 12,
+        nextDueAt: null,
         consecutiveFailures: 1,
-        circuitOpenUntil: null
+        circuitOpenUntil: null,
+        leaseExpiresAt: null
       }
     ]);
     const response = await getHealth();
@@ -129,6 +133,55 @@ describe("Product Updates API", () => {
     await expect(response.json()).resolves.toMatchObject({
       configured: true,
       status: "degraded"
+    });
+  });
+
+  test("degrades empty, never-succeeded, overdue, and expired-lease states", async () => {
+    mocks.schemaReady.mockResolvedValue(true);
+    mocks.listHealth.mockResolvedValueOnce([]);
+    await expect((await getHealth()).json()).resolves.toMatchObject({
+      status: "degraded",
+      sources: []
+    });
+
+    mocks.listHealth.mockResolvedValueOnce([
+      {
+        sourceKey: "unity-hub",
+        targetKey: "main",
+        status: "active",
+        lastSuccessAt: null,
+        cadenceHours: 12,
+        nextDueAt: "2020-01-01T00:00:00.000Z",
+        consecutiveFailures: 0,
+        circuitOpenUntil: null,
+        leaseExpiresAt: "2020-01-01T00:00:00.000Z"
+      }
+    ]);
+    const body = await (await getHealth()).json();
+    expect(body.status).toBe("degraded");
+    expect(body.sources[0].healthReasons).toEqual(
+      expect.arrayContaining(["never-succeeded", "overdue", "expired-lease"])
+    );
+  });
+
+  test("reports a current successful target as healthy", async () => {
+    mocks.schemaReady.mockResolvedValue(true);
+    mocks.listHealth.mockResolvedValue([
+      {
+        sourceKey: "unity-hub",
+        targetKey: "main",
+        status: "active",
+        lastSuccessAt: "2026-07-28T00:00:00.000Z",
+        cadenceHours: 12,
+        nextDueAt: "2099-01-01T00:00:00.000Z",
+        consecutiveFailures: 0,
+        circuitOpenUntil: null,
+        leaseExpiresAt: null
+      }
+    ]);
+    await expect((await getHealth()).json()).resolves.toMatchObject({
+      status: "ok",
+      sources: [{ health: "ok", healthReasons: [] }]
     });
   });
 });

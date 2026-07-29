@@ -56,6 +56,8 @@ function vivoxDetail(): UpdateDetail {
       displayName: "Vivox Unreal SDK",
       family: "platform-services",
       description: "Voice and text chat for Unreal.",
+      status: "active",
+      lastValidatedAt: "2026-07-28T00:00:00.000Z",
       canonicalUrl: "https://docs.unity.com/en-us/vivox-unreal/unreal"
     },
     update: {

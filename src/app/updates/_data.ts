@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import {
+  countProductUpdates,
   getProductUpdateDetail,
   listProductUpdateFacets,
   listProductUpdates,
@@ -43,6 +44,13 @@ export function parseProductUpdateFilters(params: ProductUpdateSearchParams) {
   };
 }
 
+export function parseProductUpdatePage(params: ProductUpdateSearchParams) {
+  const raw = params.page;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value || !/^\d{1,5}$/.test(value)) return 1;
+  return Math.min(Math.max(Number(value), 1), 10_000);
+}
+
 export async function loadProductUpdates(options: {
   family?: string;
   product?: string;
@@ -53,23 +61,31 @@ export async function loadProductUpdates(options: {
   from?: string;
   to?: string;
   limit?: number;
+  page?: number;
   includeFacets?: boolean;
 } = {}) {
   try {
     if (!(await productUpdatesSchemaReady())) return null;
-    const [products, updates, facets] = await Promise.all([
+    const pageSize = Math.min(Math.max(options.limit ?? 50, 1), 100);
+    const page = Math.min(Math.max(options.page ?? 1, 1), 10_000);
+    const listOptions = {
+      family: options.family,
+      product: options.product,
+      changeKind: options.changeKind,
+      platform: options.platform,
+      version: options.version,
+      channel: options.channel,
+      from: options.from,
+      to: options.to
+    };
+    const [products, updates, total, facets] = await Promise.all([
       listUnityProducts(options.family),
       listProductUpdates({
-        family: options.family,
-        product: options.product,
-        changeKind: options.changeKind,
-        platform: options.platform,
-        version: options.version,
-        channel: options.channel,
-        from: options.from,
-        to: options.to,
-        limit: options.limit
+        ...listOptions,
+        limit: pageSize,
+        offset: (page - 1) * pageSize
       }),
+      countProductUpdates(listOptions),
       options.includeFacets
         ? listProductUpdateFacets({
             family: options.family,
@@ -77,7 +93,14 @@ export async function loadProductUpdates(options: {
           })
         : Promise.resolve(null)
     ]);
-    return { products, updates, facets: facets as ProductUpdateFacets | null };
+    return {
+      products,
+      updates,
+      total,
+      page,
+      pageSize,
+      facets: facets as ProductUpdateFacets | null
+    };
   } catch {
     return null;
   }

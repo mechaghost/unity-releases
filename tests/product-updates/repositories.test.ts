@@ -10,6 +10,7 @@ vi.mock("../../src/lib/db/client", () => ({
 }));
 
 import {
+  countProductUpdates,
   listProductUpdateFacets,
   listProductUpdates
 } from "../../src/lib/product-updates/repositories";
@@ -84,5 +85,34 @@ describe("Product Updates read repositories", () => {
     expect(sql).toContain("WITH scoped_updates");
     expect(sql).not.toContain("release_note_items");
     expect(params).toEqual(["editor-tooling", "unity-hub"]);
+  });
+
+  test("supports bounded HTML page offsets and exact filtered totals", async () => {
+    mocks.query
+      .mockResolvedValueOnce({ rows: [{ ready: true }] })
+      .mockResolvedValueOnce({ rows: [] });
+    await listProductUpdates({
+      product: "unity-hub",
+      limit: 100,
+      offset: 100
+    });
+    const [pageSql, pageParams] = mocks.query.mock.calls[1];
+    expect(pageSql).toContain("LIMIT $2");
+    expect(pageSql).toContain("OFFSET $3");
+    expect(pageParams).toEqual(["unity-hub", 100, 100]);
+
+    mocks.query
+      .mockResolvedValueOnce({ rows: [{ ready: true }] })
+      .mockResolvedValueOnce({ rows: [{ count: "105" }] });
+    await expect(
+      countProductUpdates({
+        product: "unity-hub",
+        changeKind: "improvement"
+      })
+    ).resolves.toBe(105);
+    const [countSql, countParams] = mocks.query.mock.calls[3];
+    expect(countSql).toContain("COUNT(*)");
+    expect(countSql).toContain("filter_item.change_kind");
+    expect(countParams).toEqual(["unity-hub", "improvement"]);
   });
 });

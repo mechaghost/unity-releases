@@ -46,6 +46,7 @@ export const adapterManifestSchema = z.object({
   family: z.enum(PRODUCT_UPDATE_FAMILIES),
   parserVersion: z.string().min(1).max(120),
   displayPriority: z.number().int().min(0).max(10_000).optional(),
+  allowedEvidenceHosts: z.array(z.string().min(1)).min(1),
   cadenceHours: z.number().int().positive().max(24 * 31),
   timeoutMs: z.number().int().positive().max(120_000),
   maxResponseBytes: z.number().int().positive().max(20 * 1024 * 1024),
@@ -58,6 +59,7 @@ export const adapterManifestSchema = z.object({
         targetKey: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(120),
         url: httpsUrl,
         allowedHosts: z.array(z.string().min(1)).min(1),
+        displayPriority: z.number().int().min(0).max(10_000).optional(),
         retired: z.boolean().optional()
       })
     )
@@ -74,6 +76,11 @@ export function validateAdapterManifest(manifest: ProductUpdateAdapterManifest) 
     targetKeys.add(target.targetKey);
     if (!target.allowedHosts.includes(new URL(target.url).hostname)) {
       throw new Error(`Target host is not allowlisted for ${manifest.sourceKey}/${target.targetKey}`);
+    }
+  }
+  for (const host of validated.allowedEvidenceHosts) {
+    if (host !== host.toLowerCase() || host.includes("/") || host.includes(":")) {
+      throw new Error(`Invalid evidence host ${host} for ${manifest.sourceKey}`);
     }
   }
   return validated;
@@ -117,6 +124,19 @@ export function validateObservations(
 
   const sourceKeys = new Set<string>();
   for (const observation of observations) {
+    for (const [label, value] of [
+      ["source URL", observation.sourceUrl],
+      ["product URL", observation.productCanonicalUrl]
+    ] as const) {
+      if (
+        value &&
+        !manifest.allowedEvidenceHosts.includes(new URL(value).hostname)
+      ) {
+        throw new Error(
+          `${label} host ${new URL(value).hostname} is not allowlisted for ${manifest.sourceKey}`
+        );
+      }
+    }
     if (sourceKeys.has(observation.sourceUpdateKey)) {
       throw new Error(`Duplicate source update key ${observation.sourceUpdateKey}`);
     }

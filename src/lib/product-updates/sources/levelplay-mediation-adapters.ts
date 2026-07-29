@@ -223,6 +223,7 @@ function createMediationAdapter(
       family: "monetization",
       parserVersion: "levelplay-adapter-markdown-v1",
       displayPriority: 10,
+      allowedEvidenceHosts: ["github.com", "docs.unity.com"],
       cadenceHours: 24,
       timeoutMs: 30_000,
       maxResponseBytes: 1024 * 1024,

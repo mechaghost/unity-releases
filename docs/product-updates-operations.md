@@ -42,7 +42,7 @@ config-as-code files:
 | Editor tooling | `config/railway/cron-updates-editor-tooling.json` | Every 6 hours at minute 15 |
 | Platform and services | `config/railway/cron-updates-platform-services.json` | Daily at 04:30 UTC |
 | Monetization | `config/railway/cron-updates-monetization.json` | Daily at 04:45 UTC |
-| Industry and enterprise | `config/railway/cron-updates-industry-enterprise.json` | Mondays at 05:00 UTC |
+| Industry and enterprise | `config/railway/cron-updates-industry-enterprise.json` | Daily at 05:00 UTC |
 
 Manifests retain their own source cadence. A more frequent family cron safely
 returns `skipped-not-due` for targets that are not due.
@@ -50,8 +50,9 @@ returns `skipped-not-due` for targets that are not due.
 The group runner uses bounded child-process concurrency. It sends `SIGTERM`
 when a source exceeds its deadline and `SIGKILL` after a five-second grace
 period. Work that cannot start before the family deadline is reported as
-`skipped-budget`, not as a source failure. Sibling sources continue after a
-failure, and the group exits nonzero only after all started children finish.
+`skipped-budget`. That marks the family run incomplete and makes the group exit
+nonzero after its started children finish. Sibling sources still continue after
+an individual source fails.
 
 ## Rollout
 
@@ -94,6 +95,10 @@ For a multi-target source such as Unity Studio, `--target` is required with
 
 - `/api/health` is core-only and intentionally unchanged.
 - `/api/updates/health` reports optional target state and circuit breakers.
+  It remains public when the Product Updates UI is disabled so operators can
+  diagnose rollout and ingestion failures without exposing the read surface.
+  It reports empty, never-successful, overdue, and expired-lease states as
+  degraded.
 - Fetch failures are classified as transient, rate-limited,
   access/configuration blocked, not-found candidates, parser drift, or unknown.
   Three 404/410 probes separated by at least six hours move a target to

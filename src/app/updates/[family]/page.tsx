@@ -11,10 +11,12 @@ import {
 import {
   loadProductUpdates,
   parseProductUpdateFilters,
+  parseProductUpdatePage,
   requireProductUpdateUi
 } from "../_data";
 import { getProductUpdateFamily } from "@/lib/product-updates/catalog";
 import { pageSocialMetadata } from "@/lib/site";
+import { productUpdatesSchemaReady } from "@/lib/product-updates/repositories";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,10 @@ export async function generateMetadata({
     title,
     description: family.description,
     alternates: { canonical: path },
-    ...pageSocialMetadata({ title, description: family.description, path })
+    ...pageSocialMetadata({ title, description: family.description, path }),
+    ...((await productUpdatesSchemaReady())
+      ? {}
+      : { robots: { index: false, follow: false } })
   };
 }
 
@@ -47,11 +52,14 @@ export default async function ProductUpdateFamilyPage({
   const { family: familyKey } = await params;
   const family = getProductUpdateFamily(familyKey);
   if (!family) notFound();
-  const filters = parseProductUpdateFilters(await searchParams);
+  const rawSearchParams = await searchParams;
+  const filters = parseProductUpdateFilters(rawSearchParams);
+  const page = parseProductUpdatePage(rawSearchParams);
   const data = await loadProductUpdates({
     family: family.key,
     ...filters,
     limit: 60,
+    page,
     includeFacets: true
   });
 
@@ -92,6 +100,11 @@ export default async function ProductUpdateFamilyPage({
           <ProductUpdateList
             updates={data.updates}
             heading={`${family.name} release notes`}
+            total={data.total}
+            page={data.page}
+            pageSize={data.pageSize}
+            baseHref={`/updates/${family.key}`}
+            filters={filters}
           />
           {family.key === "editor-tooling" ? null : (
             <ProductGrid products={data.products} />

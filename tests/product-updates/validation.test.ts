@@ -7,12 +7,14 @@ import {
   validateAdapterManifest,
   validateObservations
 } from "../../src/lib/product-updates/validation";
+import { PRODUCT_UPDATE_ADAPTERS } from "../../src/lib/product-updates/sources";
 
 const manifest: ProductUpdateAdapterManifest = {
   sourceKey: "test-source",
   displayName: "Test Source",
   family: "editor-tooling",
   parserVersion: "test-v1",
+  allowedEvidenceHosts: ["unity.com"],
   cadenceHours: 24,
   timeoutMs: 5_000,
   maxResponseBytes: 100_000,
@@ -59,6 +61,17 @@ describe("Product Updates validation", () => {
     expect(validateObservations([observation], manifest, 1)).toEqual([observation]);
   });
 
+  test("validates every registered adapter and its explicit evidence boundary", () => {
+    const sourceKeys = new Set<string>();
+    for (const adapter of PRODUCT_UPDATE_ADAPTERS) {
+      expect(() => validateAdapterManifest(adapter.manifest)).not.toThrow();
+      expect(adapter.manifest.allowedEvidenceHosts.length).toBeGreaterThan(0);
+      expect(sourceKeys.has(adapter.manifest.sourceKey)).toBe(false);
+      sourceKeys.add(adapter.manifest.sourceKey);
+    }
+    expect(sourceKeys.size).toBe(PRODUCT_UPDATE_ADAPTERS.length);
+  });
+
   test("rejects a target whose starting host is not allowlisted", () => {
     expect(() =>
       validateAdapterManifest({
@@ -66,6 +79,28 @@ describe("Product Updates validation", () => {
         targets: [{ ...manifest.targets[0], allowedHosts: ["example.com"] }]
       })
     ).toThrow(/not allowlisted/);
+  });
+
+  test("rejects parsed evidence and product links outside the adapter allowlist", () => {
+    expect(() =>
+      validateObservations(
+        [{ ...observation, sourceUrl: "https://example.com/phishing" }],
+        manifest,
+        1
+      )
+    ).toThrow(/source URL host example.com is not allowlisted/);
+    expect(() =>
+      validateObservations(
+        [
+          {
+            ...observation,
+            productCanonicalUrl: "https://example.com/fake-product"
+          }
+        ],
+        manifest,
+        1
+      )
+    ).toThrow(/product URL host example.com is not allowlisted/);
   });
 
   test("rejects duplicate source and item identities", () => {

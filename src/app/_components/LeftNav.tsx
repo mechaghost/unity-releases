@@ -18,6 +18,16 @@ type NavSection = {
   items: NavItem[];
 };
 
+function isEditorToolingPath(pathname: string) {
+  return (
+    pathname === "/updates/editor-tooling" ||
+    pathname === "/updates/products/unity-hub" ||
+    pathname.startsWith("/updates/products/unity-hub/") ||
+    pathname === "/updates/products/unity-cli" ||
+    pathname.startsWith("/updates/products/unity-cli/")
+  );
+}
+
 const NAV: NavSection[] = [
   {
     label: "Engine & Editor",
@@ -66,7 +76,7 @@ const NAV: NavSection[] = [
         href: "/updates/editor-tooling",
         label: "Editor Tooling Updates",
         icon: "terminal",
-        match: (pathname) => pathname === "/updates/editor-tooling",
+        match: isEditorToolingPath,
         productUpdatesOnly: true
       }
     ]
@@ -81,8 +91,7 @@ const NAV: NavSection[] = [
         icon: "layers",
         match: (pathname) =>
           pathname === "/updates" ||
-          (pathname.startsWith("/updates/") &&
-            pathname !== "/updates/editor-tooling"),
+          (pathname.startsWith("/updates/") && !isEditorToolingPath(pathname)),
         productUpdatesOnly: true
       }
     ]

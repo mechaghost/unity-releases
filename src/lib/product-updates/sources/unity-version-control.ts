@@ -13,6 +13,7 @@ export const unityVersionControlAdapter = createVersionedUnityDocsAdapter({
     family: "platform-services",
     parserVersion: "unity-version-control-html-v1",
     displayPriority: 10,
+    allowedEvidenceHosts: ["docs.unity.com"],
     cadenceHours: 24,
     timeoutMs: 45_000,
     maxResponseBytes: 12 * 1024 * 1024,

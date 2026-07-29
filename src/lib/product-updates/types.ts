@@ -11,6 +11,7 @@ export type ProductUpdateTargetManifest = {
   targetKey: string;
   url: string;
   allowedHosts: readonly string[];
+  displayPriority?: number;
   retired?: boolean;
 };
 
@@ -20,6 +21,7 @@ export type ProductUpdateAdapterManifest = {
   family: ProductUpdateFamily;
   parserVersion: string;
   displayPriority?: number;
+  allowedEvidenceHosts: readonly string[];
   cadenceHours: number;
   timeoutMs: number;
   maxResponseBytes: number;

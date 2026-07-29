@@ -649,9 +649,9 @@ export async function listFeedEvents(
   const productUpdates = options.productUpdates ?? "exclude";
   const where =
     productUpdates === "only"
-      ? "WHERE product_update_id IS NOT NULL"
+      ? "WHERE event_type = 'product_update'"
       : productUpdates === "exclude"
-        ? "WHERE product_update_id IS NULL"
+        ? "WHERE event_type <> 'product_update'"
         : "";
   const result = await query<FeedEventRow>(
     `
@@ -671,7 +671,7 @@ export async function listFeedEventsByType(eventType: string, limit = 30): Promi
     `
       SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
       FROM content_events
-      WHERE event_type = $1 AND product_update_id IS NULL
+      WHERE event_type = $1
       ORDER BY event_time DESC
       LIMIT $2
     `,
@@ -1850,9 +1850,9 @@ export async function listTimelineFeed(
   const productUpdates = options.productUpdates ?? "exclude";
   const contentWhere =
     productUpdates === "only"
-      ? "WHERE product_update_id IS NOT NULL"
+      ? "WHERE event_type = 'product_update'"
       : productUpdates === "exclude"
-        ? "WHERE product_update_id IS NULL"
+        ? "WHERE event_type <> 'product_update'"
         : "";
   const contentPromise = query<FeedEventRow>(
     `SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags, ingestion_run_id

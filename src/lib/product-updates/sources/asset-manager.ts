@@ -20,6 +20,7 @@ export const assetManagerAdapter: ProductUpdateAdapter = {
     family: "platform-services",
     parserVersion: "asset-manager-html-v1",
     displayPriority: 10,
+    allowedEvidenceHosts: ["docs.unity.com"],
     cadenceHours: 24,
     timeoutMs: 30_000,
     maxResponseBytes: 3 * 1024 * 1024,

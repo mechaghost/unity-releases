@@ -5,28 +5,43 @@ import {
   ProductUpdateList,
   ProductUpdatesUnavailable
 } from "./_components/ProductUpdateViews";
-import { loadProductUpdates, requireProductUpdateUi } from "./_data";
+import {
+  loadProductUpdates,
+  parseProductUpdatePage,
+  requireProductUpdateUi
+} from "./_data";
 import { pageSocialMetadata } from "@/lib/site";
+import { productUpdatesSchemaReady } from "@/lib/product-updates/repositories";
 
 export const dynamic = "force-dynamic";
 
 const DESCRIPTION =
   "Validated release notes for Unity products beyond the Editor, organized by product family and kept separate from core upgrade intelligence.";
 
-export const metadata: Metadata = {
-  title: "Product Updates",
-  description: DESCRIPTION,
-  alternates: { canonical: "/updates" },
-  ...pageSocialMetadata({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
     title: "Product Updates",
     description: DESCRIPTION,
-    path: "/updates"
-  })
-};
+    alternates: { canonical: "/updates" },
+    ...pageSocialMetadata({
+      title: "Product Updates",
+      description: DESCRIPTION,
+      path: "/updates"
+    }),
+    ...((await productUpdatesSchemaReady())
+      ? {}
+      : { robots: { index: false, follow: false } })
+  };
+}
 
-export default async function ProductUpdatesPage() {
+export default async function ProductUpdatesPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   requireProductUpdateUi();
-  const data = await loadProductUpdates({ limit: 40 });
+  const page = parseProductUpdatePage(await searchParams);
+  const data = await loadProductUpdates({ limit: 40, page });
 
   return (
     <>
@@ -49,7 +64,13 @@ export default async function ProductUpdatesPage() {
       {data ? (
         <>
           <ProductFamilyGrid products={data.products} />
-          <ProductUpdateList updates={data.updates} />
+          <ProductUpdateList
+            updates={data.updates}
+            total={data.total}
+            page={data.page}
+            pageSize={data.pageSize}
+            baseHref="/updates"
+          />
         </>
       ) : (
         <ProductUpdatesUnavailable />

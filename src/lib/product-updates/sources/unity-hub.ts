@@ -26,6 +26,7 @@ export const unityHubAdapter: ProductUpdateAdapter = {
     family: "editor-tooling",
     parserVersion: "unity-hub-html-v1",
     displayPriority: 10,
+    allowedEvidenceHosts: ["unity.com", "www.unity.com"],
     cadenceHours: 12,
     timeoutMs: 30_000,
     maxResponseBytes: 3 * 1024 * 1024,

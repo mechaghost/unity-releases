@@ -52,6 +52,7 @@ function createUnityAdsAdapter(platform: UnityAdsPlatform): ProductUpdateAdapter
       family: "monetization",
       parserVersion: "unity-ads-html-v1",
       displayPriority: 10,
+      allowedEvidenceHosts: ["docs.unity.com"],
       cadenceHours: 24,
       timeoutMs: 30_000,
       maxResponseBytes: 2 * 1024 * 1024,

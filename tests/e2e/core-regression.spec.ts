@@ -99,6 +99,24 @@ test.describe("core surface contract", () => {
     );
   });
 
+  test("long product histories page to the oldest release without losing context", async ({
+    page
+  }) => {
+    await page.goto("/updates/products/pagination-product?page=2");
+    await expect(
+      page.getByRole("heading", { name: "Pagination Product", exact: true })
+    ).toBeVisible();
+    await expect(page.getByText("Showing 101–105 of 105")).toBeVisible();
+    await expect(page.getByText("Page 2 of 2")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Pagination Product 1.0.105" })
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "Previous" })).toHaveAttribute(
+      "href",
+      "/updates/products/pagination-product"
+    );
+  });
+
   test("default activity surfaces stay core-only while product updates require explicit scope", async ({
     page,
     request
@@ -159,12 +177,17 @@ test.describe("core surface contract", () => {
       .locator(".stats-card")
       .filter({ hasText: "Product updates" });
     await expect(productUpdateCard).toBeVisible();
-    await expect(productUpdateCard.locator(".stats-card__value")).toHaveText("1");
+    await expect(productUpdateCard.locator(".stats-card__value")).toHaveText("106");
   });
 
   test("product update dates preserve their UTC release day", async ({ page }) => {
     await page.goto("/updates");
-    await expect(page.getByText("Jul 24, 2026", { exact: true })).toBeVisible();
+    const hubRelease = page.locator(".product-update-row").filter({
+      has: page.getByRole("link", { name: "Unity Hub 3.14.0" })
+    });
+    await expect(
+      hubRelease.getByText("Jul 24, 2026", { exact: true })
+    ).toBeVisible();
   });
 
   test("Editor tooling makes product acquisition the primary action", async ({
@@ -260,7 +283,7 @@ test.describe("core surface contract", () => {
     const nav = page.locator("#primary-nav");
     await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
     await expect(
-      nav.getByRole("link", { name: "Product Updates" })
+      nav.getByRole("link", { name: "Editor Tooling Updates" })
     ).toHaveAttribute("aria-current", "page");
   });
 
@@ -279,5 +302,59 @@ test.describe("core surface contract", () => {
     await page.goto("/releases");
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations.filter((violation) => violation.impact === "critical")).toEqual([]);
+  });
+
+  test("Product Updates surfaces have no serious accessibility violations", async ({
+    page
+  }) => {
+    for (const path of [
+      "/updates",
+      "/updates/editor-tooling",
+      "/updates/platform-services",
+      "/updates/products/unity-hub",
+      "/updates/products/unity-hub/3.14.0",
+      "/updates/products/pagination-product?page=2"
+    ]) {
+      await page.goto(path);
+      const results = await new AxeBuilder({ page }).analyze();
+      const serious = results.violations.filter(
+        (violation) =>
+          violation.impact === "critical" || violation.impact === "serious"
+      );
+      expect(serious, `${path}: ${JSON.stringify(serious)}`).toEqual([]);
+    }
+  });
+
+  test("Product Updates reflow at 320px and keep actions keyboard-focusable", async ({
+    page
+  }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith("desktop"), "single viewport contract");
+    await page.setViewportSize({ width: 320, height: 900 });
+    for (const path of [
+      "/updates",
+      "/updates/editor-tooling",
+      "/updates/products/unity-hub",
+      "/updates/products/unity-hub/3.14.0",
+      "/updates/products/pagination-product?page=2"
+    ]) {
+      await page.goto(path);
+      expect(
+        await page.evaluate(
+          () =>
+            document.documentElement.scrollWidth <=
+            document.documentElement.clientWidth
+        ),
+        path
+      ).toBe(true);
+    }
+    await page.goto("/updates/editor-tooling");
+    const download = page.getByRole("link", { name: "Download Unity Hub" });
+    await download.focus();
+    await expect(download).toBeFocused();
+    const history = page.getByRole("link", {
+      name: "Unity Hub release history"
+    });
+    await history.focus();
+    await expect(history).toBeFocused();
   });
 });

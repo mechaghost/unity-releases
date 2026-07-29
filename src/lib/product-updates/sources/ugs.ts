@@ -54,6 +54,7 @@ export const ugsAdapter: ProductUpdateAdapter = {
     family: "platform-services",
     parserVersion: "ugs-html-v2",
     displayPriority: 50,
+    allowedEvidenceHosts: ["docs.unity.com"],
     cadenceHours: 24,
     timeoutMs: 45_000,
     maxResponseBytes: 6 * 1024 * 1024,

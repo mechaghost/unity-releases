@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import type { ProductUpdateAdapter } from "../../src/lib/product-updates/types";
 
 const mocks = vi.hoisted(() => ({
@@ -17,7 +18,10 @@ vi.mock("../../src/lib/product-updates/sources", () => ({
 }));
 
 import { runProductUpdateJob } from "../../src/jobs/poll-product-update";
-import { runProductUpdateGroup } from "../../src/jobs/poll-product-update-group";
+import {
+  runProductUpdateGroup,
+  runSourceProcess
+} from "../../src/jobs/poll-product-update-group";
 
 const hub = adapter("unity-hub");
 const cli = adapter("unity-cli");
@@ -157,10 +161,39 @@ describe("Product Updates jobs", () => {
     );
     expect(summary).toMatchObject([
       { sourceKey: "unity-hub", status: "success", ok: true },
-      { sourceKey: "unity-cli", status: "skipped-budget", ok: true }
+      { sourceKey: "unity-cli", status: "skipped-budget", ok: false }
     ]);
     expect(runSource).toHaveBeenCalledTimes(1);
-    expect(process.exitCode).toBeUndefined();
+    expect(process.exitCode).toBe(1);
+  });
+
+  test("schedules the daily Studio source often enough for its declared cadence", () => {
+    const config = JSON.parse(
+      readFileSync(
+        new URL(
+          "../../config/railway/cron-updates-industry-enterprise.json",
+          import.meta.url
+        ),
+        "utf8"
+      )
+    );
+    expect(config.deploy.cronSchedule).toBe("0 5 * * *");
+  });
+
+  test("hard-kills a source process that ignores graceful termination", async () => {
+    const result = await runSourceProcess("ignored", [], 500, {
+      nodeArgs: [
+        "-e",
+        "process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"
+      ],
+      terminationGraceMs: 50
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      timedOut: true,
+      signal: "SIGKILL"
+    });
+    expect(result.durationMs).toBeLessThan(2_000);
   });
 
   test("rejects unknown sources and families before running", async () => {
@@ -190,6 +223,7 @@ function adapter(sourceKey: string): ProductUpdateAdapter {
       displayName: sourceKey,
       family: "editor-tooling",
       parserVersion: "test-v1",
+      allowedEvidenceHosts: ["unity.com"],
       cadenceHours: 12,
       timeoutMs: 1_000,
       maxResponseBytes: 10_000,

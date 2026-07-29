@@ -2,13 +2,19 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   ProductUpdateDetailView,
+  ProductUpdateFreshnessNotice,
   ProductUpdatesUnavailable
 } from "../../../_components/ProductUpdateViews";
 import {
   loadProductUpdateDetail,
   requireProductUpdateUi
 } from "../../../_data";
-import { getProductUpdatePrimaryAction } from "@/lib/product-updates/catalog";
+import {
+  getProductUpdateFamily,
+  getProductUpdatePrimaryAction
+} from "@/lib/product-updates/catalog";
+import { getProductUpdateDetail } from "@/lib/product-updates/repositories";
+import { pageSocialMetadata } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +24,20 @@ export async function generateMetadata({
   params: Promise<{ product: string; update: string }>;
 }): Promise<Metadata> {
   const { product, update } = await params;
+  const detail = await getProductUpdateDetail(product, update).catch(() => null);
+  if (!detail) {
+    return { robots: { index: false, follow: false } };
+  }
+  const title = `${detail.product.displayName}: ${detail.update.title}`;
+  const description =
+    detail.update.summary ||
+    `Validated ${detail.product.displayName} release notes for ${detail.update.version ?? detail.update.title}.`;
+  const path = `/updates/products/${encodeURIComponent(detail.product.slug)}/${encodeURIComponent(detail.update.slug)}`;
   return {
-    title: `${humanizeSlug(product)} ${update}`,
-    alternates: {
-      canonical: `/updates/products/${encodeURIComponent(product)}/${encodeURIComponent(update)}`
-    }
+    title,
+    description,
+    alternates: { canonical: path },
+    ...pageSocialMetadata({ title, description, path })
   };
 }
 
@@ -46,12 +61,19 @@ export default async function ProductUpdateDetailPage({
   }
   if (detail === null) notFound();
   const primaryAction = getProductUpdatePrimaryAction(detail.product);
+  const family = getProductUpdateFamily(detail.product.family);
 
   return (
     <>
       <nav className="product-update-breadcrumbs" aria-label="Breadcrumb">
         <a href="/updates">Product Updates</a>
         <span aria-hidden>/</span>
+        {family ? (
+          <>
+            <a href={`/updates/${family.key}`}>{family.name}</a>
+            <span aria-hidden>/</span>
+          </>
+        ) : null}
         <a href={`/updates/products/${detail.product.slug}`}>
           {detail.product.displayName}
         </a>
@@ -80,15 +102,11 @@ export default async function ProductUpdateDetailPage({
           ) : null}
         </div>
       </section>
+      <ProductUpdateFreshnessNotice
+        status={detail.product.status}
+        lastValidatedAt={detail.product.lastValidatedAt}
+      />
       <ProductUpdateDetailView detail={detail} />
     </>
   );
-}
-
-function humanizeSlug(value: string) {
-  return value
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }

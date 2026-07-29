@@ -3,6 +3,7 @@ import { siteUrl } from "@/lib/site";
 import { getTrackedVersionLines } from "@/lib/db/repositories";
 import { describeGeneration, groupTrackedLines } from "@/lib/tracked-versions";
 import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
+import { productUpdatesSchemaReady } from "@/lib/product-updates/repositories";
 
 /**
  * Rendered per request, not prerendered.
@@ -69,7 +70,8 @@ async function trackedVersionsParagraph(): Promise<string> {
 export async function GET() {
   const origin = siteUrl();
   const trackedVersions = await trackedVersionsParagraph();
-  const productUpdates = productUpdateNavigationEnabled()
+  const productUpdates =
+    productUpdateNavigationEnabled() && (await productUpdatesSchemaReady())
     ? `
 ## Secondary product intelligence
 

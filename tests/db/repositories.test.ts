@@ -530,7 +530,8 @@ describe("listTimelineFeed", () => {
     // Check content events query parameters
     const [contentSql, contentParams] = mocks.query.mock.calls[0];
     expect(contentSql).toContain("FROM content_events");
-    expect(contentSql).toContain("product_update_id IS NULL");
+    expect(contentSql).toContain("event_type <> 'product_update'");
+    expect(contentSql).not.toContain("product_update_id");
     expect(contentParams).toEqual([20]);
 
     // Check ingestion runs query parameters
@@ -599,7 +600,8 @@ describe("listTimelineFeed", () => {
     // Product-only reads must not depend on the core ingestion-run domain.
     expect(mocks.query).toHaveBeenCalledTimes(1);
     const [contentSql] = mocks.query.mock.calls[0];
-    expect(contentSql).toContain("product_update_id IS NOT NULL");
+    expect(contentSql).toContain("event_type = 'product_update'");
+    expect(contentSql).not.toContain("product_update_id");
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       type: "content",

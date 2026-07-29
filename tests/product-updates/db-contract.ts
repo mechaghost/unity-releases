@@ -35,6 +35,7 @@ async function main() {
       displayName: "DB Contract",
       family: "editor-tooling" as const,
       parserVersion: "db-v1",
+      allowedEvidenceHosts: ["unity.com", "docs.unity.com"],
       cadenceHours: 24,
       timeoutMs: 1_000,
       maxResponseBytes: 100_000,
@@ -95,6 +96,94 @@ async function main() {
   assert.equal(first[0].status, "success");
   assert.equal(first[0].recordsCreated, 1);
   assert.ok(first[0].snapshotId);
+
+  const stableTargetState = async () =>
+    (
+      await query<{ state: Record<string, unknown> }>(
+        `
+          SELECT to_jsonb(target) - 'updated_at' AS state
+          FROM product_update_targets target
+          JOIN product_update_sources source ON source.id = target.source_id
+          WHERE source.source_key = 'db-contract'
+            AND target.target_key = 'main'
+        `
+      )
+    ).rows[0].state;
+  const initialSnapshotOwner = await query<{ run_id: string; fetched_at: string }>(
+    `
+      SELECT run_id::text, fetched_at
+      FROM product_update_snapshots
+      WHERE id = $1
+    `,
+    [first[0].snapshotId]
+  );
+  const targetBeforeDryRuns = JSON.stringify(await stableTargetState());
+  const sameBodyDryRun = await runProductUpdateAdapter(adapter, {
+    force: true,
+    dryRun: true,
+    fetchImpl: async () => response()
+  });
+  assert.equal(sameBodyDryRun[0].status, "dry-run");
+  assert.equal(
+    JSON.stringify(await stableTargetState()),
+    targetBeforeDryRuns,
+    "successful dry-run must not mutate target state"
+  );
+  const snapshotOwnerAfterDryRun = await query<{
+    run_id: string;
+    fetched_at: string;
+  }>(
+    `
+      SELECT run_id::text, fetched_at
+      FROM product_update_snapshots
+      WHERE id = $1
+    `,
+    [first[0].snapshotId]
+  );
+  assert.deepEqual(
+    snapshotOwnerAfterDryRun.rows[0],
+    initialSnapshotOwner.rows[0],
+    "snapshot deduplication must preserve original run provenance"
+  );
+  const notModifiedDryRun = await runProductUpdateAdapter(adapter, {
+    force: true,
+    dryRun: true,
+    fetchImpl: async () => new Response(null, { status: 304 })
+  });
+  assert.equal(notModifiedDryRun[0].status, "dry-run");
+  assert.equal(
+    JSON.stringify(await stableTargetState()),
+    targetBeforeDryRuns,
+    "304 dry-run must not mark a target successful or advance its schedule"
+  );
+
+  const brokenDryRunAdapter = {
+    ...adapter,
+    manifest: { ...adapter.manifest, parserVersion: "db-dry-broken-v1" },
+    parse: () => {
+      throw new Error("intentional dry-run parser failure");
+    }
+  };
+  await assert.rejects(
+    runProductUpdateAdapter(brokenDryRunAdapter, {
+      force: true,
+      dryRun: true,
+      fetchImpl: async () =>
+        new Response("<html>dry-run changed structure</html>", {
+          status: 200,
+          headers: {
+            "content-type": "text/html",
+            etag: '"db-contract-dry-broken"'
+          }
+        })
+    }),
+    /intentional dry-run parser failure/
+  );
+  assert.equal(
+    JSON.stringify(await stableTargetState()),
+    targetBeforeDryRuns,
+    "failed dry-run must not mutate health, circuit, or validated state"
+  );
 
   process.env.PRODUCT_UPDATE_SOURCES = "db-contract";
   const explicitReplay = await runProductUpdateAdapter(adapter, {
@@ -347,6 +436,146 @@ async function main() {
   assert.equal(reconciled[0].summary, "Specific summary");
   assert.equal(reconciled[0].sourceCount, 2);
 
+  const targetPriorityAdapter = {
+    manifest: {
+      ...adapter.manifest,
+      sourceKey: "db-target-priority",
+      displayName: "DB Target Priority",
+      parserVersion: "target-priority-v1",
+      targets: [
+        {
+          targetKey: "index",
+          url: "https://docs.unity.com/db-target-priority",
+          allowedHosts: ["docs.unity.com"],
+          displayPriority: 100
+        },
+        {
+          targetKey: "detail",
+          url: "https://docs.unity.com/db-target-priority/1.0.0",
+          allowedHosts: ["docs.unity.com"],
+          displayPriority: 10
+        }
+      ]
+    },
+    parse: (snapshot: { targetKey: string }) => {
+      const detailed = snapshot.targetKey === "detail";
+      return [
+        {
+          ...adapter.parse()[0],
+          productKey: "db-target-priority-product",
+          productSlug: "db-target-priority-product",
+          productName: detailed
+            ? "Detailed Product Name"
+            : "Generic Product Name",
+          productDescription: detailed
+            ? "Detailed product description."
+            : "Generic index description.",
+          productCanonicalUrl:
+            "https://docs.unity.com/db-target-priority/product",
+          sourceUpdateKey: detailed ? "detail:1.0.0" : "index:1.0.0",
+          title: detailed ? "Detailed release title" : "Generic index title",
+          summary: detailed
+            ? "Detailed release summary."
+            : "Generic index summary.",
+          sourceUrl: detailed
+            ? "https://docs.unity.com/db-target-priority/1.0.0"
+            : "https://docs.unity.com/db-target-priority"
+        }
+      ];
+    }
+  };
+  await runProductUpdateAdapter(targetPriorityAdapter, {
+    force: true,
+    fetchImpl: async (input) => productResponse(String(input))
+  });
+  const targetPriorityUpdate = await repositories.listProductUpdates({
+    product: "db-target-priority-product"
+  });
+  assert.equal(targetPriorityUpdate[0].title, "Detailed release title");
+  assert.equal(targetPriorityUpdate[0].summary, "Detailed release summary.");
+  const targetPriorityProduct = await repositories.getUnityProductBySlug(
+    "db-target-priority-product"
+  );
+  assert.equal(targetPriorityProduct?.displayName, "Detailed Product Name");
+  assert.equal(
+    targetPriorityProduct?.description,
+    "Detailed product description."
+  );
+
+  const bulkObservationCount = 149;
+  const bulkItemsPerObservation = 24;
+  const bulkAdapter = {
+    manifest: {
+      ...adapter.manifest,
+      sourceKey: "db-bulk-contract",
+      displayName: "DB Bulk Publish Contract",
+      parserVersion: "db-bulk-v1",
+      maximumExpectedRecords: 200,
+      targets: [
+        {
+          targetKey: "main",
+          url: "https://unity.com/db-bulk-contract",
+          allowedHosts: ["unity.com"]
+        }
+      ]
+    },
+    parse: () =>
+      Array.from({ length: bulkObservationCount }, (_, observationIndex) => {
+        const version = `1.0.${observationIndex + 1}`;
+        return {
+          ...adapter.parse()[0],
+          productKey: "db-bulk-product",
+          productSlug: "db-bulk-product",
+          productName: "DB Bulk Product",
+          sourceUpdateKey: version,
+          canonicalKey: `version:${version}`,
+          updateSlug: version,
+          version,
+          title: `DB Bulk Product ${version}`,
+          sourceUrl: `https://unity.com/db-bulk-contract/${version}`,
+          items: Array.from(
+            { length: bulkItemsPerObservation },
+            (_, itemIndex) => ({
+              itemKey: `item-${itemIndex + 1}`,
+              section: "Changes",
+              changeKind: "change",
+              body: `Bulk change ${itemIndex + 1} for ${version}.`,
+              platforms: ["Windows", "macOS"],
+              tags: ["bulk-contract"],
+              sourceOrder: itemIndex
+            })
+          )
+        };
+      })
+  };
+  const bulkStartedAt = Date.now();
+  const bulkPublished = await runProductUpdateAdapter(bulkAdapter, {
+    force: true,
+    fetchImpl: async () => productResponse("bulk-contract")
+  });
+  const bulkDurationMs = Date.now() - bulkStartedAt;
+  assert.equal(bulkPublished[0].recordsCreated, bulkObservationCount);
+  const bulkItemCount = await query<{ count: string }>(
+    `
+      SELECT COUNT(*)::text AS count
+      FROM product_update_observation_items item
+      JOIN product_update_observations observation
+        ON observation.id = item.observation_id
+      JOIN product_updates product_update
+        ON product_update.id = observation.product_update_id
+      JOIN unity_products product ON product.id = product_update.product_id
+      WHERE product.product_key = 'db-bulk-product'
+    `
+  );
+  assert.equal(
+    Number(bulkItemCount.rows[0].count),
+    bulkObservationCount * bulkItemsPerObservation
+  );
+  assert.ok(
+    bulkDurationMs < 10_000,
+    `bulk publish took ${bulkDurationMs}ms; expected substantial margin under the 30s deadline`
+  );
+
   const retirementAdapter = {
     manifest: {
       ...adapter.manifest,
@@ -446,6 +675,150 @@ async function main() {
     0
   );
 
+  const leaseAdapter = {
+    ...adapter,
+    manifest: {
+      ...adapter.manifest,
+      sourceKey: "db-lease-contract",
+      displayName: "DB Lease Contract",
+      parserVersion: "db-lease-v1",
+      targets: [
+        {
+          targetKey: "main",
+          url: "https://unity.com/db-lease-contract",
+          allowedHosts: ["unity.com"]
+        }
+      ]
+    }
+  };
+  await repositories.registerProductUpdateAdapter(leaseAdapter);
+  const simultaneousLeases = await Promise.all([
+    repositories.tryAcquireProductUpdateLease(
+      "db-lease-contract",
+      "main",
+      { owner: "lease-a", leaseMs: 30_000 }
+    ),
+    repositories.tryAcquireProductUpdateLease(
+      "db-lease-contract",
+      "main",
+      { owner: "lease-b", leaseMs: 30_000 }
+    )
+  ]);
+  assert.equal(
+    simultaneousLeases.filter(Boolean).length,
+    1,
+    "only one concurrent worker may acquire a target"
+  );
+  const winningLease = simultaneousLeases.find(Boolean);
+  assert.ok(winningLease);
+  await repositories.releaseProductUpdateLease(
+    winningLease.target.targetId,
+    winningLease.token
+  );
+
+  const fencedLease = await repositories.tryAcquireProductUpdateLease(
+    "db-lease-contract",
+    "main",
+    { owner: "lease-fence", leaseMs: 30_000 }
+  );
+  assert.ok(fencedLease);
+  const fencedRunId = await repositories.createProductUpdateRun(
+    fencedLease.target,
+    leaseAdapter.manifest.parserVersion,
+    30_000
+  );
+  const observedBeforeFence = (
+    await repositories.getProductUpdateTarget("db-lease-contract", "main")
+  )?.observedSnapshotId;
+  await assert.rejects(
+    repositories.recordProductUpdateSnapshot(
+      fencedLease.target,
+      "stale-lease-token",
+      fencedRunId,
+      {
+        kind: "content",
+        requestedUrl: fencedLease.target.url,
+        finalUrl: fencedLease.target.url,
+        status: 200,
+        etag: '"lease-fence"',
+        lastModified: null,
+        sha256: "lease-fence-snapshot",
+        text: "lease fence body"
+      }
+    ),
+    /lease was lost before snapshot promotion/
+  );
+  assert.equal(
+    (
+      await repositories.getProductUpdateTarget(
+        "db-lease-contract",
+        "main"
+      )
+    )?.observedSnapshotId,
+    observedBeforeFence
+  );
+  await repositories.finishProductUpdateDryRunFailure({
+    runId: fencedRunId,
+    error: "intentional lease-fence contract"
+  });
+  await repositories.releaseProductUpdateLease(
+    fencedLease.target.targetId,
+    fencedLease.token
+  );
+
+  const abandonedAdapter = {
+    ...leaseAdapter,
+    manifest: {
+      ...leaseAdapter.manifest,
+      sourceKey: "db-abandoned-contract",
+      displayName: "DB Abandoned Contract"
+    }
+  };
+  await repositories.registerProductUpdateAdapter(abandonedAdapter);
+  const abandonedTarget = await repositories.getProductUpdateTarget(
+    "db-abandoned-contract",
+    "main"
+  );
+  assert.ok(abandonedTarget);
+  await query(
+    `
+      INSERT INTO product_update_runs (
+        source_id, target_id, job_name, parser_version, started_at,
+        deadline_at, status
+      )
+      SELECT
+        $1, $2, 'abandoned-contract-' || value, 'db-abandoned-v1',
+        now() - interval '2 hours', now() - interval '1 hour', 'running'
+      FROM generate_series(1, 3) AS value
+    `,
+    [abandonedTarget.sourceId, abandonedTarget.targetId]
+  );
+  const recoveryLease = await repositories.tryAcquireProductUpdateLease(
+    "db-abandoned-contract",
+    "main",
+    { owner: "abandoned-recovery", leaseMs: 30_000 }
+  );
+  assert.ok(recoveryLease);
+  const abandonedState = await query<{
+    consecutive_failures: number;
+    circuit_open_until: string | null;
+    next_due_at: string | null;
+  }>(
+    `
+      SELECT consecutive_failures, circuit_open_until, next_due_at
+      FROM product_update_targets
+      WHERE id = $1
+    `,
+    [abandonedTarget.targetId]
+  );
+  assert.equal(Number(abandonedState.rows[0].consecutive_failures), 3);
+  assert.ok(abandonedState.rows[0].circuit_open_until);
+  assert.ok(abandonedState.rows[0].next_due_at);
+  await repositories.releaseProductUpdateLease(
+    recoveryLease.target.targetId,
+    recoveryLease.token
+  );
+
   const coreRunsAfter = await query<{ count: string }>("SELECT COUNT(*)::text AS count FROM ingestion_runs");
   assert.equal(coreRunsAfter.rows[0].count, coreRunsBefore.rows[0].count);
   assert.equal(JSON.stringify(await stableFreshness()), coreFreshnessBefore);
@@ -486,6 +859,32 @@ async function main() {
   assert.equal(accepted.rows[0].observed_etag, '"db-contract-v2"');
   assert.equal(accepted.rows[0].validated_etag, '"db-contract-v2"');
   assert.equal(accepted.rows[0].validated_parser_version, "db-v3");
+
+  try {
+    await query(
+      "ALTER TABLE product_update_observation_items RENAME TO unavailable_product_update_observation_items"
+    );
+    assert.equal(await repositories.productUpdatesSchemaReady(), false);
+    await query(
+      "ALTER TABLE content_events DROP COLUMN product_update_id"
+    );
+    assert.equal(await repositories.productUpdatesSchemaReady(), false);
+    assert.equal(
+      (await coreRepositories.listFeedEvents()).some(
+        (event) => event.event_type === "product_update"
+      ),
+      false
+    );
+    assert.equal(
+      JSON.stringify(await coreRepositories.listTimelineFeed()),
+      coreTimelineBefore,
+      "core timeline must survive a missing optional migration"
+    );
+    await coreRepositories.listFeedEventsByType("blog_post");
+  } finally {
+    await setupE2eDatabase();
+  }
+  assert.equal(await repositories.productUpdatesSchemaReady(), true);
 
   await getPool().end();
   console.log("Product Updates database contract passed");

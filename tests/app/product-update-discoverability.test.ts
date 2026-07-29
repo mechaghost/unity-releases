@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => ({
   listReleaseSummaries: vi.fn(),
   listTopIssueIds: vi.fn(),
   getTrackedVersionLines: vi.fn(),
-  listProductUpdateSitemapEntries: vi.fn()
+  listProductUpdateSitemapEntries: vi.fn(),
+  productUpdatesSchemaReady: vi.fn()
 }));
 
 vi.mock("../../src/lib/db/repositories", () => ({
@@ -14,7 +15,8 @@ vi.mock("../../src/lib/db/repositories", () => ({
 }));
 
 vi.mock("../../src/lib/product-updates/repositories", () => ({
-  listProductUpdateSitemapEntries: mocks.listProductUpdateSitemapEntries
+  listProductUpdateSitemapEntries: mocks.listProductUpdateSitemapEntries,
+  productUpdatesSchemaReady: mocks.productUpdatesSchemaReady
 }));
 
 import sitemap from "../../src/app/sitemap";
@@ -46,6 +48,7 @@ beforeEach(() => {
       }
     ]
   });
+  mocks.productUpdatesSchemaReady.mockReset().mockResolvedValue(true);
   delete process.env.PRODUCT_UPDATE_UI_ENABLED;
   delete process.env.PRODUCT_UPDATE_NAV_ENABLED;
 });
@@ -84,5 +87,18 @@ describe("Product Updates discoverability", () => {
     );
     expect(llms).toContain("## Secondary product intelligence");
     expect(llms).toContain("/api/events?scope=product-updates");
+  });
+
+  test("does not advertise Product Updates when the optional schema is incomplete", async () => {
+    process.env.PRODUCT_UPDATE_UI_ENABLED = "true";
+    process.env.PRODUCT_UPDATE_NAV_ENABLED = "true";
+    mocks.productUpdatesSchemaReady.mockResolvedValue(false);
+
+    const urls = (await sitemap()).map((entry) => new URL(entry.url).pathname);
+    const llms = await (await getLlms()).text();
+
+    expect(urls.some((url) => url.startsWith("/updates"))).toBe(false);
+    expect(llms).not.toContain("## Secondary product intelligence");
+    expect(mocks.listProductUpdateSitemapEntries).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import {
   createProductUpdateRun,
   failProductUpdateRun,
   finishProductUpdateDryRun,
+  finishProductUpdateDryRunFailure,
   finishProductUpdateNoChange,
   getProductUpdateTarget,
   heartbeatProductUpdateLease,
@@ -185,20 +186,24 @@ async function runTarget(
   });
   if (!lease) return result(adapter, targetKey, "skipped-overlap");
 
-  const runId = await createProductUpdateRun(
-    lease.target,
-    adapter.manifest.parserVersion,
-    deadlineMs
-  );
-  const heartbeat = setInterval(() => {
-    void heartbeatProductUpdateLease(lease.target.targetId, lease.token, deadlineMs).catch(
-      () => undefined
-    );
-  }, Math.max(Math.floor(deadlineMs / 3), 5_000));
-  heartbeat.unref();
-
+  let runId: number | null = null;
+  let heartbeat: NodeJS.Timeout | null = null;
   let stage: "fetch" | "parse" | "publish" = "fetch";
   try {
+    runId = await createProductUpdateRun(
+      lease.target,
+      adapter.manifest.parserVersion,
+      deadlineMs
+    );
+    heartbeat = setInterval(() => {
+      void heartbeatProductUpdateLease(
+        lease.target.targetId,
+        lease.token,
+        deadlineMs
+      ).catch(() => undefined);
+    }, Math.max(Math.floor(deadlineMs / 3), 5_000));
+    heartbeat.unref();
+
     let fetched: ProductUpdateFetchResult;
     let snapshotId: number | null = null;
 
@@ -228,6 +233,10 @@ async function runTarget(
         lease.target.validatedParserVersion === adapter.manifest.parserVersion &&
         lease.target.publishedParserVersion === adapter.manifest.parserVersion
       ) {
+        if (options.dryRun) {
+          await finishProductUpdateDryRun({ runId, recordsObserved: 0 });
+          return result(adapter, targetKey, "dry-run");
+        }
         await finishProductUpdateNoChange({
           target: lease.target,
           leaseToken: lease.token,
@@ -254,7 +263,13 @@ async function runTarget(
         text: replay.content_text
       };
     } else if (!replaySnapshot) {
-      snapshotId = await recordProductUpdateSnapshot(lease.target, runId, fetched);
+      snapshotId = await recordProductUpdateSnapshot(
+        lease.target,
+        lease.token,
+        runId,
+        fetched,
+        { promoteObserved: !options.dryRun }
+      );
     }
 
     if (snapshotId === null) {
@@ -309,20 +324,28 @@ async function runTarget(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await failProductUpdateRun({
-      target: lease.target,
-      leaseToken: lease.token,
-      runId,
-      status: stage === "parse" ? "quarantined" : "failed",
-      failureKind: classifyProductUpdateFailure(error, stage),
-      error: message
-    }).catch(() => undefined);
+    if (runId !== null) {
+      if (options.dryRun) {
+        await finishProductUpdateDryRunFailure({ runId, error: message }).catch(
+          () => undefined
+        );
+      } else {
+        await failProductUpdateRun({
+          target: lease.target,
+          leaseToken: lease.token,
+          runId,
+          status: stage === "parse" ? "quarantined" : "failed",
+          failureKind: classifyProductUpdateFailure(error, stage),
+          error: message
+        }).catch(() => undefined);
+      }
+    }
     throw new ProductUpdateTargetRunError(
       stage === "parse" ? "quarantined" : "failed",
       message
     );
   } finally {
-    clearInterval(heartbeat);
+    if (heartbeat) clearInterval(heartbeat);
     await releaseProductUpdateLease(lease.target.targetId, lease.token).catch(() => undefined);
   }
 }

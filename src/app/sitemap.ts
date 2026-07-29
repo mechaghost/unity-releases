@@ -3,7 +3,10 @@ import { listReleaseSummaries, listTopIssueIds } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
 import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
 import { PRODUCT_UPDATE_FAMILY_CATALOG } from "@/lib/product-updates/catalog";
-import { listProductUpdateSitemapEntries } from "@/lib/product-updates/repositories";
+import {
+  listProductUpdateSitemapEntries,
+  productUpdatesSchemaReady
+} from "@/lib/product-updates/repositories";
 
 // Rendered per request, not prerendered. Like /llms.txt (F5), a bare
 // `revalidate` with no request-dependent API makes Next prerender this at BUILD
@@ -103,7 +106,12 @@ async function optionalProductUpdateEntries(
   origin: string,
   now: Date
 ): Promise<MetadataRoute.Sitemap> {
-  if (!productUpdateNavigationEnabled()) return [];
+  if (
+    !productUpdateNavigationEnabled() ||
+    !(await productUpdatesSchemaReady())
+  ) {
+    return [];
+  }
   const familyEntries: MetadataRoute.Sitemap = [
     {
       url: `${origin}/updates`,

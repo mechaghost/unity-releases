@@ -2,8 +2,10 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 
+const navigation = vi.hoisted(() => ({ pathname: "/releases" }));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/releases"
+  usePathname: () => navigation.pathname
 }));
 
 import { LeftNav } from "../../src/app/_components/LeftNav";
@@ -47,5 +49,23 @@ describe("Product Updates navigation flag", () => {
     expect(html).toContain("Editor Tooling Updates");
     expect(html).toContain(">Product Updates<");
     expect(html).toContain("Unity Products");
+  });
+
+  test("keeps Hub and CLI histories under Editor Tooling context", () => {
+    for (const pathname of [
+      "/updates/products/unity-hub",
+      "/updates/products/unity-hub/3.14.0",
+      "/updates/products/unity-cli/1.2.0"
+    ]) {
+      navigation.pathname = pathname;
+      const html = renderToStaticMarkup(
+        <LeftNav productUpdatesEnabled={true} />
+      );
+      expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+      expect(html).toMatch(
+        /href="\/updates\/editor-tooling"[^>]*aria-current="page"/
+      );
+    }
+    navigation.pathname = "/releases";
   });
 });

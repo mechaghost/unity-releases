@@ -115,7 +115,7 @@ export async function runProductUpdateGroup(
       if (remainingMs < 1_000) {
         summary[index] = {
           sourceKey,
-          ok: true,
+          ok: false,
           status: "skipped-budget",
           error: "Group execution budget was exhausted before this source started"
         };
@@ -170,16 +170,20 @@ export async function runProductUpdateGroup(
   return summary;
 }
 
-async function runSourceProcess(
+export async function runSourceProcess(
   sourceKey: string,
   flags: string[],
-  deadlineMs: number
+  deadlineMs: number,
+  testOptions: {
+    nodeArgs?: string[];
+    terminationGraceMs?: number;
+  } = {}
 ): Promise<SourceProcessResult> {
   const startedAt = Date.now();
   const script = fileURLToPath(new URL("./poll-product-update.ts", import.meta.url));
   const child = spawn(
     process.execPath,
-    ["--import", "tsx", script, sourceKey, ...flags],
+    testOptions.nodeArgs ?? ["--import", "tsx", script, sourceKey, ...flags],
     {
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
@@ -204,7 +208,7 @@ async function runSourceProcess(
     terminateProcessGroup(child.pid, "SIGTERM");
     killTimer = setTimeout(
       () => terminateProcessGroup(child.pid, "SIGKILL"),
-      TERMINATION_GRACE_MS
+      testOptions.terminationGraceMs ?? TERMINATION_GRACE_MS
     );
     killTimer.unref();
   }, deadlineMs);

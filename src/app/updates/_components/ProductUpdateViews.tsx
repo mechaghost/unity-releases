@@ -33,6 +33,28 @@ export type ProductUpdateFilterValues = {
   to?: string;
 };
 
+export function ProductUpdateFreshnessNotice({
+  status,
+  lastValidatedAt
+}: {
+  status: string;
+  lastValidatedAt?: string | null;
+}) {
+  if (status === "active") return null;
+  return (
+    <div className="product-update-freshness" role="status">
+      <strong>Updates may be delayed.</strong>{" "}
+      <span>
+        Showing the last validated release data
+        {lastValidatedAt
+          ? ` from ${formatProductUpdateDate(lastValidatedAt)}`
+          : ""}
+        .
+      </span>
+    </div>
+  );
+}
+
 export function ProductUpdateFamilyNav({
   activeFamily
 }: {
@@ -150,6 +172,9 @@ export function ProductGrid({
               {product.description ? <p>{product.description}</p> : null}
             </div>
             <div className="product-card__meta">
+              {product.status !== "active" ? (
+                <span className="product-update-status">Delayed</span>
+              ) : null}
               <span>
                 <strong>{product.updateCount.toLocaleString()}</strong>{" "}
                 {product.updateCount === 1 ? "update" : "updates"}
@@ -215,7 +240,7 @@ export function ProductPrimaryActions({
                 className="btn btn--secondary"
                 href={`/updates/products/${product.slug}`}
               >
-                Release history
+                {product.displayName} release history
               </a>
             </div>
           </li>
@@ -341,17 +366,34 @@ function option(value: string) {
 export function ProductUpdateList({
   updates,
   heading = "Recent updates",
-  emptyMessage = "No validated updates have been published yet."
+  emptyMessage = "No validated updates have been published yet.",
+  total = updates.length,
+  page = 1,
+  pageSize = Math.max(updates.length, 1),
+  baseHref,
+  filters = {}
 }: {
   updates: UpdateSummary[];
   heading?: string;
   emptyMessage?: string;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  baseHref?: string;
+  filters?: ProductUpdateFilterValues;
 }) {
+  const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+  const firstShown = updates.length > 0 ? (page - 1) * pageSize + 1 : 0;
+  const lastShown = updates.length > 0 ? firstShown + updates.length - 1 : 0;
   return (
     <section className="product-update-section" aria-labelledby="recent-product-updates">
       <div className="product-update-section__header">
         <h2 id="recent-product-updates">{heading}</h2>
-        <span>{updates.length.toLocaleString()} shown</span>
+        <span>
+          {updates.length > 0
+            ? `Showing ${firstShown.toLocaleString()}–${lastShown.toLocaleString()} of ${total.toLocaleString()}`
+            : `0 of ${total.toLocaleString()}`}
+        </span>
       </div>
       {updates.length === 0 ? (
         <div className="empty-state product-updates-empty">
@@ -370,6 +412,18 @@ export function ProductUpdateList({
                   <a href={`/updates/products/${update.productSlug}`}>
                     {update.productName}
                   </a>
+                  {update.productStatus !== "active" ? (
+                    <span
+                      className="product-update-status"
+                      title={
+                        update.lastValidatedAt
+                          ? `Last validated ${formatProductUpdateDate(update.lastValidatedAt)}`
+                          : "No successful validation recorded"
+                      }
+                    >
+                      Delayed
+                    </span>
+                  ) : null}
                   {update.version ? <span>{update.version}</span> : null}
                   {update.channel ? <span>{update.channel}</span> : null}
                 </div>
@@ -389,8 +443,60 @@ export function ProductUpdateList({
           ))}
         </ol>
       )}
+      {baseHref && totalPages > 1 ? (
+        <nav className="product-update-pagination" aria-label={`${heading} pages`}>
+          {page > 1 ? (
+            <a
+              className="btn btn--secondary"
+              href={productUpdatePageHref(baseHref, filters, page - 1)}
+              rel="prev"
+            >
+              Previous
+            </a>
+          ) : (
+            <span />
+          )}
+          <span>
+            Page {page.toLocaleString()} of {totalPages.toLocaleString()}
+          </span>
+          {page < totalPages ? (
+            <a
+              className="btn btn--secondary"
+              href={productUpdatePageHref(baseHref, filters, page + 1)}
+              rel="next"
+            >
+              Next
+            </a>
+          ) : (
+            <span />
+          )}
+        </nav>
+      ) : null}
     </section>
   );
+}
+
+function productUpdatePageHref(
+  baseHref: string,
+  filters: ProductUpdateFilterValues,
+  page: number
+) {
+  const params = new URLSearchParams();
+  const values: Array<[string, string | undefined]> = [
+    ["product", filters.product],
+    ["kind", filters.changeKind],
+    ["platform", filters.platform],
+    ["version", filters.version],
+    ["channel", filters.channel],
+    ["from", filters.from],
+    ["to", filters.to]
+  ];
+  for (const [key, value] of values) {
+    if (value) params.set(key, value);
+  }
+  if (page > 1) params.set("page", String(page));
+  const query = params.toString();
+  return query ? `${baseHref}?${query}` : baseHref;
 }
 
 export function ProductUpdateDetailView({ detail }: { detail: UpdateDetail }) {

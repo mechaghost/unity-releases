@@ -105,4 +105,133 @@ describe("Product Updates fetcher", () => {
     });
     expect(result.kind).toBe("not-modified");
   });
+
+  test("honors bounded Retry-After and retries 429 or 5xx responses", async () => {
+    const rateLimited = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 429,
+          headers: { "retry-after": "0" }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response("recovered", {
+          status: 200,
+          headers: { "content-type": "text/plain" }
+        })
+      );
+    await expect(
+      fetchProductUpdateTarget(target, state, {
+        timeoutMs: 1_000,
+        maxResponseBytes: 10_000,
+        retries: 1,
+        fetchImpl: rateLimited
+      })
+    ).resolves.toMatchObject({ kind: "content", text: "recovered" });
+    expect(rateLimited).toHaveBeenCalledTimes(2);
+
+    const unavailable = vi.fn<typeof fetch>(async () =>
+      new Response(null, { status: 503 })
+    );
+    await expect(
+      fetchProductUpdateTarget(target, state, {
+        timeoutMs: 1_000,
+        maxResponseBytes: 10_000,
+        retries: 1,
+        fetchImpl: unavailable
+      })
+    ).rejects.toMatchObject({ status: 503 });
+    expect(unavailable).toHaveBeenCalledTimes(2);
+  });
+
+  test("aborts an upstream request at the configured timeout", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(
+      async (_input, init) =>
+        await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(init.signal?.reason),
+            { once: true }
+          );
+        })
+    );
+    await expect(
+      fetchProductUpdateTarget(target, state, {
+        timeoutMs: 20,
+        maxResponseBytes: 10_000,
+        retries: 0,
+        fetchImpl
+      })
+    ).rejects.toThrow();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects redirect loops and redirect-hop exhaustion", async () => {
+    const loop = vi.fn<typeof fetch>(async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: target.url }
+      })
+    );
+    await expect(
+      fetchProductUpdateTarget(target, state, {
+        timeoutMs: 1_000,
+        maxResponseBytes: 10_000,
+        retries: 0,
+        fetchImpl: loop
+      })
+    ).rejects.toThrow(/Redirect loop/);
+    expect(loop).toHaveBeenCalledTimes(1);
+
+    const endless = vi.fn<typeof fetch>(async (input) =>
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: `${String(input).replace(/\/$/, "")}/next`
+        }
+      })
+    );
+    await expect(
+      fetchProductUpdateTarget(target, state, {
+        timeoutMs: 1_000,
+        maxResponseBytes: 10_000,
+        retries: 0,
+        maxRedirects: 1,
+        fetchImpl: endless
+      })
+    ).rejects.toThrow(/Too many redirects/);
+    expect(endless).toHaveBeenCalledTimes(2);
+  });
+
+  test("rejects unsupported content and declared oversize responses", async () => {
+    await expect(
+      fetchProductUpdateTarget(target, state, {
+        timeoutMs: 1_000,
+        maxResponseBytes: 10_000,
+        retries: 0,
+        fetchImpl: async () =>
+          new Response("binary", {
+            status: 200,
+            headers: { "content-type": "application/octet-stream" }
+          })
+      })
+    ).rejects.toThrow(/Unsupported content type/);
+
+    await expect(
+      fetchProductUpdateTarget(target, state, {
+        timeoutMs: 1_000,
+        maxResponseBytes: 5,
+        retries: 0,
+        fetchImpl: async () =>
+          new Response("tiny", {
+            status: 200,
+            headers: {
+              "content-type": "text/plain",
+              "content-length": "100"
+            }
+          })
+      })
+    ).rejects.toThrow(/exceeds 5 bytes/);
+  });
 });

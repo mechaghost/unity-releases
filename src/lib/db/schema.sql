@@ -316,6 +316,7 @@ CREATE TABLE IF NOT EXISTS product_update_targets (
   source_id BIGINT NOT NULL REFERENCES product_update_sources(id) ON DELETE CASCADE,
   target_key TEXT NOT NULL,
   url TEXT NOT NULL,
+  display_priority INTEGER NOT NULL DEFAULT 100,
   cadence_hours INTEGER NOT NULL DEFAULT 24,
   next_due_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'active',
@@ -352,6 +353,8 @@ CREATE TABLE IF NOT EXISTS product_update_targets (
   UNIQUE (source_id, target_key)
 );
 
+ALTER TABLE product_update_targets
+  ADD COLUMN IF NOT EXISTS display_priority INTEGER NOT NULL DEFAULT 100;
 ALTER TABLE product_update_targets
   ADD COLUMN IF NOT EXISTS failure_kind TEXT;
 ALTER TABLE product_update_targets

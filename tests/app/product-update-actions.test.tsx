@@ -1,7 +1,10 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
-import { ProductPrimaryActions } from "../../src/app/updates/_components/ProductUpdateViews";
+import {
+  ProductPrimaryActions,
+  ProductUpdateFreshnessNotice
+} from "../../src/app/updates/_components/ProductUpdateViews";
 import { getProductUpdatePrimaryAction } from "../../src/lib/product-updates/catalog";
 
 vi.stubGlobal("React", React);
@@ -33,7 +36,8 @@ describe("Editor tooling product actions", () => {
       'href="https://docs.unity.com/en-us/hub/use-unity-cli"'
     );
     expect(html).toContain(">Install Unity CLI<");
-    expect(html.match(/>Release history</g)).toHaveLength(2);
+    expect(html).toContain(">Unity Hub release history<");
+    expect(html).toContain(">Unity CLI release history<");
     expect(html.match(/class="btn btn--primary"/g)).toHaveLength(2);
   });
 
@@ -86,6 +90,22 @@ describe("Editor tooling product actions", () => {
 
     expect(html).toBe("");
   });
+
+  test("keeps last-known-good data visible with an explicit delayed warning", () => {
+    const html = renderToStaticMarkup(
+      <ProductUpdateFreshnessNotice
+        status="degraded"
+        lastValidatedAt="2026-07-28T00:00:00.000Z"
+      />
+    );
+    expect(html).toContain("Updates may be delayed.");
+    expect(html).toContain("Jul 28, 2026");
+    expect(
+      renderToStaticMarkup(
+        <ProductUpdateFreshnessNotice status="active" />
+      )
+    ).toBe("");
+  });
 });
 
 function product(
@@ -106,6 +126,7 @@ function product(
     canonicalUrl: "https://unity.com/unity-hub",
     updateCount: 10,
     latestUpdateAt: "2026-07-28T00:00:00.000Z",
+    lastValidatedAt: "2026-07-28T00:00:00.000Z",
     ...overrides
   };
 }
