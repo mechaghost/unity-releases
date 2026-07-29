@@ -71,6 +71,17 @@ export async function registerProductUpdateAdapter(adapter: ProductUpdateAdapter
           parser_version = EXCLUDED.parser_version,
           display_priority = EXCLUDED.display_priority,
           updated_at = now()
+        WHERE (
+          product_update_sources.display_name,
+          product_update_sources.family,
+          product_update_sources.parser_version,
+          product_update_sources.display_priority
+        ) IS DISTINCT FROM (
+          EXCLUDED.display_name,
+          EXCLUDED.family,
+          EXCLUDED.parser_version,
+          EXCLUDED.display_priority
+        )
         RETURNING id
       `,
       [
@@ -81,7 +92,14 @@ export async function registerProductUpdateAdapter(adapter: ProductUpdateAdapter
         adapter.manifest.displayPriority ?? 100
       ]
     );
-    const sourceId = sourceResult.rows[0].id;
+    const sourceId =
+      sourceResult.rows[0]?.id ??
+      (
+        await client.query<{ id: number }>(
+          "SELECT id FROM product_update_sources WHERE source_key = $1",
+          [adapter.manifest.sourceKey]
+        )
+      ).rows[0].id;
 
     for (const target of adapter.manifest.targets) {
       await client.query(
@@ -100,6 +118,21 @@ export async function registerProductUpdateAdapter(adapter: ProductUpdateAdapter
               ELSE product_update_targets.status
             END,
             updated_at = now()
+          WHERE (
+            product_update_targets.url,
+            product_update_targets.display_priority,
+            product_update_targets.cadence_hours,
+            product_update_targets.status
+          ) IS DISTINCT FROM (
+            EXCLUDED.url,
+            EXCLUDED.display_priority,
+            EXCLUDED.cadence_hours,
+            CASE
+              WHEN EXCLUDED.status = 'manually-retired' THEN 'manually-retired'
+              WHEN product_update_targets.status = 'manually-retired' THEN 'active'
+              ELSE product_update_targets.status
+            END
+          )
         `,
         [
           sourceId,

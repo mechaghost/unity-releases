@@ -517,6 +517,90 @@ CREATE TABLE IF NOT EXISTS content_events (
 ALTER TABLE content_events
   ADD COLUMN IF NOT EXISTS product_update_id BIGINT REFERENCES product_updates(id) ON DELETE CASCADE;
 
+-- Precedence rules can change independently of already-published observations.
+-- Repair only divergent canonical projections so applying this schema remains
+-- idempotent and does not churn timestamps on healthy rows.
+WITH preferred_product_updates AS (
+  SELECT
+    canonical.id AS product_update_id,
+    preferred.source_version,
+    preferred.source_channel,
+    COALESCE(
+      preferred.source_release_date,
+      (
+        SELECT MAX(candidate.source_release_date)
+        FROM product_update_observations candidate
+        WHERE candidate.product_update_id = canonical.id
+      )
+    ) AS release_date,
+    preferred.source_title,
+    preferred.source_summary,
+    preferred.normalized_sha256
+  FROM product_updates canonical
+  JOIN LATERAL (
+    SELECT observation.*
+    FROM product_update_observations observation
+    JOIN product_update_sources source ON source.id = observation.source_id
+    JOIN product_update_targets target ON target.id = observation.target_id
+    WHERE observation.product_update_id = canonical.id
+    ORDER BY
+      source.display_priority,
+      source.source_key,
+      target.display_priority,
+      observation.published_at DESC NULLS LAST,
+      observation.id DESC
+    LIMIT 1
+  ) preferred ON true
+)
+UPDATE product_updates canonical
+SET version = preferred.source_version,
+    channel = preferred.source_channel,
+    release_date = preferred.release_date,
+    title = preferred.source_title,
+    summary = preferred.source_summary,
+    normalized_sha256 = preferred.normalized_sha256,
+    updated_at = now()
+FROM preferred_product_updates preferred
+WHERE canonical.id = preferred.product_update_id
+  AND ROW(
+    canonical.version,
+    canonical.channel,
+    canonical.release_date,
+    canonical.title,
+    canonical.summary,
+    canonical.normalized_sha256
+  ) IS DISTINCT FROM ROW(
+    preferred.source_version,
+    preferred.source_channel,
+    preferred.release_date,
+    preferred.source_title,
+    preferred.source_summary,
+    preferred.normalized_sha256
+  );
+
+UPDATE content_events event
+SET title = canonical.title,
+    summary = canonical.summary,
+    event_time = COALESCE(canonical.release_date, canonical.first_seen_at),
+    source_url = '/updates/products/' || product.slug || '/' || canonical.slug,
+    tags = ARRAY[product.family, product.slug, canonical.component_key]
+FROM product_updates canonical
+JOIN unity_products product ON product.id = canonical.product_id
+WHERE event.product_update_id = canonical.id
+  AND ROW(
+    event.title,
+    event.summary,
+    event.event_time,
+    event.source_url,
+    event.tags
+  ) IS DISTINCT FROM ROW(
+    canonical.title,
+    canonical.summary,
+    COALESCE(canonical.release_date, canonical.first_seen_at),
+    '/updates/products/' || product.slug || '/' || canonical.slug,
+    ARRAY[product.family, product.slug, canonical.component_key]
+  );
+
 CREATE INDEX IF NOT EXISTS idx_release_note_items_search ON release_note_items USING GIN (search_vector);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_body_trgm ON release_note_items USING GIN (body gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_release_note_items_version ON release_note_items (version);

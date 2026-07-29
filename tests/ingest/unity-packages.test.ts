@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  isPlausibleRegistryPackageName,
   UNITY_OFFICIAL_PACKAGES,
+  UNITY_REGISTRY_WATCHLIST_PACKAGES,
   isRegistryFrozen
 } from "../../src/lib/ingest/unity-packages";
 
@@ -25,6 +27,36 @@ describe("UNITY_OFFICIAL_PACKAGES", () => {
 
   test("does not contain duplicate package names", () => {
     expect(new Set(UNITY_OFFICIAL_PACKAGES).size).toBe(UNITY_OFFICIAL_PACKAGES.length);
+  });
+
+  test("tracks release-note-discovered packages verified in the registry", () => {
+    expect(UNITY_OFFICIAL_PACKAGES).toEqual(
+      expect.arrayContaining([
+        "com.unity.performance.profile-analyzer",
+        "com.unity.adaptiveperformance",
+        "com.unity.microsoft.gdk",
+        "com.unity.project-auditor",
+        "com.unity.services.levelplay",
+        "com.unity.xr.compositionlayers"
+      ])
+    );
+  });
+
+  test("separates valid registry ids from known 404 and malformed mentions", () => {
+    expect(
+      UNITY_OFFICIAL_PACKAGES.some((packageName) =>
+        UNITY_REGISTRY_WATCHLIST_PACKAGES.includes(packageName)
+      )
+    ).toBe(false);
+    expect(UNITY_REGISTRY_WATCHLIST_PACKAGES).toContain(
+      "com.unity.render-pipelines.universal-config"
+    );
+    expect(
+      isPlausibleRegistryPackageName("com.unity.performance.profile-analyzer")
+    ).toBe(true);
+    expect(isPlausibleRegistryPackageName("com.unity.toolchain.linux-")).toBe(
+      false
+    );
   });
 
   test("uses the registry-valid ids, not the names that 404", () => {

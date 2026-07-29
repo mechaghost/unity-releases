@@ -18,6 +18,7 @@ import { fetchHtmlWithRetry, runWithConcurrency } from "../lib/ingest/runner";
 import { normalizeReleaseForStorage } from "../lib/ingest/releases";
 import { extractReleasePageMetadata } from "../lib/parsers/release-page";
 import { isLtsMinorLine, parseUnityVersion } from "../lib/parsers/version";
+import { LEGACY_LTS_PARSER_VERSION } from "../lib/ingest/parser-versions";
 import {
   recordSourceSnapshot,
   upsertReleaseBundle,
@@ -33,6 +34,8 @@ const MAX_RETRIES = 2;
 // Per run cap so a `--full` first crawl can be done in stages if
 // rate-limit hints appear. Bumped via env var for one-off backfills.
 const MAX_PER_RUN = Number(process.env.LEGACY_LTS_MAX_PER_RUN ?? 400);
+const PARSER_VERSION =
+  process.env.PARSER_VERSION ?? LEGACY_LTS_PARSER_VERSION;
 
 type SitemapEntry = { url: string; version: string; lastmod: string | null };
 
@@ -83,7 +86,7 @@ async function main() {
           releaseNotesMarkdown,
           sourceSnapshotId: notesSnapshotId,
           ingestionRunId: runId,
-          parserVersion: process.env.PARSER_VERSION ?? "2026-05-10-legacy-lts"
+          parserVersion: PARSER_VERSION
         });
         await upsertReleaseBundle(client as PoolClient, bundle);
         stats.ingested += 1;
@@ -98,7 +101,7 @@ async function main() {
     });
 
     console.log(JSON.stringify({ majors: LEGACY_MAJORS, ...stats }));
-  });
+  }, PARSER_VERSION);
 }
 
 function parseSitemap(xml: string): SitemapEntry[] {

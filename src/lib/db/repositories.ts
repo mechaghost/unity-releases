@@ -1169,14 +1169,19 @@ export async function recordSourceSnapshot(client: PoolClient, sourceType: strin
   return result.rows[0].id;
 }
 
-export async function createIngestionRun(client: PoolClient, sourceType: string, jobName: string) {
+export async function createIngestionRun(
+  client: PoolClient,
+  sourceType: string,
+  jobName: string,
+  parserVersion = process.env.PARSER_VERSION ?? "2026-05-04"
+) {
   const result = await client.query<{ id: number }>(
     `
       INSERT INTO ingestion_runs (source_type, job_name, parser_version)
       VALUES ($1, $2, $3)
       RETURNING id
     `,
-    [sourceType, jobName, process.env.PARSER_VERSION ?? "2026-05-04"]
+    [sourceType, jobName, parserVersion]
   );
   return result.rows[0].id;
 }
@@ -1212,13 +1217,19 @@ export async function finishIngestionRun(
 export async function withIngestionTransaction<T>(
   sourceType: string,
   jobName: string,
-  handler: (client: PoolClient, runId: number) => Promise<T>
+  handler: (client: PoolClient, runId: number) => Promise<T>,
+  parserVersion?: string
 ) {
   const client = await getPool().connect();
   let runId: number | null = null;
   try {
     await client.query("BEGIN");
-    runId = await createIngestionRun(client, sourceType, jobName);
+    runId = await createIngestionRun(
+      client,
+      sourceType,
+      jobName,
+      parserVersion
+    );
     const result = await handler(client, runId);
     await finishIngestionRun(client, runId, "success", { sourceCount: 1, recordsCreated: 1 });
     await client.query("COMMIT");
@@ -1249,14 +1260,59 @@ export async function upsertReleaseBundle(client: PoolClient, bundle: ReleaseBun
       )
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       ON CONFLICT (version) DO UPDATE SET
+        major_line = EXCLUDED.major_line,
+        minor_line = EXCLUDED.minor_line,
+        patch = EXCLUDED.patch,
+        suffix_channel = EXCLUDED.suffix_channel,
+        suffix_number = EXCLUDED.suffix_number,
         release_date = EXCLUDED.release_date,
         stream = EXCLUDED.stream,
+        changeset = EXCLUDED.changeset,
+        short_revision = EXCLUDED.short_revision,
+        release_page_url = EXCLUDED.release_page_url,
+        release_notes_url = EXCLUDED.release_notes_url,
+        unity_hub_deep_link = EXCLUDED.unity_hub_deep_link,
         raw_metadata_json = EXCLUDED.raw_metadata_json,
         source_snapshot_id = EXCLUDED.source_snapshot_id,
         ingestion_run_id = EXCLUDED.ingestion_run_id,
         parser_version = EXCLUDED.parser_version,
         normalized_sha256 = EXCLUDED.normalized_sha256,
         updated_at = now()
+      WHERE (
+        unity_releases.major_line,
+        unity_releases.minor_line,
+        unity_releases.patch,
+        unity_releases.suffix_channel,
+        unity_releases.suffix_number,
+        unity_releases.stream,
+        unity_releases.release_date,
+        unity_releases.changeset,
+        unity_releases.short_revision,
+        unity_releases.release_page_url,
+        unity_releases.release_notes_url,
+        unity_releases.unity_hub_deep_link,
+        unity_releases.raw_metadata_json,
+        unity_releases.source_snapshot_id,
+        unity_releases.parser_version,
+        unity_releases.normalized_sha256
+      ) IS DISTINCT FROM (
+        EXCLUDED.major_line,
+        EXCLUDED.minor_line,
+        EXCLUDED.patch,
+        EXCLUDED.suffix_channel,
+        EXCLUDED.suffix_number,
+        EXCLUDED.stream,
+        EXCLUDED.release_date,
+        EXCLUDED.changeset,
+        EXCLUDED.short_revision,
+        EXCLUDED.release_page_url,
+        EXCLUDED.release_notes_url,
+        EXCLUDED.unity_hub_deep_link,
+        EXCLUDED.raw_metadata_json,
+        EXCLUDED.source_snapshot_id,
+        EXCLUDED.parser_version,
+        EXCLUDED.normalized_sha256
+      )
       RETURNING id
     `,
     [
@@ -1280,7 +1336,24 @@ export async function upsertReleaseBundle(client: PoolClient, bundle: ReleaseBun
       bundle.release.normalizedSha256
     ]
   );
-  const releaseId = releaseResult.rows[0].id;
+  const releaseChanged = releaseResult.rows.length > 0;
+  const releaseId =
+    releaseResult.rows[0]?.id ??
+    (
+      await client.query<{ id: number }>(
+        "SELECT id FROM unity_releases WHERE version = $1",
+        [bundle.release.version]
+      )
+    ).rows[0].id;
+
+  if (!releaseChanged) {
+    await upsertContentEvent(client, bundle.event, {
+      unityReleaseId: releaseId,
+      sourceSnapshotId: bundle.release.sourceSnapshotId,
+      ingestionRunId: bundle.release.ingestionRunId
+    });
+    return releaseId;
+  }
 
   await client.query("DELETE FROM release_sections WHERE unity_release_id = $1", [releaseId]);
   await client.query("DELETE FROM release_note_items WHERE unity_release_id = $1", [releaseId]);
@@ -1449,9 +1522,26 @@ export async function upsertPackageBundle(client: PoolClient, bundle: PackageBun
         display_name = EXCLUDED.display_name,
         description = EXCLUDED.description,
         documentation_url = EXCLUDED.documentation_url,
+        keywords = EXCLUDED.keywords,
+        source_url = EXCLUDED.source_url,
         source_snapshot_id = EXCLUDED.source_snapshot_id,
         ingestion_run_id = EXCLUDED.ingestion_run_id,
         updated_at = now()
+      WHERE (
+        packages.display_name,
+        packages.description,
+        packages.documentation_url,
+        packages.keywords,
+        packages.source_url,
+        packages.source_snapshot_id
+      ) IS DISTINCT FROM (
+        EXCLUDED.display_name,
+        EXCLUDED.description,
+        EXCLUDED.documentation_url,
+        EXCLUDED.keywords,
+        EXCLUDED.source_url,
+        EXCLUDED.source_snapshot_id
+      )
       RETURNING id
     `,
     [
@@ -1465,7 +1555,14 @@ export async function upsertPackageBundle(client: PoolClient, bundle: PackageBun
       bundle.packageRecord.ingestionRunId
     ]
   );
-  const packageId = packageResult.rows[0].id;
+  const packageId =
+    packageResult.rows[0]?.id ??
+    (
+      await client.query<{ id: number }>(
+        "SELECT id FROM packages WHERE name = $1",
+        [bundle.packageRecord.name]
+      )
+    ).rows[0].id;
 
   for (const version of bundle.versions) {
     const versionResult = await client.query<{ id: number }>(
@@ -1478,14 +1575,52 @@ export async function upsertPackageBundle(client: PoolClient, bundle: PackageBun
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
         ON CONFLICT (package_id, version) DO UPDATE SET
           published_at = EXCLUDED.published_at,
+          unity_compatibility = EXCLUDED.unity_compatibility,
+          unity_min_version = EXCLUDED.unity_min_version,
+          unity_max_version = EXCLUDED.unity_max_version,
+          is_prerelease = EXCLUDED.is_prerelease,
           changelog = EXCLUDED.changelog,
           dependencies_json = EXCLUDED.dependencies_json,
           dist_tags_json = EXCLUDED.dist_tags_json,
+          tarball_url = EXCLUDED.tarball_url,
+          shasum = EXCLUDED.shasum,
+          raw_metadata_json = EXCLUDED.raw_metadata_json,
           source_snapshot_id = EXCLUDED.source_snapshot_id,
           ingestion_run_id = EXCLUDED.ingestion_run_id,
           parser_version = EXCLUDED.parser_version,
           normalized_sha256 = EXCLUDED.normalized_sha256,
           updated_at = now()
+        WHERE (
+          package_versions.published_at,
+          package_versions.unity_compatibility,
+          package_versions.unity_min_version,
+          package_versions.unity_max_version,
+          package_versions.is_prerelease,
+          package_versions.changelog,
+          package_versions.dependencies_json,
+          package_versions.dist_tags_json,
+          package_versions.tarball_url,
+          package_versions.shasum,
+          package_versions.raw_metadata_json,
+          package_versions.source_snapshot_id,
+          package_versions.parser_version,
+          package_versions.normalized_sha256
+        ) IS DISTINCT FROM (
+          EXCLUDED.published_at,
+          EXCLUDED.unity_compatibility,
+          EXCLUDED.unity_min_version,
+          EXCLUDED.unity_max_version,
+          EXCLUDED.is_prerelease,
+          EXCLUDED.changelog,
+          EXCLUDED.dependencies_json,
+          EXCLUDED.dist_tags_json,
+          EXCLUDED.tarball_url,
+          EXCLUDED.shasum,
+          EXCLUDED.raw_metadata_json,
+          EXCLUDED.source_snapshot_id,
+          EXCLUDED.parser_version,
+          EXCLUDED.normalized_sha256
+        )
         RETURNING id
       `,
       [
@@ -1509,10 +1644,22 @@ export async function upsertPackageBundle(client: PoolClient, bundle: PackageBun
       ]
     );
 
+    const versionId =
+      versionResult.rows[0]?.id ??
+      (
+        await client.query<{ id: number }>(
+          `
+            SELECT id
+            FROM package_versions
+            WHERE package_id = $1 AND version = $2
+          `,
+          [packageId, version.version]
+        )
+      ).rows[0].id;
     const event = bundle.events.find((candidate) => candidate.title.endsWith(` ${version.version}`));
     if (event) {
       await upsertContentEvent(client, event, {
-        packageVersionId: versionResult.rows[0].id,
+        packageVersionId: versionId,
         sourceSnapshotId: version.sourceSnapshotId,
         ingestionRunId: version.ingestionRunId
       });
@@ -1763,18 +1910,48 @@ async function upsertContentEvent(
         unity_release_id, package_version_id, blog_post_id, hub_release_id,
         source_snapshot_id, ingestion_run_id
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      VALUES ($1,$2,$3,COALESCE($4::timestamptz, now()),$5,$6,$7,$8,$9,$10,$11,$12,$13)
       ON CONFLICT (stable_guid) DO UPDATE SET
         title = EXCLUDED.title,
         summary = EXCLUDED.summary,
-        event_time = EXCLUDED.event_time,
-        tags = EXCLUDED.tags
+        event_time = COALESCE($4::timestamptz, content_events.event_time),
+        source_url = EXCLUDED.source_url,
+        tags = EXCLUDED.tags,
+        unity_release_id = EXCLUDED.unity_release_id,
+        package_version_id = EXCLUDED.package_version_id,
+        blog_post_id = EXCLUDED.blog_post_id,
+        hub_release_id = EXCLUDED.hub_release_id,
+        source_snapshot_id = EXCLUDED.source_snapshot_id,
+        ingestion_run_id = EXCLUDED.ingestion_run_id
+      WHERE (
+        content_events.title,
+        content_events.summary,
+        content_events.event_time,
+        content_events.source_url,
+        content_events.tags,
+        content_events.unity_release_id,
+        content_events.package_version_id,
+        content_events.blog_post_id,
+        content_events.hub_release_id,
+        content_events.source_snapshot_id
+      ) IS DISTINCT FROM (
+        EXCLUDED.title,
+        EXCLUDED.summary,
+        COALESCE($4::timestamptz, content_events.event_time),
+        EXCLUDED.source_url,
+        EXCLUDED.tags,
+        EXCLUDED.unity_release_id,
+        EXCLUDED.package_version_id,
+        EXCLUDED.blog_post_id,
+        EXCLUDED.hub_release_id,
+        EXCLUDED.source_snapshot_id
+      )
     `,
     [
       event.eventType,
       event.title,
       event.summary.slice(0, 2000),
-      event.eventTime ?? new Date().toISOString(),
+      event.eventTime,
       event.sourceUrl,
       event.stableGuid,
       event.tags,

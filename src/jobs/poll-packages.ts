@@ -1,8 +1,15 @@
 import { fetchText } from "../lib/ingest/fetch";
 import { normalizePackageForStorage } from "../lib/ingest/packages";
-import { UNITY_OFFICIAL_PACKAGES } from "../lib/ingest/unity-packages";
+import {
+  UNITY_OFFICIAL_PACKAGES,
+  UNITY_REGISTRY_WATCHLIST_PACKAGES
+} from "../lib/ingest/unity-packages";
 import { recordSourceSnapshot, upsertPackageBundle, withIngestionTransaction } from "../lib/db/repositories";
 import { parsePackageRegistry } from "../lib/parsers/package-registry";
+import { PACKAGE_REGISTRY_PARSER_VERSION } from "../lib/ingest/parser-versions";
+
+const PARSER_VERSION =
+  process.env.PARSER_VERSION ?? PACKAGE_REGISTRY_PARSER_VERSION;
 
 async function ingestOne(packageName: string): Promise<"ingested" | "missing" | "error"> {
   const sourceUrl = `https://packages.unity.com/${packageName}`;
@@ -31,7 +38,7 @@ async function ingestOne(packageName: string): Promise<"ingested" | "missing" | 
         sourceUrl,
         sourceSnapshotId,
         ingestionRunId: runId,
-        parserVersion: process.env.PARSER_VERSION ?? "2026-05-04"
+        parserVersion: PARSER_VERSION
       })
     );
     console.log(
@@ -41,12 +48,17 @@ async function ingestOne(packageName: string): Promise<"ingested" | "missing" | 
         latest: parsed.distTags.latest ?? null
       })
     );
-  });
+  }, PARSER_VERSION);
   return "ingested";
 }
 
 async function main() {
-  const packages = (process.env.PACKAGE_ALLOWLIST?.split(",") ?? UNITY_OFFICIAL_PACKAGES)
+  const packages = (
+    process.env.PACKAGE_ALLOWLIST?.split(",") ?? [
+      ...UNITY_OFFICIAL_PACKAGES,
+      ...UNITY_REGISTRY_WATCHLIST_PACKAGES
+    ]
+  )
     .map((item) => item.trim())
     .filter(Boolean);
 

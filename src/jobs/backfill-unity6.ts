@@ -7,6 +7,7 @@ import { extractApiReleaseMetadata, type ApiRelease, type ApiReleasesResponse } 
 import { apiStreamToUnityStream, parseUnityVersion } from "../lib/parsers/version";
 import { isModernMajor } from "../lib/unity-generation";
 import { storedReleaseCanBeSkipped } from "../lib/ingest/release-stream";
+import { EDITOR_RELEASE_PARSER_VERSION } from "../lib/ingest/parser-versions";
 
 // LTS first: that stream holds the 6000.0.x / 6000.3.x history (the
 // frozen-package baseline and the bulk of editor->package mappings), which
@@ -19,7 +20,7 @@ const STREAMS = process.env.BACKFILL_STREAMS
   : ALL_STREAMS;
 const PAGE_LIMIT = 25;
 const API_BASE = "https://services.api.unity.com/unity/editor/release/v1/releases";
-const PARSER_VERSION = process.env.PARSER_VERSION ?? "2026-05-04";
+const PARSER_VERSION = process.env.PARSER_VERSION ?? EDITOR_RELEASE_PARSER_VERSION;
 
 async function fetchReleasePage(stream: string, offset: number): Promise<ApiReleasesResponse> {
   const url = `${API_BASE}?limit=${PAGE_LIMIT}&offset=${offset}&stream=${stream}`;
@@ -88,39 +89,44 @@ async function ingestRelease(release: ApiRelease, stream: string): Promise<"crea
     return "skipped";
   }
 
-  await withIngestionTransaction("editor_release", "backfill-unity6", async (client, runId) => {
-    const apiText = JSON.stringify(apiRelease);
-    const apiSnapshotUrl = `${API_BASE}?version=${apiRelease.version}`;
-    const apiSnapshotId = await recordSourceSnapshot(client, "editor_release_api", {
-      url: apiSnapshotUrl,
-      finalUrl: apiSnapshotUrl,
-      status: 200,
-      etag: null,
-      lastModified: null,
-      text: apiText,
-      sha256: sha256(apiText)
-    });
+  await withIngestionTransaction(
+    "editor_release",
+    "backfill-unity6",
+    async (client, runId) => {
+      const apiText = JSON.stringify(apiRelease);
+      const apiSnapshotUrl = `${API_BASE}?version=${apiRelease.version}`;
+      const apiSnapshotId = await recordSourceSnapshot(client, "editor_release_api", {
+        url: apiSnapshotUrl,
+        finalUrl: apiSnapshotUrl,
+        status: 200,
+        etag: null,
+        lastModified: null,
+        text: apiText,
+        sha256: sha256(apiText)
+      });
 
-    const notes = await fetchText(releaseNotesUrl);
-    const notesSnapshotId = await recordSourceSnapshot(client, "editor_release_notes", notes);
+      const notes = await fetchText(releaseNotesUrl);
+      const notesSnapshotId = await recordSourceSnapshot(client, "editor_release_notes", notes);
 
-    const metadata = extractApiReleaseMetadata(apiRelease);
-    const bundle = normalizeReleaseForStorage({
-      metadata,
-      releaseNotesMarkdown: notes.text,
-      sourceSnapshotId: notesSnapshotId,
-      ingestionRunId: runId,
-      parserVersion: PARSER_VERSION
-    });
-    await upsertReleaseBundle(client, bundle);
-    console.log(JSON.stringify({
-      stream,
-      version: release.version,
-      apiSnapshot: apiSnapshotId,
-      notesSnapshot: notesSnapshotId,
-      noteItems: bundle.noteItems.length
-    }));
-  });
+      const metadata = extractApiReleaseMetadata(apiRelease);
+      const bundle = normalizeReleaseForStorage({
+        metadata,
+        releaseNotesMarkdown: notes.text,
+        sourceSnapshotId: notesSnapshotId,
+        ingestionRunId: runId,
+        parserVersion: PARSER_VERSION
+      });
+      await upsertReleaseBundle(client, bundle);
+      console.log(JSON.stringify({
+        stream,
+        version: release.version,
+        apiSnapshot: apiSnapshotId,
+        notesSnapshot: notesSnapshotId,
+        noteItems: bundle.noteItems.length
+      }));
+    },
+    PARSER_VERSION
+  );
 
   return "created";
 }

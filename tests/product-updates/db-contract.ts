@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { setupE2eDatabase } from "../e2e/setup-db";
 import { scopedDatabaseUrl } from "../e2e/test-database";
 
@@ -101,11 +103,21 @@ async function main() {
     (
       await query<{ state: Record<string, unknown> }>(
         `
-          SELECT to_jsonb(target) - 'updated_at' AS state
+          SELECT to_jsonb(target) AS state
           FROM product_update_targets target
           JOIN product_update_sources source ON source.id = target.source_id
           WHERE source.source_key = 'db-contract'
             AND target.target_key = 'main'
+        `
+      )
+    ).rows[0].state;
+  const stableSourceState = async () =>
+    (
+      await query<{ state: Record<string, unknown> }>(
+        `
+          SELECT to_jsonb(source) AS state
+          FROM product_update_sources source
+          WHERE source.source_key = 'db-contract'
         `
       )
     ).rows[0].state;
@@ -118,6 +130,7 @@ async function main() {
     [first[0].snapshotId]
   );
   const targetBeforeDryRuns = JSON.stringify(await stableTargetState());
+  const sourceBeforeDryRuns = JSON.stringify(await stableSourceState());
   const sameBodyDryRun = await runProductUpdateAdapter(adapter, {
     force: true,
     dryRun: true,
@@ -128,6 +141,11 @@ async function main() {
     JSON.stringify(await stableTargetState()),
     targetBeforeDryRuns,
     "successful dry-run must not mutate target state"
+  );
+  assert.equal(
+    JSON.stringify(await stableSourceState()),
+    sourceBeforeDryRuns,
+    "successful dry-run must not mutate source registration"
   );
   const snapshotOwnerAfterDryRun = await query<{
     run_id: string;
@@ -500,6 +518,71 @@ async function main() {
   assert.equal(
     targetPriorityProduct?.description,
     "Detailed product description."
+  );
+
+  const poisonedProjection = await query<{ id: number }>(
+    `
+      UPDATE product_updates canonical
+      SET title = observation.source_title,
+          summary = observation.source_summary,
+          normalized_sha256 = observation.normalized_sha256,
+          updated_at = now()
+      FROM product_update_observations observation
+      JOIN product_update_targets target ON target.id = observation.target_id
+      JOIN unity_products product ON true
+      WHERE observation.product_update_id = canonical.id
+        AND product.id = canonical.product_id
+        AND product.product_key = 'db-target-priority-product'
+        AND target.target_key = 'index'
+      RETURNING canonical.id
+    `
+  );
+  assert.equal(poisonedProjection.rowCount, 1);
+  await query(
+    `
+      UPDATE content_events
+      SET title = 'Stale projection event'
+      WHERE product_update_id = $1
+    `,
+    [poisonedProjection.rows[0].id]
+  );
+  const schemaSql = await readFile(
+    join(process.cwd(), "src/lib/db/schema.sql"),
+    "utf8"
+  );
+  await query(schemaSql);
+  const repairedProjection = await query<{
+    title: string;
+    updated_at: string;
+    event_title: string;
+  }>(
+    `
+      SELECT
+        canonical.title,
+        canonical.updated_at,
+        event.title AS event_title
+      FROM product_updates canonical
+      JOIN content_events event ON event.product_update_id = canonical.id
+      WHERE canonical.id = $1
+    `,
+    [poisonedProjection.rows[0].id]
+  );
+  assert.equal(repairedProjection.rows[0].title, "Detailed release title");
+  assert.equal(
+    repairedProjection.rows[0].event_title,
+    "Detailed release title"
+  );
+  await query(schemaSql);
+  const idempotentProjection = await query<{
+    updated_at: string;
+  }>(
+    "SELECT updated_at FROM product_updates WHERE id = $1",
+    [poisonedProjection.rows[0].id]
+  );
+  assert.equal(
+    new Date(idempotentProjection.rows[0].updated_at).toISOString(),
+    new Date(repairedProjection.rows[0].updated_at).toISOString(),
+    "a second schema application must not churn healthy canonical rows"
   );
 
   const bulkObservationCount = 149;

@@ -198,8 +198,127 @@ export const UNITY_OFFICIAL_PACKAGES: string[] = [
   "com.unity.services.tooling",
   "com.unity.services.user-reporting",
   "com.unity.services.vivox",
-  "com.unity.services.wire"
+  "com.unity.services.wire",
+
+  // Additional registry packages discovered from Editor release notes.
+  // Every entry returned HTTP 200 from packages.unity.com on 2026-07-28.
+  // Keeping this as a separate cohort makes it easy to re-probe if Unity
+  // later retires or absorbs one of these packages into the Editor.
+  "com.unity.learn.iet-framework.authoring",
+  "com.unity.microsoft.gdk",
+  "com.unity.microsoft.gdk.tools",
+  "com.unity.performance.profile-analyzer",
+  "com.unity.adaptiveperformance",
+  "com.unity.meta-instant-games-sdk",
+  "com.unity.microsoft.gdk.discovery",
+  "com.unity.services.moderation",
+  "com.unity.xr.compositionlayers",
+  "com.unity.services.cloud-build",
+  "com.unity.sharp-zip-lib",
+  "com.unity.services.levelplay",
+  "com.unity.xr.androidxr-openxr",
+  "com.unity.charactercontroller",
+  "com.unity.project-auditor",
+  "com.unity.cloud.draco",
+  "com.unity.test-framework.performance",
+  "com.unity.sdk.linux-arm64",
+  "com.unity.services.deployment.api",
+  "com.unity.cloud.ktx",
+  "com.unity.bindings.openimageio",
+  "com.unity.dt.app-ui",
+  "com.unity.adaptiveperformance.google.android",
+  "com.unity.profiling.systemmetrics.mali",
+  "com.unity.services.ccd.management",
+  "com.unity.ads",
+  "com.unity.scripting.python",
+  "com.unity.nuget.newtonsoft-json",
+  "com.unity.2d.tooling",
+  "com.unity.multiplayer.widgets",
+  "com.unity.ext.flatsharp",
+  "com.unity.sysroot.base",
+  "com.unity.toolchain.macos-arm64-linux",
+  "com.unity.toolchain.win-arm64-linux",
+  "com.unity.ml-agents",
+  "com.unity.sequences",
+  "com.unity.xr.interactionsubsystems",
+  "com.unity.barracuda",
+  "com.unity.project-auditor-rules",
+  "com.unity.nuget.mono-cecil",
+  "com.unity.xr.arkit-face-tracking",
+  "com.unity.xr.arsubsystems",
+  "com.unity.ads.ios-support",
+  "com.unity.analytics",
+  "com.unity.connect.share",
+  "com.unity.device-simulator.devices",
+  "com.unity.sdk.embeddedlinux-aarch64",
+  "com.unity.editorcoroutines",
+  "com.unity.remote-config-runtime",
+  "com.unity.scripting.python.linux",
+  "com.unity.scripting.python.macos",
+  "com.unity.scripting.python.windows",
+  "com.unity.services.apis",
+  "com.unity.services.cloud-diagnostics",
+  "com.unity.zivart-player",
+  "com.unity.services.mediation",
+  "com.unity.sysroot",
+  "com.unity.2d.enhancers",
+  "com.unity.searcher",
+  "com.unity.services.ugc",
+  "com.unity.services.ugc.bridge",
+  "com.unity.behavior",
+  "com.unity.xr.magicleap",
+  "com.unity.adaptiveperformance.samsung.android",
+  "com.unity.ext.nunit",
+  "com.unity.purchasing.udp",
+  "com.unity.microsoft.gdk.intelligent-delivery",
+  "com.unity.platformtoolkit",
+  "com.unity.platformtoolkit.gamekit",
+  "com.unity.platformtoolkit.gdk",
+  "com.unity.platformtoolkit.playgamesservices",
+  "com.unity.platformtoolkit.steam",
+  "com.unity.ui",
+  "com.unity.package-manager-ui",
+  "com.unity.render-pipelines.lightweight",
+  "com.unity.multiplayer.center.quickstart",
+  "com.unity.multiplayer-hlapi",
+  "com.unity.rendering.hybrid",
+  "com.unity.services.analytics-runtime",
+  "com.unity.template.3d",
+  "com.unity.vectorgraphics"
 ];
+
+/**
+ * Package-like ids found in Editor notes that returned 404 on 2026-07-28.
+ * The package poller keeps probing this separate watchlist: 404s remain cheap
+ * no-ops, while anything Unity publishes later is ingested automatically
+ * without pretending these are currently available registry packages.
+ */
+export const UNITY_REGISTRY_WATCHLIST_PACKAGES: string[] = [
+  "com.unity.render-pipelines.universal-config",
+  "com.unity.ui.test-framework",
+  "com.unity.module.ai",
+  "com.unity.path-tracing",
+  "com.unity.entities.collections",
+  "com.unity.entities.entities",
+  "com.unity.adaptiveperformance.apple",
+  "com.unity.rendering.denoising",
+  "com.unity.rendering.light-transport",
+  "com.unity.xr.interaction.subsystems",
+  "com.unity.graphtoolsauthoringframework",
+  "com.unity.shaderanalysis",
+  "com.unity.2d.pixelperfect",
+  "com.unity.multiplayer.samples.coop",
+  "com.unity.openxr",
+  "com.unity.graph-authoring",
+  "com.unity.sysroot.linux-x86",
+  "com.unity.toolchain.linux-x86",
+  "com.unity.toolchain.macos-x86",
+  "com.unity.toolchain.win-x86"
+];
+
+export function isPlausibleRegistryPackageName(value: string) {
+  return /^com\.unity\.[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(value);
+}
 
 /**
  * Unity 6 GA cutoff for registry-freshness.

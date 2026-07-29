@@ -1,8 +1,8 @@
 /**
  * Surface `com.unity.*` packages that Unity mentions in editor release
- * notes but that we don't track in `UNITY_OFFICIAL_PACKAGES`. Run after
- * each editor ingest to catch new packages Unity ships before they
- * silently disappear from /packages.
+ * notes but that we don't track in `UNITY_OFFICIAL_PACKAGES` or the
+ * registry watchlist. Run after each editor ingest to catch new packages
+ * Unity ships before they silently disappear from /packages.
  *
  * Usage:
  *   npm run check:packages
@@ -16,7 +16,11 @@
  */
 
 import { query } from "@/lib/db/client";
-import { UNITY_OFFICIAL_PACKAGES } from "@/lib/ingest/unity-packages";
+import {
+  isPlausibleRegistryPackageName,
+  UNITY_OFFICIAL_PACKAGES,
+  UNITY_REGISTRY_WATCHLIST_PACKAGES
+} from "@/lib/ingest/unity-packages";
 
 const MIN_MENTIONS_TO_REPORT = 1;
 
@@ -31,7 +35,10 @@ const IGNORE_PREFIXES = ["com.unity.modules."];
 type Row = { pkg: string; mentions: string; in_versions: string };
 
 async function main() {
-  const tracked = new Set(UNITY_OFFICIAL_PACKAGES);
+  const tracked = new Set([
+    ...UNITY_OFFICIAL_PACKAGES,
+    ...UNITY_REGISTRY_WATCHLIST_PACKAGES
+  ]);
 
   const result = await query<Row>(
     `
@@ -50,12 +57,13 @@ async function main() {
     (r) =>
       !tracked.has(r.pkg) &&
       Number(r.mentions) >= MIN_MENTIONS_TO_REPORT &&
-      !IGNORE_PREFIXES.some((prefix) => r.pkg.startsWith(prefix))
+      !IGNORE_PREFIXES.some((prefix) => r.pkg.startsWith(prefix)) &&
+      isPlausibleRegistryPackageName(r.pkg)
   );
 
   if (missing.length === 0) {
     console.log(
-      `✓ All ${tracked.size} curated packages cover every com.unity.* mention in the release-note index.`
+      `✓ ${UNITY_OFFICIAL_PACKAGES.length} registry packages plus ${UNITY_REGISTRY_WATCHLIST_PACKAGES.length} watched ids cover every plausible com.unity.* mention in the release-note index.`
     );
     process.exit(0);
   }

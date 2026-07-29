@@ -8,12 +8,15 @@ import {
   withIngestionTransaction
 } from "../lib/db/repositories";
 import { extractReleasePageMetadata } from "../lib/parsers/release-page";
+import { EDITOR_RELEASE_PARSER_VERSION } from "../lib/ingest/parser-versions";
 
 const EDITOR_SOURCES = [
   "https://unity.com/releases/editor/latest",
   "https://unity.com/releases/editor/beta",
   "https://unity.com/releases/editor/alpha"
 ];
+const PARSER_VERSION =
+  process.env.PARSER_VERSION ?? EDITOR_RELEASE_PARSER_VERSION;
 
 async function main() {
   for (const url of EDITOR_SOURCES) {
@@ -44,7 +47,7 @@ async function main() {
         releaseNotesMarkdown: notes?.text ?? fetched.text,
         sourceSnapshotId: notesSnapshotId,
         ingestionRunId: runId,
-        parserVersion: process.env.PARSER_VERSION ?? "2026-05-04"
+        parserVersion: PARSER_VERSION
       });
       await upsertReleaseBundle(client, bundle);
       console.log(JSON.stringify({
@@ -54,7 +57,7 @@ async function main() {
         stream: metadata.stream,
         streamSource: resolved.source
       }));
-    });
+    }, PARSER_VERSION);
   }
 }
 
