@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   ProductGrid,
+  ProductPrimaryActions,
   ProductUpdateFilters,
   ProductUpdateFamilyNav,
   ProductUpdateList,
@@ -74,6 +75,7 @@ export default async function ProductUpdateFamilyPage({
 
       {data ? (
         <>
+          <ProductPrimaryActions products={data.products} />
           <ProductUpdateFilters
             values={filters}
             facets={
@@ -91,7 +93,9 @@ export default async function ProductUpdateFamilyPage({
             updates={data.updates}
             heading={`${family.name} release notes`}
           />
-          <ProductGrid products={data.products} />
+          {family.key === "editor-tooling" ? null : (
+            <ProductGrid products={data.products} />
+          )}
         </>
       ) : (
         <ProductUpdatesUnavailable />

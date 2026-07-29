@@ -3452,6 +3452,68 @@ button.filter-section__head:focus-visible {
   background: var(--surface-base);
 }
 
+.product-primary-actions {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-base);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.product-primary-actions__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-3);
+}
+
+.product-primary-actions__header h2 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xl);
+}
+
+.product-primary-actions__header p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.product-primary-actions__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.product-primary-actions__list > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.product-primary-actions__list h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-md);
+}
+
+.product-primary-actions__list span {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.product-primary-actions__buttons {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+}
+
 .product-directory {
   margin-top: var(--space-5);
   padding: var(--space-3);
@@ -3746,6 +3808,16 @@ button.filter-section__head:focus-visible {
     align-items: stretch;
     flex-direction: column;
   }
+
+  .product-primary-actions__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .product-primary-actions__list {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3774,6 +3846,15 @@ button.filter-section__head:focus-visible {
 
   .product-update-filters__actions {
     justify-content: flex-end;
+  }
+
+  .product-primary-actions__list > li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .product-primary-actions__buttons {
+    flex-wrap: wrap;
   }
 
   .product-update-row {

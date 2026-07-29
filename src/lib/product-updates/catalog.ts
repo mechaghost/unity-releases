@@ -11,6 +11,25 @@ export type ProductUpdateFamilyDetails = {
   priority: "core-adjacent" | "secondary";
 };
 
+export type ProductUpdatePrimaryAction = {
+  href: string;
+  label: string;
+};
+
+const EDITOR_TOOLING_PRIMARY_ACTIONS: Record<
+  string,
+  ProductUpdatePrimaryAction
+> = {
+  "unity-hub": {
+    href: "https://unity.com/download",
+    label: "Download Unity Hub"
+  },
+  "unity-cli": {
+    href: "https://docs.unity.com/en-us/hub/use-unity-cli",
+    label: "Install Unity CLI"
+  }
+};
+
 export const PRODUCT_UPDATE_FAMILY_DETAILS: Record<
   ProductUpdateFamily,
   ProductUpdateFamilyDetails
@@ -55,4 +74,22 @@ export const PRODUCT_UPDATE_FAMILY_CATALOG = PRODUCT_UPDATE_FAMILIES.map(
 
 export function getProductUpdateFamily(value: string) {
   return PRODUCT_UPDATE_FAMILY_DETAILS[value as ProductUpdateFamily] ?? null;
+}
+
+export function getProductUpdatePrimaryAction(product: {
+  productKey: string;
+  displayName: string;
+  family: string;
+  canonicalUrl: string | null;
+}) {
+  if (product.family !== "editor-tooling") return null;
+  return (
+    EDITOR_TOOLING_PRIMARY_ACTIONS[product.productKey] ??
+    (product.canonicalUrl
+      ? {
+          href: product.canonicalUrl,
+          label: `Open ${product.displayName}`
+        }
+      : null)
+  );
 }

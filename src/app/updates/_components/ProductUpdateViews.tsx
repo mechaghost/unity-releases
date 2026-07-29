@@ -1,5 +1,6 @@
 import { ExternalLink } from "../../_components/ExternalLink";
 import {
+  getProductUpdatePrimaryAction,
   PRODUCT_UPDATE_FAMILY_CATALOG,
   PRODUCT_UPDATE_FAMILY_DETAILS
 } from "@/lib/product-updates/catalog";
@@ -158,6 +159,62 @@ export function ProductGrid({
         ))}
       </ul>
     </details>
+  );
+}
+
+export function ProductPrimaryActions({
+  products
+}: {
+  products: ProductSummary[];
+}) {
+  const actionableProducts = products.flatMap((product) => {
+    const action = getProductUpdatePrimaryAction(product);
+    return action ? [{ product, action }] : [];
+  });
+  if (actionableProducts.length === 0) return null;
+
+  return (
+    <section
+      className="product-primary-actions"
+      aria-labelledby="product-primary-actions-heading"
+    >
+      <div className="product-primary-actions__header">
+        <div>
+          <span className="product-card__family">Official tools</span>
+          <h2 id="product-primary-actions-heading">Get the tools</h2>
+        </div>
+        <p>Install or open the product, then use this page for release history.</p>
+      </div>
+      <ul className="product-primary-actions__list">
+        {actionableProducts.map(({ product, action }) => (
+          <li key={product.productKey}>
+            <div>
+              <h3>{product.displayName}</h3>
+              <span>
+                {product.updateCount.toLocaleString()}{" "}
+                {product.updateCount === 1 ? "release" : "releases"} tracked
+              </span>
+            </div>
+            <div className="product-primary-actions__buttons">
+              <a
+                className="btn btn--primary"
+                href={action.href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {action.label}
+              </a>
+              <a
+                className="btn btn--secondary"
+                href={`/updates/products/${product.slug}`}
+              >
+                Release history
+              </a>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

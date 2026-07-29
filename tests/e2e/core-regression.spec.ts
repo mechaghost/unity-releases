@@ -167,6 +167,25 @@ test.describe("core surface contract", () => {
     await expect(page.getByText("Jul 24, 2026", { exact: true })).toBeVisible();
   });
 
+  test("Editor tooling makes product acquisition the primary action", async ({
+    page
+  }) => {
+    await page.goto("/updates/editor-tooling");
+    const actions = page.getByRole("region", { name: "Get the tools" });
+    await expect(actions).toBeVisible();
+    await expect(
+      actions.getByRole("link", { name: "Download Unity Hub" })
+    ).toHaveAttribute("href", "https://unity.com/download");
+    await expect(
+      actions.getByRole("link", { name: "Release history" })
+    ).toHaveCount(1);
+
+    await page.goto("/updates/products/unity-hub");
+    await expect(
+      page.getByRole("link", { name: "Download Unity Hub" })
+    ).toHaveAttribute("class", /btn--primary/);
+  });
+
   test("product browse filters are URL-stable and scoped to optional data", async ({
     page
   }) => {

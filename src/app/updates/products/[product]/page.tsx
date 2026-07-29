@@ -11,7 +11,10 @@ import {
   parseProductUpdateFilters,
   requireProductUpdateUi
 } from "../../_data";
-import { getProductUpdateFamily } from "@/lib/product-updates/catalog";
+import {
+  getProductUpdateFamily,
+  getProductUpdatePrimaryAction
+} from "@/lib/product-updates/catalog";
 import type { ProductUpdateFamily } from "@/lib/product-updates/types";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +58,7 @@ export default async function ProductUpdateHistoryPage({
   const product = data.products.find((candidate) => candidate.slug === productSlug);
   if (!product) notFound();
   const family = getProductUpdateFamily(product.family);
+  const primaryAction = getProductUpdatePrimaryAction(product);
 
   return (
     <>
@@ -62,6 +66,7 @@ export default async function ProductUpdateHistoryPage({
         productName={product.displayName}
         description={product.description}
         canonicalUrl={product.canonicalUrl}
+        primaryAction={primaryAction}
       />
       {family ? (
         <ProductUpdateFamilyNav
@@ -95,11 +100,13 @@ export default async function ProductUpdateHistoryPage({
 function ProductPageHeader({
   productName,
   description,
-  canonicalUrl
+  canonicalUrl,
+  primaryAction
 }: {
   productName: string;
   description?: string;
   canonicalUrl?: string | null;
+  primaryAction?: { href: string; label: string } | null;
 }) {
   return (
     <section className="page-header product-updates-header">
@@ -108,7 +115,16 @@ function ProductPageHeader({
           <span className="product-updates-eyebrow">Product release history</span>
           <h1>{productName}</h1>
         </div>
-        {canonicalUrl ? (
+        {primaryAction ? (
+          <a
+            className="btn btn--primary"
+            href={primaryAction.href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {primaryAction.label}
+          </a>
+        ) : canonicalUrl ? (
           <a
             className="btn btn--secondary"
             href={canonicalUrl}
