@@ -10,6 +10,11 @@ import type {
   listProductUpdates,
   listUnityProducts
 } from "@/lib/product-updates/repositories";
+import {
+  groupProductUpdateItems,
+  humanizeProductUpdateValue,
+  productUpdateClassName
+} from "@/lib/product-updates/presentation";
 import type { ProductUpdateFamily } from "@/lib/product-updates/types";
 
 export type ProductSummary = Awaited<ReturnType<typeof listUnityProducts>>[number];
@@ -167,10 +172,12 @@ export function ProductPrimaryActions({
 }: {
   products: ProductSummary[];
 }) {
-  const actionableProducts = products.flatMap((product) => {
-    const action = getProductUpdatePrimaryAction(product);
-    return action ? [{ product, action }] : [];
-  });
+  const actionableProducts = products
+    .filter((product) => product.family === "editor-tooling")
+    .flatMap((product) => {
+      const action = getProductUpdatePrimaryAction(product);
+      return action ? [{ product, action }] : [];
+    });
   if (actionableProducts.length === 0) return null;
 
   return (
@@ -416,50 +423,88 @@ export function ProductUpdateDetailView({ detail }: { detail: UpdateDetail }) {
       </div>
 
       <div className="product-update-observations">
-        {detail.observations.map((observation) => (
-          <section
-            className="product-update-observation"
-            aria-labelledby={`observation-${observation.id}`}
-            key={observation.id}
-          >
-            <header>
-              <div>
-                <span className="product-card__family">{observation.sourceName}</span>
-                <h2 id={`observation-${observation.id}`}>{observation.title}</h2>
-              </div>
-              <ExternalLink href={observation.sourceUrl}>Official notes</ExternalLink>
-            </header>
-            {observation.summary &&
-            observation.summary !== detail.update.summary ? (
-              <p>{observation.summary}</p>
-            ) : null}
-            {observation.items.length > 0 ? (
-              <ol className="product-update-items">
-                {observation.items.map((item) => (
-                  <li key={item.itemKey}>
-                    <div className="product-update-items__meta">
-                      <span>{item.section}</span>
-                      <span>{item.changeKind}</span>
-                    </div>
-                    <p>{item.body}</p>
-                    {item.tags.length > 0 ? (
-                      <ul className="product-update-items__tags" aria-label="Tags">
-                        {item.tags.map((tag) => (
-                          <li key={tag}>{tag}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="muted">
-                This source publishes release-level notes without individual change
-                items.
-              </p>
-            )}
-          </section>
-        ))}
+        {detail.observations.map((observation) => {
+          const itemGroups = groupProductUpdateItems(
+            observation.items,
+            detail.update.summary
+          );
+          return (
+            <section
+              className="product-update-observation"
+              aria-labelledby={`observation-${observation.id}`}
+              key={observation.id}
+            >
+              <header>
+                <div>
+                  <span className="product-card__family">
+                    {observation.sourceName}
+                  </span>
+                  <h2 id={`observation-${observation.id}`}>
+                    {observation.title}
+                  </h2>
+                </div>
+                <ExternalLink href={observation.sourceUrl}>
+                  Official notes
+                </ExternalLink>
+              </header>
+              {observation.summary &&
+              observation.summary !== detail.update.summary ? (
+                <p>{observation.summary}</p>
+              ) : null}
+              {itemGroups.length > 0 ? (
+                <div className="product-update-sections">
+                  {itemGroups.map((group) => (
+                    <section
+                      className="product-update-section-group"
+                      aria-labelledby={`observation-${observation.id}-${group.id}`}
+                      key={group.id}
+                    >
+                      <h3 id={`observation-${observation.id}-${group.id}`}>
+                        {group.section}
+                      </h3>
+                      {group.items.length > 0 ? (
+                        <ol className="product-update-items">
+                          {group.items.map((item) => (
+                            <li key={item.itemKey}>
+                              <span
+                                className="product-update-item__kind"
+                                data-kind={productUpdateClassName(item.changeKind)}
+                              >
+                                {humanizeProductUpdateValue(item.changeKind)}
+                              </span>
+                              <div className="product-update-item__content">
+                                <p>{item.body}</p>
+                                {item.platforms.length > 0 ? (
+                                  <ul
+                                    className="product-update-item__platforms"
+                                    aria-label="Platforms"
+                                  >
+                                    {item.platforms.map((platform) => (
+                                      <li key={platform}>{platform}</li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="product-update-section-group__empty">
+                          {group.emptyMessage}
+                        </p>
+                      )}
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">
+                  This source publishes release-level notes without additional
+                  change items.
+                </p>
+              )}
+            </section>
+          );
+        })}
       </div>
     </>
   );

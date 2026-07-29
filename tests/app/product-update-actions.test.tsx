@@ -37,7 +37,7 @@ describe("Editor tooling product actions", () => {
     expect(html.match(/class="btn btn--primary"/g)).toHaveLength(2);
   });
 
-  test("falls back to a product link only within Editor tooling", () => {
+  test("falls back to the official product link for every tracked product", () => {
     expect(
       getProductUpdatePrimaryAction(
         product({
@@ -49,7 +49,7 @@ describe("Editor tooling product actions", () => {
       )
     ).toEqual({
       href: "https://unity.com/future-editor-tool",
-      label: "Open Future Editor Tool"
+      label: "View Future Editor Tool"
     });
     expect(
       getProductUpdatePrimaryAction({
@@ -61,7 +61,30 @@ describe("Editor tooling product actions", () => {
         }),
         family: "monetization"
       })
-    ).toBeNull();
+    ).toEqual({
+      href: "https://docs.unity.com/grow/ads",
+      label: "View Unity Ads"
+    });
+  });
+
+  test("keeps the acquisition panel scoped to core Editor tooling", () => {
+    const html = renderToStaticMarkup(
+      <ProductPrimaryActions
+        products={[
+          {
+            ...product({
+              productKey: "vivox-unreal",
+              slug: "vivox-unreal",
+              displayName: "Vivox Unreal SDK",
+              canonicalUrl: "https://docs.unity.com/en-us/vivox-unreal/unreal"
+            }),
+            family: "platform-services"
+          }
+        ]}
+      />
+    );
+
+    expect(html).toBe("");
   });
 });
 

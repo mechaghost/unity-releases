@@ -82,13 +82,12 @@ export function getProductUpdatePrimaryAction(product: {
   family: string;
   canonicalUrl: string | null;
 }) {
-  if (product.family !== "editor-tooling") return null;
   return (
     EDITOR_TOOLING_PRIMARY_ACTIONS[product.productKey] ??
     (product.canonicalUrl
       ? {
           href: product.canonicalUrl,
-          label: `Open ${product.displayName}`
+          label: `View ${product.displayName}`
         }
       : null)
   );

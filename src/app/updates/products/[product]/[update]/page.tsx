@@ -8,6 +8,7 @@ import {
   loadProductUpdateDetail,
   requireProductUpdateUi
 } from "../../../_data";
+import { getProductUpdatePrimaryAction } from "@/lib/product-updates/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function ProductUpdateDetailPage({
     );
   }
   if (detail === null) notFound();
+  const primaryAction = getProductUpdatePrimaryAction(detail.product);
 
   return (
     <>
@@ -66,6 +68,16 @@ export default async function ProductUpdateDetailPage({
             </span>
             <h1>{detail.update.title}</h1>
           </div>
+          {primaryAction ? (
+            <a
+              className="btn btn--primary"
+              href={primaryAction.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {primaryAction.label}
+            </a>
+          ) : null}
         </div>
       </section>
       <ProductUpdateDetailView detail={detail} />

@@ -184,6 +184,18 @@ test.describe("core surface contract", () => {
     await expect(
       page.getByRole("link", { name: "Download Unity Hub" })
     ).toHaveAttribute("class", /btn--primary/);
+
+    await page.goto("/updates/products/unity-hub/3.14.0");
+    await expect(
+      page.getByRole("link", { name: "Download Unity Hub" })
+    ).toHaveAttribute("class", /btn--primary/);
+    await expect(
+      page.getByRole("heading", { name: "Improvements", level: 3 })
+    ).toBeVisible();
+    await expect(page.getByText("projects", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Platforms" })).toContainText(
+      "Windows"
+    );
   });
 
   test("product browse filters are URL-stable and scoped to optional data", async ({
