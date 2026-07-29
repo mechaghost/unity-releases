@@ -35,7 +35,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "Fetching $REMOTE/$SOURCE_BRANCH and $REMOTE/$TARGET_BRANCH…"
+echo "Fetching $REMOTE/$SOURCE_BRANCH and $REMOTE/${TARGET_BRANCH}…"
 git fetch "$REMOTE" "$SOURCE_BRANCH" "$TARGET_BRANCH" 2>&1 | sed 's/^/  /'
 
 SOURCE_SHA=$(git rev-parse "$REMOTE/$SOURCE_BRANCH")
