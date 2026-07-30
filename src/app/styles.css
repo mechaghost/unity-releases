@@ -3677,6 +3677,15 @@ button.filter-section__head:focus-visible {
   font-size: var(--text-xs);
 }
 
+/* Sources that publish no dates (e.g. the LevelPlay adapter version feed)
+   say so rather than borrowing the ingest timestamp. Dimmer than a real
+   date so a scan reads it as absent data, not as a value. */
+.product-update-row__date-unknown {
+  color: var(--text-subtle, var(--text-muted));
+  font-style: italic;
+  cursor: help;
+}
+
 .product-update-row__body {
   min-width: 0;
 }

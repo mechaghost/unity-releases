@@ -115,4 +115,55 @@ describe("Product Updates read repositories", () => {
     expect(countSql).toContain("filter_item.change_kind");
     expect(countParams).toEqual(["unity-hub", "improvement"]);
   });
+
+  test("ranks rows with a real release date above dateless ones", async () => {
+    // A dateless bulk source (3k+ LevelPlay adapter versions sharing one
+    // first_seen_at) otherwise owns page 1 of the cross-family feed and
+    // buries the Hub/CLI releases the page calls out as most relevant.
+    mocks.query
+      .mockResolvedValueOnce({ rows: [{ ready: true }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await listProductUpdates({ limit: 40 });
+
+    const [sql] = mocks.query.mock.calls[1];
+    expect(sql).toContain(
+      "ORDER BY (u.release_date IS NOT NULL)::int DESC, COALESCE(u.release_date, u.first_seen_at) DESC, u.id DESC"
+    );
+  });
+
+  test("cursor predicate compares the same keys as the ORDER BY", async () => {
+    // Keyset pagination breaks (repeats or skips rows at the dated/dateless
+    // boundary) if the tuple compare and the ordering ever drift apart.
+    mocks.query
+      .mockResolvedValueOnce({ rows: [{ ready: true }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await listProductUpdates({
+      limit: 40,
+      before: { hasReleaseDate: false, sortTime: "2026-07-29T18:03:04.094Z", id: 3355 }
+    });
+
+    const [sql, params] = mocks.query.mock.calls[1];
+    expect(sql).toContain(
+      "((u.release_date IS NOT NULL)::int, COALESCE(u.release_date, u.first_seen_at), u.id) < ($1::int, $2::timestamptz, $3::bigint)"
+    );
+    expect(params.slice(0, 3)).toEqual([0, "2026-07-29T18:03:04.094Z", 3355]);
+  });
+
+  test("a legacy cursor without the has-date key resumes in the dated section", async () => {
+    mocks.query
+      .mockResolvedValueOnce({ rows: [{ ready: true }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await listProductUpdates({
+      limit: 40,
+      before: { sortTime: "2026-07-28T00:00:00.000Z", id: 12 }
+    });
+
+    const [, params] = mocks.query.mock.calls[1];
+    // 1 = dated: resume at the front of the list rather than silently
+    // jumping past every dated row into the dateless tail.
+    expect(params[0]).toBe(1);
+  });
 });

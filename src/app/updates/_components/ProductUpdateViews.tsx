@@ -104,12 +104,11 @@ export function ProductFamilyGrid({
           data-priority={family.priority}
           key={family.key}
         >
+          {/* No tier eyebrow: the old editor-adjacent / optional-intelligence
+              labels restated what the family name already says (Platform &
+              Services, Monetization), so they were noise above every card.
+              `data-priority` still drives the card's accent styling. */}
           <div className="product-family-card__identity">
-            <span className="product-family-card__eyebrow">
-              {family.priority === "core-adjacent"
-                ? "Editor-adjacent"
-                : "Optional intelligence"}
-            </span>
             <h2>
               <a href={`/updates/${family.key}`}>{family.name}</a>
             </h2>
@@ -404,8 +403,22 @@ export function ProductUpdateList({
         <ol className="product-update-list">
           {updates.map((update) => (
             <li className="product-update-row" key={update.id}>
+              {/* Only a real upstream release date goes in the date slot.
+                  `sortTime` falls back to when WE first saw the row, so
+                  rendering it here told readers an old adapter version
+                  shipped today (every LevelPlay adapter shares one ingest
+                  timestamp). Dateless rows say so instead. */}
               <div className="product-update-row__date tabnums">
-                {formatProductUpdateDate(update.releaseDate ?? update.sortTime)}
+                {update.releaseDate ? (
+                  formatProductUpdateDate(update.releaseDate)
+                ) : (
+                  <span
+                    className="product-update-row__date-unknown"
+                    title="This source does not publish release dates; sorted by when it was first indexed."
+                  >
+                    No date
+                  </span>
+                )}
               </div>
               <div className="product-update-row__body">
                 <div className="product-update-row__context">

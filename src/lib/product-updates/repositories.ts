@@ -1166,9 +1166,36 @@ export type ProductUpdateListOptions = {
   from?: string;
   to?: string;
   limit?: number;
-  before?: { sortTime: string; id: number } | null;
+  before?: { hasReleaseDate?: boolean; sortTime: string; id: number } | null;
   offset?: number;
 };
+
+/**
+ * Feed ordering. Rows carrying a real upstream `release_date` rank above
+ * dateless ones, then newest-first, then `id` as a stable tie-break.
+ *
+ * The leading key exists because a dateless bulk source otherwise owns the
+ * whole feed: every LevelPlay mediation adapter (3k+ rows) shares one
+ * `first_seen_at` from its first ingest run, which is by definition the
+ * newest timestamp in the corpus, so page 1 was 40/40 adapters and the
+ * Hub/CLI releases the page calls out as most relevant were buried pages
+ * deep. Dateless rows are still reachable - they sort after the dated ones
+ * and their own product/family pages are unaffected (all rows dateless
+ * there, so this key is constant and the order is unchanged).
+ *
+ * Keyset pagination compares the same three expressions as a row-wise
+ * tuple, so this list and {@link productUpdateFilterSql}'s cursor predicate
+ * must stay in lockstep.
+ */
+const PRODUCT_UPDATE_SORT_KEYS = [
+  "(u.release_date IS NOT NULL)::int",
+  "COALESCE(u.release_date, u.first_seen_at)",
+  "u.id"
+] as const;
+
+const PRODUCT_UPDATE_ORDER_BY = PRODUCT_UPDATE_SORT_KEYS.map(
+  (key) => `${key} DESC`
+).join(", ");
 
 function productUpdateFilterSql(
   options: ProductUpdateListOptions,
@@ -1231,9 +1258,17 @@ function productUpdateFilterSql(
     );
   }
   if (includeCursor && options.before) {
-    params.push(options.before.sortTime, options.before.id);
+    // Row-wise tuple compare across the same keys as PRODUCT_UPDATE_ORDER_BY.
+    // A cursor minted before the has-date key existed omits it; default to
+    // "dated" so such a cursor resumes inside the dated section (the front of
+    // the list) instead of silently skipping to the dateless tail.
+    params.push(
+      (options.before.hasReleaseDate ?? true) ? 1 : 0,
+      options.before.sortTime,
+      options.before.id
+    );
     where.push(
-      `(COALESCE(u.release_date, u.first_seen_at), u.id) < ($${params.length - 1}::timestamptz, $${params.length}::bigint)`
+      `(${PRODUCT_UPDATE_SORT_KEYS.join(", ")}) < ($${params.length - 2}::int, $${params.length - 1}::timestamptz, $${params.length}::bigint)`
     );
   }
   return { params, where };
@@ -1309,7 +1344,7 @@ export async function listProductUpdates(options: ProductUpdateListOptions = {})
       LEFT JOIN product_update_targets target ON target.id = o.target_id
       ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
       GROUP BY u.id, p.id
-      ORDER BY COALESCE(u.release_date, u.first_seen_at) DESC, u.id DESC
+      ORDER BY ${PRODUCT_UPDATE_ORDER_BY}
       LIMIT $${limitParam}
       ${offset > 0 ? `OFFSET $${params.length}` : ""}
     `,
@@ -1596,6 +1631,13 @@ export type ProductUpdateSitemapEntries = {
   }>;
 };
 
+/**
+ * Newest update pages listed per product in the sitemap. Product and family
+ * pages are always listed in full; this only bounds the per-version detail
+ * pages, which are thin (a title, a version, often one line of summary).
+ */
+export const PRODUCT_UPDATE_SITEMAP_PER_PRODUCT = 25;
+
 export async function listProductUpdateSitemapEntries(
   limit = 10_000
 ): Promise<ProductUpdateSitemapEntries> {
@@ -1621,21 +1663,37 @@ export async function listProductUpdateSitemapEntries(
       update_slug: string;
       updated_at: string;
     }>(
+      // Cap per product, not just globally. One component-heavy product
+      // (LevelPlay ships 3k+ adapter versions) otherwise contributes
+      // thousands of near-identical, mostly dateless URLs and crowds the
+      // sitemap against the release pages that carry the site's real value.
+      // Every product still appears - it just contributes its newest slice,
+      // preferring rows with a real upstream release date.
       `
-        SELECT
-          product.slug AS product_slug,
-          product_update.slug AS update_slug,
-          product_update.updated_at
-        FROM product_updates product_update
-        JOIN unity_products product ON product.id = product_update.product_id
-        ORDER BY COALESCE(
-                   product_update.release_date,
-                   product_update.first_seen_at
-                 ) DESC,
-                 product_update.id DESC
+        SELECT product_slug, update_slug, updated_at
+        FROM (
+          SELECT
+            product.slug AS product_slug,
+            product_update.slug AS update_slug,
+            product_update.updated_at,
+            ROW_NUMBER() OVER (
+              PARTITION BY product_update.product_id
+              ORDER BY
+                (product_update.release_date IS NOT NULL) DESC,
+                COALESCE(
+                  product_update.release_date,
+                  product_update.first_seen_at
+                ) DESC,
+                product_update.id DESC
+            ) AS product_rank
+          FROM product_updates product_update
+          JOIN unity_products product ON product.id = product_update.product_id
+        ) ranked
+        WHERE product_rank <= $2
+        ORDER BY (updated_at IS NOT NULL) DESC, updated_at DESC, update_slug ASC
         LIMIT $1
       `,
-      [boundedLimit]
+      [boundedLimit, PRODUCT_UPDATE_SITEMAP_PER_PRODUCT]
     )
   ]);
   return {

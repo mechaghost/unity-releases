@@ -39,14 +39,22 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
-  let before: { sortTime: string; id: number } | null = null;
+  let before:
+    | { hasReleaseDate?: boolean; sortTime: string; id: number }
+    | null = null;
   if (parsed.data.cursor) {
     try {
       const cursor = JSON.parse(
         Buffer.from(parsed.data.cursor, "base64url").toString("utf8")
       ) as unknown;
       const cursorResult = z
-        .object({ sortTime: z.string().datetime({ offset: true }), id: z.number().int().positive() })
+        .object({
+          // Optional so cursors minted before dated-first ordering still
+          // parse; the repository defaults them to the dated section.
+          hasReleaseDate: z.boolean().optional(),
+          sortTime: z.string().datetime({ offset: true }),
+          id: z.number().int().positive()
+        })
         .safeParse(cursor);
       if (!cursorResult.success) throw new Error("invalid cursor");
       before = cursorResult.data;
@@ -71,7 +79,13 @@ export async function GET(request: Request) {
   const nextCursor =
     updates.length === parsed.data.limit && last
       ? Buffer.from(
-          JSON.stringify({ sortTime: last.sortTime, id: last.id }),
+          JSON.stringify({
+            // Must mirror the feed's leading sort key, or paging across the
+            // dated/dateless boundary would repeat or skip rows.
+            hasReleaseDate: last.releaseDate != null,
+            sortTime: last.sortTime,
+            id: last.id
+          }),
           "utf8"
         ).toString("base64url")
       : null;

@@ -100,6 +100,71 @@ describe("Product Updates API", () => {
     );
   });
 
+  test("cursor carries the has-date key so paging can't skip the boundary", async () => {
+    // The feed ranks dated rows above dateless ones, so the cursor must
+    // encode which section it left off in - otherwise the next page's
+    // tuple compare jumps straight into the dateless tail.
+    process.env.PRODUCT_UPDATE_UI_ENABLED = "true";
+    mocks.schemaReady.mockResolvedValue(true);
+    mocks.listUpdates.mockResolvedValue([
+      {
+        id: 9,
+        releaseDate: null,
+        sortTime: "2026-07-29T18:03:04.094Z",
+        productSlug: "unity-levelplay-adapters",
+        title: "YSO Network Android adapter 5.0.0"
+      }
+    ]);
+
+    const response = await getUpdates(
+      new Request("https://example.test/api/updates?limit=1")
+    );
+    const { nextCursor } = await response.json();
+    const decoded = JSON.parse(Buffer.from(nextCursor, "base64url").toString("utf8"));
+    expect(decoded).toEqual({
+      hasReleaseDate: false,
+      sortTime: "2026-07-29T18:03:04.094Z",
+      id: 9
+    });
+
+    // And a dated row reports the other side of the boundary.
+    mocks.listUpdates.mockResolvedValue([
+      {
+        id: 4,
+        releaseDate: "2026-07-01T00:00:00.000Z",
+        sortTime: "2026-07-01T00:00:00.000Z",
+        productSlug: "unity-hub",
+        title: "Unity Hub 3.14"
+      }
+    ]);
+    const dated = await getUpdates(new Request("https://example.test/api/updates?limit=1"));
+    const datedCursor = JSON.parse(
+      Buffer.from((await dated.json()).nextCursor, "base64url").toString("utf8")
+    );
+    expect(datedCursor.hasReleaseDate).toBe(true);
+  });
+
+  test("accepts a legacy cursor that predates the has-date key", async () => {
+    process.env.PRODUCT_UPDATE_UI_ENABLED = "true";
+    mocks.schemaReady.mockResolvedValue(true);
+    mocks.listUpdates.mockResolvedValue([]);
+    const legacy = Buffer.from(
+      JSON.stringify({ sortTime: "2026-07-28T00:00:00.000Z", id: 12 }),
+      "utf8"
+    ).toString("base64url");
+
+    const response = await getUpdates(
+      new Request(`https://example.test/api/updates?cursor=${legacy}`)
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.listUpdates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        before: { sortTime: "2026-07-28T00:00:00.000Z", id: 12 }
+      })
+    );
+  });
+
   test("rejects malformed cursors and unknown families", async () => {
     process.env.PRODUCT_UPDATE_UI_ENABLED = "true";
     mocks.schemaReady.mockResolvedValue(true);

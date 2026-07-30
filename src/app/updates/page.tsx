@@ -48,7 +48,9 @@ export default async function ProductUpdatesPage({
       <section className="page-header product-updates-header">
         <div className="page-header__title-row">
           <div>
-            <span className="product-updates-eyebrow">Secondary intelligence</span>
+            {/* No tier eyebrow here - it ranked the page for us rather than
+                telling the reader anything; the paragraph below already
+                explains what this section is and isn't. */}
             <h1>Product Updates</h1>
           </div>
         </div>

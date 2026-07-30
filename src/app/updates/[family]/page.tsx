@@ -68,11 +68,9 @@ export default async function ProductUpdateFamilyPage({
       <section className="page-header product-updates-header">
         <div className="page-header__title-row">
           <div>
-            <span className="product-updates-eyebrow">
-              {family.priority === "core-adjacent"
-                ? "Editor-adjacent"
-                : "Secondary intelligence"}
-            </span>
+            {/* Tier eyebrow dropped: the family name and description below
+                already say what this is, and the tier label was internal
+                taxonomy, not reader-facing information. */}
             <h1>{family.name} Updates</h1>
           </div>
         </div>
