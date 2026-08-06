@@ -142,7 +142,20 @@ function parseSelfHostedReleaseNotes(
       "Updates"
     );
     if (items.length === 0) {
-      throw new Error(`${config.manifest.displayName} ${version} has no changes`);
+      // Not drift: Unity sometimes publishes a version whose section holds
+      // no extractable body. Throwing here quarantined the whole source and
+      // failed the nightly cron over one benign section, so skip the version
+      // and let the rest of the page ingest. A page that yields NO versions
+      // at all is still fatal below - that is real drift.
+      console.warn(
+        JSON.stringify({
+          event: "product_update_section_skipped",
+          source: config.manifest.sourceKey,
+          version,
+          reason: "no extractable changes"
+        })
+      );
+      return;
     }
     observations.push({
       productKey: "unity-cloud-self-hosted",
@@ -186,7 +199,10 @@ export function parseVpctlChangelog(
     )
     .toArray();
 
-  const observations = headings.map((heading) => {
+  // flatMap so a version with no extractable body can be skipped (returning
+  // []) instead of throwing. One such section used to fail the whole source,
+  // quarantine it as parser-drift, and crash the nightly cron.
+  const observations = headings.flatMap((heading) => {
     const headingText = normalizeProductUpdateText($(heading).text());
     const match = headingText.match(
       /^\[([0-9][0-9A-Za-z.+-]*)\](?:\s+-\s+(\d{4}-\d{2}-\d{2}))?$/
@@ -196,7 +212,15 @@ export function parseVpctlChangelog(
     const releaseNodes = collectUntilNextVersion($, heading);
     const items = extractUnityDocsItems($, releaseNodes, "Updates");
     if (items.length === 0) {
-      throw new Error(`vpctl ${version} has no changes`);
+      console.warn(
+        JSON.stringify({
+          event: "product_update_section_skipped",
+          source: "vpctl",
+          version,
+          reason: "no extractable changes"
+        })
+      );
+      return [];
     }
     const releaseDate = dateText ? parseIsoDate(dateText) : null;
     if (dateText && !releaseDate) {

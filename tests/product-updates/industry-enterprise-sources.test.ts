@@ -98,6 +98,26 @@ describe("Industry and enterprise Product Update adapters", () => {
     expect(aws[0].updateSlug).not.toBe(onPremises[0].updateSlug);
   });
 
+  test("reads div-wrapped prose releases that carry no bullet list", () => {
+    // Regression: docs.unity.com renders paragraphs as text nodes inside a
+    // MuiBox <div>, with inline code as a NESTED <div><pre><code>. The
+    // extractor only walked direct-sibling ul/ol/p/span, so a release
+    // written entirely as prose produced zero items and threw "has no
+    // changes" - which quarantined the source as parser-drift and crashed
+    // the nightly industry-enterprise cron.
+    const aws = parse(vpcAwsAdapter, "aws", readFixture("vpc-aws.html"));
+    const prose = aws.find((observation) => observation.version === "1.2.2");
+
+    expect(prose).toBeDefined();
+    expect(prose!.items).toHaveLength(2);
+    // The whole sentence survives, with the nested code inlined - not the
+    // bare token the first attempt at this fix produced.
+    expect(prose!.items[0].body).toContain("post-deployment job now runs on AWS");
+    expect(prose!.items[0].body).toContain("`upc-onboarding`");
+    expect(prose!.items[0].section).toBe("New features");
+    expect(prose!.items[1].body).toContain("idempotent");
+  });
+
   test("keeps vpctl's nested product-version heading inside the CLI release", () => {
     const observations = parse(vpctlAdapter, "cli", readFixture("vpctl.html"));
     expect(observations).toHaveLength(3);
@@ -112,6 +132,25 @@ describe("Industry and enterprise Product Update adapters", () => {
       releaseDate: null,
       metadata: { datePrecision: "unknown" }
     });
+  });
+
+  test("skips an unextractable version instead of failing the whole source", () => {
+    // A single empty section is benign upstream authoring, not drift. It used
+    // to throw, which failed the job, quarantined the target, and made Railway
+    // report the cron as crashed every night. The rest of the page must still
+    // ingest, and real drift (below) must still be fatal.
+    const page = `
+      <main>
+        <h1>Release notes for Self-Hosted Deployment in Amazon Web Services</h1>
+        <h2>Version 2.0.0 — July 1, 2026</h2>
+        <h3>Coming soon</h3>
+        <h2>Version 1.9.0 — June 1, 2026</h2>
+        <h3>Fixed issues</h3>
+        <ul><li>Fixed a real thing.</li></ul>
+      </main>`;
+
+    const observations = parse(vpcAwsAdapter, "aws", page);
+    expect(observations.map((o) => o.version)).toEqual(["1.9.0"]);
   });
 
   test("quarantines structurally unrelated enterprise pages", () => {

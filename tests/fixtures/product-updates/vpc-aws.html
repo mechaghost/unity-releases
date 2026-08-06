@@ -12,6 +12,19 @@
       <h2>Version 1.2.3 — May 20, 2026</h2>
       <h3>Fixed issues</h3>
       <ul><li>Fixed external UVCS workspace discovery.</li></ul>
+      <!--
+        Real docs.unity.com markup: prose lives in text nodes of a MuiBox
+        <div> with inline code rendered as a NESTED <div><pre><code>, and no
+        <p> or <li> anywhere. This section has no bullet list at all, which
+        is what crashed the nightly industry-enterprise cron: the adapter
+        extracted zero items and threw "has no changes", quarantining the
+        source as parser-drift.
+      -->
+      <h2>Version 1.2.2 — May 6, 2026</h2>
+      <h3>New features</h3>
+      <h4>Automatic solution onboarding</h4>
+      <div class="MuiBox-root mui-1rzk9sh">The <div class="MuiBox-root mui-1xw4dhx"><pre><code>upc-onboarding</code></pre></div> post-deployment job now runs on AWS, so the platform is usable immediately after installation.</div>
+      <div class="MuiBox-root mui-1rzk9sh">The job is idempotent and is therefore safe to run on every deployment.</div>
     </main>
   </body>
 </html>

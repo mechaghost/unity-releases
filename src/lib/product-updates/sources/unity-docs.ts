@@ -107,6 +107,36 @@ export function parseVersionedUnityDocs(
   return observations;
 }
 
+/**
+ * Layout wrappers Unity's docs put between a version heading and its prose.
+ * The site renders paragraphs as nested `<div class="MuiBox-root">` rather
+ * than `<p>`, so walking direct siblings alone sees headings and nothing
+ * else - which silently dropped most items on a page and made a release
+ * whose notes are entirely prose look empty (see the no-changes handling in
+ * the VPC adapter).
+ */
+const WRAPPER_TAGS = new Set(["div", "section", "article", "main"]);
+
+/**
+ * Children that mean a wrapper is a container of separate items rather than
+ * one paragraph. Inline markup (span, code, a, strong) is deliberately absent:
+ * descending into those splits a sentence into fragments, which is how a
+ * paragraph reading "The upc-onboarding job now runs on AWS…" first came out
+ * as the single token "`upc-onboarding`".
+ */
+const BLOCK_CHILD_SELECTOR = "h3,h4,h5,h6,ul,ol,p,div,section,article,main";
+
+/** Guards against pathological nesting; real docs are a few levels deep. */
+const MAX_WRAPPER_DEPTH = 8;
+
+/** True when the element has non-whitespace text of its own (not a descendant's). */
+function hasDirectText($: cheerio.CheerioAPI, node: cheerio.Cheerio<AnyNode>) {
+  return node
+    .contents()
+    .toArray()
+    .some((child) => child.type === "text" && $(child).text().trim().length > 0);
+}
+
 export function extractUnityDocsItems(
   $: cheerio.CheerioAPI,
   nodes: cheerio.Cheerio<AnyNode>,
@@ -116,33 +146,7 @@ export function extractUnityDocsItems(
   let section = defaultSection;
   let detailHeading = "";
 
-  nodes.each((_, element) => {
-    if (element.type !== "tag") return;
-    const node = $(element);
-    if (/^h[3-6]$/.test(element.tagName)) {
-      const heading = normalizeProductUpdateText(node.text());
-      if (element.tagName === "h3") {
-        section = heading || defaultSection;
-        detailHeading = "";
-      } else {
-        detailHeading = heading;
-      }
-      return;
-    }
-    if (element.tagName === "ul" || element.tagName === "ol") {
-      const listSection = detailHeading || section;
-      const extracted = extractStructuredListItems($, node, listSection);
-      for (const extractedItem of extracted) {
-        const item = {
-          ...extractedItem,
-          sourceOrder: items.length
-        };
-        item.itemKey = stableProductUpdateItemKey(item);
-        items.push(item);
-      }
-      return;
-    }
-    if (element.tagName !== "p" && element.tagName !== "span") return;
+  const pushParagraph = (node: cheerio.Cheerio<AnyNode>) => {
     const text = directItemText($, node);
     if (!text || /^(none|screenshot)$/i.test(text)) return;
     const body =
@@ -160,7 +164,61 @@ export function extractUnityDocsItems(
     };
     item.itemKey = stableProductUpdateItemKey(item);
     items.push(item);
-  });
+  };
+
+  const visit = (candidates: cheerio.Cheerio<AnyNode>, depth: number) => {
+    candidates.each((_, element) => {
+      if (element.type !== "tag") return;
+      const node = $(element);
+      if (/^h[3-6]$/.test(element.tagName)) {
+        const heading = normalizeProductUpdateText(node.text());
+        if (element.tagName === "h3") {
+          section = heading || defaultSection;
+          detailHeading = "";
+        } else {
+          detailHeading = heading;
+        }
+        return;
+      }
+      if (element.tagName === "ul" || element.tagName === "ol") {
+        const listSection = detailHeading || section;
+        const extracted = extractStructuredListItems($, node, listSection);
+        for (const extractedItem of extracted) {
+          const item = {
+            ...extractedItem,
+            sourceOrder: items.length
+          };
+          item.itemKey = stableProductUpdateItemKey(item);
+          items.push(item);
+        }
+        return;
+      }
+      if (element.tagName === "p" || element.tagName === "span") {
+        pushParagraph(node);
+        return;
+      }
+      if (WRAPPER_TAGS.has(element.tagName) && depth < MAX_WRAPPER_DEPTH) {
+        // `role="note"` callouts carry publication metadata ("Note Public |
+        // 2026-07-24") that `parsePublicIsoDate` reads for the release date.
+        // Wrappers were skipped wholesale before, so leaving these out keeps
+        // them out of the change list rather than adding a bogus first item.
+        if (node.attr("role") === "note") return;
+        // A wrapper carrying its own text IS the paragraph - recursing would
+        // return only the nested fragment. Unity inlines code as a nested
+        // <div><pre><code>, so "The upc-onboarding job now runs on AWS…"
+        // is text nodes either side of a block child; descending yielded the
+        // bare token "`upc-onboarding`" and dropped the sentence.
+        if (!hasDirectText($, node) && node.children(BLOCK_CHILD_SELECTOR).length > 0) {
+          const before = items.length;
+          visit(node.children(), depth + 1);
+          if (items.length > before) return;
+        }
+        pushParagraph(node);
+      }
+    });
+  };
+
+  visit(nodes, 0);
 
   return items;
 }
