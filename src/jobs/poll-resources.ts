@@ -18,6 +18,10 @@ const CONCURRENCY = 6;
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_RETRIES = 2;
 const MAX_PER_RUN = Number(process.env.RESOURCES_MAX_PER_RUN ?? 1500);
+// Bypass the lastmod incremental filter and re-fetch every sitemap entry.
+// Needed after a parser fix: the stored lastmod already matches the
+// sitemap, so incremental runs skip the pages that need re-parsing.
+const FORCE = /^(1|true|yes)$/i.test(process.env.RESOURCES_FORCE ?? "");
 
 async function main() {
   await withIngestionTransaction("resources", "poll-resources", async (client, runId) => {
@@ -30,6 +34,7 @@ async function main() {
     // advanced past what we already have on file. Brand-new slugs get
     // fetched too. Cap per run so a `--full` re-crawl is opt-in.
     const todo = entries.filter((entry) => {
+      if (FORCE) return true;
       const known = freshness.get(slugFromUrl(entry.url));
       if (!known) return true;
       if (!known.lastmod) return true;
@@ -61,6 +66,7 @@ async function main() {
     console.log(
       JSON.stringify({
         sitemapEntries: entries.length,
+        force: FORCE,
         considered: todo.length,
         ...stats
       })

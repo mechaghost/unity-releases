@@ -145,12 +145,43 @@ function extractSlug(url: string): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * A JSON-string value inside the double-escaped RSC payload. The
+ * delimiters are `\"`; interior chars are either plain, or a
+ * single-backslash escape (`&` for `&`, `\n`, `\"`, `\\`, …).
+ *
+ * The naive `[^"\\]+` class stops at the first interior backslash, so a
+ * title like `Stripe & Coda` failed to match its closing `\"`
+ * entirely - the regex then fell through to a *later* `\"title\":\"…\"`
+ * in the page (a Sanity section literally named "Text 1"), which is how
+ * real IAP resources ended up titled "Text"/"Text 1". Allowing `\\.`
+ * (backslash + any char) as an escape unit keeps the match anchored to
+ * the correct value. Non-greedy so it stops at the first true close.
+ */
+const VALUE_BODY = `((?:[^"\\\\]|\\\\.)*?)`;
+
+/**
+ * Decode a captured value from the payload's escaping down to display
+ * text: `&` → `&`, `\n` → newline, etc. The value is a JSON string
+ * body with its quotes written as `\"`, so re-quoting + JSON.parse
+ * decodes it; a malformed fragment falls back to a bare `\uXXXX` pass.
+ */
+function decodeValue(raw: string): string {
+  try {
+    return JSON.parse(`"${raw.replace(/\\"/g, '"')}"`);
+  } catch {
+    return raw.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16))
+    );
+  }
+}
+
 /** First match for `\"<field>\":{\"label\":\"...\"}`. Used for type,
  *  vertical, readDuration - single-label container fields. */
 function firstLabel(html: string, field: string): string | null {
-  const re = new RegExp(`\\\\\"${escapeRegex(field)}\\\\\":\\{\\\\\"label\\\\\":\\\\\"([^"\\\\]+)\\\\\"\\}`);
+  const re = new RegExp(`\\\\\"${escapeRegex(field)}\\\\\":\\{\\\\\"label\\\\\":\\\\\"${VALUE_BODY}\\\\\"\\}`);
   const m = re.exec(html);
-  return m ? m[1] : null;
+  return m ? decodeValue(m[1]) : null;
 }
 
 /** First `\"<field>\":[ {\"label\":\"a\"},{\"label\":\"b\"} ]` array.
@@ -161,18 +192,18 @@ function collectFirstLabels(html: string, field: string): string[] {
   if (!m) return [];
   const labels: string[] = [];
   const inner = m[1];
-  const LABEL = /\\"label\\":\\"([^"\\]+)\\"/g;
+  const LABEL = new RegExp(`\\\\\"label\\\\\":\\\\\"${VALUE_BODY}\\\\\"`, "g");
   for (let lm = LABEL.exec(inner); lm !== null; lm = LABEL.exec(inner)) {
-    labels.push(lm[1]);
+    labels.push(decodeValue(lm[1]));
   }
   return labels;
 }
 
 /** First `\"<field>\":\"<value>\"` string field. */
 function firstString(html: string, field: string): string | null {
-  const re = new RegExp(`\\\\\"${escapeRegex(field)}\\\\\":\\\\\"([^"\\\\]+)\\\\\"`);
+  const re = new RegExp(`\\\\\"${escapeRegex(field)}\\\\\":\\\\\"${VALUE_BODY}\\\\\"`);
   const m = re.exec(html);
-  return m ? m[1] : null;
+  return m ? decodeValue(m[1]) : null;
 }
 
 /** First image URL from a Sanity CDN reference. We prefer the larger
