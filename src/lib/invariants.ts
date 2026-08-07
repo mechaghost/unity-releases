@@ -21,6 +21,8 @@
  * message is immediately actionable.
  */
 
+import { modernMajorSql } from "./unity-generation";
+
 export type InvariantSeverity = "error" | "warn";
 
 export type Invariant = {
@@ -178,6 +180,21 @@ export const INVARIANTS: Invariant[] = [
   // entity there is not corruption. What IS checked is the release
   // metadata that renders raw.
   ...corruptTextChecks("unity_releases", ["version"]),
+  {
+    name: "unity_releases: modern releases have downloadable artifacts",
+    severity: "error",
+    describe:
+      "A release with zero artifacts is the exact signature of a downloads-array parse failure - the old bracket matcher desynced on a quoted value and returned [] with no error, losing every artifact and module for that release.",
+    sql: `
+      SELECT COUNT(*)::int AS n, MIN(r.version) AS sample
+      FROM unity_releases r
+      WHERE ${modernMajorSql("r.version")}
+        AND r.suffix_channel = 'f'
+        AND NOT EXISTS (
+          SELECT 1 FROM unity_release_artifacts a WHERE a.unity_release_id = r.id
+        )
+    `
+  },
   {
     name: "editor_package_versions: change kinds are not degenerate",
     severity: "warn",

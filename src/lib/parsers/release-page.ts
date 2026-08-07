@@ -1,4 +1,9 @@
 import { parseUnityVersion, type UnityStream } from "./version";
+import {
+  extractFlightStream,
+  findFlightObject,
+  parseFlightRows
+} from "../ingest/rsc-flight";
 
 export type ReleaseArtifact = {
   platform: string;
@@ -29,7 +34,79 @@ export type ReleasePageMetadata = {
   modules: ReleaseModule[];
 };
 
+/**
+ * Preferred path: read the release document straight out of the parsed
+ * Flight payload, the same way resources are read.
+ *
+ * The legacy path below regex-decodes the payload and then walks it with
+ * a hand-rolled bracket matcher. That combination silently loses EVERY
+ * artifact and module for a release if any value inside the downloads
+ * array contains a double quote: `decodeEscapedPayload` rewrites the
+ * value's `\\\"` into `\"`, `findMatchingBracket` then treats the
+ * closing quote as escaped, never finds the array's end, and
+ * `extractDownloads` swallows the failure and returns []. Demonstrated
+ * by injecting a quote into a module name: 93 modules -> 0, no error.
+ *
+ * No current Unity module name or URL contains a quote, so the legacy
+ * path happens to work today - but that is a property of Unity's naming
+ * choices, not of the code. Parsing the payload removes the dependency.
+ */
+function extractViaFlight(html: string, releasePageUrl: string): ReleasePageMetadata | null {
+  const rows = parseFlightRows(extractFlightStream(html));
+  if (rows.size === 0) return null;
+  const doc = findFlightObject(rows, (node) => Array.isArray(node.downloads));
+  if (!doc) return null;
+
+  const downloads = asArray(doc.downloads).map(asRecord);
+  const rawVersion = typeof doc.version === "string" ? doc.version : null;
+  const version = rawVersion ?? inferVersionFromUrl(releasePageUrl);
+  let parsedVersion;
+  try {
+    parsedVersion = parseUnityVersion(version);
+  } catch {
+    return null; // not a release page we understand; let the caller fall back
+  }
+
+  const shortRevision = stringOrNull(doc.shortRevision);
+  return {
+    version,
+    releaseDate: stringOrNull(doc.releaseDate),
+    stream: parsedVersion.stream,
+    shortRevision,
+    changeset: shortRevision ?? extractString(html, /unityhub:\/\/[^/]+\/([a-f0-9]+)/),
+    releasePageUrl,
+    releaseNotesUrl: stringOrNull(asRecord(doc.releaseNotes).url),
+    unityHubDeepLink: stringOrNull(doc.unityHubDeepLink),
+    artifacts: downloads.map((download) => ({
+      platform: stringField(download, "platform"),
+      architecture: stringField(download, "architecture"),
+      category: "EDITOR",
+      name: "Unity Editor",
+      url: stringField(download, "url")
+    })),
+    modules: downloads.flatMap((download) =>
+      asArray(download.modules).map((module) => {
+        const moduleRecord = asRecord(module);
+        return {
+          platform: stringField(download, "platform"),
+          architecture: stringField(download, "architecture"),
+          moduleName: stringField(moduleRecord, "name"),
+          moduleCategory: stringField(moduleRecord, "category"),
+          url: stringField(moduleRecord, "url")
+        };
+      })
+    )
+  };
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 export function extractReleasePageMetadata(html: string, releasePageUrl: string): ReleasePageMetadata {
+  const viaFlight = extractViaFlight(html, releasePageUrl);
+  if (viaFlight) return viaFlight;
+
   const decoded = decodeEscapedPayload(html);
   const version = extractString(decoded, /"version"\s*:\s*"([^"]+)"/) ?? inferVersionFromUrl(releasePageUrl);
   const parsedVersion = parseUnityVersion(version);

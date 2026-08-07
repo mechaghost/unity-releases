@@ -94,7 +94,11 @@ element entirely (14 resources were stored titled "Text 1"), and a
 quoted phrase truncated `Madbox achieves "mad growth"` to
 `Madbox achieves \`. `src/lib/ingest/rsc-flight.ts` reconstructs the
 stream from the `__next_f.push` chunks and hands it to `JSON.parse`, so
-escaping is the decoder's problem. It also resolves `$3a`-style
+escaping is the decoder's problem. It backs BOTH `parseResourcePage` and
+`extractReleasePageMetadata` — the release page had the same latent
+fault: a quote anywhere inside the `downloads` array desynced the old
+bracket matcher and silently returned zero artifacts and zero modules
+for that release. It also resolves `$3a`-style
 references, which is why a deduplicated description comes back as prose
 instead of a token. Note that `T<hexlen>,` blobs are delimited by their
 declared LENGTH, not a newline — the next row can start mid-line.
@@ -327,7 +331,7 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 673 tests across 81 files
+`npm test` runs the full Vitest suite — 677 tests across 83 files
 covering parsers, classification, search SQL, lane logic, ingestion
 normalization, package-version reconciliation (editor "Package changes"
 → `editor_package_versions`, the docs-probe unified-versioning parser,
