@@ -2,17 +2,25 @@ import { describe, expect, test } from "vitest";
 import { parseResourcePage, parseResourcesSitemap } from "@/lib/ingest/resources";
 
 /**
- * The RSC payload embeds a JSON blob inside a JS string, so JSON quotes
- * appear as `\"` and HTML-significant chars are unicode-escaped
- * (`&` → `&`). This helper builds a fixture the same way, given a
- * plain JS object, so the tests read naturally.
+ * Build a fixture with the SAME two layers of escaping Next.js emits:
+ * JSON is serialized, then embedded in a JS string literal (so every
+ * backslash doubles and every quote gains one), and finally
+ * HTML-significant chars are written as JS unicode escapes.
+ *
+ * Order matters. Escaping backslashes before quotes is what produces
+ * the real 4-char `\\\"` sequence for a quote *inside* a value versus
+ * the 2-char `\"` delimiter - the exact distinction that truncated
+ * `Madbox achieves \"mad growth\"` down to `Madbox achieves \`. An
+ * earlier version of this helper skipped the backslash pass, so the
+ * fixtures were easier than reality and the bug slipped through.
  */
 function rscBlock(obj: Record<string, unknown>): string {
   return JSON.stringify(obj)
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
     .replace(/&/g, "\\u0026")
     .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e")
-    .replace(/"/g, '\\"');
+    .replace(/>/g, "\\u003e");
 }
 
 describe("parseResourcePage", () => {
@@ -41,6 +49,48 @@ describe("parseResourcePage", () => {
     });
     const parsed = parseResourcePage(html, "https://unity.com/resources/what-is-unity-iap");
     expect(parsed?.title).toBe("Q&A: What is Unity IAP?");
+  });
+
+  test("keeps a quoted phrase inside a title intact", () => {
+    // Regression: a quote inside the value is `\\\"` (3 backslashes) while
+    // the delimiter is `\"` (1). A regex can't tell them apart - both are
+    // odd runs - so the value truncated at the first inner quote and
+    // /resources/madbox was stored as `Madbox achieves \`.
+    const html = rscBlock({
+      isGated: false,
+      seo: {
+        title: 'Madbox achieves "mad growth" monetizing with ironSource | Unity',
+        description: "d"
+      }
+    });
+    const parsed = parseResourcePage(html, "https://unity.com/resources/madbox");
+    expect(parsed?.title).toBe(
+      'Madbox achieves "mad growth" monetizing with ironSource | Unity'
+    );
+  });
+
+  test("keeps a title that OPENS with a quoted phrase intact", () => {
+    // /resources/vr-reconstruction-of-historical-train-space stored a lone
+    // backslash: the value began with the escaped quote, so the truncation
+    // left nothing at all.
+    const html = rscBlock({
+      isGated: false,
+      seo: { title: '"Virtual Train Ride" - VR reconstruction | Unity', description: "d" }
+    });
+    const parsed = parseResourcePage(html, "https://unity.com/resources/vr");
+    expect(parsed?.title).toBe('"Virtual Train Ride" - VR reconstruction | Unity');
+  });
+
+  test("collapses encoded newlines instead of rendering a literal \\n", () => {
+    // Unity's CMS leaves encoded newlines at the end of many descriptions;
+    // unhandled they render as a literal "\n" on the resource card.
+    const html = rscBlock({
+      isGated: false,
+      seo: { title: "T", description: "Reduce platform fees with web checkouts.\n\n" }
+    });
+    const parsed = parseResourcePage(html, "https://unity.com/resources/x");
+    expect(parsed?.summary).toBe("Reduce platform fees with web checkouts.");
+    expect(parsed?.summary).not.toContain("\\n");
   });
 
   test("decodes escaped entities in single-label and array-label fields", () => {

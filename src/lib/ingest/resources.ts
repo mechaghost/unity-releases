@@ -146,42 +146,95 @@ function extractSlug(url: string): string | null {
 }
 
 /**
- * A JSON-string value inside the double-escaped RSC payload. The
- * delimiters are `\"`; interior chars are either plain, or a
- * single-backslash escape (`&` for `&`, `\n`, `\"`, `\\`, …).
+ * The payload is JSON inside a JS string literal, so it carries TWO
+ * layers of escaping. In raw page bytes:
  *
- * The naive `[^"\\]+` class stops at the first interior backslash, so a
- * title like `Stripe & Coda` failed to match its closing `\"`
- * entirely - the regex then fell through to a *later* `\"title\":\"…\"`
- * in the page (a Sanity section literally named "Text 1"), which is how
- * real IAP resources ended up titled "Text"/"Text 1". Allowing `\\.`
- * (backslash + any char) as an escape unit keeps the match anchored to
- * the correct value. Non-greedy so it stops at the first true close.
+ *   value delimiter        `\"`      (1 backslash + quote)
+ *   quote inside a value   `\\\"`    (3 backslashes + quote)
+ *   backslash in a value   `\\\\`
+ *   `&` and friends        `&`  (JS-layer unicode escape)
+ *   JSON newline           `\\n`
+ *
+ * A regex cannot reliably tell the 1-backslash terminator from the
+ * 3-backslash escaped quote (both are an odd run), which is how
+ * "Madbox achieves \"mad growth\"…" got truncated to `Madbox achieves \`.
+ * Count the backslash run instead: a quote closes the value only when
+ * its run length is ≡ 1 (mod 4) — run 1 is the bare delimiter, run 3 is
+ * an escaped quote, run 5 is an escaped backslash then the delimiter.
+ *
+ * Returns the RAW (still-escaped) body plus the index just past the
+ * closing delimiter, or null when the string never terminates.
  */
-const VALUE_BODY = `((?:[^"\\\\]|\\\\.)*?)`;
+function readEscapedString(
+  source: string,
+  start: number
+): { raw: string; end: number } | null {
+  let i = start;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch !== "\\") {
+      // A bare quote can't appear inside a value (every quote is
+      // escaped at the JS layer); treat one as a malformed payload.
+      if (ch === '"') return null;
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j < source.length && source[j] === "\\") j += 1;
+    const run = j - i;
+    if (source[j] === '"') {
+      if (run % 4 === 1) return { raw: source.slice(start, i), end: j + 1 };
+      i = j + 1; // escaped quote - part of the value
+      continue;
+    }
+    i = j; // &, \\n, … - skip the run, keep scanning
+  }
+  return null;
+}
 
 /**
- * Decode a captured value from the payload's escaping down to display
- * text: `&` → `&`, `\n` → newline, etc. The value is a JSON string
- * body with its quotes written as `\"`, so re-quoting + JSON.parse
- * decodes it; a malformed fragment falls back to a bare `\uXXXX` pass.
+ * Decode a raw body down to display text by peeling the two escaping
+ * layers with JSON.parse (the raw body is a valid JS string literal
+ * body, and what that yields is a valid JSON string body). Whitespace
+ * is collapsed because some Unity descriptions carry encoded newlines
+ * that would otherwise render as a literal `\n` on the card.
+ * Each pass is independently guarded so a malformed fragment degrades
+ * instead of throwing.
  */
 function decodeValue(raw: string): string {
-  try {
-    return JSON.parse(`"${raw.replace(/\\"/g, '"')}"`);
-  } catch {
-    return raw.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
-      String.fromCharCode(parseInt(hex, 16))
-    );
+  let out = raw;
+  for (let pass = 0; pass < 2; pass += 1) {
+    try {
+      out = JSON.parse(`"${out}"`) as string;
+    } catch {
+      break;
+    }
   }
+  return out.replace(/\s+/g, " ").trim();
+}
+
+/** Read `\"<field>\":\"<value>\"` starting the search at `from`. */
+function readFieldAt(
+  html: string,
+  field: string,
+  from: number
+): { value: string; end: number } | null {
+  const marker = `\\"${field}\\":\\"`;
+  const at = html.indexOf(marker, from);
+  if (at < 0) return null;
+  const read = readEscapedString(html, at + marker.length);
+  if (!read) return null;
+  return { value: decodeValue(read.raw), end: read.end };
 }
 
 /** First match for `\"<field>\":{\"label\":\"...\"}`. Used for type,
  *  vertical, readDuration - single-label container fields. */
 function firstLabel(html: string, field: string): string | null {
-  const re = new RegExp(`\\\\\"${escapeRegex(field)}\\\\\":\\{\\\\\"label\\\\\":\\\\\"${VALUE_BODY}\\\\\"\\}`);
-  const m = re.exec(html);
-  return m ? decodeValue(m[1]) : null;
+  const marker = `\\"${field}\\":{`;
+  const at = html.indexOf(marker);
+  if (at < 0) return null;
+  const read = readFieldAt(html, "label", at + marker.length);
+  return read ? read.value : null;
 }
 
 /** First `\"<field>\":[ {\"label\":\"a\"},{\"label\":\"b\"} ]` array.
@@ -192,18 +245,20 @@ function collectFirstLabels(html: string, field: string): string[] {
   if (!m) return [];
   const labels: string[] = [];
   const inner = m[1];
-  const LABEL = new RegExp(`\\\\\"label\\\\\":\\\\\"${VALUE_BODY}\\\\\"`, "g");
-  for (let lm = LABEL.exec(inner); lm !== null; lm = LABEL.exec(inner)) {
-    labels.push(decodeValue(lm[1]));
+  let cursor = 0;
+  for (;;) {
+    const read = readFieldAt(inner, "label", cursor);
+    if (!read) break;
+    labels.push(read.value);
+    cursor = read.end;
   }
   return labels;
 }
 
 /** First `\"<field>\":\"<value>\"` string field. */
 function firstString(html: string, field: string): string | null {
-  const re = new RegExp(`\\\\\"${escapeRegex(field)}\\\\\":\\\\\"${VALUE_BODY}\\\\\"`);
-  const m = re.exec(html);
-  return m ? decodeValue(m[1]) : null;
+  const read = readFieldAt(html, field, 0);
+  return read ? read.value : null;
 }
 
 /** First image URL from a Sanity CDN reference. We prefer the larger
