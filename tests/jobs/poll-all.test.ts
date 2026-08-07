@@ -25,6 +25,7 @@ describe("JOB_ORDER", () => {
       "discussions",
       "editor",
       "github",
+      "invariants",
       "legacy-lts",
       "news",
       "package-docs",
@@ -38,9 +39,16 @@ describe("JOB_ORDER", () => {
     expect(names.indexOf("backfill")).toBeLessThan(names.indexOf("discussions"));
   });
 
-  test("npm scripts use the canonical ingest:* names", () => {
+  test("runs the data-quality gate last, after every writer", () => {
+    // It asserts what the other jobs just wrote, so it must see final state.
+    expect(JOB_ORDER[JOB_ORDER.length - 1]?.name).toBe("invariants");
+  });
+
+  test("npm scripts use a canonical ingest:* / check:* name", () => {
     for (const job of JOB_ORDER) {
-      expect(job.npmScript.startsWith("ingest:")).toBe(true);
+      expect(
+        job.npmScript.startsWith("ingest:") || job.npmScript.startsWith("check:")
+      ).toBe(true);
     }
   });
 });

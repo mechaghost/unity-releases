@@ -21,11 +21,13 @@ export type JobName =
   | "resources"
   | "github"
   | "backfill"
-  | "discussions";
+  | "discussions"
+  | "invariants";
 
 export type JobDefinition = {
   name: JobName;
-  npmScript: `ingest:${string}`;
+  /** `ingest:*` for data collection, `check:*` for the post-ingest gate. */
+  npmScript: `ingest:${string}` | `check:${string}`;
 };
 
 /**
@@ -45,11 +47,13 @@ export type JobDefinition = {
  *   seeded (see backfill-unity6.ts), so after the one-time walk it's a
  *   single cheap COUNT. It runs before discussions so the one populating
  *   run isn't starved by the long Discourse fan-out.
- * - discussions LAST - the Discourse staff-post fan-out is the
+ * - discussions second-to-last - the Discourse staff-post fan-out is the
  *   longest single job (~20 min worst case) and the most
  *   network-bound. Running it after the more urgent surfaces means
  *   a Railway max-runtime kill won't block fresh release/package
  *   data.
+ * - invariants LAST - it asserts the data everything above just wrote,
+ *   so it has to see the final state.
  */
 export const JOB_ORDER: JobDefinition[] = [
   { name: "editor", npmScript: "ingest:editor" },
@@ -60,7 +64,11 @@ export const JOB_ORDER: JobDefinition[] = [
   { name: "resources", npmScript: "ingest:resources" },
   { name: "github", npmScript: "ingest:github" },
   { name: "backfill", npmScript: "ingest:backfill" },
-  { name: "discussions", npmScript: "ingest:discussions" }
+  { name: "discussions", npmScript: "ingest:discussions" },
+  // Last: assert the data every job above just wrote. A breach exits
+  // non-zero so Railway flags the run - the alarm that was missing while
+  // parsers silently stored plausible-looking garbage for months.
+  { name: "invariants", npmScript: "check:invariants" }
 ];
 
 export type JobResult = {

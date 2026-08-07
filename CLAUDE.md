@@ -71,6 +71,7 @@ npm run ingest:discussions
 npm run ingest:backfill      # one-time Unity 6 history walk (also runs inside the cron, self-skipping)
 npm run check:packages       # surfaces com.unity.* mentioned in release notes but not in the curated list
 npm run check:lts            # reports drift between Unity's API and the offline LTS fallback map
+npm run check:invariants     # post-ingest data-quality gate; runs last in the cron
 ```
 
 Production ingestion is one mega-cron on Railway running
@@ -79,6 +80,49 @@ lives in `src/jobs/poll-all.ts` and shells out to each
 `npm run ingest:*` in sequence. A per-job failure logs and continues
 so a flaky news endpoint can't block fresh package data; the run
 exits non-zero at the end so Railway flags it as failed.
+
+### Scraping without brittleness
+
+Three rules, each bought with a production bug:
+
+**1. Parse the format, don't pattern-match it.** Unity's resource pages
+inline a React Flight payload — JSON serialized into a JS string, so
+`\"` delimits a value while `\\\"` is a quote *inside* one. A regex
+cannot parse that grammar, and successive attempts to patch one all
+failed on the tail of the corpus: `&` made a title match the wrong
+element entirely (14 resources were stored titled "Text 1"), and a
+quoted phrase truncated `Madbox achieves "mad growth"` to
+`Madbox achieves \`. `src/lib/ingest/rsc-flight.ts` reconstructs the
+stream from the `__next_f.push` chunks and hands it to `JSON.parse`, so
+escaping is the decoder's problem. It also resolves `$3a`-style
+references, which is why a deduplicated description comes back as prose
+instead of a token. Note that `T<hexlen>,` blobs are delimited by their
+declared LENGTH, not a newline — the next row can start mid-line.
+
+**2. Fail loudly; never fall back silently.** Every bug here was
+invisible because the code produced a plausible value on failure
+(`.exec()` returning a *later* match, `?? slug`, `if (!versions.length)
+return null`). `resources.raw_metadata_json.parserPath` records which
+path produced each row so a silent degradation to the legacy scanner
+trips an invariant instead of going unnoticed.
+
+**3. Assert the stored data, not just the parser.**
+`npm run check:invariants` (`src/lib/invariants.ts`) runs last in the
+cron and exits non-zero on corrupt display text — decoy titles, stray
+backslashes, undecoded entities, framework placeholder tokens,
+degenerate enum distributions, pre-2025 "unified version" rows. Checks
+are origin-aware: a backslash in a Discourse title is legitimate user
+text (`Assets\PlayerController.cs`), so those columns only get the
+checks that stay meaningful. `severity: "error"` fails the run;
+`"warn"` reports. Add a check whenever a data bug is found — that is
+what converts a months-long silent corruption into a red cron run.
+
+**Fixtures come from real pages.** `tests/fixtures/resources/*.flight.txt`
+are bytes captured off unity.com (regenerate:
+`node scripts/capture-resource-fixtures.mjs`). Hand-authored fixtures
+encode the author's *belief* about a format — the previous helper
+escaped quotes without first escaping backslashes, never produced the
+real 4-char sequence, and let a broken parser pass a green suite.
 
 Current local database was populated from real Unity sources:
 
@@ -283,7 +327,7 @@ sticky cookie for persona/saved presets. Plan + decisions in
 
 ## Current Test Coverage
 
-`npm test` runs the full Vitest suite — 535 tests across 55 files
+`npm test` runs the full Vitest suite — 673 tests across 81 files
 covering parsers, classification, search SQL, lane logic, ingestion
 normalization, package-version reconciliation (editor "Package changes"
 → `editor_package_versions`, the docs-probe unified-versioning parser,

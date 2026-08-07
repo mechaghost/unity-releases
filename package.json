@@ -30,6 +30,7 @@
     "health:ingest": "tsx src/jobs/health.ts",
     "repair:core-projections": "tsx src/jobs/refresh-core-projections.ts",
     "check:packages": "tsx src/jobs/check-missing-packages.ts",
+    "check:invariants": "tsx src/jobs/check-invariants.ts",
     "check:lts": "tsx src/jobs/check-lts-lines.ts"
   },
   "dependencies": {

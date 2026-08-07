@@ -1,4 +1,9 @@
 import { sha256 } from "./hash";
+import {
+  extractFlightStream,
+  findFlightObject,
+  parseFlightRows
+} from "./rsc-flight";
 
 /**
  * Sitemap + per-resource HTML parsing for https://unity.com/resources.
@@ -66,21 +71,111 @@ export type ParsedResource = {
   rawMetadata: Record<string, unknown>;
 };
 
+/** Shape of the Sanity resource document inside the Flight payload. */
+function isResourceDocument(node: Record<string, unknown>): boolean {
+  if (!node.seo || typeof node.seo !== "object") return false;
+  // Mirrors the legacy soft-404 guard: a real resource always carries at
+  // least one of these; the site's error page renders a bare seo block.
+  return "isGated" in node || "type" in node || "date" in node;
+}
+
+function labelOf(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const label = (value as Record<string, unknown>).label;
+  return typeof label === "string" && label.length > 0 ? label : null;
+}
+
+function stringOf(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/** Safe nested lookup: `pathOf(doc, "seo", "teaserImage", "file")`. */
+function pathOf(root: unknown, ...keys: string[]): unknown {
+  let node: unknown = root;
+  for (const key of keys) {
+    if (!node || typeof node !== "object") return undefined;
+    node = (node as Record<string, unknown>)[key];
+  }
+  return node;
+}
+
+/**
+ * Preferred path: read the resource straight out of the parsed Flight
+ * payload. Because the payload is reconstructed and handed to
+ * JSON.parse, escaping is handled by the JSON decoder - the whole class
+ * of "regex ate the value" bugs (entity-truncated titles, quotes cutting
+ * a title short, `$3a` reference tokens) cannot occur here. Reference
+ * strings are resolved, so a deduplicated description comes back as its
+ * real prose rather than a placeholder.
+ */
+function parseViaFlight(html: string, url: string, lastmod: string | null): ParsedResource | null {
+  const rows = parseFlightRows(extractFlightStream(html));
+  if (rows.size === 0) return null;
+  const doc = findFlightObject(rows, isResourceDocument);
+  if (!doc) return null;
+
+  const slug = extractSlug(url);
+  if (!slug) return null;
+  const seo = (doc.seo ?? {}) as Record<string, unknown>;
+  const rawTopics = Array.isArray(doc.topics) ? doc.topics : [];
+  const teaserUrl = stringOf(
+    pathOf(doc, "seo", "teaserImage", "file", "asset", "url")
+  );
+
+  const title = stringOf(seo.title);
+  const summary = stringOf(seo.description);
+  return {
+    slug,
+    url,
+    title: normalizeWhitespace(title) ?? slug,
+    summary: normalizeWhitespace(summary) ?? "",
+    ogImage: teaserUrl ?? firstImageUrl(html),
+    resourceType: labelOf(doc.type),
+    industry: labelOf(doc.vertical),
+    topics: rawTopics.map(labelOf).filter((t): t is string => Boolean(t)),
+    isGated: doc.isGated === true,
+    sfdcFormId: stringOf(doc.sfcid),
+    resourceDate: normalizeIsoDate(stringOf(doc.date)),
+    readDuration: labelOf(doc.readDuration),
+    author: stringOf(doc.author),
+    bodyHash: sha256(html),
+    rawMetadata: {
+      lastmod,
+      parserPath: "flight",
+      seoTitle: title,
+      seoDescription: summary
+    }
+  };
+}
+
+/** Collapse encoded/real whitespace so a card never renders a literal
+ *  `\n` (Unity's CMS leaves them in many seo descriptions). */
+function normalizeWhitespace(value: string | null): string | null {
+  if (value === null) return null;
+  const collapsed = value.replace(/\s+/g, " ").trim();
+  return collapsed.length > 0 ? collapsed : null;
+}
+
 /**
  * Parse one resource page's HTML. Returns null when the page renders the
  * site's soft-404 (the slug exists in the sitemap but Sanity has no
  * matching document, which happens for ~10% of sitemap entries).
  *
- * Strategy: extract the FIRST occurrence of each structured field from
- * the inlined RSC payload. Related-resource cards inside the same page
- * also embed `\"type\":...` etc., but the page's own resource block is
- * always written first.
+ * Two paths. The Flight reader is authoritative; the legacy
+ * string-scanner below is a safety net for the day Next.js changes how
+ * it inlines the payload. Which path produced a row is recorded in
+ * `rawMetadata.parserPath` so `npm run check:invariants` can alarm on
+ * legacy-path usage instead of it degrading silently - the exact
+ * failure mode that let "Text 1" sit in production for months.
  */
 export function parseResourcePage(
   html: string,
   url: string,
   lastmod: string | null = null
 ): ParsedResource | null {
+  const viaFlight = parseViaFlight(html, url, lastmod);
+  if (viaFlight) return viaFlight;
+
   const slug = extractSlug(url);
   if (!slug) return null;
 
@@ -134,6 +229,7 @@ export function parseResourcePage(
     bodyHash,
     rawMetadata: {
       lastmod,
+      parserPath: "legacy-scanner",
       seoTitle,
       seoDescription
     }
