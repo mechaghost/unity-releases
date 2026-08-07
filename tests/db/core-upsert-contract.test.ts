@@ -171,10 +171,15 @@ describe("core ingestion upsert contracts", () => {
   });
 
   test("current parser versions identify the latest normalized projections", () => {
-    expect(EDITOR_RELEASE_PARSER_VERSION).toBe("2026-06-12");
+    // Deliberately pinned: changing a parser's projection REQUIRES bumping
+    // its version here so backfill-unity6 re-walks the history. Bumped
+    // 2026-06-12 -> 2026-08-06 when package-change parsing started
+    // capturing added / no-longer-available / version-less deprecations.
+    expect(EDITOR_RELEASE_PARSER_VERSION).toBe("2026-08-06");
     expect(LEGACY_LTS_PARSER_VERSION).toBe(
-      "2026-06-12-legacy-lts"
+      "2026-08-06-legacy-lts"
     );
+    // Unchanged - the registry parser's projection didn't move.
     expect(PACKAGE_REGISTRY_PARSER_VERSION).toBe("2026-06-12");
   });
 });

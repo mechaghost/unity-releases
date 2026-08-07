@@ -76,6 +76,30 @@ describe("release note formatting", () => {
     ).toEqual([{ id: "UUM-141061", url: "https://issuetracker.unity3d.com/issues/crash-on-tlsf-free" }]);
   });
 
+  test("decodes the numeric arrow entity Unity uses as the version separator", () => {
+    // Every "Package updates" row on a release-detail page rendered a
+    // literal `10.1.0 &#x2192; 10.1.1` because only NAMED entities were
+    // decoded (86 occurrences on /releases/6000.0.0b11 alone).
+    expect(
+      cleanReleaseNoteText(
+        "[10.1.0](https://docs.unity3d.com/x) &#x2192; [10.1.1](https://docs.unity3d.com/y)"
+      )
+    ).toBe("10.1.0 → 10.1.1");
+  });
+
+  test("decodes decimal numeric entities and double-encoded forms", () => {
+    expect(cleanReleaseNoteText("a &#8594; b")).toBe("a → b");
+    // `&amp;` collapses first, so `&amp;#x2192;` resolves in one pass.
+    expect(cleanReleaseNoteText("a &amp;#x2192; b")).toBe("a → b");
+  });
+
+  test("leaves control-character entities as literal text", () => {
+    // A stray `&#0;`/`&#8;` must not inject an invisible control char into
+    // a body that feeds search indexing and the markdown export.
+    expect(cleanReleaseNoteText("null byte &#0; here")).toBe("null byte &#0; here");
+    expect(cleanReleaseNoteText("backspace &#8; here")).toBe("backspace &#8; here");
+  });
+
   test("falls back to issue tracker search for issue ids without parsed urls", () => {
     expect(issueTrackerSearchUrl("UUM-136929")).toBe(
       "https://issuetracker.unity3d.com/issues?search=UUM-136929"

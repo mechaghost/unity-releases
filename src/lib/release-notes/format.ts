@@ -6,6 +6,22 @@ export type IssueLink = {
 const TRAILING_ISSUE_IDS_RE = /\s*\(\s*UUM-\d+(?:\s*,\s*UUM-\d+)*\s*\)\s*$/i;
 
 /**
+ * Resolve a numeric HTML entity to its character. Refuses C0/C1 control
+ * points and out-of-range values - a malformed entity should render as
+ * the original text, not as an invisible control character in a note
+ * body that later feeds search indexing and markdown export.
+ */
+function decodeCodePoint(code: number, original: string): string {
+  if (!Number.isFinite(code) || code < 0x20 || code > 0x10ffff) return original;
+  if (code >= 0x7f && code <= 0x9f) return original;
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return original;
+  }
+}
+
+/**
  * Matches Unity editor version strings inline in body text - the same
  * format `parseUnityVersion` accepts (`<major>.<minor>.<patch>[abfp]<num>`).
  * Negative lookarounds keep us from grabbing substrings of longer
@@ -33,6 +49,17 @@ export function cleanReleaseNoteText(body: string): string {
       .replace(/&quot;/g, '"')
       .replace(/&(?:#39|apos);/g, "'")
       .replace(/&nbsp;/g, " ")
+      // Numeric entities. Unity writes the version separator in every
+      // "Package updates" row as `&#x2192;` (→), so without this the
+      // release-detail lane rendered a literal "10.1.0 &#x2192; 10.1.1".
+      // Runs after the `&amp;` collapse above so double-encoded forms
+      // (`&amp;#x2192;`) decode in the same pass.
+      .replace(/&#x([0-9a-fA-F]{1,6});/gi, (whole, hex: string) =>
+        decodeCodePoint(parseInt(hex, 16), whole)
+      )
+      .replace(/&#(\d{1,7});/g, (whole, dec: string) =>
+        decodeCodePoint(parseInt(dec, 10), whole)
+      )
       // Unescape the full markdown-escapable set (`\[WebGPU\]`, `\!=`,
       // `demangling\_unexpected\_handler`, …) - AFTER the markdown strips
       // above, so `\*literal\*` isn't first unescaped into emphasis and

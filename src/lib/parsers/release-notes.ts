@@ -158,6 +158,9 @@ export function parseReleaseNotes(
 function packageChangeKind(section: string): PackageVersionChange["changeKind"] | null {
   if (/packages?\s+added/i.test(section)) return "added";
   if (/packages?\s+(removed|deprecated)/i.test(section)) return "removed";
+  // "Packages no longer available" is a real Unity heading (6000.3.0a3,
+  // 6000.4.0a2); without it those blocks were never even inspected.
+  if (/packages?\s+no\s+longer\s+available/i.test(section)) return "removed";
   if (/packages?\s+updated/i.test(section)) return "updated";
   // Some notes put `- pkg: x to y` bullets directly under "Package changes
   // in <ver>" with no "Packages updated" subheading - treat those as updates.
@@ -165,7 +168,16 @@ function packageChangeKind(section: string): PackageVersionChange["changeKind"] 
   return null;
 }
 
-const PACKAGE_CHANGE_ID_RE = /^(com\.unity\.[a-z0-9.-]+)\b/;
+// The id is NOT always at line start: "Packages added" rows wrap it in a
+// markdown link, e.g.
+//   - [com.unity.xr.meta-openxr@1.0.0](https://docs.unity3d.com/…)
+// The old `^`-anchored form matched none of those, so every added/removed
+// row parsed to null and `editor_package_versions` held only `updated`
+// rows. Scanning anywhere in the line is safe because the caller has
+// already gated on a package-change section heading, and the first
+// `com.unity.*` occurrence is the subject either way (the docs URL that
+// follows repeats the same id).
+const PACKAGE_CHANGE_ID_RE = /(com\.unity\.[a-z0-9.-]*[a-z0-9])/;
 
 // Versions are the *link text* in `[1.2.4](https://docs...@1.2//...)` - the
 // `@1.2` in the URL is truncated to major.minor, so we read the bracketed
@@ -183,12 +195,17 @@ function parsePackageChangeLine(
   const idMatch = body.match(PACKAGE_CHANGE_ID_RE);
   if (!idMatch) return null;
   const versions = packageVersionTokens(body);
-  if (!versions.length) return null;
   const packageName = idMatch[1];
 
   if (changeKind === "removed") {
-    return { packageName, fromVersion: versions[0], toVersion: null, changeKind };
+    // A deprecation carries no version at all - Unity writes
+    //   - com.unity.live-capture - "no longer supported on this editor version."
+    // Requiring one dropped every such row (the schema allows a null
+    // from_version, and getEditorBundledVersions ignores removals since
+    // it filters on to_version IS NOT NULL).
+    return { packageName, fromVersion: versions[0] ?? null, toVersion: null, changeKind };
   }
+  if (!versions.length) return null;
   if (changeKind === "added") {
     return { packageName, fromVersion: null, toVersion: versions[0], changeKind };
   }

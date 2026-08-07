@@ -160,4 +160,74 @@ describe("parseReleaseNotes", () => {
     expect(splines).toHaveLength(1);
     expect(splines[0].toVersion).toBe("2.7.2");
   });
+
+  test("captures 'Packages added' rows that wrap the id in a markdown link", () => {
+    // Regression: the id regex was ^-anchored, but added/removed rows put
+    // the package inside a link, so every one parsed to null - prod held
+    // 9,981 `updated` rows and ZERO added/removed. A package that was added
+    // and never later updated then had no bundled version at all.
+    const notes = `### 2023.3.0a10 Release Notes
+
+#### Package changes in 2023.3.0a10
+
+#### Packages added
+
+- [com.unity.xr.meta-openxr@1.0.0](https://docs.unity3d.com/Packages/com.unity.xr.meta-openxr@1.0//changelog/CHANGELOG.html)
+`;
+    const parsed = parseReleaseNotes(notes, {
+      version: "2023.3.0a10",
+      sourceUrl: "https://unity.com/releases/editor/whats-new/2023.3.0a10"
+    });
+
+    expect(parsed.packageChanges).toContainEqual({
+      packageName: "com.unity.xr.meta-openxr",
+      fromVersion: null,
+      toVersion: "1.0.0",
+      changeKind: "added"
+    });
+  });
+
+  test("captures a deprecation that carries no version", () => {
+    const notes = `### 6000.3.0a3 Release Notes
+
+#### Package changes in 6000.3.0a3
+
+#### Packages deprecated
+
+- com.unity.live-capture - "This package is no longer supported on this editor version."
+`;
+    const parsed = parseReleaseNotes(notes, {
+      version: "6000.3.0a3",
+      sourceUrl: "https://unity.com/releases/editor/whats-new/6000.3.0a3"
+    });
+
+    expect(parsed.packageChanges).toContainEqual({
+      packageName: "com.unity.live-capture",
+      fromVersion: null,
+      toVersion: null,
+      changeKind: "removed"
+    });
+  });
+
+  test("recognises the 'Packages no longer available' heading", () => {
+    const notes = `### 6000.4.0a2 Release Notes
+
+#### Package changes in 6000.4.0a2
+
+#### Packages no longer available
+
+- [com.unity.ml-agents@2.0.1](https://docs.unity3d.com/Packages/com.unity.ml-agents@2.0//changelog/CHANGELOG.html)
+`;
+    const parsed = parseReleaseNotes(notes, {
+      version: "6000.4.0a2",
+      sourceUrl: "https://unity.com/releases/editor/whats-new/6000.4.0a2"
+    });
+
+    expect(parsed.packageChanges).toContainEqual({
+      packageName: "com.unity.ml-agents",
+      fromVersion: "2.0.1",
+      toVersion: null,
+      changeKind: "removed"
+    });
+  });
 });
