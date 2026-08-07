@@ -21,7 +21,11 @@
 import { fetchText } from "../lib/ingest/fetch";
 import { query } from "../lib/db/client";
 import { UNITY_OFFICIAL_PACKAGES } from "../lib/ingest/unity-packages";
-import { parseDocsChangelogTopVersion, unityMinorOfVersion } from "../lib/parsers/package-docs";
+import {
+  isPlausibleUnifiedRelease,
+  parseDocsChangelogTopVersion,
+  unityMinorOfVersion
+} from "../lib/parsers/package-docs";
 import { marketingMinor, modernMajorSql } from "../lib/unity-generation";
 
 const DOCS_BASE = "https://docs.unity3d.com/Packages";
@@ -86,9 +90,12 @@ async function probePackage(pkg: string, minors: string[]): Promise<ProbeResult>
       const res = await fetchText(url);
       if (res.status === 200) {
         const top = parseDocsChangelogTopVersion(res.text);
-        // The newest changelog version must match the probed minor; otherwise
-        // the docs redirected to the package's own latest (not aligned).
-        if (top && unityMinorOfVersion(top.version) === minor) {
+        // Two guards. The newest changelog version must match the probed
+        // minor (otherwise the docs redirected to the package's own latest,
+        // so it isn't aligned), AND its date must be in the unified-
+        // versioning era - the SRP family shipped a real 6.5.x line in
+        // 2019 that satisfies the version check by coincidence.
+        if (top && unityMinorOfVersion(top.version) === minor && isPlausibleUnifiedRelease(top)) {
           return { status: "aligned", aligned: { unityMinor: minor, version: top.version, date: top.date, url } };
         }
         // 200 but non-matching -> definitive "not aligned at this minor".

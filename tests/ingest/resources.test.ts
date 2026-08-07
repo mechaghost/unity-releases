@@ -93,6 +93,28 @@ describe("parseResourcePage", () => {
     expect(parsed?.summary).not.toContain("\\n");
   });
 
+  test("refuses a Next.js Flight reference token instead of storing it", () => {
+    // /resources/lessons-learned-in-building-a-digital-landfill-twin has
+    // \"description\":\"$3a\" - Flight deduplicated the text into another
+    // chunk. Storing the token rendered a literal `$3a` as the summary.
+    const html = rscBlock({
+      isGated: false,
+      seo: { title: "Lessons learned in Building a Digital Landfill Twin", description: "$3a" }
+    });
+    const parsed = parseResourcePage(html, "https://unity.com/resources/landfill");
+    expect(parsed?.title).toBe("Lessons learned in Building a Digital Landfill Twin");
+    expect(parsed?.summary).toBe("");
+  });
+
+  test("keeps prose that merely starts with a dollar sign", () => {
+    const html = rscBlock({
+      isGated: false,
+      seo: { title: "T", description: "$5 of credits for new Unity Cloud users" }
+    });
+    const parsed = parseResourcePage(html, "https://unity.com/resources/x");
+    expect(parsed?.summary).toBe("$5 of credits for new Unity Cloud users");
+  });
+
   test("decodes escaped entities in single-label and array-label fields", () => {
     const html = rscBlock({
       isGated: false,

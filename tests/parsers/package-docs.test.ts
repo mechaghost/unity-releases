@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  isPlausibleUnifiedRelease,
   parseDocsChangelogTopVersion,
   unityMinorOfVersion,
   docsMinorOfEditor
@@ -58,5 +59,33 @@ describe("docsMinorOfEditor", () => {
   });
   test("null for legacy year-scheme editors", () => {
     expect(docsMinorOfEditor("2022.3.61f1")).toBeNull();
+  });
+});
+
+describe("isPlausibleUnifiedRelease", () => {
+  test("accepts a real unified-versioned build", () => {
+    // com.unity.entities@6.5 - the genuine article.
+    expect(isPlausibleUnifiedRelease({ version: "6.5.0", date: "2025-10-22" })).toBe(true);
+    expect(isPlausibleUnifiedRelease({ version: "6.5.0", date: "2026-06-22" })).toBe(true);
+  });
+
+  test("rejects the coincidental SRP 6.5.x line from 2019", () => {
+    // render-pipelines.core / shadergraph / visualeffectgraph /
+    // render-pipelines.lightweight all really shipped 6.5.3 in April 2019,
+    // so `@6.5/changelog` is a real page whose version matches the probed
+    // minor. Prod claimed "Unity 6.5 ships as 6.5.3" for packages the
+    // Editor bundles at 17.7.0.
+    expect(isPlausibleUnifiedRelease({ version: "6.5.3", date: "2019-04-11" })).toBe(false);
+    expect(isPlausibleUnifiedRelease({ version: "6.5.3-preview", date: "2019-04-11" })).toBe(false);
+  });
+
+  test("rejects other pre-era coincidences", () => {
+    // xr.magicleap 6.4.1 (2021) and cloud.gltfast 6.5.0 (2024).
+    expect(isPlausibleUnifiedRelease({ version: "6.4.1", date: "2021-10-13" })).toBe(false);
+    expect(isPlausibleUnifiedRelease({ version: "6.5.0", date: "2024-05-15" })).toBe(false);
+  });
+
+  test("refuses an entry with no date rather than guessing", () => {
+    expect(isPlausibleUnifiedRelease({ version: "6.5.0", date: null })).toBe(false);
   });
 });

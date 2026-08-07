@@ -40,6 +40,30 @@ export function unityMinorOfVersion(version: string): string | null {
 }
 
 /**
+ * Unified versioning arrived with Unity 6.4, which shipped in 2025 - so a
+ * changelog whose newest entry predates that cannot be a version-aligned
+ * build, no matter what its number says.
+ *
+ * This matters because some packages had a coincidental x.y line YEARS
+ * ago: the SRP family (render-pipelines.core, shadergraph,
+ * visualeffectgraph, render-pipelines.lightweight) genuinely released
+ * 6.5.3 in **April 2019**, so `@6.5/changelog` returns a real page whose
+ * top entry is `[6.5.3] - 2019-04-11`. Matching on major.minor alone
+ * accepted it and claimed "Unity 6.5 ships as 6.5.3" for a package the
+ * Editor actually bundles at 17.7.0. Same for xr.magicleap (6.4.1, 2021)
+ * and cloud.gltfast (6.5.0, 2024).
+ *
+ * A missing date means we can't confirm the entry is modern, so it's
+ * refused too - a false "version-aligned" badge is worse than none.
+ */
+export const UNIFIED_VERSIONING_EPOCH = "2025-01-01";
+
+export function isPlausibleUnifiedRelease(entry: DocsChangelogEntry): boolean {
+  if (!entry.date) return false;
+  return entry.date >= UNIFIED_VERSIONING_EPOCH;
+}
+
+/**
  * "6000.4.11f1" -> "6.4", "7000.1.0f1" -> "7.1" (the Unity marketing minor
  * used in docs URLs). Null for legacy year versions, which have no
  * separate marketing number and no unified-versioning docs to probe.

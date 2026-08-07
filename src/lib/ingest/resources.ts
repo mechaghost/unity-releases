@@ -213,6 +213,23 @@ function decodeValue(raw: string): string {
   return out.replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Next.js Flight deduplicates long strings: the field holds a reference
+ * token (`$3a`) and the text is emitted in a later `__next_f.push`
+ * chunk. Resolving one means reconstructing the whole stream across
+ * push boundaries, so we simply refuse the token - an absent summary
+ * beats rendering a literal `$3a` on the card, which is what
+ * /resources/lessons-learned-in-building-a-digital-landfill-twin did.
+ * Flight prefixes every special value with `$` (`$undefined`, `$L1`,
+ * `$Sreact.suspense`); requiring the WHOLE value to be a short
+ * space-free token keeps prose that merely starts with a dollar sign.
+ */
+const FLIGHT_REF_RE = /^\$[0-9a-zA-Z.$]{0,24}$/;
+
+function isFlightReference(value: string): boolean {
+  return FLIGHT_REF_RE.test(value);
+}
+
 /** Read `\"<field>\":\"<value>\"` starting the search at `from`. */
 function readFieldAt(
   html: string,
@@ -224,7 +241,9 @@ function readFieldAt(
   if (at < 0) return null;
   const read = readEscapedString(html, at + marker.length);
   if (!read) return null;
-  return { value: decodeValue(read.raw), end: read.end };
+  const value = decodeValue(read.raw);
+  if (isFlightReference(value)) return null;
+  return { value, end: read.end };
 }
 
 /** First match for `\"<field>\":{\"label\":\"...\"}`. Used for type,
