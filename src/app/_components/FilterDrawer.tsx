@@ -46,8 +46,10 @@ type Props = {
   /** When non-empty, render a Sub-range picker (compare-only). The list is
    *  the resolved diff range; sub_from / sub_to must be in this set. */
   versionsInRange?: readonly string[];
-  /** Static URL params that must be preserved on apply (from, to, p_<lane> …). */
-  preservedParams: Record<string, string>;
+  /** Scope params that must be preserved on apply (from, to, stream …).
+   *  Entry pairs, not a map: `stream` repeats and would otherwise collapse
+   *  to a single value, silently rescoping the diff to LTS-only. */
+  preservedParams: ReadonlyArray<readonly [string, string]>;
   /** Page path the form should submit to. */
   basePath: string;
   /** Which view this drawer is on; used to scope the persona-preset cookie. */
@@ -145,8 +147,8 @@ export function FilterDrawer({
     if (next === initialSerialized.current) return;
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams();
-      for (const [k, v] of Object.entries(preservedParams)) {
-        if (v) params.set(k, v);
+      for (const [k, v] of preservedParams) {
+        if (v) params.append(k, v);
       }
       serializeFiltersToParams(state, params);
       initialSerialized.current = next;

@@ -51,6 +51,7 @@ import { ComparePicker } from "../_components/ComparePicker";
 import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
 import { UpgradeScoreCard } from "../_components/UpgradeScoreCard";
 import { getScoreInputs } from "@/lib/visualizer";
+import { buildLanePageUrl, comparePreservedParams } from "@/lib/compare-url";
 import {
   aggregateDiffScoreInput,
   scoreAllReleases,
@@ -143,6 +144,16 @@ export default async function ComparePage({
   // params always renders LTS-only so the same URL produces the same
   // diff for every reader (no cookie influence).
   const selectedStreams = parseCompareStreamSelection(params.getAll("stream"));
+
+  // Every /compare link this page renders (lane pagination, filter apply)
+  // has to re-emit these or it silently rescopes the diff - most visibly
+  // `stream`, whose absence means LTS-only rather than "unfiltered".
+  const scope = {
+    fromVersion,
+    toVersion,
+    platform,
+    streams: selectedStreams
+  };
 
   // User filter state - URL is the source of truth, persona cookie is the
   // first-visit fallback. The drawer applies user changes via router.push.
@@ -500,11 +511,7 @@ export default async function ComparePage({
             manifestPackages={userPackages}
             savedPresets={savedPresets}
             versionsInRange={fullVersions}
-            preservedParams={{
-              from: fromVersion,
-              to: toVersion,
-              ...(platform ? { platform } : {})
-            }}
+            preservedParams={comparePreservedParams(scope)}
             basePath="/compare"
             view="compare"
           />
@@ -543,11 +550,7 @@ export default async function ComparePage({
 
       <FilterChips
         filters={filterState}
-        preservedParams={{
-          from: fromVersion,
-          to: toVersion,
-          ...(platform ? { platform } : {})
-        }}
+        preservedParams={comparePreservedParams(scope)}
         basePath="/compare"
       />
 
@@ -565,14 +568,7 @@ export default async function ComparePage({
                 packageBoundaries={packageBoundaries}
                 issueStatuses={issueStatuses}
                 buildPageUrl={(nextPage) =>
-                  buildLanePageUrl({
-                    fromVersion,
-                    toVersion,
-                    platform,
-                    lanePages,
-                    laneId: l.def.id,
-                    nextPage
-                  })
+                  buildLanePageUrl(params, scope, l.def.id, nextPage)
                 }
               />
             ))}
@@ -1004,30 +1000,6 @@ function parseLanePage(raw: string | null): number {
   if (!raw) return 1;
   const n = Number.parseInt(raw, 10);
   return Number.isFinite(n) && n > 0 ? n : 1;
-}
-
-function buildLanePageUrl(input: {
-  fromVersion: string;
-  toVersion: string;
-  platform: string;
-  lanePages: Record<LaneId, number>;
-  laneId: LaneId;
-  nextPage: number;
-}): string {
-  const params = new URLSearchParams();
-  params.set("from", input.fromVersion);
-  params.set("to", input.toVersion);
-  if (input.platform) params.set("platform", input.platform);
-  // Preserve every other lane's page param so paginating one lane doesn't
-  // silently reset the rest of the page.
-  for (const [laneId, page] of Object.entries(input.lanePages)) {
-    if (laneId === input.laneId) continue;
-    if (page > 1) params.set(`p_${laneId}`, String(page));
-  }
-  if (input.nextPage > 1) {
-    params.set(`p_${input.laneId}`, String(input.nextPage));
-  }
-  return `/compare?${params.toString()}#lane-${input.laneId}`;
 }
 
 function LandingIntro() {

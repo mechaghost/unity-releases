@@ -26,7 +26,9 @@ type Props = {
   manifestPackages: readonly string[];
   savedPresets: SavedPreset[];
   versionsInRange?: readonly string[];
-  preservedParams: Record<string, string>;
+  /** Scope params to re-emit on apply, as entry pairs rather than a map -
+   *  `stream` repeats, and a map would collapse it to one value. */
+  preservedParams: ReadonlyArray<readonly [string, string]>;
   basePath: string;
   view: "compare" | "release";
 };
@@ -96,7 +98,7 @@ export function FilterChips({
 
   function pushState(next: FilterState) {
     const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(preservedParams)) if (v) params.set(k, v);
+    for (const [k, v] of preservedParams) if (v) params.append(k, v);
     serializeFiltersToParams(next, params);
     router.push(`${basePath}?${params.toString()}`);
   }

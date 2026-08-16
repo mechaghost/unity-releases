@@ -224,7 +224,7 @@ export default async function ReleasePage({
         facets={facets}
         manifestPackages={userPackages}
         savedPresets={savedPresets}
-        preservedParams={{}}
+        preservedParams={[]}
         basePath={`/releases/${encodeURIComponent(decoded)}`}
         view="release"
       />
