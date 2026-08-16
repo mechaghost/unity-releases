@@ -180,21 +180,26 @@ describe("Product Updates jobs", () => {
     expect(config.deploy.cronSchedule).toBe("0 5 * * *");
   });
 
-  test("hard-kills a source process that ignores graceful termination", async () => {
-    const result = await runSourceProcess("ignored", [], 500, {
-      nodeArgs: [
-        "-e",
-        "process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"
-      ],
-      terminationGraceMs: 50
-    });
-    expect(result).toMatchObject({
-      ok: false,
-      timedOut: true,
-      signal: "SIGKILL"
-    });
-    expect(result.durationMs).toBeLessThan(2_000);
-  });
+  // Windows has no POSIX signals: a hard kill goes through TerminateProcess and
+  // Node reports signal: null, so the SIGKILL assertion can only hold on POSIX.
+  test.skipIf(process.platform === "win32")(
+    "hard-kills a source process that ignores graceful termination",
+    async () => {
+      const result = await runSourceProcess("ignored", [], 500, {
+        nodeArgs: [
+          "-e",
+          "process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"
+        ],
+        terminationGraceMs: 50
+      });
+      expect(result).toMatchObject({
+        ok: false,
+        timedOut: true,
+        signal: "SIGKILL"
+      });
+      expect(result.durationMs).toBeLessThan(2_000);
+    }
+  );
 
   test("rejects unknown sources and families before running", async () => {
     mocks.findAdapter.mockReturnValue(null);
