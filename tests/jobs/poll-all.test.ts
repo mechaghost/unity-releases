@@ -1,7 +1,9 @@
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  isWindows,
   JOB_ORDER,
+  npmRunCommand,
   runAllJobs,
   type JobDefinition,
   type SpawnJob
@@ -12,6 +14,35 @@ const JOBS: JobDefinition[] = [
   { name: "packages", npmScript: "ingest:packages" },
   { name: "news", npmScript: "ingest:news" }
 ];
+
+describe("npm child-process invocation", () => {
+  // Every job failed in ~4ms on Windows: first `spawn npm ENOENT` (npm is
+  // a .cmd shim and shell-less spawn only resolves real executables), then
+  // `spawn EINVAL` once the shim was named (post-CVE-2024-27980 Node
+  // refuses .cmd without a shell). Railway is Linux and the unit tests
+  // inject a fake spawner, so nothing caught it.
+  test("routes through cmd.exe on Windows and spawns npm directly elsewhere", () => {
+    const [command, args] = npmRunCommand("ingest:editor");
+    if (process.platform === "win32") {
+      expect(command).toBe("cmd.exe");
+      expect(args).toEqual(["/c", "npm", "run", "ingest:editor"]);
+    } else {
+      expect(command).toBe("npm");
+      expect(args).toEqual(["run", "ingest:editor"]);
+    }
+  });
+
+  test("leaves the Linux invocation - the only one Railway runs - unchanged", () => {
+    expect(isWindows).toBe(process.platform === "win32");
+    if (!isWindows) expect(npmRunCommand("check:invariants")[0]).toBe("npm");
+  });
+
+  test("every shipped job name is inert as a shell argument", () => {
+    for (const job of JOB_ORDER) {
+      expect(job.npmScript).toMatch(/^[a-z0-9](?:[a-z0-9:_-]*[a-z0-9])?$/i);
+    }
+  });
+});
 
 describe("JOB_ORDER", () => {
   test("runs editor first so downstream surfaces see fresh release notes", () => {

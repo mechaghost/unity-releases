@@ -88,11 +88,48 @@ export type RunSummary = {
 
 export type SpawnJob = (job: JobDefinition) => Promise<{ exitCode: number | null }>;
 
+/** Windows needs BOTH of these and neither is optional:
+ *
+ *  - npm there is a `.cmd` shim, and shell-less `spawn` only resolves
+ *    real executables, so a bare "npm" throws ENOENT.
+ *  - since the CVE-2024-27980 fix (Node 18.20 / 20.12), Node refuses to
+ *    spawn a `.cmd` or `.bat` without a shell at all - EINVAL.
+ *
+ *  Railway is Linux and takes neither path, and the unit tests inject a
+ *  fake spawner, so nothing exercised this: `ingest:all` had simply
+ *  never run on Windows. */
+export const isWindows = process.platform === "win32";
+
+/** Argv for `npm run <script>` on the current platform.
+ *
+ *  Windows goes through `cmd.exe /c` rather than `shell: true`: the
+ *  shell option concatenates argv instead of escaping it (Node DEP0190)
+ *  and would drag the deprecation into every local run. Invoking the
+ *  interpreter explicitly keeps Node's normal argument handling.
+ *
+ *  Linux - which is all Railway ever runs - is untouched by this and
+ *  still spawns npm directly. */
+export function npmRunCommand(npmScript: string): [string, string[]] {
+  return isWindows
+    ? ["cmd.exe", ["/c", "npm", "run", npmScript]]
+    : ["npm", ["run", npmScript]];
+}
+
+/** The script name reaches a command interpreter on Windows, so it has
+ *  to be inert. JOB_ORDER is hardcoded, but `runAllJobs` takes an
+ *  arbitrary job list - validate rather than trust every future caller. */
+const SAFE_NPM_SCRIPT = /^[a-z0-9](?:[a-z0-9:_-]*[a-z0-9])?$/i;
+
 /** Default spawner: shells out to `npm run <script>` and inherits stdio
  *  so the child's logs appear in Railway's log stream live. */
 const defaultSpawn: SpawnJob = (job) =>
   new Promise((resolve, reject) => {
-    const proc = spawn("npm", ["run", job.npmScript], {
+    if (!SAFE_NPM_SCRIPT.test(job.npmScript)) {
+      reject(new Error(`Refusing to spawn unsafe npm script name: ${job.npmScript}`));
+      return;
+    }
+    const [command, args] = npmRunCommand(job.npmScript);
+    const proc = spawn(command, args, {
       stdio: "inherit",
       env: process.env
     });
