@@ -1734,11 +1734,18 @@ export async function upsertResource(
         title = EXCLUDED.title,
         summary = EXCLUDED.summary,
         og_image = EXCLUDED.og_image,
-        resource_type = EXCLUDED.resource_type,
-        industry = EXCLUDED.industry,
-        topics = EXCLUDED.topics,
-        is_gated = EXCLUDED.is_gated,
-        sfdc_form_id = EXCLUDED.sfdc_form_id,
+        resource_type = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+          THEN COALESCE(EXCLUDED.resource_type, resources.resource_type) ELSE EXCLUDED.resource_type END,
+        industry = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+          THEN COALESCE(EXCLUDED.industry, resources.industry) ELSE EXCLUDED.industry END,
+        topics = CASE
+          WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+            AND EXCLUDED.raw_metadata_json->>'topicsAvailable' = 'false'
+          THEN resources.topics ELSE EXCLUDED.topics END,
+        is_gated = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+          THEN resources.is_gated ELSE EXCLUDED.is_gated END,
+        sfdc_form_id = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+          THEN COALESCE(EXCLUDED.sfdc_form_id, resources.sfdc_form_id) ELSE EXCLUDED.sfdc_form_id END,
         resource_date = EXCLUDED.resource_date,
         read_duration = EXCLUDED.read_duration,
         author = EXCLUDED.author,
@@ -1775,13 +1782,13 @@ export async function upsertResource(
 /** Read the slug → (lastmod, body_hash) map so the poller can skip
  *  pages whose sitemap lastmod hasn't advanced past what we already
  *  have. Returned in a single round-trip. */
-export async function getResourceFreshness(): Promise<Map<string, { lastmod: string | null; bodyHash: string | null }>> {
-  const result = await query<{ slug: string; lastmod: string | null; body_hash: string | null }>(
-    "SELECT slug, lastmod::text AS lastmod, body_hash FROM resources"
+export async function getResourceFreshness(): Promise<Map<string, { lastmod: string | null; bodyHash: string | null; parserVersion: string | null }>> {
+  const result = await query<{ slug: string; lastmod: string | null; body_hash: string | null; parser_version: string | null }>(
+    "SELECT slug, lastmod::text AS lastmod, body_hash, raw_metadata_json->>'parserVersion' AS parser_version FROM resources"
   );
-  const out = new Map<string, { lastmod: string | null; bodyHash: string | null }>();
+  const out = new Map<string, { lastmod: string | null; bodyHash: string | null; parserVersion: string | null }>();
   for (const row of result.rows) {
-    out.set(row.slug, { lastmod: row.lastmod, bodyHash: row.body_hash });
+    out.set(row.slug, { lastmod: row.lastmod, bodyHash: row.body_hash, parserVersion: row.parser_version });
   }
   return out;
 }

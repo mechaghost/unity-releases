@@ -1,3 +1,4 @@
+import * as cheerio from "cheerio";
 import { sha256 } from "./hash";
 import {
   extractFlightStream,
@@ -14,13 +15,19 @@ import {
  * chunks - the structured fields (type, topics, vertical, date, isGated,
  * etc.) live there, escaped as `\"key\":\"value\"`.
  *
- * The full resources sitemap is at https://unity.com/resources/sitemap.xml
- * and uses standard `<loc>` + `<lastmod>` entries; we use lastmod as the
- * incremental-fetch boundary (skip pages whose lastmod hasn't advanced
+ * Migrated resources now live in the content sitemap; the resources
+ * sitemap retains a small legacy subset. We read both and the latest
+ * index cards, which can appear before their sitemap entries. We use
+ * lastmod as the incremental-fetch boundary (skip pages whose lastmod hasn't advanced
  * past what we already have on file).
  */
 
 export const SITEMAP_URL = "https://unity.com/resources/sitemap.xml";
+export const CONTENT_SITEMAP_URL = "https://unity.com/content/sitemap.xml";
+export const RESOURCES_INDEX_URL = "https://unity.com/resources";
+
+// Forces one replay after the content migration even when lastmod is unchanged.
+export const RESOURCE_PARSER_VERSION = "resources-2026-10-01";
 
 export type SitemapEntry = {
   /** Absolute resource URL - `https://unity.com/resources/<slug>`. */
@@ -51,6 +58,34 @@ export function parseResourcesSitemap(xml: string): SitemapEntry[] {
     out.push({ url, lastmod: lastmodMatch ? lastmodMatch[1] : null });
   }
   return out;
+}
+
+/** Latest cards cover the interval before Unity updates its sitemap. */
+export function parseResourcesIndex(html: string): SitemapEntry[] {
+  const $ = cheerio.load(html);
+  const entries = new Map<string, SitemapEntry>();
+  $("a[href]").each((_, link) => {
+    let url: URL;
+    try { url = new URL($(link).attr("href")!, RESOURCES_INDEX_URL); }
+    catch { return; }
+    if (url.origin !== "https://unity.com" || !/^\/resources\/[^/?#]+$/.test(url.pathname)) return;
+    url.search = "";
+    url.hash = "";
+    entries.set(url.href, { url: url.href, lastmod: null });
+  });
+  return [...entries.values()];
+}
+
+/** Retain the newest entry and its snapshot provenance across overlapping sources. */
+export function mergeResourceEntries<T extends SitemapEntry>(entries: readonly T[]): T[] {
+  const merged = new Map<string, T>();
+  for (const entry of entries) {
+    const known = merged.get(entry.url);
+    if (!known || (Date.parse(entry.lastmod ?? "") || 0) > (Date.parse(known.lastmod ?? "") || 0)) {
+      merged.set(entry.url, entry);
+    }
+  }
+  return [...merged.values()];
 }
 
 export type ParsedResource = {
@@ -112,7 +147,7 @@ function parseViaFlight(html: string, url: string, lastmod: string | null): Pars
   const rows = parseFlightRows(extractFlightStream(html));
   if (rows.size === 0) return null;
   const doc = findFlightObject(rows, isResourceDocument);
-  if (!doc) return null;
+  if (!doc) return parseContentHeader(rows, html, url, lastmod);
 
   const slug = extractSlug(url);
   if (!slug) return null;
@@ -142,8 +177,60 @@ function parseViaFlight(html: string, url: string, lastmod: string | null): Pars
     rawMetadata: {
       lastmod,
       parserPath: "flight",
+      parserVersion: RESOURCE_PARSER_VERSION,
       seoTitle: title,
       seoDescription: summary
+    }
+  };
+}
+
+/** The new CMS emits component props instead of the original Sanity document. */
+function parseContentHeader(
+  rows: ReturnType<typeof parseFlightRows>, html: string, url: string, lastmod: string | null
+): ParsedResource | null {
+  const header = findFlightObject(rows, (node) =>
+    typeof node.title === "string" && "heroImage" in node &&
+    "readDuration" in node && "authors" in node && "date" in node
+  );
+  if (!header) return null;
+  const slug = extractSlug(url);
+  const title = normalizeWhitespace(stringOf(header.title));
+  if (!slug || !title) return null;
+
+  const $ = cheerio.load(html);
+  // Bind the structured article to this URL: navigation and related cards
+  // must never make a soft 404 look like a real resource.
+  let article: Record<string, unknown> | null = null;
+  $('script[type="application/ld+json"]').each((_, element) => {
+    try {
+      const value = JSON.parse($(element).text()) as Record<string, unknown>;
+      if (value["@type"] === "Article" && value.url === url) article = value;
+    } catch { /* An unrelated malformed structured-data block is not the article. */ }
+  });
+  if (!article) throw new Error(`Resource content header has no matching structured article: ${url}`);
+  const metadata = article as Record<string, unknown>;
+  const date = normalizeIsoDate(stringOf(metadata.datePublished));
+  if (!date) throw new Error(`Resource content header has no publication date: ${url}`);
+  const summary = normalizeWhitespace(
+    $("meta[name='description']").attr("content") ?? $("meta[property='og:description']").attr("content") ?? null
+  );
+  const authors = Array.isArray(header.authors) ? header.authors : [];
+  const minutes = pathOf(header, "readDuration", "minutes");
+  return {
+    slug, url, title, summary: summary ?? "",
+    ogImage: stringOf(pathOf(header, "heroImage", "src")),
+    // Unity no longer supplies type/industry/gating in these props. Keep
+    // them unknown; upserts preserve existing classifications and gating.
+    resourceType: null, industry: null,
+    topics: Array.isArray(header.topics) ? header.topics.map(labelOf).filter((t): t is string => !!t) : [],
+    isGated: false, sfdcFormId: null, resourceDate: date,
+    readDuration: typeof minutes === "number" && minutes > 0 ? `${minutes} min` : null,
+    author: authors.map((author) => stringOf(pathOf(author, "name"))).filter(Boolean).join(", ") || null,
+    bodyHash: sha256(html),
+    rawMetadata: {
+      lastmod, parserPath: "flight", parserVersion: RESOURCE_PARSER_VERSION,
+      sourceFormat: "content-header", topicsAvailable: Array.isArray(header.topics),
+      seoTitle: title, seoDescription: summary
     }
   };
 }

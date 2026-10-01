@@ -29,6 +29,34 @@ function parse(slug: string) {
 }
 
 describe("golden: real Unity resource payloads", () => {
+  test.each([
+    ["a-beginners-guide-to-unity-cli-and-the-pipeline-package", "A beginner’s guide to Unity CLI and the Pipeline package", "2026-09-17"],
+    ["unity-vector-data-health-checklist", "Unity Vector data health checklist", "2026-09-23"],
+    ["tata-daewoo-virtual-nvh-validation", "Tata Daewoo: validating vehicle noise, vibration and harshness in virtual reality", "2026-09-10"]
+  ])("migrated content page: %s", (slug, title, date) => {
+    const html = readFileSync(
+      join(process.cwd(), "tests/fixtures/resources", `${slug}.content.html`), "utf8"
+    );
+    const parsed = parseResourcePage(html, `https://unity.com/resources/${slug}`);
+    expect(parsed?.title).toBe(title);
+    expect(parsed?.resourceDate).toBe(date);
+    expect(parsed?.summary.length).toBeGreaterThan(40);
+    expect(parsed?.ogImage).toMatch(/^https:\/\/cdn\.sanity\.io\//);
+    expect(parsed?.rawMetadata).toMatchObject({ parserPath: "flight", sourceFormat: "content-header" });
+    if (slug.startsWith("a-beginners")) {
+      expect(parsed?.author).toBe("Thomas Krogh-Jacobsen");
+      expect(parsed?.readDuration).toBe("6 min");
+    }
+    if (slug.startsWith("unity-vector")) expect(parsed?.topics).toEqual(["User acquisition"]);
+  });
+
+  test("a content header without its canonical article fails rather than using a decoy type", () => {
+    const slug = "tata-daewoo-virtual-nvh-validation";
+    const html = readFileSync(join(process.cwd(), "tests/fixtures/resources", `${slug}.content.html`), "utf8");
+    expect(() => parseResourcePage(html, "https://unity.com/resources/missing"))
+      .toThrow("no matching structured article");
+  });
+
   test("madbox - a quoted phrase inside the title survives intact", () => {
     // Was stored as `Madbox achieves \` - the scanner stopped at the
     // first inner quote because `\\\"` and the `\"` delimiter are both

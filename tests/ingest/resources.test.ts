@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { parseResourcePage, parseResourcesSitemap } from "@/lib/ingest/resources";
+import { mergeResourceEntries, parseResourcePage, parseResourcesIndex, parseResourcesSitemap } from "@/lib/ingest/resources";
 
 /**
  * Build a fixture with the SAME two layers of escaping Next.js emits:
@@ -150,5 +150,31 @@ describe("parseResourcesSitemap", () => {
     expect(entries).toEqual([
       { url: "https://unity.com/resources/a-guide", lastmod: "2026-08-05" }
     ]);
+  });
+  test("content sitemap ignores unrelated pages and locale copies", () => {
+    expect(parseResourcesSitemap(`<urlset>
+      <url><loc>https://unity.com/products/unity-pro</loc></url>
+      <url><loc>https://unity.com/resources/migrated</loc><lastmod>2026-09-17</lastmod></url>
+      <url><loc>https://unity.com/ja/resources/migrated</loc></url>
+    </urlset>`)).toEqual([{ url: "https://unity.com/resources/migrated", lastmod: "2026-09-17" }]);
+  });
+});
+
+describe("resource discovery", () => {
+  test("includes new index cards before they reach the sitemap", () => {
+    const html = `<a href="/resources?topics=multiplayer">Filter</a>
+      <a href="/resources/new-guide">New guide</a>
+      <a href="https://unity.com/resources/new-guide#share">Duplicate</a>
+      <a href="https://example.com/resources/other">Other host</a>
+      <a href="/fr/resources/new-guide">Translation</a>`;
+    expect(parseResourcesIndex(html)).toEqual([{ url: "https://unity.com/resources/new-guide", lastmod: null }]);
+  });
+  test("merges overlaps using the newest lastmod and corresponding snapshot", () => {
+    const url = "https://unity.com/resources/guide";
+    expect(mergeResourceEntries([
+      { url, lastmod: "2026-08-01", sourceSnapshotId: 1 },
+      { url, lastmod: "2026-09-17", sourceSnapshotId: 2 },
+      { url, lastmod: null, sourceSnapshotId: 3 }
+    ])).toEqual([{ url, lastmod: "2026-09-17", sourceSnapshotId: 2 }]);
   });
 });

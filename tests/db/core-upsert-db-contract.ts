@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { parseResourcePage, RESOURCE_PARSER_VERSION } from "../../src/lib/ingest/resources";
 import { setupE2eDatabase } from "../e2e/setup-db";
 import { scopedDatabaseUrl } from "../e2e/test-database";
 import { sha256 } from "../../src/lib/ingest/hash";
@@ -314,6 +316,39 @@ async function main() {
       unity: "6000.0",
       unityRelease: "16f1"
     });
+
+    const resourceSlug = "a-beginners-guide-to-unity-cli-and-the-pipeline-package";
+    const resource = parseResourcePage(
+      readFileSync(`tests/fixtures/resources/${resourceSlug}.content.html`, "utf8"),
+      `https://unity.com/resources/${resourceSlug}`
+    );
+    assert.ok(resource);
+    await repositories.upsertResource(client, {
+      ...resource, title: "Before CMS migration", resourceType: "E-book",
+      industry: "Games", topics: ["Multiplayer"], isGated: true,
+      sfdcFormId: "existing-form", rawMetadata: { parserPath: "flight" }
+    }, "2026-09-17", runId, snapshotId);
+    await repositories.upsertResource(client, resource, "2026-09-17", runId, snapshotId);
+    const migrated = await query<{
+      title: string; resource_type: string; industry: string;
+      topics: string[]; is_gated: boolean; sfdc_form_id: string; resource_date: string;
+    }>(`SELECT title, resource_type, industry, topics, is_gated, sfdc_form_id,
+      resource_date::text FROM resources WHERE slug = $1`, [resourceSlug]);
+    assert.deepEqual(migrated.rows[0], {
+      title: resource.title, resource_type: "E-book", industry: "Games",
+      topics: ["Multiplayer"], is_gated: true, sfdc_form_id: "existing-form",
+      resource_date: "2026-09-17"
+    }, "content migration must refresh text/date without erasing unavailable metadata");
+    const freshness = await repositories.getResourceFreshness();
+    assert.equal(freshness.get(resourceSlug)?.parserVersion, RESOURCE_PARSER_VERSION);
+
+    // An explicit empty topic list is authoritative; an omitted one is not.
+    await repositories.upsertResource(client, {
+      ...resource, rawMetadata: { ...resource.rawMetadata, topicsAvailable: true }
+    }, "2026-09-17", runId, snapshotId);
+    assert.deepEqual((await query<{ topics: string[] }>(
+      "SELECT topics FROM resources WHERE slug = $1", [resourceSlug]
+    )).rows[0].topics, []);
   } finally {
     client.release();
     await getPool().end();
