@@ -742,6 +742,7 @@ CREATE TABLE IF NOT EXISTS discourse_staff_users (
   -- unity_staff. We keep the row + its posts so historical attribution
   -- survives, but new posts won't be polled.
   active_in_group BOOLEAN NOT NULL DEFAULT true,
+  -- Last completed activity poll; roster refreshes must not advance this.
   last_polled_at TIMESTAMPTZ,
   raw_metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   source_snapshot_id BIGINT REFERENCES source_snapshots(id),

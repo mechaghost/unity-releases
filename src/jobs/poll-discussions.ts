@@ -16,6 +16,8 @@ import {
   finishIngestionRun,
   findDiscourseStaffUserDbId,
   getDiscoursePostFreshness,
+  getDiscourseStaffPollTimes,
+  markDiscourseStaffUserPolled,
   insertDiscoursePostRevisionIfChanged,
   markMissingDiscourseStaffUsersInactive,
   recordSourceSnapshot,
@@ -75,6 +77,7 @@ type FetchResult =
 
 export class RequestBudget {
   private count = 0;
+  private skippedRequest = false;
   private rateLimitedAt: number | null = null;
 
   constructor(private readonly max: number) {}
@@ -91,17 +94,27 @@ export class RequestBudget {
     return this.rateLimitedAt !== null;
   }
 
+  get incomplete() {
+    return this.throttled || this.skippedRequest;
+  }
+
   /** Counted, rate-limited Discourse fetch. Returns a discriminated
    *  union so the caller can treat 404/429 as data, not exceptions. */
   async fetch(url: string): Promise<FetchResult> {
     if (this.exhausted) {
+      this.skippedRequest = true;
       return { kind: "skipped", reason: "budget_exhausted" };
     }
     if (this.rateLimitedAt !== null) {
       return { kind: "rate_limited", status: 429 };
     }
     this.count += 1;
-    const source = await fetchText(url, { userAgent: DISCOURSE_USER_AGENT });
+    let source: FetchedSource;
+    try {
+      source = await fetchText(url, { userAgent: DISCOURSE_USER_AGENT });
+    } finally {
+      if (REQUEST_DELAY_MS > 0) await sleep(REQUEST_DELAY_MS);
+    }
     if (source.status === 429) {
       // Once Discourse rate-limits us, every subsequent call should
       // back off too — defer the remaining users to the next cron.
@@ -113,9 +126,6 @@ export class RequestBudget {
     }
     if (source.status >= 400) {
       throw new Error(`HTTP ${source.status} fetching ${url}`);
-    }
-    if (REQUEST_DELAY_MS > 0) {
-      await sleep(REQUEST_DELAY_MS);
     }
     return { kind: "ok", source };
   }
@@ -188,9 +198,8 @@ function logEvent(event: string, payload: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ event, ...payload }));
 }
 
-async function main() {
+export async function pollDiscussions(budget = new RequestBudget(MAX_REQUESTS_PER_RUN)) {
   const summary = emptySummary();
-  const budget = new RequestBudget(MAX_REQUESTS_PER_RUN);
 
   const runId = await createDiscourseIngestionRun();
   logEvent("discussions_run_start", { runId, maxRequests: MAX_REQUESTS_PER_RUN });
@@ -203,6 +212,7 @@ async function main() {
     // Active filter: skip ex-employees who haven't posted in
     // ACTIVE_WINDOW_DAYS. Avoids wasting the per-day request budget
     // on dormant accounts the workflow research observed are common.
+    const pollTimes = await getDiscourseStaffPollTimes();
     const cutoff = Date.now() - ACTIVE_WINDOW_DAYS * 86_400_000;
     const active = roster
       .filter(
@@ -210,32 +220,28 @@ async function main() {
           u.lastPostedAt !== null &&
           new Date(u.lastPostedAt).getTime() >= cutoff
       )
-      // Most-recently-active first so a budget-limited run still gets
-      // the freshest posters before exhausting MAX_REQUESTS.
+      // Oldest completed activity poll first. Never-polled users lead;
+      // a stable id breaks ties, so roster ordering cannot reset progress.
       .sort((a, b) => {
-        const aTs = a.lastPostedAt ? new Date(a.lastPostedAt).getTime() : 0;
-        const bTs = b.lastPostedAt ? new Date(b.lastPostedAt).getTime() : 0;
-        return bTs - aTs;
-      })
-      .slice(0, MAX_USERS_PER_RUN);
+        const aTs = Date.parse(pollTimes.get(a.discourseUserId) ?? "") || 0;
+        const bTs = Date.parse(pollTimes.get(b.discourseUserId) ?? "") || 0;
+        return aTs - bTs || a.discourseUserId - b.discourseUserId;
+      });
     summary.activeUsers = active.length;
 
     const freshness = await getDiscoursePostFreshness();
     const topicCache = new Map<number, ParsedDiscourseTopic>();
 
-    for (const user of active) {
+    for (const user of active.slice(0, MAX_USERS_PER_RUN)) {
       if (budget.exhausted || budget.throttled) {
-        summary.usersSkippedBudget = active.length - summary.usersProcessed;
-        summary.rateLimitedEarly = budget.throttled;
-        logEvent("discussions_budget_exit", {
-          processed: summary.usersProcessed,
-          deferred: summary.usersSkippedBudget,
-          throttled: budget.throttled
-        });
         break;
       }
       try {
-        await processUser(user, runId, budget, freshness, topicCache, summary);
+        const completed = await processUser(user, runId, budget, freshness, topicCache, summary);
+        if (completed && !budget.incomplete) {
+          await inTx((client) => markDiscourseStaffUserPolled(client, user.discourseUserId));
+          summary.usersProcessed += 1;
+        }
       } catch (err) {
         summary.usersFetchErrors += 1;
         logEvent("discussions_user_error", {
@@ -245,12 +251,14 @@ async function main() {
       }
     }
 
+    summary.usersSkippedBudget = active.length - summary.usersProcessed - summary.usersFetchErrors;
+    if (budget.incomplete || summary.usersSkippedBudget > 0 || summary.usersFetchErrors > 0) {
+      throw new Error(
+        `Discussions incomplete: ${summary.usersProcessed}/${summary.activeUsers} users completed, ` +
+        `${summary.usersSkippedBudget} deferred, ${summary.usersFetchErrors} errors, throttled=${budget.throttled}`
+      );
+    }
     await finalizeRun(runId, "success", summary);
-    logEvent("discussions_run_summary", {
-      runId,
-      requestsSpent: budget.spent,
-      ...summary
-    });
   } catch (err) {
     await finalizeRun(runId, "failed", summary, err).catch(() => undefined);
     logEvent("discussions_run_failed", {
@@ -259,6 +267,9 @@ async function main() {
       error: err instanceof Error ? err.message : String(err)
     });
     throw err;
+  } finally {
+    summary.rateLimitedEarly = budget.throttled;
+    logEvent("discussions_run_summary", { runId, requestsSpent: budget.spent, ...summary });
   }
 }
 
@@ -292,8 +303,7 @@ async function stepSiteAndCategories(
 ): Promise<void> {
   const result = await budget.fetch(`${DISCOURSE_BASE}/site.json`);
   if (result.kind !== "ok") {
-    logEvent("discussions_site_unavailable", { kind: result.kind });
-    return;
+    throw new Error(`Discussions site unavailable: ${result.kind}`);
   }
   const parsed = parseDiscourseSite(result.source.text);
   await inTx(async (client) => {
@@ -381,6 +391,10 @@ async function stepRoster(
     if (parsed.total > 0 && offset >= parsed.total) break;
   }
 
+  if (summary.rosterTotal <= 0 || roster.length < summary.rosterTotal) {
+    throw new Error(`Discussions roster incomplete: ${roster.length}/${summary.rosterTotal} members`);
+  }
+
   // Only mark inactive when we walked the full roster — a partial
   // walk (e.g. budget exhausted) would falsely deactivate every user
   // we didn't get to.
@@ -428,22 +442,21 @@ async function processUser(
   freshness: Map<number, DiscoursePostFreshness>,
   topicCache: Map<number, ParsedDiscourseTopic>,
   summary: RunSummary
-): Promise<void> {
-  summary.usersProcessed += 1;
+): Promise<boolean> {
 
   const url = `${DISCOURSE_BASE}/users/${encodeURIComponent(user.username)}/activity.json`;
   const result = await budget.fetch(url);
   if (result.kind === "not_found") {
     // The username changed or the user was removed - skip without
     // marking the row inactive; the next roster walk will handle that.
-    return;
+    return true;
   }
-  if (result.kind !== "ok") return;
+  if (result.kind !== "ok") return false;
 
   const parsed = parseUserActivity(result.source.text);
   if (parsed.posts.length === 0) {
     summary.usersNoChange += 1;
-    return;
+    return true;
   }
 
   // Decide which posts represent real changes vs. duplicates of what
@@ -464,7 +477,7 @@ async function processUser(
   const hasChange = decisions.some((d) => d.kind !== "no_change");
   if (!hasChange) {
     summary.usersNoChange += 1;
-    return;
+    return true;
   }
   summary.usersWithChanges += 1;
 
@@ -558,6 +571,7 @@ async function processUser(
       }
     }
   });
+  return true;
 }
 
 /**
@@ -595,7 +609,7 @@ export async function confirmAndTombstoneDeletedPost(
 const isDirectRun =
   process.argv[1] && process.argv[1].endsWith("poll-discussions.ts");
 if (isDirectRun) {
-  main().catch((error) => {
+  pollDiscussions().catch((error) => {
     console.error(error);
     process.exitCode = 1;
   });

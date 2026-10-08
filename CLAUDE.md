@@ -81,6 +81,19 @@ lives in `src/jobs/poll-all.ts` and shells out to each
 so a flaky news endpoint can't block fresh package data; the run
 exits non-zero at the end so Railway flags it as failed.
 
+**Discussion partial runs.** `discourse_staff_users.last_polled_at` now means
+completed activity polling, including no-change and 404 responses; refreshing
+the staff roster must not overwrite it. The collector polls oldest checkpoints
+first (null first, user ID tie-breaker) so throttled runs rotate coverage across
+process restarts. Existing pre-fix values were roster observation times; they
+serve only as the initial ordering until each user completes an activity poll.
+A 429 still stops requests until the next scheduled cron. Partial coverage,
+short roster walks, and user fetch errors finalize the ingestion run as failed
+and exit nonzero; already committed data remains available. `usersProcessed`
+counts completed/checkpointed users, excluding the user interrupted by a 429.
+No-change polls advance the checkpoint too. Do not increase request budgets or
+retry through upstream throttling to clear this failure.
+
 **Due-time tolerance.** A target's `next_due_at` is stamped from the
 *success* time of the run that refreshed it, which lands a minute or two
 after the cron fired. So the next day's cron reaches a 24h source a

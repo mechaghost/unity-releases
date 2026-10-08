@@ -11,6 +11,9 @@ vi.mock("../../src/lib/db/client", () => ({
 
 import {
   getDiscoursePostFreshness,
+  getDiscourseStaffPollTimes,
+  markDiscourseStaffUserPolled,
+  upsertDiscourseStaffUsers,
   getDiscoursePostStats,
   insertDiscoursePostRevisionIfChanged,
   listDiscourseFilterFacets,
@@ -331,5 +334,34 @@ describe("getDiscoursePostStats", () => {
     expect(stats.activeStaff).toBe(243);
     expect(stats.trackedCategories).toBe(37);
     expect(stats.latestPostAt).toBe("2026-05-22T10:00:00.000Z");
+  });
+});
+
+describe("staff activity checkpoints", () => {
+  test("roster inserts and refreshes do not claim activity coverage", async () => {
+    const client = { query: vi.fn().mockResolvedValue(rows()) } as any;
+    await upsertDiscourseStaffUsers(client, [{
+      discourseUserId: 7001, username: "staff", ingestionRunId: 42,
+      parserVersion: "test"
+    }]);
+    const [sql, values] = client.query.mock.calls[0];
+    // This column used to be set by every roster upsert, defeating rotation.
+    expect(sql).not.toContain("last_polled_at");
+    expect(values).toHaveLength(16);
+  });
+
+  test("checkpoints use stable Discourse ids and survive username changes", async () => {
+    mocks.query.mockResolvedValueOnce(rows({
+      discourse_user_id: "7001", last_polled_at: new Date("2026-10-08T00:00:00Z")
+    }));
+    expect(await getDiscourseStaffPollTimes()).toEqual(new Map([
+      [7001, "2026-10-08T00:00:00.000Z"]
+    ]));
+    const client = { query: vi.fn().mockResolvedValue(rows()) } as any;
+    await markDiscourseStaffUserPolled(client, 7001);
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringMatching(/last_polled_at = now\(\).*WHERE discourse_user_id = \$1/),
+      [7001]
+    );
   });
 });

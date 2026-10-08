@@ -2313,6 +2313,27 @@ export async function getDiscoursePostFreshness(): Promise<Map<number, Discourse
   return map;
 }
 
+/** Activity checkpoints survive roster refreshes and process restarts. */
+export async function getDiscourseStaffPollTimes(): Promise<Map<number, string>> {
+  const result = await query<{ discourse_user_id: string; last_polled_at: Date }>(
+    `SELECT discourse_user_id, last_polled_at FROM discourse_staff_users
+     WHERE last_polled_at IS NOT NULL`
+  );
+  return new Map(result.rows.map((row) => [
+    Number(row.discourse_user_id), new Date(row.last_polled_at).toISOString()
+  ]));
+}
+
+export async function markDiscourseStaffUserPolled(
+  client: PoolClient,
+  discourseUserId: number
+): Promise<void> {
+  await client.query(
+    `UPDATE discourse_staff_users SET last_polled_at = now() WHERE discourse_user_id = $1`,
+    [discourseUserId]
+  );
+}
+
 export async function upsertDiscourseStaffUsers(
   client: PoolClient,
   users: DiscourseStaffUserInput[]
@@ -2324,10 +2345,10 @@ export async function upsertDiscourseStaffUsers(
           discourse_user_id, username, display_name, avatar_template, user_title,
           trust_level, primary_group_name, flair_group_id,
           last_posted_at, last_seen_at, added_to_group_at,
-          active_in_group, last_polled_at, raw_metadata_json,
+          active_in_group, raw_metadata_json,
           source_snapshot_id, ingestion_run_id, parser_version
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now(),$13,$14,$15,$16)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
         ON CONFLICT (discourse_user_id) DO UPDATE SET
           username = EXCLUDED.username,
           display_name = EXCLUDED.display_name,
@@ -2340,7 +2361,6 @@ export async function upsertDiscourseStaffUsers(
           last_seen_at = EXCLUDED.last_seen_at,
           added_to_group_at = COALESCE(discourse_staff_users.added_to_group_at, EXCLUDED.added_to_group_at),
           active_in_group = EXCLUDED.active_in_group,
-          last_polled_at = now(),
           raw_metadata_json = EXCLUDED.raw_metadata_json,
           source_snapshot_id = EXCLUDED.source_snapshot_id,
           ingestion_run_id = EXCLUDED.ingestion_run_id,
