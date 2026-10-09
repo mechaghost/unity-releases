@@ -1,3 +1,4 @@
+import { assertReleaseSourceOk, assertReleaseMetadataComplete } from "../lib/ingest/release-integrity";
 import { fetchText } from "../lib/ingest/fetch";
 import { fetchApiStream, resolveIngestStream } from "../lib/ingest/release-stream";
 import { normalizeReleaseForStorage } from "../lib/ingest/releases";
@@ -23,7 +24,10 @@ async function main() {
     await withIngestionTransaction("editor_release", "poll-editor", async (client, runId) => {
       const fetched = await fetchText(url);
       const sourceSnapshotId = await recordSourceSnapshot(client, "editor_release_page", fetched);
+      assertReleaseSourceOk(fetched);
       const scraped = extractReleasePageMetadata(fetched.text, fetched.finalUrl);
+
+      assertReleaseMetadataComplete(scraped);
 
       // This job runs first in the cron and `ingest:backfill` skips releases
       // it has already stored, so whatever stream lands here is the one that
@@ -39,6 +43,7 @@ async function main() {
         resolved.stream === scraped.stream ? scraped : { ...scraped, stream: resolved.stream };
 
       const notes = metadata.releaseNotesUrl ? await fetchText(metadata.releaseNotesUrl) : null;
+      if (notes) assertReleaseSourceOk(notes);
       const notesSnapshotId = notes
         ? await recordSourceSnapshot(client, "editor_release_notes", notes)
         : sourceSnapshotId;

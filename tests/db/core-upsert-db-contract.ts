@@ -59,8 +59,8 @@ async function main() {
           "https://unity.com/releases/editor/whats-new/6000.3.14f1",
         releaseNotesUrl: "https://example.com/release-v1.md",
         unityHubDeepLink: "unityhub://6000.3.14f1/d68c3f99a318",
-        artifacts: [],
-        modules: []
+        artifacts: [{ platform: "WINDOWS", architecture: "X86_64", category: "EDITOR", name: "Unity Editor", url: "https://example.com/editor.exe" }],
+        modules: [{ platform: "WINDOWS", architecture: "X86_64", moduleName: "Android", moduleCategory: "PLATFORM", url: "https://example.com/android.exe" }]
       },
       releaseNotesMarkdown:
         "### 6000.3.14f1 Release Notes\n\n#### Fixes\n\n- WebGL: Fixed memory leak.",

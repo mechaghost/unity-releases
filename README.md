@@ -39,6 +39,18 @@ npm run ingest:packages
 npm run ingest:news
 ```
 
+To repair a single incomplete Unity 6+ release from the official API, use:
+
+```bash
+npm run ingest:backfill -- --version 6000.3.26f1
+npm run check:invariants
+```
+
+This fetches only the exact version and its notes. Complete, current-parser
+releases are skipped; incomplete rows are repaired without `FORCE_BACKFILL`
+or a parser-version bump. Failed responses and incomplete modern release
+bundles are rejected before replacing stored data.
+
 Optional Product Updates has separate jobs and is disabled by default. See
 [`docs/product-updates-operations.md`](docs/product-updates-operations.md) for
 feature flags, source allowlists, dry runs, snapshot replay, health, and

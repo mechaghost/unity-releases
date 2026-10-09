@@ -114,7 +114,9 @@ export function storedReleaseCanBeSkipped(opts: {
   storedStream: string | null;
   storedParserVersion: string | null;
   currentParserVersion: string;
+  storedComplete?: boolean;
 }): boolean {
+  if (opts.storedComplete === false) return false;
   if (opts.storedParserVersion !== opts.currentParserVersion) return false;
 
   const mapped = apiStreamToUnityStream(opts.apiStream);

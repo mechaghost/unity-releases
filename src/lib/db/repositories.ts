@@ -1,3 +1,4 @@
+import { assertReleaseBundleComplete } from "../ingest/release-integrity";
 import type { PoolClient } from "pg";
 import { getPool, query } from "./client";
 import {
@@ -1251,6 +1252,7 @@ type ReleaseBundle = ReturnType<typeof normalizeReleaseForStorage>;
 type PackageBundle = ReturnType<typeof normalizePackageForStorage>;
 
 export async function upsertReleaseBundle(client: PoolClient, bundle: ReleaseBundle) {
+  assertReleaseBundleComplete(bundle);
   const releaseResult = await client.query<{ id: number }>(
     `
       INSERT INTO unity_releases (

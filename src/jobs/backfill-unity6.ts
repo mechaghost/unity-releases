@@ -1,3 +1,5 @@
+import { assertReleaseSourceOk, assertReleaseMetadataComplete } from "../lib/ingest/release-integrity";
+import { getPool } from "../lib/db/client";
 import { fetchText } from "../lib/ingest/fetch";
 import { sha256 } from "../lib/ingest/hash";
 import { normalizeReleaseForStorage } from "../lib/ingest/releases";
@@ -21,6 +23,23 @@ const STREAMS = process.env.BACKFILL_STREAMS
 const PAGE_LIMIT = 25;
 const API_BASE = "https://services.api.unity.com/unity/editor/release/v1/releases";
 const PARSER_VERSION = process.env.PARSER_VERSION ?? EDITOR_RELEASE_PARSER_VERSION;
+
+/** Exact one-version repair: no stream pagination or forced history replay. */
+export async function fetchTargetRelease(version: string): Promise<ApiRelease> {
+  parseUnityVersion(version);
+  if (!isInScope({ version })) throw new Error(`Not a modern Unity release: ${version}`);
+  const fetched = await fetchText(`${API_BASE}?version=${encodeURIComponent(version)}`);
+  assertReleaseSourceOk(fetched);
+  const page = JSON.parse(fetched.text) as ApiReleasesResponse;
+  const release = Array.isArray(page.results)
+    ? page.results.find((candidate) => candidate.version === version)
+    : undefined;
+  if (!release) throw new Error(`No exact API release found for ${version}`);
+  const stream = typeof release.stream === "string" ? release.stream : "";
+  if (!apiStreamToUnityStream(stream)) throw new Error(`Unknown API stream for ${version}`);
+  assertReleaseMetadataComplete(extractApiReleaseMetadata(release));
+  return release;
+}
 
 async function fetchReleasePage(stream: string, offset: number): Promise<ApiReleasesResponse> {
   const url = `${API_BASE}?limit=${PAGE_LIMIT}&offset=${offset}&stream=${stream}`;
@@ -51,8 +70,13 @@ export function isInScope(release: ApiRelease): boolean {
 // guess without replaying the rest of the already-correct history.
 async function releaseAlreadyIngested(release: ApiRelease): Promise<boolean> {
   try {
-    const { rows } = await query<{ stream: string; parser_version: string }>(
-      `SELECT stream, parser_version FROM unity_releases WHERE version = $1 LIMIT 1`,
+    const { rows } = await query<{ stream: string; parser_version: string; complete: boolean }>(
+      `SELECT stream, parser_version, (
+        release_date IS NOT NULL AND changeset IS NOT NULL AND release_notes_url IS NOT NULL
+        AND EXISTS (SELECT 1 FROM unity_release_artifacts a WHERE a.unity_release_id = r.id)
+        AND EXISTS (SELECT 1 FROM unity_release_modules m WHERE m.unity_release_id = r.id)
+        AND EXISTS (SELECT 1 FROM release_note_items n WHERE n.unity_release_id = r.id)
+      ) AS complete FROM unity_releases r WHERE version = $1 LIMIT 1`,
       [release.version]
     );
     const stored = rows[0];
@@ -62,7 +86,8 @@ async function releaseAlreadyIngested(release: ApiRelease): Promise<boolean> {
       apiStream: typeof release.stream === "string" ? release.stream : null,
       storedStream: stored.stream,
       storedParserVersion: stored.parser_version,
-      currentParserVersion: PARSER_VERSION
+      currentParserVersion: PARSER_VERSION,
+      storedComplete: stored.complete
     });
   } catch {
     return false;
@@ -89,6 +114,9 @@ async function ingestRelease(release: ApiRelease, stream: string): Promise<"crea
     return "skipped";
   }
 
+  const metadata = extractApiReleaseMetadata(apiRelease);
+  assertReleaseMetadataComplete(metadata);
+
   await withIngestionTransaction(
     "editor_release",
     "backfill-unity6",
@@ -106,9 +134,9 @@ async function ingestRelease(release: ApiRelease, stream: string): Promise<"crea
       });
 
       const notes = await fetchText(releaseNotesUrl);
+      assertReleaseSourceOk(notes);
       const notesSnapshotId = await recordSourceSnapshot(client, "editor_release_notes", notes);
 
-      const metadata = extractApiReleaseMetadata(apiRelease);
       const bundle = normalizeReleaseForStorage({
         metadata,
         releaseNotesMarkdown: notes.text,
@@ -183,6 +211,17 @@ async function ingestStream(stream: string): Promise<{ ingested: number; skipped
 // threshold could. A killed run simply resumes from the missing releases on
 // the next cron.
 async function main() {
+  const args = process.argv.slice(2);
+  if (args.length) {
+    if (args.length !== 2 || args[0] !== "--version") {
+      throw new Error("Usage: ingest:backfill [--version <Unity version>]");
+    }
+    const release = await fetchTargetRelease(args[1]);
+    const version = release.version;
+    const stream = release.stream as string;
+    console.log(JSON.stringify({ version, outcome: await ingestRelease(release, stream) }));
+    return;
+  }
   const summary: Record<string, { ingested: number; skipped: number }> = {};
   for (const stream of STREAMS) {
     console.log(JSON.stringify({ stream, status: "starting" }));
@@ -199,5 +238,7 @@ if (isDirectRun) {
   main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
+  }).finally(async () => {
+    if (process.env.DATABASE_URL) await getPool().end();
   });
 }
