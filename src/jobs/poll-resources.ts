@@ -38,13 +38,16 @@ export async function pollResources() {
       if (source.status !== 200) throw new Error(`Resource discovery HTTP ${source.status}: ${url}`);
       const parsed = url === RESOURCES_INDEX_URL
         ? parseResourcesIndex(source.text) : parseResourcesSitemap(source.text);
-      if (parsed.length === 0) throw new Error(`Resource discovery returned no entries: ${url}`);
       const sourceSnapshotId = await recordSourceSnapshot(
         client, url === RESOURCES_INDEX_URL ? "resources_index" : "resources_sitemap", source
       );
+      if (parsed.length === 0) {
+        console.warn(JSON.stringify({ source: url, warning: "Resource discovery returned no entries; checking remaining sources" }));
+      }
       discovered.push(...parsed.map((entry) => ({ ...entry, sourceSnapshotId })));
     }
     const entries = mergeResourceEntries(discovered);
+    if (entries.length === 0) throw new Error("Resource discovery returned no entries across all sources");
     const freshness = await getResourceFreshness();
 
     // Incremental filter: re-fetch only when the sitemap lastmod has

@@ -61,11 +61,36 @@ test("discovery HTTP failures cannot report a successful empty ingestion", async
   expect(mocks.upsertResource).not.toHaveBeenCalled();
 });
 
-test("empty content discovery fails instead of quietly reverting to seven legacy pages", async () => {
-  mocks.fetchText.mockReset().mockResolvedValueOnce(source(sitemap("2026-08-01")))
-    .mockResolvedValueOnce(source("<urlset></urlset>"));
-  await expect(pollResources()).rejects.toThrow("Resource discovery returned no entries");
+test("empty legacy sitemap continues to alternatives and preserves their provenance", async () => {
+  mocks.fetchText.mockReset().mockResolvedValueOnce(source("<urlset></urlset>"))
+    .mockResolvedValueOnce(source(sitemap("2026-09-17")))
+    .mockResolvedValueOnce(source(`<a href="/resources/${slug}">Guide</a>`));
+  await pollResources();
+  expect(mocks.fetchText).toHaveBeenCalledTimes(3);
+  expect(mocks.recordSourceSnapshot).toHaveBeenCalledTimes(3);
+  expect(mocks.upsertResource).toHaveBeenCalledWith({}, expect.objectContaining({
+    title: "A beginner’s guide to Unity CLI and the Pipeline package"
+  }), "2026-09-17", 10, 2);
 });
+
+test("empty sitemaps can use valid index discovery", async () => {
+  mocks.fetchText.mockReset().mockResolvedValueOnce(source("<urlset></urlset>"))
+    .mockResolvedValueOnce(source("<urlset></urlset>"))
+    .mockResolvedValueOnce(source(`<a href="/resources/${slug}">Guide</a>`));
+  await pollResources();
+  expect(mocks.fetchHtmlWithRetry).toHaveBeenCalledTimes(1);
+  expect(mocks.upsertResource).toHaveBeenCalledWith({}, expect.anything(), null, 10, 3);
+});
+
+test.each(["<urlset></urlset>", "<html>Invalid discovery document</html>"])(
+  "wholly empty or unparseable aggregate discovery fails: %s", async (text) => {
+    mocks.fetchText.mockReset().mockResolvedValue(source(text));
+    await expect(pollResources()).rejects.toThrow("Resource discovery returned no entries across all sources");
+    expect(mocks.fetchText).toHaveBeenCalledTimes(3);
+    expect(mocks.getResourceFreshness).not.toHaveBeenCalled();
+    expect(mocks.upsertResource).not.toHaveBeenCalled();
+  }
+);
 
 test("parser drift fails the run and cannot report success", async () => {
   mocks.fetchHtmlWithRetry.mockResolvedValue(source(html.replace(/datePublished/g, "removedDate")));
