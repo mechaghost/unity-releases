@@ -98,7 +98,7 @@ export const vpcOnPremisesAdapter = createSelfHostedAdapter({
     sourceKey: "vpc-on-premises",
     displayName: "Unity Cloud Self-Hosted on-premises release notes",
     family: "industry-enterprise",
-    parserVersion: "vpc-on-premises-md-v1",
+    parserVersion: "vpc-on-premises-md-v2",
     displayPriority: 10,
     allowedEvidenceHosts: ["docs.unity.com"],
     cadenceHours: 7 * 24,
@@ -110,18 +110,18 @@ export const vpcOnPremisesAdapter = createSelfHostedAdapter({
     targets: [
       {
         targetKey: "on-premises",
-        url: "https://docs.unity.com/en-us/self-hosted-deployment/on-premises/release-notes",
+        url: "https://docs.unity.com/en-us/self-hosted-deployment/shd/release-notes",
         allowedHosts: ["docs.unity.com"],
         documentFormat: "markdown"
       }
     ]
   },
-  rootHeading: /^release notes for self-hosted deployment on-premises$/i,
+  rootHeading: /^release notes for self-hosted deployment(?: on-premises)?$/i,
   product: {
     componentKey: "on-premises",
     componentName: "On-premises",
     canonicalUrl:
-      "https://docs.unity.com/en-us/self-hosted-deployment/on-premises"
+      "https://docs.unity.com/en-us/self-hosted-deployment/shd"
   }
 });
 
@@ -142,7 +142,7 @@ export const vpctlAdapter: ProductUpdateAdapter = {
     targets: [
       {
         targetKey: "cli",
-        url: "https://docs.unity.com/en-us/self-hosted-deployment/vpctl/changelog",
+        url: "https://docs.unity.com/en-us/self-hosted-deployment/shdctl/changelog",
         allowedHosts: ["docs.unity.com"],
         documentFormat: "markdown"
       }
@@ -273,7 +273,7 @@ export function parseVpctlChangelog(
       productDescription:
         "Command-line deployment and operations tooling for Unity Cloud Self-Hosted.",
       productCanonicalUrl:
-        "https://docs.unity.com/en-us/self-hosted-deployment/vpctl",
+        "https://docs.unity.com/en-us/self-hosted-deployment/shdctl",
       componentKey: "cli",
       sourceUpdateKey: version.toLowerCase(),
       canonicalKey: `version:${version.toLowerCase()}`,

@@ -72,6 +72,23 @@ describe("Product Updates fetcher", () => {
     expect(contacted).toEqual(["https://unity.com/releases"]);
   });
 
+  test.each([
+    "https://0.0.0.0:3000/en-us/self-hosted-deployment/shd/release-notes.md",
+    "https://0.0.0.0/en-us/self-hosted-deployment/shdctl/changelog.md",
+    "https://docs.unity.com:3000/private",
+    "http://docs.unity.com/private",
+    "https://user:password@docs.unity.com/private"
+  ])("keeps rejecting unsafe documentation redirects: %s", async (location) => {
+    const docsTarget = { ...target, url: "https://docs.unity.com/en-us/self-hosted-deployment/on-premises/release-notes",
+      documentFormat: "markdown" as const, allowedHosts: ["docs.unity.com"] };
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 307, headers: { location } }));
+    await expect(fetchProductUpdateTarget(docsTarget, state, {
+      timeoutMs: 1_000, maxResponseBytes: 10_000, retries: 0, fetchImpl
+    })).rejects.toThrow(/Refusing|not allowlisted/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(String(fetchImpl.mock.calls[0][0])).toBe(`${docsTarget.url}.md`);
+  });
+
   test("aborts a chunked response after the byte limit", async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => {
       const body = new ReadableStream<Uint8Array>({

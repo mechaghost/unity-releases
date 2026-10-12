@@ -14,6 +14,8 @@ import type {
   ProductUpdateAdapter,
   ProductUpdateSnapshot
 } from "../../src/lib/product-updates/types";
+import { markdownToHtml } from "../../src/lib/product-updates/markdown";
+import { markdownTwinUrl } from "../../src/lib/product-updates/fetcher";
 import { validateObservations } from "../../src/lib/product-updates/validation";
 
 describe("Industry and enterprise Product Update adapters", () => {
@@ -96,6 +98,31 @@ describe("Industry and enterprise Product Update adapters", () => {
       releaseDate: "2026-06-03T00:00:00.000Z"
     });
     expect(aws[0].updateSlug).not.toBe(onPremises[0].updateSlug);
+  });
+
+  test.each([
+    { adapter: vpcOnPremisesAdapter, targetKey: "on-premises", fixture: "shd", path: "shd/release-notes",
+      count: 17, previousCount: 16, productKey: "unity-cloud-self-hosted", componentKey: "on-premises", version: "2.0.0" },
+    { adapter: vpctlAdapter, targetKey: "cli", fixture: "shdctl", path: "shdctl/changelog",
+      count: 15, previousCount: 14, productKey: "vpctl", componentKey: "cli", version: "1.0.0" }
+  ])("uses the public migrated path and preserves $productKey history", (testCase) => {
+    const target = testCase.adapter.manifest.targets.find(t => t.targetKey === testCase.targetKey)!;
+    const url = `https://docs.unity.com/en-us/self-hosted-deployment/${testCase.path}`;
+    expect(target.url).toBe(url);
+    expect(target.allowedHosts).toEqual(["docs.unity.com"]);
+    expect(markdownTwinUrl(target)).toBe(`${url}.md`);
+    const markdown = readFixture(`markdown/${testCase.fixture}.md`);
+    const observations = validateObservations(
+      testCase.adapter.parse(snapshot(testCase.adapter, testCase.targetKey, markdownToHtml(markdown))),
+      testCase.adapter.manifest, testCase.previousCount
+    );
+    expect(observations).toHaveLength(testCase.count);
+    expect(observations[0]).toMatchObject({
+      productKey: testCase.productKey, componentKey: testCase.componentKey,
+      version: testCase.version, releaseDate: "2026-10-09T00:00:00.000Z"
+    });
+    expect(observations.every(o => o.sourceUrl.startsWith(`${url}#`))).toBe(true);
+    expect(observations.every(o => o.items.length > 0)).toBe(true);
   });
 
   test("reads div-wrapped prose releases that carry no bullet list", () => {
