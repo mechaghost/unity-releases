@@ -122,6 +122,16 @@ describe("Monetization Product Update adapters", () => {
     }
   });
 
+  test("retires only the unsupported Tencent iOS target while retaining its source and history keys", () => {
+    const retired = levelPlayMediationAdapterSources.filter(a => a.manifest.targets.some(t => t.retired));
+    expect(retired.map(a => a.manifest.sourceKey)).toEqual(["levelplay-adapter-tencent-ios"]);
+    expect(retired[0].manifest.targets[0]).toMatchObject({
+      targetKey: "tencent-ios", retired: true,
+      url: "https://raw.githubusercontent.com/ironsource-mobile/levelplay-ios-adapters/master/Adapters/Tencent/CHANGELOG.md"
+    });
+    expect(levelPlayMediationAdapterSources.filter(a => !a.manifest.targets[0].retired)).toHaveLength(50);
+  });
+
   test("replays a representative fixture for every mediation page", () => {
     for (const adapter of levelPlayMediationAdapterSources) {
       const versions = mediationVersions[adapter.manifest.sourceKey];

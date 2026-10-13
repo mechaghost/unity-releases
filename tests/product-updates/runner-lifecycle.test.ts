@@ -27,6 +27,7 @@ vi.mock("../../src/lib/product-updates/repositories", () => ({
   recordProductUpdateSnapshot: vi.fn()
 }));
 
+import { levelPlayMediationAdapterSources } from "../../src/lib/product-updates/sources/levelplay-mediation-adapters";
 import { runProductUpdateAdapter } from "../../src/lib/product-updates/runner";
 
 const target = {
@@ -129,6 +130,19 @@ describe("Product Updates runner lifecycle", () => {
     expect(results[0].status).toBe("skipped-not-due");
     expect(mocks.acquire).not.toHaveBeenCalled();
     restoreScheduling();
+  });
+
+  test("a retired Tencent target skips safely even when forced and never fetches or acquires a publication lease", async () => {
+    const tencent = levelPlayMediationAdapterSources.find(a => a.manifest.sourceKey === "levelplay-adapter-tencent-ios")!;
+    mocks.getTarget.mockResolvedValue({ ...target, sourceKey: tencent.manifest.sourceKey,
+      targetKey: "tencent-ios", status: "manually-retired", lastValidatedRecordCount: 18 });
+    const fetchImpl = vi.fn<typeof fetch>();
+    const results = await runProductUpdateAdapter(tencent, { force: true, fetchImpl });
+    expect(results[0].status).toBe("skipped-retired");
+    expect(mocks.register).toHaveBeenCalledWith(tencent);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(mocks.acquire).not.toHaveBeenCalled();
+    expect(mocks.createRun).not.toHaveBeenCalled();
   });
 
   test("releases a lease when run creation fails before heartbeat setup", async () => {

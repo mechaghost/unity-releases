@@ -20,6 +20,7 @@ type AdapterInventoryEntry = {
   key: string;
   name: string;
   iosPath: string;
+  iosRetired?: boolean;
   androidPath?: string;
 };
 
@@ -155,7 +156,10 @@ export const LEVELPLAY_MEDIATION_ADAPTER_INVENTORY: readonly AdapterInventoryEnt
     {
       key: "tencent",
       name: "Tencent",
-      iosPath: "Tencent/CHANGELOG.md"
+      iosPath: "Tencent/CHANGELOG.md",
+      // Officially removed as unsupported on 2026-10-12; retain history.
+      // https://github.com/ironsource-mobile/levelplay-ios-adapters/pull/17
+      iosRetired: true
     },
     {
       key: "unity-ads",
@@ -234,7 +238,8 @@ function createMediationAdapter(
         {
           targetKey: `${network.key}-${platform.key}`,
           url: platform.url,
-          allowedHosts: ["raw.githubusercontent.com"]
+          allowedHosts: ["raw.githubusercontent.com"],
+          ...(platform.key === "ios" && network.iosRetired ? { retired: true } : {})
         }
       ]
     },
