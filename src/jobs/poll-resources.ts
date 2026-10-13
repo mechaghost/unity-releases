@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-import { fetchText } from "../lib/ingest/fetch";
+import { fetchText, type FetchedSource } from "../lib/ingest/fetch";
 import { fetchHtmlWithRetry, runWithConcurrency } from "../lib/ingest/runner";
 import {
   parseResourcePage,
@@ -30,14 +30,46 @@ const MAX_PER_RUN = Number(process.env.RESOURCES_MAX_PER_RUN ?? 1500);
 // sitemap, so incremental runs skip the pages that need re-parsing.
 const FORCE = /^(1|true|yes)$/i.test(process.env.RESOURCES_FORCE ?? "");
 
+/** Discovery also needs bounded retries; page-fetch retries do not cover it. */
+export async function fetchResourceDiscovery(url: string): Promise<FetchedSource> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    let source: FetchedSource | null = null;
+    try {
+      source = await fetchText(url, { timeoutMs: 60_000 });
+    } catch (error) {
+      const transient = error instanceof Error &&
+        (error instanceof TypeError || error.name === "TimeoutError" || error.name === "AbortError");
+      if (!transient || attempt === MAX_RETRIES) throw error;
+    }
+    if (source) {
+      if (source.status === 200) return source;
+      const error = new Error(`Resource discovery HTTP ${source.status}: ${url}`);
+      if ((source.status !== 429 && source.status < 500) || attempt === MAX_RETRIES) throw error;
+    }
+    console.warn(JSON.stringify({ source: url, warning: "Transient resource discovery failure; retrying", attempt: attempt + 1 }));
+    await new Promise(resolve => setTimeout(resolve, 300 * 3 ** attempt));
+  }
+  throw new Error(`Resource discovery retries exhausted: ${url}`);
+}
+
 export async function pollResources() {
   await withIngestionTransaction("resources", "poll-resources", async (client, runId) => {
     const discovered: (SitemapEntry & { sourceSnapshotId: number })[] = [];
+    const failures: string[] = [];
     for (const url of [SITEMAP_URL, CONTENT_SITEMAP_URL, RESOURCES_INDEX_URL]) {
-      const source = await fetchText(url, { timeoutMs: 60_000 });
-      if (source.status !== 200) throw new Error(`Resource discovery HTTP ${source.status}: ${url}`);
-      const parsed = url === RESOURCES_INDEX_URL
-        ? parseResourcesIndex(source.text) : parseResourcesSitemap(source.text);
+      // Catch discovery failures only. Persistence failures must abort the transaction.
+      let source: FetchedSource;
+      let parsed: SitemapEntry[];
+      try {
+        source = await fetchResourceDiscovery(url);
+        parsed = url === RESOURCES_INDEX_URL
+          ? parseResourcesIndex(source.text) : parseResourcesSitemap(source.text);
+      } catch (error) {
+        const message = `${url}: ${error instanceof Error ? error.message : String(error)}`;
+        failures.push(message);
+        console.warn(JSON.stringify({ source: url, warning: "Resource discovery source failed; checking remaining sources", error: message }));
+        continue;
+      }
       const sourceSnapshotId = await recordSourceSnapshot(
         client, url === RESOURCES_INDEX_URL ? "resources_index" : "resources_sitemap", source
       );
@@ -47,7 +79,11 @@ export async function pollResources() {
       discovered.push(...parsed.map((entry) => ({ ...entry, sourceSnapshotId })));
     }
     const entries = mergeResourceEntries(discovered);
-    if (entries.length === 0) throw new Error("Resource discovery returned no entries across all sources");
+    const failureDetails = failures.length ? `; failed sources: ${failures.join("; ")}` : "";
+    if (entries.length === 0) throw new Error(`Resource discovery returned no entries across all sources${failureDetails}`);
+    if (failures.length) {
+      throw new Error(`Resource discovery incomplete: ${entries.length} entries from available sources${failureDetails}`);
+    }
     const freshness = await getResourceFreshness();
 
     // Incremental filter: re-fetch only when the sitemap lastmod has

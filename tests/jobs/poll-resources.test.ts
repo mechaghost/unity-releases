@@ -12,7 +12,7 @@ vi.mock("../../src/lib/ingest/runner", async (importOriginal) => ({
   fetchHtmlWithRetry: mocks.fetchHtmlWithRetry
 }));
 vi.mock("../../src/lib/db/repositories", () => mocks);
-import { pollResources } from "../../src/jobs/poll-resources";
+import { fetchResourceDiscovery, pollResources } from "../../src/jobs/poll-resources";
 import { RESOURCE_PARSER_VERSION } from "../../src/lib/ingest/resources";
 
 const slug = "a-beginners-guide-to-unity-cli-and-the-pipeline-package";
@@ -59,6 +59,58 @@ test("discovery HTTP failures cannot report a successful empty ingestion", async
   mocks.fetchText.mockReset().mockResolvedValue(source("Unavailable", 503));
   await expect(pollResources()).rejects.toThrow("Resource discovery HTTP 503");
   expect(mocks.upsertResource).not.toHaveBeenCalled();
+});
+
+test("a transient content sitemap 504 retries and recovers full discovery with correct provenance", async () => {
+  mocks.fetchText.mockReset().mockResolvedValueOnce(source("<urlset></urlset>"))
+    .mockResolvedValueOnce(source("Gateway timeout", 504))
+    .mockResolvedValueOnce(source(sitemap("2026-09-17")))
+    .mockResolvedValueOnce(source(`<a href="/resources/${slug}">Guide</a>`));
+  await pollResources();
+  expect(mocks.fetchText).toHaveBeenCalledTimes(4);
+  expect(mocks.fetchText.mock.calls.map(c => c[0])).toEqual([
+    "https://unity.com/resources/sitemap.xml", "https://unity.com/content/sitemap.xml",
+    "https://unity.com/content/sitemap.xml", "https://unity.com/resources"
+  ]);
+  expect(mocks.upsertResource).toHaveBeenCalledWith({}, expect.anything(), "2026-09-17", 10, 2);
+});
+
+test("persistent catalog failure still checks the index but cannot publish partial coverage as complete", async () => {
+  mocks.fetchText.mockReset().mockResolvedValueOnce(source("<urlset></urlset>"))
+    .mockResolvedValueOnce(source("Unavailable", 504))
+    .mockResolvedValueOnce(source("Unavailable", 504))
+    .mockResolvedValueOnce(source("Unavailable", 504))
+    .mockResolvedValueOnce(source(`<a href="/resources/${slug}">Guide</a>`));
+  await expect(pollResources()).rejects.toThrow(/Resource discovery incomplete: 1 entries.*HTTP 504/);
+  expect(mocks.fetchText).toHaveBeenCalledTimes(5);
+  expect(mocks.fetchText.mock.calls.at(-1)?.[0]).toBe("https://unity.com/resources");
+  expect(mocks.getResourceFreshness).not.toHaveBeenCalled();
+  expect(mocks.upsertResource).not.toHaveBeenCalled();
+});
+
+test("permanent HTTP failures do not retry and do not hide behind valid alternatives", async () => {
+  mocks.fetchText.mockReset().mockResolvedValueOnce(source("Forbidden", 403))
+    .mockResolvedValueOnce(source(sitemap("2026-09-17")))
+    .mockResolvedValueOnce(source(`<a href="/resources/${slug}">Guide</a>`));
+  await expect(pollResources()).rejects.toThrow(/incomplete.*HTTP 403/);
+  expect(mocks.fetchText).toHaveBeenCalledTimes(3);
+  expect(mocks.upsertResource).not.toHaveBeenCalled();
+});
+
+test.each([new TypeError("fetch failed"), Object.assign(new Error("aborted"), { name: "TimeoutError" })])(
+  "bounded timeout/network discovery retries recover: %s", async (error) => {
+    mocks.fetchText.mockReset().mockRejectedValueOnce(error).mockResolvedValueOnce(source(sitemap("2026-09-17")));
+    await expect(fetchResourceDiscovery(url)).resolves.toMatchObject({ status: 200 });
+    expect(mocks.fetchText).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchText).toHaveBeenCalledWith(url, { timeoutMs: 60_000 });
+  }
+);
+
+test("rate-limit responses retry within the same discovery budget", async () => {
+  mocks.fetchText.mockReset().mockResolvedValueOnce(source("Rate limited", 429))
+    .mockResolvedValueOnce(source(sitemap("2026-09-17")));
+  await expect(fetchResourceDiscovery(url)).resolves.toMatchObject({ status: 200 });
+  expect(mocks.fetchText).toHaveBeenCalledTimes(2);
 });
 
 test("empty legacy sitemap continues to alternatives and preserves their provenance", async () => {
