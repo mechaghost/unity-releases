@@ -31,6 +31,25 @@ export type FeedEventRow = {
   ingestion_run_id?: number | null;
 };
 
+// Verified 2026-10-14: this article URL returns 308 to /blog,
+// whose canonical URL is the blog index, not an article. Keep its stored
+// post/event/snapshot intact until historical RSS provenance can be reviewed,
+// but do not offer the unavailable link in public news/activity lists.
+// This is an exact URL safeguard, not title/date deduplication or an alias.
+const AVAILABLE_CONTENT_LINKS_SQL = `NOT (
+  event_type = 'blog_post'
+  AND source_url = 'https://unity.com/blog/celebrating-launches-and-triple-i-initiative-highlights-2025'
+)`;
+
+function contentEventWhere(productUpdates: ProductUpdateFeedMode) {
+  const scope = productUpdates === "only"
+    ? "AND event_type = 'product_update'"
+    : productUpdates === "exclude"
+      ? "AND event_type <> 'product_update'"
+      : "";
+  return `WHERE ${AVAILABLE_CONTENT_LINKS_SQL} ${scope}`;
+}
+
 export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
   const built = buildReleaseNoteSearchQuery(filters);
   const result = await query(built.text, built.values);
@@ -648,12 +667,7 @@ export async function listFeedEvents(
   options: { productUpdates?: ProductUpdateFeedMode } = {}
 ): Promise<FeedEventRow[]> {
   const productUpdates = options.productUpdates ?? "exclude";
-  const where =
-    productUpdates === "only"
-      ? "WHERE event_type = 'product_update'"
-      : productUpdates === "exclude"
-        ? "WHERE event_type <> 'product_update'"
-        : "";
+  const where = contentEventWhere(productUpdates);
   const result = await query<FeedEventRow>(
     `
       SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
@@ -673,6 +687,7 @@ export async function listFeedEventsByType(eventType: string, limit = 30): Promi
       SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
       FROM content_events
       WHERE event_type = $1
+        AND ${AVAILABLE_CONTENT_LINKS_SQL}
       ORDER BY event_time DESC
       LIMIT $2
     `,
@@ -2034,12 +2049,7 @@ export async function listTimelineFeed(
   options: { productUpdates?: ProductUpdateFeedMode } = {}
 ): Promise<TimelineEvent[]> {
   const productUpdates = options.productUpdates ?? "exclude";
-  const contentWhere =
-    productUpdates === "only"
-      ? "WHERE event_type = 'product_update'"
-      : productUpdates === "exclude"
-        ? "WHERE event_type <> 'product_update'"
-        : "";
+  const contentWhere = contentEventWhere(productUpdates);
   const contentPromise = query<FeedEventRow>(
     `SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags, ingestion_run_id
      FROM content_events
@@ -2077,7 +2087,8 @@ export async function listTimelineFeed(
       }>(
         `SELECT id, event_type, title, source_url, ingestion_run_id
          FROM content_events
-         WHERE ingestion_run_id = ANY($1::bigint[])`,
+         WHERE ingestion_run_id = ANY($1::bigint[])
+           AND ${AVAILABLE_CONTENT_LINKS_SQL}`,
         [runIds]
       );
 
