@@ -113,6 +113,12 @@ describe("docs.unity.com markdown pipeline", () => {
       expect(repairUnityDocsTables(md)).toBe(md);
     });
 
+    test("removes a continuation's closing delimiter without stripping literal backslashes", () => {
+      const md = "| Version | Notes |\n| --- | --- |\n| 1.0 | First note.\n* Use `C:\\Tools` and `Foo|Bar`. |";
+      const html = markdownToHtml(md);
+      expect(html).toContain("<td>First note. Use <code>C:\\Tools</code> and <code>Foo|Bar</code>.</td>");
+    });
+
     test("prose between the delimiter row and the first data row is kept, not folded", () => {
       const md = "| A | B\n| - | -\nintro line\n| 1 | x\n* more x";
       const out = repairUnityDocsTables(md);
@@ -172,6 +178,29 @@ describe("docs.unity.com markdown pipeline", () => {
       targetKey: "ios",
       minObservations: 65,
       expect: (o) => expect(o).toHaveLength(65)
+    },
+    {
+      fixture: "levelplay-unity",
+      sourceKey: "levelplay-unity",
+      targetKey: "unity",
+      minObservations: 148,
+      expect: (observations) => {
+        expect(observations).toHaveLength(148);
+        for (const [version, date] of [
+          ["9.3.2", "2026-09-25"],
+          ["9.3.1", "2026-09-10"],
+          ["9.5.1", "2026-08-19"]
+        ]) {
+          const release = observations.find((o) => o.version === version)!;
+          expect(release).toBeDefined();
+          expect(release.releaseDate).toBe(`${date}T00:00:00.000Z`);
+          expect(release.summary).not.toContain("\\");
+          expect(release.items[0].body).toBe(release.summary);
+        }
+        expect(observations.find((o) => o.version === "9.3.2")!.summary).toBe(
+          "Wraps Android 9.6.0 SDK and iOS 9.6.0 SDK. (iOS) Fixed the LevelPlay.SetNetworkData API so the network key is now passed correctly to the native SDK. This completes the fix released in 9.3.1."
+        );
+      }
     },
     {
       fixture: "levelplay-android",

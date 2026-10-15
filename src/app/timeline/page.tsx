@@ -176,6 +176,11 @@ function TimelineNode({ event }: { event: TimelineEvent }) {
   );
 }
 
+function editorReleaseHref(title: string): string {
+  // Release events store a display title ("Unity <version>"), not a route slug.
+  return `/releases/${encodeURIComponent(title.replace(/^Unity\s+/, ""))}`;
+}
+
 function TimelineCardBody({ event }: { event: TimelineEvent }) {
   if (event.type === "content") {
     if (event.isGroup && event.groupItems) {
@@ -198,7 +203,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
                 let target: string | undefined = "_blank";
                 
                 if (isEditorItem) {
-                  href = `/releases/${encodeURIComponent(item.title)}`;
+                  href = editorReleaseHref(item.title);
                   target = undefined;
                 } else if (isPackageItem) {
                   href = `/packages?q=${encodeURIComponent(item.title.split(" ")[0] || "")}`;
@@ -243,7 +248,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
       <div className="timeline-content">
         <h2 className="timeline-content__title">
           {isEditor && (
-            <a href={`/releases/${encodeURIComponent(event.title)}`}>
+            <a href={editorReleaseHref(event.title)}>
               Editor Released: <strong>{event.title}</strong>
             </a>
           )}
@@ -282,7 +287,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
             </div>
           )}
           <a
-            href={isEditor ? `/releases/${encodeURIComponent(event.title)}` : event.sourceUrl}
+            href={isEditor ? editorReleaseHref(event.title) : event.sourceUrl}
             target={isEditor || isProductUpdate ? undefined : "_blank"}
             rel={isEditor || isProductUpdate ? undefined : "noopener noreferrer"}
             className="timeline-content__link"
@@ -372,7 +377,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
                       let target: string | undefined = "_blank";
                       
                       if (isEditor) {
-                        href = `/releases/${encodeURIComponent(update.title)}`;
+                        href = editorReleaseHref(update.title);
                         target = undefined;
                       } else if (isPackage) {
                         href = `/packages?q=${encodeURIComponent(update.title.split(" ")[0] || "")}`;

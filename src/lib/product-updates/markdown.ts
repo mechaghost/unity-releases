@@ -48,7 +48,7 @@ export function repairUnityDocsTables(markdown: string): string {
   let columnCount = 0;
   let row: string | null = null;
   const flush = () => {
-    if (row !== null) out.push(row.replace(/\s*\|?\s*$/, "") + " |");
+    if (row !== null) out.push(row.trimEnd() + " |");
     row = null;
   };
   const lines = markdown.split(/\r?\n/);
@@ -81,14 +81,17 @@ export function repairUnityDocsTables(markdown: string): string {
       row = normalizeRow(line, columnCount);
       continue;
     }
-    const folded = line.replace(/^\s*(?:[*+-]|\d+\.)\s+/, "").trim();
+    // The exporter may close the row on its final continuation line.
+    // Remove that delimiter before escaping content pipes, or it leaves a
+    // literal backslash in the rendered note.
+    const folded = stripOuterPipes(line).replace(/^\s*(?:[*+-]|\d+\.)\s+/, "").trim();
     if (!folded) continue;
     if (row === null) {
       // Prose before the first data row - not part of any cell.
       out.push(line);
       continue;
     }
-    row = `${row.replace(/\s*\|?\s*$/, "")} ${folded.split("|").join(ESCAPED_PIPE)}`;
+    row = `${row.trimEnd()} ${folded.split("|").join(ESCAPED_PIPE)}`;
   }
   flush();
   return out.join("\n");
