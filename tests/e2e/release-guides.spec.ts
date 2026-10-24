@@ -6,11 +6,14 @@ test("release overview opens each guide and keeps support types separate", async
   await page.goto("/whats-new");
   await expect(page.getByRole("heading", { level: 1, name: "What’s new in Unity?" })).toBeVisible();
   await expect(page.locator(".guide-card")).toHaveCount(7);
+  await expect(page.getByRole("link", { name: "View Unity 6.6 features", exact: true })).toHaveAttribute("href", "/whats-new/unity-6-6");
+  expect((await page.locator(".guide-card").first().boundingBox())!.y).toBeLessThanOrEqual(180);
   await expect(page.locator(".guide-card").filter({ has: page.getByRole("heading", { name: "Unity 6.1", exact: true }) })).toContainText("Superseded");
   for (const guide of RELEASE_GUIDES) {
     await page.getByRole("link", { name: `Read the Unity ${guide.version} guide` }).click();
     await expect(page.getByRole("heading", { level: 1, name: `What’s new in Unity ${guide.version}?` })).toBeVisible();
     await expect(page.locator(".guide-highlight")).toHaveCount(4);
+    expect((await page.locator(".guide-highlight").first().boundingBox())!.y).toBeLessThanOrEqual(260);
     const images = page.locator(".guide-highlight img");
     await expect(images).toHaveCount(4);
     for (const img of await images.all()) {
@@ -35,8 +38,9 @@ test("release overview opens each guide and keeps support types separate", async
 test("guide details work by keyboard and the layout fits small screens in both themes", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 850 });
   await page.goto("/whats-new/unity-6-6");
+  expect((await page.locator(".guide-highlight").first().boundingBox())!.y).toBeLessThanOrEqual(260);
   await expect(page.locator(".theme-toggle")).toHaveAttribute("aria-label", /Switch to (dark|light) theme/);
-  await expect(page.locator(".guide-hero")).toContainText("Sep 1, 2026");
+  await expect(page.locator(".guide-support")).toContainText("Sep 1, 2026");
   const summary = page.locator(".guide-highlight summary").first();
   await summary.focus();
   await page.keyboard.press("Enter");
@@ -54,6 +58,7 @@ test("guide details work by keyboard and the layout fits small screens in both t
   await page.emulateMedia({ media: "screen" });
   await page.goto("/whats-new");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect((await page.locator(".guide-card").first().boundingBox())!.y).toBeLessThanOrEqual(180);
   const overviewAudit = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
   expect(overviewAudit.violations).toEqual([]);
 });
