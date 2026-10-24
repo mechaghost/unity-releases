@@ -1,5 +1,6 @@
 import { guideHref, guideStatus, SUPPORT_SOURCE, type GuideImage, type ReleaseGuide } from "@/lib/release-guides";
 import { ExternalLink } from "../_components/ExternalLink";
+import { featureHref, type ReleaseFeature } from "@/lib/release-features";
 
 export function GuideBadges({ guide, now }: { guide: ReleaseGuide; now: Date }) {
   const status = guideStatus(guide, now);
@@ -21,12 +22,26 @@ export function GuideCard({ guide, now, eager = false }: { guide: ReleaseGuide; 
 
 export function FeatureImage({ image, eager = false, guide }: { image: GuideImage; eager?: boolean; guide?: ReleaseGuide }) {
   return <figure className="guide-figure">
-    <a className="guide-image-link" href={guide ? guideHref(guide) : image.src} target={guide ? undefined : "_blank"} rel={guide ? undefined : "noopener noreferrer"} aria-label={guide ? `View Unity ${guide.version} features` : `Enlarge image: ${image.alt}`}>
+    <a className="guide-image-link" href={guide ? guideHref(guide) : image.src} aria-label={guide ? `View Unity ${guide.version} features` : `Enlarge image: ${image.alt}`}>
       {/* Local, pre-sized WebP assets keep layout stable without remote image requests. */}
       <img src={image.src} alt={image.alt} width={image.width} height={image.height} loading={eager ? "eager" : "lazy"} decoding="async" />
     </a>
-    <figcaption><ExternalLink href={image.source}>Image source</ExternalLink></figcaption>
   </figure>;
+}
+
+export function FeatureCard({ guide, feature, eager = false }: { guide: ReleaseGuide; feature: ReleaseFeature; eager?: boolean }) {
+  const headingId = `feature-${feature.id}`;
+  const preview = /\b(beta|experimental)\b/i.test(feature.limitation ?? "");
+  return <article className="guide-highlight">
+    <a className="guide-feature-link" href={featureHref(guide, feature)} aria-labelledby={headingId}>
+      <div className="guide-feature-image"><img src={feature.image.src} alt={feature.image.alt} width={feature.image.width} height={feature.image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
+      <div className="guide-highlight-copy">
+        <h2 id={headingId}>{feature.title}</h2>
+        <p>{feature.benefit}</p>
+        <div className="guide-feature-footer">{preview && <span className="guide-badge">Preview at launch</span>}<span className="guide-feature-action" aria-hidden="true">Explore feature <span>→</span></span></div>
+      </div>
+    </a>
+  </article>;
 }
 
 export function SupportExplainer() {

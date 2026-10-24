@@ -7203,7 +7203,7 @@ button.filter-section__head:focus-visible {
 .guide-badge { font-size: var(--text-xs); font-weight: var(--weight-medium); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--surface-sunken); color: var(--text-secondary); }
 .guide-badge--active { background: var(--color-success-bg); color: var(--color-success-fg); }
 .guide-badge--quiet { background: var(--color-info-bg); color: var(--color-info-fg); }
-.guide-highlight { padding: var(--space-6); border-top: 1px solid var(--border-default); }
+.guide-highlight { min-width: 0; }
 .guide-support { margin-block: var(--space-4); padding-block: var(--space-2); border-top: 1px solid var(--border-default); }
 .guide-support summary { cursor: pointer; padding-block: var(--space-2); font-weight: var(--weight-medium); }
 .guide-support .guide-section-heading { margin-top: 0; }
@@ -7243,14 +7243,13 @@ button.filter-section__head:focus-visible {
 
 .release-guide .guide-breadcrumb a, .release-guide p a, .guide-footer a { text-decoration: underline; text-underline-offset: 3px; }
 
-/* Feature imagery keeps the full screenshot visible; click to inspect at full size. */
+/* Detail images can be enlarged; card images navigate to the feature. */
 .guide-figure { margin: 0; min-width: 0; }
 .guide-image-link { display: flex; align-items: center; justify-content: center; aspect-ratio: 16 / 10; overflow: hidden; background: var(--surface-sunken); border-radius: var(--radius-lg); }
 .guide-image-link img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .guide-figure figcaption { padding-block: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
 .guide-figure figcaption a { text-decoration: underline; }
-.guide-highlight { padding: 0; border: 0; min-width: 0; }
-.guide-highlight-copy { padding: var(--space-2) 0 var(--space-3); }
+.guide-highlight-copy { display: flex; flex: 1; flex-direction: column; padding: var(--space-4); }
 .release-guide .guide-highlight h2 { font-size: var(--text-xl); line-height: 1.3; margin: 0; }
 .guide-card .guide-figure { margin-top: var(--space-3); }
 .guide-status { font-size: var(--text-sm); }
@@ -7258,3 +7257,47 @@ button.filter-section__head:focus-visible {
 @media print { .guide-image-link { max-height: 180px; } .guide-figure figcaption { font-size: 9pt; } }
 
 .guide-limitation { color: var(--text-secondary); font-size: var(--text-sm); }
+
+.guide-feature-link { display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--surface-raised); color: var(--text-primary); text-decoration: none; }
+.guide-feature-link:hover { border-color: var(--text-link); }
+.guide-feature-link:hover h2 { color: var(--text-link); text-decoration: underline; text-underline-offset: 3px; }
+.guide-feature-link:focus-visible { outline: 3px solid var(--text-link); outline-offset: 4px; }
+.guide-feature-image { position: relative; flex: none; aspect-ratio: 16 / 9; overflow: hidden; background: var(--surface-sunken); border-bottom: 1px solid var(--border-default); }
+.guide-feature-image img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
+.guide-highlight-copy p { color: var(--text-secondary); }
+.guide-feature-footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-2); font-size: var(--text-sm); }
+.guide-feature-action { margin-left: auto; color: var(--text-link); font-weight: var(--weight-medium); }
+.guide-feature-action span { padding-left: var(--space-2); }
+.feature-intro { max-width: 70ch; color: var(--text-secondary); }
+.feature-release { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
+.guide-hero .feature-release .guide-badges { margin: 0; }
+.feature-primary-link { display: inline-block; margin-top: var(--space-4); padding: var(--space-2) var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-raised); font-weight: var(--weight-semibold); text-decoration: underline; text-underline-offset: 3px; }
+.feature-detail-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr); gap: var(--space-8); align-items: start; margin-top: var(--space-3); }
+.feature-detail-main, .feature-detail-sidebar { min-width: 0; }
+.feature-detail .guide-image-link { aspect-ratio: auto; height: 340px; border: 1px solid var(--border-default); }
+.feature-detail-main section { margin-top: var(--space-6); }
+.feature-detail h2 { font-size: var(--text-xl); }
+.feature-detail li { margin-block: var(--space-2); }
+.feature-detail ul, .feature-detail ol { padding-left: var(--space-5); }
+.feature-detail a, .feature-detail li { overflow-wrap: anywhere; }
+.feature-detail-sidebar section { padding-bottom: var(--space-5); margin-bottom: var(--space-5); border-bottom: 1px solid var(--border-default); }
+.feature-detail .feature-link-list, .feature-detail .feature-tool-list { list-style: none; padding: 0; }
+.feature-link-list a, .feature-tool-list a { display: inline-block; padding-block: var(--space-1); text-decoration: underline; text-underline-offset: 3px; }
+.feature-tool-list p { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
+.feature-tool-list li { margin-bottom: var(--space-4); }
+.feature-requirements { border-left: 3px solid var(--border-default); padding-left: var(--space-4); }
+.feature-related { margin-top: var(--space-8); }
+.feature-related ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.feature-related li { margin: 0; }
+.feature-related a { display: flex; flex-direction: column; height: 100%; padding: var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-raised); }
+.feature-related span { color: var(--text-secondary); font-size: var(--text-sm); }
+@media (max-width: 750px) {
+  .feature-detail-layout { grid-template-columns: 1fr; gap: var(--space-5); }
+  .feature-detail .guide-image-link { height: auto; aspect-ratio: 16 / 10; }
+  .feature-related ul { grid-template-columns: 1fr; }
+  .feature-link-list a, .feature-tool-list a { padding-block: var(--space-2); }
+}
+@media print {
+  .feature-detail-layout { display: block; }
+  .guide-feature-image { max-height: 180px; }
+}

@@ -126,6 +126,7 @@ export default async function ExplorerPage({
           <span>Line</span>
           <select name="minorLine" defaultValue={filters.minorLine ?? ""} aria-label="Unity minor line">
             <option value="">Any line</option>
+            {filters.minorLine && !facets.minor_lines.includes(filters.minorLine) && <option value={filters.minorLine}>{filters.minorLine}</option>}
             {facets.minor_lines.map((line) => (
               <option value={line} key={line}>
                 {line}

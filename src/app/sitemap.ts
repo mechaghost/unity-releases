@@ -1,4 +1,5 @@
 import { RELEASE_GUIDES, guideHref } from "@/lib/release-guides";
+import { featureHref, guideFeatures } from "@/lib/release-features";
 import type { MetadataRoute } from "next";
 import { listReleaseSummaries, listTopIssueIds } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
@@ -29,6 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     { url: `${origin}/whats-new`, lastModified: new Date("2026-10-24"), changeFrequency: "weekly", priority: 0.9 },
     ...RELEASE_GUIDES.map(guide => ({ url: `${origin}${guideHref(guide)}`, lastModified: new Date(guide.reviewed), changeFrequency: "weekly" as const, priority: 0.8 })),
+    ...RELEASE_GUIDES.flatMap(guide => guideFeatures(guide).map(feature => ({ url: `${origin}${featureHref(guide, feature)}`, lastModified: new Date(guide.reviewed), changeFrequency: "monthly" as const, priority: 0.7 }))),
     { url: `${origin}/`, lastModified: now, changeFrequency: "daily", priority: 1.0 },
     { url: `${origin}/compare`, lastModified: now, changeFrequency: "daily", priority: 0.95 },
     { url: `${origin}/releases`, lastModified: now, changeFrequency: "daily", priority: 0.9 },

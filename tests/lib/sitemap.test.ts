@@ -14,6 +14,8 @@ vi.mock("@/lib/db/repositories", () => ({
 }));
 
 import sitemap from "../../src/app/sitemap";
+import { RELEASE_GUIDES } from "../../src/lib/release-guides";
+import { featureHref, guideFeatures } from "../../src/lib/release-features";
 
 beforeEach(() => {
   repo.listReleaseSummaries.mockReset();
@@ -65,6 +67,20 @@ describe("sitemap", () => {
     expect((releaseEntry?.lastModified as Date).toISOString()).toBe(
       "2026-05-08T05:39:58.493Z"
     );
+  });
+
+  test.each([false, true])("every feature remains crawlable when database failure is %s", async (databaseFails) => {
+    if (databaseFails) repo.listReleaseSummaries.mockRejectedValue(new Error("db down"));
+    else repo.listReleaseSummaries.mockResolvedValue([]);
+    repo.listTopIssueIds.mockResolvedValue([]);
+    const entries = await sitemap();
+    for (const guide of RELEASE_GUIDES) {
+      for (const feature of guideFeatures(guide)) {
+        const matches = entries.filter(entry => entry.url === `https://unityreleases.com${featureHref(guide, feature)}`);
+        expect(matches).toHaveLength(1);
+        expect(matches[0].lastModified).toEqual(new Date(guide.reviewed));
+      }
+    }
   });
 
   test("includes top issues as /issues/<id> entries", async () => {

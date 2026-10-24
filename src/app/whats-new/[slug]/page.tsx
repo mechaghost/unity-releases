@@ -3,7 +3,8 @@ import { findReleaseGuide, guideHref, guideNotesHref, guideStatus, RELEASE_GUIDE
 import { pageSocialMetadata } from "@/lib/site";
 import { formatGuideDate } from "@/lib/release-guides";
 import { ExternalLink } from "../../_components/ExternalLink";
-import { GuideBadges, FeatureImage } from "../GuideParts";
+import { GuideBadges, FeatureCard } from "../GuideParts";
+import { guideFeatures } from "@/lib/release-features";
 
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
@@ -26,11 +27,7 @@ export default async function ReleaseGuidePage({ params }: Props) {
       <GuideBadges guide={guide} now={now} />
     </header>
     <section aria-label="Features">
-      <div className="guide-grid">{guide.highlights.map((item, index) => <section className="guide-highlight" key={item.title} aria-labelledby={`highlight-${index}`}>
-        <FeatureImage image={item.image} eager={index < 2} />
-        <div className="guide-highlight-copy"><h2 id={`highlight-${index}`}>{item.title}</h2><p>{item.benefit}</p>
-        {item.limitation && <p className="guide-limitation">{item.limitation}</p>}</div>
-      </section>)}</div>
+      <div className="guide-grid">{guideFeatures(guide).map((feature, index) => <FeatureCard key={feature.id} guide={guide} feature={feature} eager={index < 2} />)}</div>
     </section>
     <details className="guide-support">
       <summary>Support and release details</summary>
