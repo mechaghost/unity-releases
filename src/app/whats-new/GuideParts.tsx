@@ -1,5 +1,6 @@
 import { guideHref, guideStatus, SUPPORT_SOURCE, type GuideImage, type ReleaseGuide } from "@/lib/release-guides";
 import { ExternalLink } from "../_components/ExternalLink";
+import { Chip } from "../_components/Chip";
 import { featureHref, type ReleaseFeature } from "@/lib/release-features";
 
 export function GuideBadges({ guide, now }: { guide: ReleaseGuide; now: Date }) {
@@ -40,7 +41,7 @@ export function FeatureCard({ guide, feature, eager = false }: { guide: ReleaseG
       <div className="guide-highlight-copy">
         <h2 id={headingId}>{feature.title}</h2>
         <p>{feature.benefit}</p>
-        <div className="guide-feature-footer">{preview && <span className="guide-badge">Preview at launch</span>}<span className="guide-feature-action" aria-hidden="true">Explore feature <span>→</span></span></div>
+        <div className="guide-feature-footer"><Chip className="chip--area">{feature.category}</Chip>{preview && <span className="guide-badge">Preview at launch</span>}<span className="guide-feature-action" aria-hidden="true">Explore feature <span>→</span></span></div>
       </div>
     </a>
   </article>;
