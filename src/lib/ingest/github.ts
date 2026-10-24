@@ -315,3 +315,8 @@ export async function fetchLatestCommit(
     url: asString(top.html_url) ?? `https://github.com/${fullName}`
   };
 }
+
+/** Keep enough API requests for the activity feed after optional commit details. */
+export function githubCommitBudget(requested: number, remaining: number | null, eventPages: number): number {
+  return remaining === null ? requested : Math.min(requested, Math.max(0, remaining - eventPages));
+}

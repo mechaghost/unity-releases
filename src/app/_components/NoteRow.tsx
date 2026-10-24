@@ -1,4 +1,5 @@
-import { Fragment } from "react";
+import { cache, Fragment } from "react";
+import { query } from "@/lib/db/client";
 import {
   cleanReleaseNoteText,
   normalizeIssueLinks,
@@ -13,6 +14,13 @@ import { PackagePill } from "./PackagePill";
 import { PlatformPill } from "./PlatformPill";
 import { IssuePill } from "./IssuePill";
 import { VersionPill } from "./VersionPill";
+
+// Share one lightweight lookup across all notes in a server render. Unity
+// sometimes mentions future builds whose release pages do not exist yet.
+const indexedVersions = cache(async () => {
+  const result = await query<{ version: string }>("SELECT version FROM unity_releases");
+  return new Set(result.rows.map(row => row.version));
+});
 
 /**
  * Minimal shape any release-note row must satisfy to render through
@@ -60,12 +68,15 @@ type Props = {
   issueStatuses?: Map<string, IssueStatus> | null;
 };
 
-export function NoteRow({
+export async function NoteRow({
   row,
   showImpactPill = false,
   laneShowsSection = false,
   issueStatuses
 }: Props) {
+  const availableVersions = await indexedVersions();
+  const versionHref = (version: string) => availableVersions.has(version)
+    ? `/releases/${encodeURIComponent(version)}` : null;
   const cleanedBody = cleanReleaseNoteText(row.body ?? "");
   const bodyTokens = tokenizeReleaseNoteBody(cleanedBody);
   const issueLinks = normalizeIssueLinks(row.issue_ids ?? [], row.issue_links_json);
@@ -135,6 +146,7 @@ export function NoteRow({
                 >
                   <VersionPill
                     version={tok.version}
+                  href={versionHref(tok.version)}
                     stream={safeStreamForInline(tok.version)}
                     compact
                   />
@@ -143,6 +155,7 @@ export function NoteRow({
                 <VersionPill
                   key={`v-${idx}`}
                   version={tok.version}
+                  href={versionHref(tok.version)}
                   stream={safeStreamForInline(tok.version)}
                   compact
                 />
@@ -163,6 +176,7 @@ export function NoteRow({
                 <VersionPill
                   key={`bp-${v}`}
                   version={v}
+                  href={versionHref(v)}
                   stream={safeStreamForInline(v)}
                   compact
                 />

@@ -4,7 +4,8 @@ import {
   parseEvent,
   summarizeEvent,
   isNotable,
-  fetchLatestCommit
+  fetchLatestCommit,
+  githubCommitBudget
 } from "@/lib/ingest/github";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -168,4 +169,12 @@ describe("parseEvent", () => {
     expect(ev!.headCommitMessage).toBe("Fix host migration race");
     expect(ev!.ref).toBe("main");
   });
+});
+
+
+test("commit details leave API quota for the activity feed", () => {
+  expect(githubCommitBudget(90, 48, 3)).toBe(45);
+  expect(githubCommitBudget(90, 2, 3)).toBe(0);
+  expect(githubCommitBudget(90, 4900, 3)).toBe(90);
+  expect(githubCommitBudget(20, null, 3)).toBe(20);
 });

@@ -36,9 +36,10 @@ export type FeedEventRow = {
 // post/event/snapshot intact until historical RSS provenance can be reviewed,
 // but do not offer the unavailable link in public news/activity lists.
 // This is an exact URL safeguard, not title/date deduplication or an alias.
+const UNAVAILABLE_BLOG_URL = "https://unity.com/blog/celebrating-launches-and-triple-i-initiative-highlights-2025";
 const AVAILABLE_CONTENT_LINKS_SQL = `NOT (
   event_type = 'blog_post'
-  AND source_url = 'https://unity.com/blog/celebrating-launches-and-triple-i-initiative-highlights-2025'
+  AND source_url = '${UNAVAILABLE_BLOG_URL}'
 )`;
 
 function contentEventWhere(productUpdates: ProductUpdateFeedMode) {
@@ -620,7 +621,7 @@ export async function listReleaseNoteFacets() {
   }>(
     `
       SELECT
-        COALESCE((SELECT ARRAY_AGG(version ORDER BY release_date DESC NULLS LAST, version DESC) FROM unity_releases), '{}') AS versions,
+        COALESCE((SELECT ARRAY_AGG(version ORDER BY release_date DESC NULLS LAST, ${numericVersionDesc("version")}) FROM unity_releases), '{}') AS versions,
         COALESCE((SELECT ARRAY_AGG(DISTINCT minor_line ORDER BY minor_line DESC) FROM release_note_items), '{}') AS minor_lines,
         COALESCE((SELECT ARRAY_AGG(DISTINCT stream ORDER BY stream) FROM release_note_items), '{}') AS streams,
         COALESCE((SELECT ARRAY_AGG(DISTINCT section ORDER BY section) FROM release_note_items), '{}') AS sections,
@@ -672,10 +673,32 @@ export async function listFeedEvents(
       SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags
       FROM content_events
       ${where}
-      ORDER BY event_time DESC
+      ORDER BY event_time DESC NULLS LAST, id DESC
       LIMIT $1
     `,
     [limit]
+  );
+  return result.rows;
+}
+
+export type LatestBlogPostRow = {
+  id: number;
+  guid: string;
+  title: string;
+  description: string;
+  link: string;
+  published_at: string | null;
+};
+
+/** The blog publication date can be unknown; feed event_time may be discovery time. */
+export async function listLatestBlogPosts(limit = 30): Promise<LatestBlogPostRow[]> {
+  const result = await query<LatestBlogPostRow>(
+    `SELECT id, guid, title, description, link, published_at
+     FROM blog_posts
+     WHERE link <> $1
+     ORDER BY published_at DESC NULLS LAST, id DESC
+     LIMIT $2`,
+    [UNAVAILABLE_BLOG_URL, Math.min(100, Math.max(1, Math.floor(limit)))]
   );
   return result.rows;
 }
@@ -687,7 +710,7 @@ export async function listFeedEventsByType(eventType: string, limit = 30): Promi
       FROM content_events
       WHERE event_type = $1
         AND ${AVAILABLE_CONTENT_LINKS_SQL}
-      ORDER BY event_time DESC
+      ORDER BY event_time DESC NULLS LAST, id DESC
       LIMIT $2
     `,
     [eventType, limit]
@@ -707,7 +730,7 @@ export async function listFeedEventsByType(eventType: string, limit = 30): Promi
  * overflowing the int cast and aborting the query; a version that doesn't
  * match the numeric shape at all sorts last.
  */
-function numericVersionDesc(column: string): string {
+export function numericVersionDesc(column: string): string {
   const parts = `regexp_match(${column}, '^(\\d{1,9})\\.(\\d{1,9})\\.(\\d{1,9})')`;
   return [1, 2, 3]
     .map((i) => `(${parts})[${i}]::int DESC NULLS LAST`)
@@ -876,7 +899,7 @@ export async function getArtifactStats(): Promise<ArtifactStats> {
       (SELECT COUNT(*) FROM resources)                                     AS resources,
       (SELECT MAX(release_date) FROM unity_releases)                       AS latest_release_date,
       (SELECT version FROM unity_releases
-        ORDER BY release_date DESC NULLS LAST, version DESC LIMIT 1)       AS latest_release_version
+        ORDER BY release_date DESC NULLS LAST, ${numericVersionDesc("version")} LIMIT 1)       AS latest_release_version
   `);
 
   const streamRows = await query<{ stream: string; count: string }>(`
@@ -2054,7 +2077,7 @@ export async function listTimelineFeed(
     `SELECT id, event_type, title, summary, event_time, source_url, stable_guid, risk_level, tags, ingestion_run_id
      FROM content_events
      ${contentWhere}
-     ORDER BY event_time DESC
+     ORDER BY event_time DESC NULLS LAST, id DESC
      LIMIT $1`,
     [limit * 2]
   );
@@ -2065,7 +2088,7 @@ export async function listTimelineFeed(
       : query<IngestionRunRow>(
           `SELECT id::text, source_type, job_name, started_at, finished_at, status, records_created, records_updated, records_deleted, error_message
            FROM ingestion_runs
-           ORDER BY started_at DESC
+           ORDER BY started_at DESC NULLS LAST, id DESC
            LIMIT $1`,
           [limit]
         );
@@ -2208,7 +2231,8 @@ export async function listTimelineFeed(
   ];
 
   return events
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime() ||
+      b.id.localeCompare(a.id, undefined, { numeric: true }))
     .slice(0, limit);
 }
 
@@ -3102,7 +3126,7 @@ export async function getReposLatestActivity(
         FROM github_events
         WHERE event_type = 'PushEvent' AND head_commit_message IS NOT NULL
           AND repo_full_name = ANY($1::text[])
-        ORDER BY repo_full_name, event_created_at DESC
+        ORDER BY repo_full_name, event_created_at DESC NULLS LAST, id DESC
       `,
       [fullNames]
     ),
@@ -3111,7 +3135,7 @@ export async function getReposLatestActivity(
         SELECT DISTINCT ON (repo_full_name) repo_full_name, ref, html_url
         FROM github_events
         WHERE event_type = 'ReleaseEvent' AND repo_full_name = ANY($1::text[])
-        ORDER BY repo_full_name, event_created_at DESC
+        ORDER BY repo_full_name, event_created_at DESC NULLS LAST, id DESC
       `,
       [fullNames]
     )
@@ -3216,7 +3240,7 @@ export async function listGithubRepos(filters: GithubRepoListFilters): Promise<G
   // stable DESC tiebreaker. `dir`/`nulls` are derived constants (never raw
   // input), so they're safe to interpolate.
   const dir = filters.direction === "asc" ? "ASC" : "DESC";
-  const nulls = filters.direction === "asc" ? "NULLS FIRST" : "NULLS LAST";
+  const nulls = "NULLS LAST";
   let orderSql: string;
   switch (filters.sort) {
     case "newest":
@@ -3231,6 +3255,8 @@ export async function listGithubRepos(filters: GithubRepoListFilters): Promise<G
     default:
       orderSql = `gr.stargazers_count ${dir}, gr.repo_pushed_at DESC NULLS LAST`;
   }
+
+  orderSql += ", gr.github_repo_id DESC";
 
   values.push(perPage, offset);
   const result = await query<{

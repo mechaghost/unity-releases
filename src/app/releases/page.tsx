@@ -66,6 +66,8 @@ export default async function ReleasesPage({
   const filterOptions = buildReleaseFilters(all);
   const selectedFilters = parseSelectedReleaseFilters(params.stream, filterOptions);
   const defaultFilters = defaultReleaseFilters(filterOptions);
+  const isDefaultView = !sortKey && selectedFilters.length === defaultFilters.length &&
+    selectedFilters.every((filter) => defaultFilters.includes(filter));
   const { results: scoreResults } = scoreAllReleases(scoreInputs);
   // Note counts come straight from the cached score-inputs (which run a
   // single GROUP BY on release_note_items). Killed the parallel
@@ -94,7 +96,7 @@ export default async function ReleasesPage({
             <a href="/compare">Compare versions</a>
           </div>
         </div>
-        <p>Browse patch releases and their fixes.</p>
+        <p>{isDefaultView ? "Newest stable releases · LTS and Supported" : "Browse patch releases and their fixes."}</p>
       </section>
 
       <ReleaseStreamChips

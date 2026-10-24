@@ -32,6 +32,12 @@ npm run build
 
 Set `DATABASE_URL` before using DB-backed pages or jobs.
 
+Keep normal preview data in the local database's `public` schema and set that
+connection in `.env.local`. After `npm run build`, run `npm run preview` on
+port 3100. The preview command rejects browser-test fixture connections. Browser tests use
+port 3101, `.next-e2e`, and the separate `unity_alerts_e2e` schema; they must
+never be used as the normal preview. `npm run test:e2e` manages its own server.
+
 ```bash
 npm run db:migrate
 npm run ingest:editor

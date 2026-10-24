@@ -52,7 +52,7 @@ INSERT INTO release_note_items (
 SELECT
   id, version, major_line, minor_line, stream, release_date,
   'Fixes', 'Editor', ARRAY['Windows'], 'fix', 'info',
-  ARRAY[]::text[], 'Fixed an editor import hang tracked as UUM-10001.',
+  ARRAY[]::text[], 'Fixed an editor import hang tracked as UUM-10001, first seen in 6000.0.1f1. Also fixed in 7000.0.0a13.',
   ARRAY['UUM-10001'],
   '[{"id":"UUM-10001","url":"https://issuetracker.unity3d.com/issues/uum-10001"}]'::jsonb,
   ARRAY[]::text[], release_notes_url, 1, 'e2e-v1', 'e2e-note-fix'
@@ -341,3 +341,15 @@ SELECT
   'info'
 FROM unity_releases
 WHERE version = '6000.0.2f1';
+
+-- Discovery happened later than publication. Homepage/news cards must show
+-- the source's July 20 date, not this July 28 ingestion timestamp.
+INSERT INTO content_events (
+  event_type, title, summary, event_time, source_url,
+  stable_guid, tags, risk_level
+)
+SELECT
+  'blog_post', title, description, '2026-07-28T00:00:00Z', link,
+  guid, categories, 'info'
+FROM blog_posts
+WHERE guid = 'e2e-news-1';

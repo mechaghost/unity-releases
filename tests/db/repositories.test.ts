@@ -19,7 +19,10 @@ import {
   packageVersionsAtBoundary,
   resolveDiffRange,
   searchReleaseNotesInRange,
-  listTimelineFeed
+  listTimelineFeed,
+  listFeedEvents,
+  listFeedEventsByType,
+  listLatestBlogPosts
 } from "../../src/lib/db/repositories";
 
 type Row = Record<string, unknown>;
@@ -632,5 +635,37 @@ describe("listTimelineFeed", () => {
       eventType: "product_update",
       title: "Unity Hub 3.14.0"
     });
+  });
+});
+
+
+describe("latest feed ordering", () => {
+  test("news and mixed feeds keep dated entries first with a stable tie-break", async () => {
+    mocks.query.mockResolvedValue(rows());
+    await listFeedEvents(10);
+    await listFeedEventsByType("blog_post", 10);
+    for (const [sql] of mocks.query.mock.calls) {
+      expect(sql).toContain("ORDER BY event_time DESC NULLS LAST, id DESC");
+    }
+  });
+  test("timeline query ordering and merged ties are deterministic", async () => {
+    mocks.query.mockResolvedValueOnce(rows()).mockResolvedValueOnce(rows());
+    await listTimelineFeed(10);
+    expect(mocks.query.mock.calls[0][0]).toContain("ORDER BY event_time DESC NULLS LAST, id DESC");
+    expect(mocks.query.mock.calls[1][0]).toContain("ORDER BY started_at DESC NULLS LAST, id DESC");
+  });
+});
+
+
+describe("latest published blog posts", () => {
+  test("orders by source publication dates and excludes unavailable links", async () => {
+    mocks.query.mockResolvedValueOnce(rows({ id: 1, guid: "news", title: "News", description: "", link: "https://unity.com/blog/news", published_at: null }));
+    const result = await listLatestBlogPosts(1);
+    const [sql, parameters] = mocks.query.mock.calls[0];
+    expect(sql).toContain("FROM blog_posts");
+    expect(sql).toContain("ORDER BY published_at DESC NULLS LAST, id DESC");
+    expect(sql).not.toContain("COALESCE");
+    expect(parameters).toEqual(["https://unity.com/blog/celebrating-launches-and-triple-i-initiative-highlights-2025", 1]);
+    expect(result[0].published_at).toBeNull();
   });
 });

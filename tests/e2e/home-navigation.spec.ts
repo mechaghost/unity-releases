@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-test("home foregrounds release guides and comparison remains a separate tool", async ({ page }, testInfo) => {
+test("home foregrounds release guides and comparison remains a separate tool", async ({ page, baseURL }, testInfo) => {
   await page.goto("/?utm_source=review");
   await expect(page.getByRole("heading", { level: 1, name: "What’s new in Unity?" })).toBeVisible();
   await expect(page.locator(".guide-card")).toHaveCount(7);
@@ -23,7 +23,7 @@ test("home foregrounds release guides and comparison remains a separate tool", a
   await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
   await expect(nav.getByRole("link", { name: "Compare versions", exact: true })).toHaveAttribute("aria-current", "page");
   await nav.locator(".lnav__brand").click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expect(page).toHaveURL(`${baseURL}/`);
   await page.goto("/whats-new");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /^https?:\/\/[^/]+\/?$/);
   await page.setViewportSize({ width: 320, height: 850 });
@@ -36,10 +36,10 @@ test("home foregrounds release guides and comparison remains a separate tool", a
   }
 });
 
-test("old root comparison bookmarks keep their filters", async ({ request }) => {
+test("old root comparison bookmarks keep their filters", async ({ request, baseURL }) => {
   const response = await request.get("/?from=6000.0.1f1&to=6000.0.2f1&stream=LTS&stream=SUPPORTED&p_fixes=2", { maxRedirects: 0 });
   expect(response.status()).toBe(307);
-  const target = new URL(response.headers().location, "http://127.0.0.1:3100");
+  const target = new URL(response.headers().location, baseURL);
   expect(target.pathname).toBe("/compare");
   expect(target.searchParams.getAll("stream")).toEqual(["LTS", "SUPPORTED"]);
   expect(target.searchParams.get("from")).toBe("6000.0.1f1");

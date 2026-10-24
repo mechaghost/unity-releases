@@ -81,11 +81,20 @@ describe("buildReleaseFilters", () => {
 });
 
 describe("release page filters", () => {
-  test("defaults to every modern LTS line", () => {
+  test("defaults to every modern LTS line and Supported updates", () => {
     expect(parseSelectedReleaseFilters(undefined, FILTERS)).toEqual([
       "6000.3-lts",
-      "6000.0-lts"
+      "6000.0-lts",
+      "update"
     ]);
+  });
+
+  test("default browsing includes Supported but leaves Beta and Alpha opt-in", () => {
+    const selected = defaultReleaseFilters(FILTERS);
+    expect(releaseMatchesSelectedFilters({ version: "6000.6.7f1", stream: "Update/Supported" }, selected)).toBe(true);
+    expect(releaseMatchesSelectedFilters({ version: "6000.7.0b6", stream: "beta" }, selected)).toBe(false);
+    expect(releaseMatchesSelectedFilters({ version: "7000.0.0a12", stream: "alpha" }, selected)).toBe(false);
+    expect(parseSelectedReleaseFilters("lts", buildReleaseFilters([{ version: "6000.6.7f1", stream: "Update/Supported" }]))).toEqual([]);
   });
 
   test("a newly-indexed LTS line joins the default selection", () => {
@@ -93,13 +102,14 @@ describe("release page filters", () => {
     expect(defaultReleaseFilters(filters)).toEqual([
       "6000.7-lts",
       "6000.3-lts",
-      "6000.0-lts"
+      "6000.0-lts",
+      "update"
     ]);
   });
 
-  test("falls back to stream chips when nothing is indexed", () => {
+  test("keeps previews opt-in even when nothing is indexed", () => {
     const filters = buildReleaseFilters([]);
-    expect(defaultReleaseFilters(filters)).toEqual(["update", "beta", "alpha"]);
+    expect(defaultReleaseFilters(filters)).toEqual(["update"]);
   });
 
   test("a legacy-only DB defaults to its LTS chips, not an empty stream view", () => {
@@ -110,7 +120,7 @@ describe("release page filters", () => {
       { version: "2022.3.61f1", stream: "LTS" },
       { version: "2019.4.40f1", stream: "LTS" }
     ]);
-    expect(defaultReleaseFilters(legacyOnly)).toEqual(["2022.3-lts", "2019.4-lts"]);
+    expect(defaultReleaseFilters(legacyOnly)).toEqual(["2022.3-lts", "2019.4-lts", "update"]);
   });
 
   test("maps the legacy combined LTS query to the split LTS filters", () => {
@@ -142,7 +152,8 @@ describe("release page filters", () => {
   test("drops chip values that aren't available and falls back to defaults", () => {
     expect(parseSelectedReleaseFilters("9999.9-lts", FILTERS)).toEqual([
       "6000.3-lts",
-      "6000.0-lts"
+      "6000.0-lts",
+      "update"
     ]);
   });
 
@@ -198,8 +209,9 @@ describe("release page filters", () => {
       "/releases?stream=6000.3-lts&page=2"
     );
     expect(releasePageHref(2, ["6000.3-lts", "6000.0-lts"], null, defaults)).toBe(
-      "/releases?page=2"
+      "/releases?stream=6000.3-lts&stream=6000.0-lts&page=2"
     );
+    expect(releasePageHref(2, defaults, null, defaults)).toBe("/releases?page=2");
   });
 
   test("the sort cycle can return to unsorted", () => {

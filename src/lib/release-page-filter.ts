@@ -101,35 +101,18 @@ function ltsFilterValues(
     .map(({ option }) => option.value);
 }
 
-/**
- * Default selection: every modern-generation LTS line, matching the previous
- * hardcoded default of 6000.3 + 6000.0. Legacy lines stay off until ticked.
- *
- * In a legacy-only DB the legacy LTS chips are the default instead - the
- * stream chips (`update/beta/alpha`) match nothing there, so falling straight
- * to them rendered "No releases match this filter" while releases existed.
- * Only when there are no LTS chips at all (a fresh install mid-seed that has
- * only prerelease rows) do the stream chips become the fallback.
- */
+/** Latest stable releases: modern LTS lines plus Supported updates. */
 export function defaultReleaseFilters(
   available: readonly ReleaseFilterOption[]
 ): ReleaseFilterValue[] {
-  const modernLts = ltsFilterValues(available, true);
-  if (modernLts.length > 0) return modernLts;
-  const anyLts = ltsFilterValues(available, false);
-  if (anyLts.length > 0) return anyLts;
-  return STREAM_FILTERS.map((f) => f.value);
+  const lts = ltsAliasFilters(available);
+  return [...lts, ...available.filter((option) => option.value === "update").map((option) => option.value)];
 }
 
-/**
- * What `?stream=lts` resolves to. Behaviorally identical to the default
- * selection today (modern LTS lines, then any LTS line, then the stream
- * chips), but kept as its own name: the alias's contract is "lts means the
- * LTS chips", the default's is "what a bare /releases shows", and the two
- * are allowed to diverge again.
- */
+/** Explicit LTS links must never opt readers into Supported or preview builds. */
 function ltsAliasFilters(available: readonly ReleaseFilterOption[]): ReleaseFilterValue[] {
-  return defaultReleaseFilters(available);
+  const modernLts = ltsFilterValues(available, true);
+  return modernLts.length > 0 ? modernLts : ltsFilterValues(available, false);
 }
 
 export function parseSelectedReleaseFilters(
@@ -159,7 +142,10 @@ export function parseSelectedReleaseFilters(
     return availableValues.has(normalized) ? [normalized] : [];
   });
 
-  return selected.length > 0 ? Array.from(new Set(selected)) : defaults;
+  if (selected.length > 0) return Array.from(new Set(selected));
+  // An explicit LTS scope stays empty when there are no LTS releases yet.
+  if (values.some((value) => typeof value === "string" && value.toLowerCase() === "lts")) return [];
+  return defaults;
 }
 
 export function releaseMatchesSelectedFilters(

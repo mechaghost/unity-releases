@@ -12,7 +12,8 @@ import {
   githubGetAll,
   parseRepo,
   parseEvent,
-  fetchLatestCommit
+  fetchLatestCommit,
+  githubCommitBudget
 } from "../lib/ingest/github";
 
 /**
@@ -89,7 +90,7 @@ async function main() {
     const recent = [...parsedRepos]
       .filter((r) => r.repoPushedAt && !r.isFork)
       .sort((a, b) => (b.repoPushedAt ?? "").localeCompare(a.repoPushedAt ?? ""))
-      .slice(0, MAX_COMMIT_REPOS);
+      .slice(0, githubCommitBudget(MAX_COMMIT_REPOS, repos.rate.remaining, MAX_EVENT_PAGES));
     for (const r of recent) {
       const commit = await fetchLatestCommit(r.fullName, token);
       if (commit) {

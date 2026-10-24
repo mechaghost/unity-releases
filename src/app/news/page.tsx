@@ -1,4 +1,4 @@
-import { listFeedEventsByType } from "@/lib/db/repositories";
+import { listLatestBlogPosts } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
 import { NewsRowClient } from "../_components/NewsRowClient";
 import { pageSocialMetadata } from "@/lib/site";
@@ -15,18 +15,8 @@ export const metadata = {
   ...pageSocialMetadata({ title: "News", description: NEWS_DESCRIPTION, path: "/news" })
 };
 
-type FeedEvent = {
-  id: number;
-  title: string;
-  summary: string;
-  event_time: string;
-  source_url: string;
-  stable_guid: string;
-  tags: string[];
-};
-
 export default async function NewsPage() {
-  const news = (await safeListNews()) as FeedEvent[];
+  const news = await safeListNews();
 
   return (
     <>
@@ -51,12 +41,12 @@ export default async function NewsPage() {
         </thead>
         <tbody>
           {news.map((event) => (
-            <NewsRowClient key={event.stable_guid} href={event.source_url}>
+            <NewsRowClient key={event.guid} href={event.link}>
               <td>
-                <span className="muted tabnums">{formatDate(event.event_time)}</span>
+                <span className="muted tabnums">{formatDate(event.published_at)}</span>
               </td>
               <td>
-                <ExternalLink href={event.source_url} className="link-internal--accent">
+                <ExternalLink href={event.link} className="link-internal--accent">
                   {event.title}
                 </ExternalLink>
               </td>
@@ -75,7 +65,8 @@ export default async function NewsPage() {
   );
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string | null): string {
+  if (!iso) return "Date not supplied";
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
@@ -85,7 +76,7 @@ function formatDate(iso: string): string {
 
 async function safeListNews() {
   try {
-    return await listFeedEventsByType("blog_post", 100);
+    return await listLatestBlogPosts(100);
   } catch {
     return [];
   }

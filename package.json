@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:db": "tsx tests/db/core-upsert-db-contract.ts && tsx tests/product-updates/db-contract.ts && tsx tests/db/issue-duration-db-contract.ts && tsx tests/db/visualizer-duration-db-contract.ts",
-    "e2e:serve": "tsx tests/e2e/setup-db.ts && next build && next start --port 3100",
+    "e2e:serve": "tsx tests/e2e/setup-db.ts && next build && next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx src/jobs/migrate.ts",
     "ingest:backfill": "tsx src/jobs/backfill-unity6.ts",
@@ -31,7 +31,8 @@
     "repair:core-projections": "tsx src/jobs/refresh-core-projections.ts",
     "check:packages": "tsx src/jobs/check-missing-packages.ts",
     "check:invariants": "tsx src/jobs/check-invariants.ts",
-    "check:lts": "tsx src/jobs/check-lts-lines.ts"
+    "check:lts": "tsx src/jobs/check-lts-lines.ts",
+    "preview": "node scripts/preview-local.mjs"
   },
   "dependencies": {
     "@radix-ui/react-hover-card": "^1.1.15",

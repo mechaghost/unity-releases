@@ -121,10 +121,10 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                     Package
                   </SortLink>
                 </th>
-                <th scope="col" style={{ width: 140 }}>Latest</th>
+                <th scope="col" style={{ width: 140 }}>Registry version</th>
                 <th scope="col" style={{ width: 130 }} aria-sort={sort.startsWith("updated_") ? (sort.endsWith("_asc") ? "ascending" : "descending") : undefined}>
                   <SortLink field="updated" currentSort={sort} q={q} scope={scope} channel={channel}>
-                    Updated
+                    Registry updated
                   </SortLink>
                 </th>
                 <th scope="col" style={{ width: 120 }}>Channel</th>
@@ -184,10 +184,10 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                       </div>
                     ) : null}
                   </td>
-                  <td data-label="Latest">
+                  <td data-label="Registry version">
                     <span className="chip chip--package tabnums">{pkg.latest_version ?? "-"}</span>
                   </td>
-                  <td data-label="Updated">
+                  <td data-label="Registry updated">
                     <span className="muted tabnums">
                       {pkg.latest_published_at ? formatDate(pkg.latest_published_at) : "-"}
                     </span>

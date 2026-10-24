@@ -7292,7 +7292,10 @@ button.filter-section__head:focus-visible {
 .update-section-card__heading { display: flex; align-items: center; gap: var(--space-2); }
 .update-section-card__heading h3 { flex: 1; margin: 0; font-size: var(--text-base); }
 .update-section-card__heading > svg, .update-section-card__heading > span { flex: none; color: var(--text-link); }
-.update-section-card p { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: var(--text-sm); }
+.update-section-card p { overflow-wrap: anywhere; margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: var(--text-sm); }
+.update-section-card .update-section-card__title { color: var(--text-primary); font-weight: var(--weight-medium); }
+.update-section-card__summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.update-section-card__date { margin-top: auto; padding-top: var(--space-3); color: var(--text-muted); font-size: var(--text-xs); }
 .update-section-card:hover h3 { color: var(--text-link); text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 1100px) { .update-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .update-section-grid { grid-template-columns: 1fr; } }

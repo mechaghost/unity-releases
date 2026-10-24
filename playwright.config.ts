@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { scopedDatabaseUrl } from "./tests/e2e/test-database";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3100";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3101";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -23,6 +23,8 @@ export default defineConfig({
     timeout: 180_000,
     env: {
       ...process.env,
+      NEXT_DIST_DIR: ".next-e2e",
+      PORT: new URL(baseURL).port || "3101",
       DATABASE_URL: scopedDatabaseUrl(),
       APP_BASE_URL: baseURL,
       PRODUCT_UPDATE_INGEST_ENABLED: "false",
