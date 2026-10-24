@@ -20,20 +20,19 @@ export default function WhatsNewPage() {
     <header className="guide-hero">
       <span className="guide-eyebrow">The bigger picture</span>
       <h1>What’s new in Unity?</h1>
-      <p className="guide-deck">Understand what changed, who benefits, and what to consider before choosing a release.</p>
-      <p className="guide-caption">One guide per release — Unity 6.0, 6.1, and beyond. The highlights, without the patch-by-patch detail.</p>
+      <p className="guide-deck">New ways to create. More reasons to explore.</p>
+      <p className="guide-caption">See the highlights of each Unity release, in pictures.</p>
       <div className="guide-actions"><a className="btn btn--primary" href="#release-guides">Explore the guides</a><a href="#support">LTS or Supported Update?</a></div>
     </header>
     <section id="release-guides" aria-labelledby="guide-featured-title">
       <div className="guide-section-heading"><span className="guide-eyebrow">Choose your starting point</span><h2 id="guide-featured-title">Latest reviewed releases</h2>
-        <p>Compare what each offers and check its current support label.</p></div>
+</div>
       <div className="guide-grid">{featured.map(guide => <GuideCard key={guide.slug} guide={guide} now={now} featured />)}</div>
     </section>
     <SupportExplainer />
-    <section aria-labelledby="guide-earlier-title"><div className="guide-section-heading"><h2 id="guide-earlier-title">Explore earlier releases</h2><p>See when a capability arrived. Some earlier LTS releases remain supported.</p></div>
+    <section aria-labelledby="guide-earlier-title"><div className="guide-section-heading"><h2 id="guide-earlier-title">Explore earlier releases</h2></div>
       <div className="guide-grid">{earlier.map(guide => <GuideCard key={guide.slug} guide={guide} now={now} />)}</div>
     </section>
-    <footer className="guide-footer"><p>Independent summaries based on Unity’s official announcements. Highlights describe the release at launch; they are not a list of every later patch.</p>
-      <p>Content and support reviewed October 24, 2026. New guides are published after review. <a href="/releases">Browse all indexed Editor releases</a> for newer patches and previews.</p></footer>
+    <footer className="guide-footer">Independent guides · Reviewed October 24, 2026. <a href="/releases">Browse all Editor releases</a></footer>
   </div>;
 }

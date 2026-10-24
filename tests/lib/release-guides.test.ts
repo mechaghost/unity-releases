@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createRequire } from "node:module";
+const sharp = createRequire(import.meta.url)("sharp");
 import { describe, expect, test } from "vitest";
 import { formatGuideDate, findReleaseGuide, guideHref, guideNotesHref, guideStatus, RELEASE_GUIDES } from "../../src/lib/release-guides";
 const at = (day: string) => new Date(`${day}T12:00:00Z`);
@@ -26,6 +30,22 @@ describe("release guides", () => {
         expect(guide.supportThrough).toMatch(/^\d{4}-\d{2}$/);
         expect(guide.extendedThrough! > guide.supportThrough!).toBe(true);
       }
+    }
+  });
+  test("every feature has a distinct, decodable local image with an official source", async () => {
+    const features = RELEASE_GUIDES.flatMap(g => g.highlights);
+    expect(new Set(features.map(f => f.image.src)).size).toBe(28);
+    for (const { image } of features) {
+      expect(image.alt.length).toBeGreaterThan(10);
+      expect(image.source).toMatch(/^https:\/\/(unity\.com|discussions\.unity\.com|docs\.unity3d\.com)\//);
+      expect(image.original).toMatch(/^https:\/\//);
+      expect(image.src).toMatch(/^\/images\/release-guides\/6\.[0-6]-[0-3]\.webp$/);
+      const buffer = readFileSync(resolve("public", image.src.slice(1)));
+      const metadata = await sharp(buffer).metadata();
+      expect(metadata.format).toBe("webp");
+      expect(metadata.width).toBe(image.width);
+      expect(metadata.height).toBe(image.height);
+      expect(buffer.byteLength).toBeLessThan(300_000);
     }
   });
   test("older Updates are superseded while both LTS lines can remain supported", () => {

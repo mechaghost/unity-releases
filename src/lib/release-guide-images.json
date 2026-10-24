@@ -1,0 +1,208 @@
+{
+  "6.6-0": {
+    "src": "/images/release-guides/6.6-0.webp",
+    "alt": "Bunny Blitz scene demonstrating separate lighting layers",
+    "width": 960,
+    "height": 540,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/9/5/5/9555057db6754d7cfcaa8964532f7d8a6b0e5120.gif"
+  },
+  "6.6-1": {
+    "src": "/images/release-guides/6.6-1.webp",
+    "alt": "Unity Compute Light Baker selected in lighting settings",
+    "width": 512,
+    "height": 304,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/7/6/6/76678f6a7acd764fd14732d06aad7ee53e1cd842.png"
+  },
+  "6.6-2": {
+    "src": "/images/release-guides/6.6-2.webp",
+    "alt": "Build Analysis window showing build reports",
+    "width": 512,
+    "height": 328,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/b/d/6/bd6f148171a3369ae13732c429e6c56465f802e4.png"
+  },
+  "6.6-3": {
+    "src": "/images/release-guides/6.6-3.webp",
+    "alt": "Fast Enter Play Mode settings",
+    "width": 512,
+    "height": 332,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/a/0/0/a008541cbfe0c7fdcf5137998362f11035ccdde3.png"
+  },
+  "6.5-0": {
+    "src": "/images/release-guides/6.5-0.webp",
+    "alt": "Custom lights illuminating a 2D scene",
+    "width": 1200,
+    "height": 512,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/f/e/a/fea90fff10837b3403047386962ba9dd42323195.jpeg"
+  },
+  "6.5-1": {
+    "src": "/images/release-guides/6.5-1.webp",
+    "alt": "2D Profiler showing sprites and atlas use",
+    "width": 1000,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/3/f/a/3fa0c3aa0c8a13f690cfaa4f9e991f1cb045773a.jpeg"
+  },
+  "6.5-2": {
+    "src": "/images/release-guides/6.5-2.webp",
+    "alt": "Physics Core 2D demonstration with thousands of sprites",
+    "width": 1200,
+    "height": 675,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/5/1/3/513adce248844dc90b22856d2e934114331a8477.jpeg"
+  },
+  "6.5-3": {
+    "src": "/images/release-guides/6.5-3.webp",
+    "alt": "Tile-Only mode in rendering settings",
+    "width": 822,
+    "height": 334,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/6/8/3/68396e6575896ddc6b7716fa2411fa670dbaf2c0.png"
+  },
+  "6.4-0": {
+    "src": "/images/release-guides/6.4-0.webp",
+    "alt": "Built-in Project Auditor results",
+    "width": 876,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/8/c/e/8ceb00605268afcacc9895c68986f3b3768a6195.jpeg"
+  },
+  "6.4-1": {
+    "src": "/images/release-guides/6.4-1.webp",
+    "alt": "Package Manager warning before installing an unsigned package",
+    "width": 1190,
+    "height": 782,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/e/8/1/e817392a9e6bfab63d9f16ac926d733b7cb5e133.png"
+  },
+  "6.4-2": {
+    "src": "/images/release-guides/6.4-2.webp",
+    "alt": "Adaptive Performance provider settings",
+    "width": 698,
+    "height": 800,
+    "original": "https://docs.unity3d.com/6000.4/Documentation/uploads/Main/ap/ap-provider-settings.png",
+    "source": "https://docs.unity3d.com/6000.4/Documentation/Manual/adaptive-performance/provider-settings-reference.html"
+  },
+  "6.4-3": {
+    "src": "/images/release-guides/6.4-3.webp",
+    "alt": "Matchmaker dashboard explaining an unmatched player ticket",
+    "width": 903,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/1/2/7/127f0d81bad6cf98ea7a938b5e8e0cc18a9257cd.png"
+  },
+  "6.3-0": {
+    "src": "/images/release-guides/6.3-0.webp",
+    "alt": "Platform Toolkit",
+    "width": 1200,
+    "height": 637,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/0b3fc24be15904e647ceb3135d9cd4a3e57c1ea7-1307x694.png?w=1307&h=694&fit=crop&dpr=2"
+  },
+  "6.3-1": {
+    "src": "/images/release-guides/6.3-1.webp",
+    "alt": "Profiler enhancements",
+    "width": 1200,
+    "height": 747,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/4480eb18776cc66e026ef27b81a6485381eda51a-2024x1260.png?rect=1,0,2023,1260&w=1604&h=999&fit=crop&dpr=2"
+  },
+  "6.3-2": {
+    "src": "/images/release-guides/6.3-2.webp",
+    "alt": "Sprite Atlas Analyzer",
+    "width": 1200,
+    "height": 720,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/7989f0a79b6a5862189e77fec1522c9f9b47c610-1605x963.png?w=1604&h=962&fit=crop&dpr=2"
+  },
+  "6.3-3": {
+    "src": "/images/release-guides/6.3-3.webp",
+    "alt": "On-tile post-processing controls",
+    "width": 431,
+    "height": 454,
+    "original": "https://docs.unity3d.com/6000.3/Documentation/uploads/Main/xr-graphics-on-tile-post-processing.png",
+    "source": "https://docs.unity3d.com/6000.3/Documentation/Manual/xr-graphics-on-tile-post-processing.html"
+  },
+  "6.2-0": {
+    "src": "/images/release-guides/6.2-0.webp",
+    "alt": "Mesh LOD demonstration model",
+    "width": 869,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/f/2/8/f280dba88e7c5d4d995f0b9f0c7767a085ca205c.gif",
+    "source": "https://discussions.unity.com/t/unity-6-2-beta-is-now-available/1639999"
+  },
+  "6.2-1": {
+    "src": "/images/release-guides/6.2-1.webp",
+    "alt": "World-space interface positioned inside a 3D scene",
+    "width": 692,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/9/9/f/99f91ab18112216b2c90848698eb5e79c996947f.jpeg",
+    "source": "https://discussions.unity.com/t/unity-6-2-beta-is-now-available/1639999"
+  },
+  "6.2-2": {
+    "src": "/images/release-guides/6.2-2.webp",
+    "alt": "Demeo by Resolution Games, featured in Unity’s Android XR story",
+    "width": 1200,
+    "height": 675,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/e4eb76464d0d07c87d10a82ae2aeba4de253c95c-3840x2160.jpg",
+    "source": "https://unity.com/blog/porting-apps-games-over-android-xr-unity-6"
+  },
+  "6.2-3": {
+    "src": "/images/release-guides/6.2-3.webp",
+    "alt": "Unity AI menu in Unity 6.2",
+    "width": 400,
+    "height": 276,
+    "original": "https://docs.unity3d.com/6000.2/Documentation/uploads/Main/ai-window.png",
+    "source": "https://docs.unity3d.com/6000.2/Documentation/Manual/ai-menu.html"
+  },
+  "6.1-0": {
+    "src": "/images/release-guides/6.1-0.webp",
+    "alt": "Example scene rendered with deferred lighting",
+    "width": 850,
+    "height": 364,
+    "original": "https://docs.unity3d.com/6000.1/Documentation/uploads/urp/rendering-deferred/deferred-intro-image.png",
+    "source": "https://docs.unity3d.com/6000.1/Documentation/Manual/urp/rendering/deferred-rendering-path-landing.html"
+  },
+  "6.1-1": {
+    "src": "/images/release-guides/6.1-1.webp",
+    "alt": "Project Auditor 1.0 summary of project issues",
+    "width": 750,
+    "height": 776,
+    "original": "https://docs.unity3d.com/Packages/com.unity.project-auditor@1.0/manual/images/summary-view.png",
+    "source": "https://docs.unity3d.com/Packages/com.unity.project-auditor@1.0/manual/project-auditor-introduction.html"
+  },
+  "6.1-2": {
+    "src": "/images/release-guides/6.1-2.webp",
+    "alt": "Rolling wave created with HDRP water deformation",
+    "width": 850,
+    "height": 478,
+    "original": "https://docs.unity3d.com/6000.1/Documentation/uploads/Main/61-hdrp-deformed-water.png",
+    "source": "https://docs.unity3d.com/6000.1/Documentation/Manual/WhatsNewUnity61.html"
+  },
+  "6.1-3": {
+    "src": "/images/release-guides/6.1-3.webp",
+    "alt": "Oasis demo running in a browser with WebGPU",
+    "width": 1191,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/2/c/c/2cc07022f14985195201c5ffaa44e70c53412261.jpeg",
+    "source": "https://discussions.unity.com/t/public-access-to-webgpu-experimental-in-unity-6-1/1572462"
+  },
+  "6.0-0": {
+    "src": "/images/release-guides/6.0-0.webp",
+    "alt": "Fantasy Kingdom in Unity 6 created with the universal render pipeline URP",
+    "width": 480,
+    "height": 360,
+    "original": "https://img.youtube.com/vi/cKRg1yKVd5g/hqdefault.jpg"
+  },
+  "6.0-1": {
+    "src": "/images/release-guides/6.0-1.webp",
+    "alt": "Unity 6 APV Time of day",
+    "width": 480,
+    "height": 360,
+    "original": "https://img.youtube.com/vi/sKq-xWawWlA/hqdefault.jpg"
+  },
+  "6.0-2": {
+    "src": "/images/release-guides/6.0-2.webp",
+    "alt": "Multiplayer Center in Unity 6",
+    "width": 1200,
+    "height": 776,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/d01a034ded515b1a5b7f8413086d38bb65d931a9-3456x2234.png?rect=1,0,3455,2234&w=1604&h=1037&fit=crop&dpr=2"
+  },
+  "6.0-3": {
+    "src": "/images/release-guides/6.0-3.webp",
+    "alt": " screen capture of the new Build Profile window within the Unity Editor.",
+    "width": 1181,
+    "height": 800,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/0990d97e36484387917e9e4f3fbdc9cb33399716-1374x931.png?w=1374&h=931&fit=crop&dpr=2"
+  }
+}

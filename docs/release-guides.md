@@ -23,3 +23,9 @@ An Update is superseded when a later released family in the reviewed catalog exi
 ## Verification
 
 Run npm test and npm run typecheck. Run npm run test:e2e with the local Postgres test database available; the guide suite covers all routes, 404s, selected navigation, keyboard disclosures, 320px overflow, and light/dark accessibility. Review actual desktop and mobile screenshots, including the overview. Check print preview when changing guide layout. The sitemap includes reviewed guide URLs even if the database is unavailable.
+
+## Feature images
+
+Every feature has its own local WebP in `public/images/release-guides`. The manifest `src/lib/release-guide-images.json` records the original image URL, source article (or the guide announcement by default), alt text, and actual dimensions. Images are from Unity announcements and versioned documentation, not generated artwork. Rights remain with their respective owners; each image links to its source. Demeo is a contextual Android XR example from Unity's developer story, not a screenshot proving a 6.2-specific rendering change. The two 6.0 demo images are video preview stills; the 6.6 2D lighting and 6.2 Mesh LOD illustrations are stills from Unity's animated demonstration.
+
+Keep each visible feature to a benefit-led heading and one sentence. Put requirements in the collapsed consideration. Prefer a real demonstration or screenshot that matches the exact feature; never substitute a release logo. Do not claim an illustration proves measured performance. Preserve the full image (contain, not crop) and allow readers to enlarge it. Optimize to at most 1200 by 800 without upscaling; keep each below 300 KB. Lazy-load below the opening row. Verify all 28 images decode and load in desktop and mobile browsers, and review their actual appearance.

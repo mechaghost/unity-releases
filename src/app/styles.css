@@ -7245,5 +7245,20 @@ button.filter-section__head:focus-visible {
 .guide-home-entry { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-5); margin-bottom: var(--space-6); background: var(--accent-soft); border-radius: var(--radius-md); font-size: var(--text-base); color: var(--text-secondary); }
 .guide-home-entry a { font-weight: var(--weight-semibold); }
 
-.release-guide .guide-breadcrumb a, .release-guide p a { text-decoration: underline; text-underline-offset: 3px; }
+.release-guide .guide-breadcrumb a, .release-guide p a, .guide-footer a { text-decoration: underline; text-underline-offset: 3px; }
 .guide-print-note { display: none; }
+
+/* Feature imagery keeps the full screenshot visible; click to inspect at full size. */
+.guide-figure { margin: 0; min-width: 0; }
+.guide-image-link { display: flex; align-items: center; justify-content: center; aspect-ratio: 16 / 10; overflow: hidden; background: var(--surface-sunken); border-radius: var(--radius-lg); }
+.guide-image-link img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.guide-figure figcaption { padding-block: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
+.guide-figure figcaption a { text-decoration: underline; }
+.guide-highlight { padding: 0; border: 0; min-width: 0; }
+.guide-highlight-copy { padding: var(--space-3) var(--space-2) var(--space-6); }
+.guide-highlight h3 { font-size: var(--text-2xl); line-height: 1.2; margin-top: var(--space-2); }
+.guide-highlight details { margin-top: var(--space-2); }
+.guide-card .guide-figure { margin-bottom: var(--space-4); }
+.guide-status { font-size: var(--text-sm); }
+.guide-status p { margin-block: var(--space-1); }
+@media print { .guide-image-link { max-height: 180px; } .guide-figure figcaption { font-size: 9pt; } }
