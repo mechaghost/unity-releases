@@ -16,7 +16,7 @@ describe("release guides", () => {
     expect(RELEASE_GUIDES.map(g => g.version).sort()).toEqual(["6.0", "6.1", "6.2", "6.3", "6.4", "6.5", "6.6"]);
     expect(new Set(RELEASE_GUIDES.map(g => g.slug)).size).toBe(RELEASE_GUIDES.length);
     for (const guide of RELEASE_GUIDES) {
-      expect(guide.highlights).toHaveLength(4);
+      expect(guide.highlights.length).toBeGreaterThan(0);
       expect(guide.source).toMatch(/^https:\/\/(unity\.com|discussions\.unity\.com)\//);
       expect(guide.reviewed >= guide.released).toBe(true);
       expect(findReleaseGuide(guide.slug)).toBe(guide);
@@ -24,7 +24,7 @@ describe("release guides", () => {
       expect(guideNotesHref(guide)).toBe(`/explorer?minorLine=6000.${guide.version.split(".")[1]}`);
       for (const item of guide.highlights) {
         expect(item.benefit.length).toBeGreaterThan(20);
-        expect(item.consideration.length).toBeGreaterThan(20);
+        if (item.limitation) expect(item.limitation.length).toBeGreaterThan(10);
       }
       if (guide.kind === "lts") {
         expect(guide.supportThrough).toMatch(/^\d{4}-\d{2}$/);
@@ -34,12 +34,12 @@ describe("release guides", () => {
   });
   test("every feature has a distinct, decodable local image with an official source", async () => {
     const features = RELEASE_GUIDES.flatMap(g => g.highlights);
-    expect(new Set(features.map(f => f.image.src)).size).toBe(28);
+    expect(new Set(features.map(f => f.image.src)).size).toBe(features.length);
     for (const { image } of features) {
       expect(image.alt.length).toBeGreaterThan(10);
       expect(image.source).toMatch(/^https:\/\/(unity\.com|discussions\.unity\.com|docs\.unity3d\.com)\//);
       expect(image.original).toMatch(/^https:\/\//);
-      expect(image.src).toMatch(/^\/images\/release-guides\/6\.[0-6]-[0-3]\.webp$/);
+      expect(image.src).toMatch(/^\/images\/release-guides\/6\.[0-6]-\d+\.webp$/);
       const buffer = readFileSync(resolve("public", image.src.slice(1)));
       const metadata = await sharp(buffer).metadata();
       expect(metadata.format).toBe("webp");

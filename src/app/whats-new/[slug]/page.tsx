@@ -29,8 +29,7 @@ export default async function ReleaseGuidePage({ params }: Props) {
       <div className="guide-grid">{guide.highlights.map((item, index) => <section className="guide-highlight" key={item.title} aria-labelledby={`highlight-${index}`}>
         <FeatureImage image={item.image} eager={index < 2} />
         <div className="guide-highlight-copy"><h2 id={`highlight-${index}`}>{item.title}</h2><p>{item.benefit}</p>
-        <details><summary>Notes</summary><p>{item.consideration}</p></details>
-        <p className="guide-print-note"><strong>Notes:</strong> {item.consideration}</p></div>
+        {item.limitation && <p className="guide-limitation">{item.limitation}</p>}</div>
       </section>)}</div>
     </section>
     <details className="guide-support">

@@ -204,5 +204,244 @@
     "width": 1181,
     "height": 800,
     "original": "https://cdn.sanity.io/images/fuvbjjlp/production/0990d97e36484387917e9e4f3fbdc9cb33399716-1374x931.png?w=1374&h=931&fit=crop&dpr=2"
+  },
+  "6.6-4": {
+    "src": "/images/release-guides/6.6-4.webp",
+    "alt": "Diagram of Unity content directories",
+    "width": 494,
+    "height": 512,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/7/a/0/7a0cc9f92f3b41e1185d0cb4fd547a01a39fc9a6.png"
+  },
+  "6.6-5": {
+    "src": "/images/release-guides/6.6-5.webp",
+    "alt": "Unity's new Hierarchy window",
+    "width": 512,
+    "height": 347,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/c/8/0/c800196380245b89fa8243f490d8d400c84966a7.png"
+  },
+  "6.6-6": {
+    "src": "/images/release-guides/6.6-6.webp",
+    "alt": "Animated 2D character and its shadow",
+    "width": 1200,
+    "height": 671,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/d/0/8/d08358aa97cb610e54e5503d7f710b874bcc67f6.gif"
+  },
+  "6.6-7": {
+    "src": "/images/release-guides/6.6-7.webp",
+    "alt": "2D animation measurements in Unity Profiler",
+    "width": 512,
+    "height": 244,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/b/5/4/b544696c402136d84e14f8150ec81d8f0f13d945.png"
+  },
+  "6.6-8": {
+    "src": "/images/release-guides/6.6-8.webp",
+    "alt": "Shader data in Unity Frame Debugger",
+    "width": 512,
+    "height": 260,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/0/4/7/047f49dd0745a1f90f9dd5b2545ba3e1d03b5e92.png"
+  },
+  "6.6-9": {
+    "src": "/images/release-guides/6.6-9.webp",
+    "alt": "Unity shader build settings",
+    "width": 512,
+    "height": 219,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/d/a/9/da9a58a35590731387958533192e87718619186c.png"
+  },
+  "6.6-10": {
+    "src": "/images/release-guides/6.6-10.webp",
+    "alt": "uGUI safe-area layout demonstration",
+    "width": 1047,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/f/c/6/fc6ee88abe122250623aa2f2d7edf97cea6a1dd4.gif"
+  },
+  "6.6-11": {
+    "src": "/images/release-guides/6.6-11.webp",
+    "alt": "Frosted-glass interface background in UI Toolkit",
+    "width": 512,
+    "height": 384,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/4/5/f/45f63e68f7ee20f72a8872fea2cb15edb204f8b3.jpeg"
+  },
+  "6.6-12": {
+    "src": "/images/release-guides/6.6-12.webp",
+    "alt": "Soft shadows around UI Toolkit elements",
+    "width": 512,
+    "height": 478,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/6/1/0/6109e8ea03a1ef5b04f453089b525b1c24ba4c0a.png"
+  },
+  "6.6-13": {
+    "src": "/images/release-guides/6.6-13.webp",
+    "alt": "Custom interface shapes using mesh modifiers",
+    "width": 1067,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/a/4/9/a49f5d2e4be27540398608be364f5ccc4e10dc79.gif"
+  },
+  "6.6-14": {
+    "src": "/images/release-guides/6.6-14.webp",
+    "alt": "Graph Toolkit editor in Unity 6.6",
+    "width": 512,
+    "height": 303,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/0/b/f/0bf7e23c991d32124eba3bc6ce0d2cf960789543.png"
+  },
+  "6.6-15": {
+    "src": "/images/release-guides/6.6-15.webp",
+    "alt": "Unity package signature information",
+    "width": 512,
+    "height": 287,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/4/3/4/434fcfaf6a5e7daba7a425b8ee806997ddce1954.png"
+  },
+  "6.5-4": {
+    "src": "/images/release-guides/6.5-4.webp",
+    "alt": "Unity tilemap editing demonstration",
+    "width": 792,
+    "height": 643,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/a/2/f/a2f94def2b578d4cdf8b7465b078379607a4c461.jpeg"
+  },
+  "6.5-5": {
+    "src": "/images/release-guides/6.5-5.webp",
+    "alt": "Manga Witch sprite blend-shape demonstration",
+    "width": 570,
+    "height": 544,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/8/5/7/8575ef3e6f9269a3f66495fdaa036d8666a47477.gif"
+  },
+  "6.5-6": {
+    "src": "/images/release-guides/6.5-6.webp",
+    "alt": "Reusable nodes in Unity Shader Graph",
+    "width": 1200,
+    "height": 575,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/e/f/8/ef806bc16cf454cbe066fa63f480c318bda72555.jpeg"
+  },
+  "6.5-7": {
+    "src": "/images/release-guides/6.5-7.webp",
+    "alt": "Lighting Search results in the Unity Editor",
+    "width": 1200,
+    "height": 448,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/a/2/1/a21d19db64e9656133c8299da5cc0a23d9032d6e.jpeg"
+  },
+  "6.5-8": {
+    "src": "/images/release-guides/6.5-8.webp",
+    "alt": "Code example creating a graph with Graph Toolkit",
+    "width": 796,
+    "height": 560,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/3/4/e/34e340327242afa23fc1bd99c0911393e5bd5015.png"
+  },
+  "6.5-9": {
+    "src": "/images/release-guides/6.5-9.webp",
+    "alt": "Unity's Android build performance comparison",
+    "width": 1200,
+    "height": 342,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/2/f/1/2f18512d4706f2af46af979ccd951741ab0fe221.png"
+  },
+  "6.5-10": {
+    "src": "/images/release-guides/6.5-10.webp",
+    "alt": "Samples view in Unity Package Manager",
+    "width": 1008,
+    "height": 644,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/6/1/7/617d3d91daec9ba349144f0a8bbae96be2f197e6.jpeg"
+  },
+  "6.4-4": {
+    "src": "/images/release-guides/6.4-4.webp",
+    "alt": "Unity Megacity demonstration of ECS",
+    "width": 1200,
+    "height": 675,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/236e192cccfbf6f9445f9a84bf8ca3e9f8411fb1-1920x1080.jpg",
+    "source": "https://unity.com/ecs"
+  },
+  "6.3-4": {
+    "src": "/images/release-guides/6.3-4.webp",
+    "alt": "Shader build settings in Unity 6.3",
+    "width": 1052,
+    "height": 391,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/fb5e6c9cd77eb9076e47f631932286c594de5c44-1052x391.png"
+  },
+  "6.3-5": {
+    "src": "/images/release-guides/6.3-5.webp",
+    "alt": "Unity HTTP/2 support illustration",
+    "width": 1152,
+    "height": 658,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/6d2e0e4f61ed0109bdf4ae71d9bbfec08e4c6687-1152x658.png"
+  },
+  "6.3-6": {
+    "src": "/images/release-guides/6.3-6.webp",
+    "alt": "Terrain materials created with Shader Graph",
+    "width": 1200,
+    "height": 675,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/8/8/b/88bab3b485f3d9a6c40c70762c17f4ca6c5569d2.jpeg",
+    "source": "https://discussions.unity.com/t/terrain-shaders-in-shader-graph-new-in-unity-6-3/1683627"
+  },
+  "6.3-7": {
+    "src": "/images/release-guides/6.3-7.webp",
+    "alt": "SVG graphics displayed in UI Builder",
+    "width": 1200,
+    "height": 678,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/f/9/8/f98ed71ff5aa984c2785fb912e22943ccf0b050c.jpeg",
+    "source": "https://discussions.unity.com/t/vector-graphics-in-ui-toolkit/1683117"
+  },
+  "6.2-4": {
+    "src": "/images/release-guides/6.2-4.webp",
+    "alt": "Example custom editor made with Graph Toolkit",
+    "width": 1200,
+    "height": 675,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/c/6/5/c65d5db227afd364ac4c71ecdf739be6c2aabb15.png",
+    "source": "https://discussions.unity.com/t/unity-s-graph-toolkit-experimental-available-today-in-unity-6-2/1664909"
+  },
+  "6.2-5": {
+    "src": "/images/release-guides/6.2-5.webp",
+    "alt": "Crash and Android freeze reports in Unity Dashboard",
+    "width": 722,
+    "height": 800,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/3/d/6/3d60fbceb335c20fa8e5009eaa835a4302cd112e.jpeg",
+    "source": "https://discussions.unity.com/t/introducing-data-controls-and-better-game-diagnostics-in-the-unity-6-2-beta/1658915"
+  },
+  "6.2-6": {
+    "src": "/images/release-guides/6.2-6.webp",
+    "alt": "Developer Data sharing controls in Unity Dashboard",
+    "width": 1200,
+    "height": 316,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/6/4/f/64f2655f0e15a1efb048f4378edca88d958f370d.png",
+    "source": "https://discussions.unity.com/t/introducing-data-controls-and-better-game-diagnostics-in-the-unity-6-2-beta/1658915"
+  },
+  "6.1-4": {
+    "src": "/images/release-guides/6.1-4.webp",
+    "alt": "Variable Rate Shading demonstration",
+    "width": 1200,
+    "height": 673,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/f/b/8/fb801e5209ea451df608091e46443fcfacd60b6f.jpeg",
+    "source": "https://discussions.unity.com/t/optimize-renderer-features-with-variable-rate-shading-in-unity-6-1/1605893"
+  },
+  "6.1-5": {
+    "src": "/images/release-guides/6.1-5.webp",
+    "alt": "Quality settings overrides in Unity build profiles",
+    "width": 620,
+    "height": 254,
+    "original": "https://docs.unity3d.com/6000.1/Documentation/uploads/Main/build-profiles-quality-levels.png",
+    "source": "https://docs.unity3d.com/6000.1/Documentation/Manual/build-profiles-override-settings.html"
+  },
+  "6.0-4": {
+    "src": "/images/release-guides/6.0-4.webp",
+    "alt": "Unity distributed-authority multiplayer sample",
+    "width": 1200,
+    "height": 664,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/cbaa1e7a938696ca416340d56f749268d72c30e1-2842x1572.png"
+  },
+  "6.0-5": {
+    "src": "/images/release-guides/6.0-5.webp",
+    "alt": "Unity Sentis real-world interaction demonstration",
+    "width": 1200,
+    "height": 675,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/af498f045f98cb857003330009c7b1ea5a0798fa-2040x1148.png"
+  },
+  "6.0-6": {
+    "src": "/images/release-guides/6.0-6.webp",
+    "alt": "Memory usage breakdown in Unity Memory Profiler",
+    "width": 1200,
+    "height": 675,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/be6392a775e4dc0cd631ca45c1fc2e811bd3fd2c-2560x1440.png"
+  },
+  "6.0-7": {
+    "src": "/images/release-guides/6.0-7.webp",
+    "alt": "Interface editing in Unity UI Builder",
+    "width": 1200,
+    "height": 663,
+    "original": "https://cdn.sanity.io/images/fuvbjjlp/production/4da690f1cf32c54c6157b9edf4c321dae61fdac0-5120x2830.png"
   }
 }

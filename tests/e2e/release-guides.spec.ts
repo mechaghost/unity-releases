@@ -12,10 +12,17 @@ test("release overview opens each guide and keeps support types separate", async
   for (const guide of RELEASE_GUIDES) {
     await page.getByRole("link", { name: `Read the Unity ${guide.version} guide` }).click();
     await expect(page.getByRole("heading", { level: 1, name: `What’s new in Unity ${guide.version}?` })).toBeVisible();
-    await expect(page.locator(".guide-highlight")).toHaveCount(4);
+    await expect(page.locator(".guide-highlight")).toHaveCount(guide.highlights.length);
     expect((await page.locator(".guide-highlight").first().boundingBox())!.y).toBeLessThanOrEqual(260);
+    await expect(page.locator(".guide-highlight details")).toHaveCount(0);
+    await expect(page.locator(".guide-limitation")).toHaveCount(guide.highlights.filter(item => item.limitation).length);
+    for (const item of guide.highlights) {
+      const card = page.locator(".guide-highlight").filter({ has: page.getByRole("heading", { name: item.title, exact: true }) });
+      await expect(card).toContainText(item.benefit);
+      if (item.limitation) await expect(card.locator(".guide-limitation")).toHaveText(item.limitation);
+    }
     const images = page.locator(".guide-highlight img");
-    await expect(images).toHaveCount(4);
+    await expect(images).toHaveCount(guide.highlights.length);
     for (const img of await images.all()) {
       await img.scrollIntoViewIfNeeded();
       await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
@@ -41,11 +48,12 @@ test("guide details work by keyboard and the layout fits small screens in both t
   expect((await page.locator(".guide-highlight").first().boundingBox())!.y).toBeLessThanOrEqual(260);
   await expect(page.locator(".theme-toggle")).toHaveAttribute("aria-label", /Switch to (dark|light) theme/);
   await expect(page.locator(".guide-support")).toContainText("Sep 1, 2026");
-  const summary = page.locator(".guide-highlight summary").first();
+  await expect(page.locator(".guide-highlight details")).toHaveCount(0);
+  await expect(page.locator(".guide-limitation").first()).toBeVisible();
+  const summary = page.locator(".guide-support summary");
   await summary.focus();
   await page.keyboard.press("Enter");
-  await expect(page.locator(".guide-highlight details").first()).toHaveAttribute("open", "");
-  await expect(page.getByText(RELEASE_GUIDES[0].highlights[0].consideration, { exact: true })).toBeVisible();
+  await expect(page.locator(".guide-support")).toHaveAttribute("open", "");
   for (const theme of ["light", "dark"]) {
     await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -53,7 +61,7 @@ test("guide details work by keyboard and the layout fits small screens in both t
     expect(results.violations).toEqual([]);
   }
   await page.emulateMedia({ media: "print" });
-  await expect(page.locator(".guide-print-note").first()).toBeVisible();
+  await expect(page.locator(".guide-limitation").first()).toBeVisible();
   await expect(page.locator(".app-shell__nav")).toBeHidden();
   await page.emulateMedia({ media: "screen" });
   await page.goto("/whats-new");

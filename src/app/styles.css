@@ -7204,8 +7204,6 @@ button.filter-section__head:focus-visible {
 .guide-badge--active { background: var(--color-success-bg); color: var(--color-success-fg); }
 .guide-badge--quiet { background: var(--color-info-bg); color: var(--color-info-fg); }
 .guide-highlight { padding: var(--space-6); border-top: 1px solid var(--border-default); }
-.guide-highlight details { margin-top: var(--space-5); font-size: var(--text-base); }
-.guide-highlight summary { cursor: pointer; color: var(--text-link); padding-block: var(--space-2); font-weight: var(--weight-medium); }
 .guide-support { margin-block: var(--space-4); padding-block: var(--space-2); border-top: 1px solid var(--border-default); }
 .guide-support summary { cursor: pointer; padding-block: var(--space-2); font-weight: var(--weight-medium); }
 .guide-support .guide-section-heading { margin-top: 0; }
@@ -7238,15 +7236,12 @@ button.filter-section__head:focus-visible {
 
   .release-guide .guide-grid { display: block; }
   .guide-card, .guide-highlight, .guide-status, .guide-takeaway { break-inside: avoid; }
-  .guide-highlight details { display: none; }
-  .release-guide .guide-print-note { display: block; }
 }
 
 .guide-home-entry { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-5); margin-bottom: var(--space-6); background: var(--accent-soft); border-radius: var(--radius-md); font-size: var(--text-base); color: var(--text-secondary); }
 .guide-home-entry a { font-weight: var(--weight-semibold); }
 
 .release-guide .guide-breadcrumb a, .release-guide p a, .guide-footer a { text-decoration: underline; text-underline-offset: 3px; }
-.guide-print-note { display: none; }
 
 /* Feature imagery keeps the full screenshot visible; click to inspect at full size. */
 .guide-figure { margin: 0; min-width: 0; }
@@ -7257,8 +7252,9 @@ button.filter-section__head:focus-visible {
 .guide-highlight { padding: 0; border: 0; min-width: 0; }
 .guide-highlight-copy { padding: var(--space-2) 0 var(--space-3); }
 .release-guide .guide-highlight h2 { font-size: var(--text-xl); line-height: 1.3; margin: 0; }
-.guide-highlight details { margin-top: var(--space-2); }
 .guide-card .guide-figure { margin-top: var(--space-3); }
 .guide-status { font-size: var(--text-sm); }
 .guide-status p { margin-block: var(--space-1); }
 @media print { .guide-image-link { max-height: 180px; } .guide-figure figcaption { font-size: 9pt; } }
+
+.guide-limitation { color: var(--text-secondary); font-size: var(--text-sm); }
