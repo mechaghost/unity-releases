@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
+import { makeInert, trapTabFocus } from "@/lib/focus";
 import { renderChangelog } from "@/lib/changelog-markdown";
 import { editorPrereleaseLabel } from "@/lib/version-compare";
 import { PackageFeatureLinks } from "./PackageFeatureLinks";
@@ -115,6 +116,7 @@ export function PackageVersionDialog({
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const restoreBackground = makeInert(Array.from(document.querySelectorAll<HTMLElement>(".app-shell, .skip-link")));
 
     // Wait for paint so the close button is in the DOM.
     const id = window.requestAnimationFrame(() => {
@@ -129,19 +131,7 @@ export function PackageVersionDialog({
         // Lightweight focus trap - keep Tab cycling within the dialog.
         const root = dialogRef.current;
         if (!root) return;
-        const focusables = root.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
+        trapTabFocus(e, [root]);
       }
     }
     document.addEventListener("keydown", onKey);
@@ -149,6 +139,7 @@ export function PackageVersionDialog({
     return () => {
       window.cancelAnimationFrame(id);
       document.body.style.overflow = previousOverflow;
+      restoreBackground();
       document.removeEventListener("keydown", onKey);
       previouslyFocused.current?.focus?.();
     };

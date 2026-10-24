@@ -50,7 +50,7 @@ export function IssueStatCards({ stats }: { stats: IssueStats }) {
   ];
 
   return (
-    <div className="issue-stats" role="list">
+    <div className="issue-stats" role="group" aria-label="Issue summary">
       {cards.map((c) => {
         const inner = (
           <>
@@ -64,7 +64,6 @@ export function IssueStatCards({ stats }: { stats: IssueStats }) {
             <a
               key={c.label}
               className="issue-stats__card issue-stats__card--link"
-              role="listitem"
               href={c.href}
               aria-label={`${c.label}: ${c.value.toLocaleString()}. Click to filter.`}
             >
@@ -73,7 +72,7 @@ export function IssueStatCards({ stats }: { stats: IssueStats }) {
           );
         }
         return (
-          <div key={c.label} className="issue-stats__card" role="listitem">
+          <div key={c.label} className="issue-stats__card">
             {inner}
           </div>
         );

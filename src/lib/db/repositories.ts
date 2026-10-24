@@ -207,25 +207,18 @@ export async function resolveDiffRange(
   const fromDate = fromRow.release_date;
   const toDate = toRow.release_date;
 
-  // Direction is determined by **semver order**, not release_date.
-  // 6000.0 LTS gets ongoing patches that ship later than 6000.3 LTS's
-  // initial release, so a date-based check would call 6000.0.74f1 →
-  // 6000.3.14f1 a "downgrade" even though it's the headline forward path.
-  // We fall back to date order only when both versions don't parse.
-  let reversed = false;
+  // Maintenance branches overlap in time. Version order defines the interval;
+  // dates only prevent later-published backports from appearing in an older target.
+  let reversed: boolean;
   try {
     reversed = compareUnityVersions(fromVersion, toVersion) > 0;
   } catch {
-    reversed = (fromDate ?? "") > (toDate ?? "");
+    return null;
   }
-  // The release_date bounds for the range scan still use chronology
-  // (we want the calendar-window of releases between the two), so when
-  // we know it's a downgrade we still need the older of the two dates
-  // as the lower bound.
-  const fromTime = fromDate ? new Date(fromDate).getTime() : 0;
-  const toTime = toDate ? new Date(toDate).getTime() : 0;
-  const lower = fromTime <= toTime ? fromDate : toDate;
-  const upper = fromTime <= toTime ? toDate : fromDate;
+  const lowerVersion = reversed ? toVersion : fromVersion;
+  const upperVersion = reversed ? fromVersion : toVersion;
+  const upperDate = reversed ? fromDate : toDate;
+  const upperTime = upperDate ? new Date(upperDate).getTime() : null;
 
   const includedMinorLines = await minorLinesBetweenAcrossMajors(
     fromRow.minor_line,
@@ -248,31 +241,37 @@ export async function resolveDiffRange(
     };
   }
 
-  const versions = await query<{ version: string }>(
+  // The catalog is small; use the shared Unity comparator rather than lexical
+  // SQL ordering (which puts b10 before b9 and patch 10 before patch 2).
+  const candidates = await query<{ version: string; release_date: string | null }>(
     `
-      SELECT version
+      SELECT version, release_date
       FROM unity_releases
-      WHERE release_date IS NOT NULL
-        AND release_date > $1::timestamptz
-        AND release_date <= $2::timestamptz
-        AND stream = ANY($3::text[])
-        AND minor_line = ANY($4::text[])
-      ORDER BY release_date ASC, version ASC
+      WHERE stream = ANY($1::text[])
+        AND minor_line = ANY($2::text[])
     `,
-    [
-      lower ?? new Date(0).toISOString(),
-      upper ?? new Date().toISOString(),
-      allowedStreams,
-      includedMinorLines
-    ]
+    [allowedStreams, includedMinorLines]
   );
+  const versions = candidates.rows.filter((row) => {
+    try {
+      if (compareUnityVersions(row.version, lowerVersion) <= 0 ||
+          compareUnityVersions(row.version, upperVersion) > 0) return false;
+      if (upperTime !== null) {
+        const published = row.release_date ? new Date(row.release_date).getTime() : NaN;
+        if (!Number.isFinite(published) || published > upperTime) return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }).map((row) => row.version).sort(compareUnityVersions);
 
   return {
     fromVersion,
     toVersion,
     fromDate,
     toDate,
-    versions: versions.rows.map((r) => r.version),
+    versions,
     reversed,
     includedStreams: allowedStreams,
     includedMinorLines

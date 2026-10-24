@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:db": "tsx tests/db/core-upsert-db-contract.ts && tsx tests/product-updates/db-contract.ts",
+    "test:db": "tsx tests/db/core-upsert-db-contract.ts && tsx tests/product-updates/db-contract.ts && tsx tests/db/issue-duration-db-contract.ts && tsx tests/db/visualizer-duration-db-contract.ts",
     "e2e:serve": "tsx tests/e2e/setup-db.ts && next build && next start --port 3100",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx src/jobs/migrate.ts",
@@ -43,11 +43,11 @@
     "cheerio": "^1.2.0",
     "fast-xml-parser": "^5.2.5",
     "marked": "^18.0.11",
-    "next": "^15.3.2",
+    "next": "^15.5.28",
     "pg": "^8.13.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "zod": "^3.24.4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
@@ -57,11 +57,11 @@
     "@types/react-dom": "^19.0.4",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.3"
+    "vitest": "^4.1.12"
   },
   "overrides": {
     "esbuild": "0.27.2",
     "postcss": "8.5.24",
-    "sharp": "0.35.0"
+    "sharp": "0.35.5"
   }
 }

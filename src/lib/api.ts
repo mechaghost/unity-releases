@@ -11,7 +11,12 @@ const ALLOWED_ORDERS: ReadonlyArray<NonNullable<ReleaseNoteSearchFilters["order"
   "rank"
 ];
 
-export function filtersFromSearchParams(params: URLSearchParams): ReleaseNoteSearchFilters {
+export class InvalidQueryError extends Error {}
+
+export function filtersFromSearchParams(
+  params: URLSearchParams,
+  { strictPagination = false } = {}
+): ReleaseNoteSearchFilters {
   const rawOrder = params.get("order");
   const order = (ALLOWED_ORDERS as readonly string[]).includes(rawOrder ?? "")
     ? (rawOrder as ReleaseNoteSearchFilters["order"])
@@ -29,14 +34,14 @@ export function filtersFromSearchParams(params: URLSearchParams): ReleaseNoteSea
     packageName: collectMulti(params, "package"),
     issueId: collectMulti(params, "issue"),
     order,
-    limit: numberParam(params.get("limit"), 100),
-    offset: numberParam(params.get("offset"), 0)
+    limit: numberParam(params, "limit", 100, 1, 1000, strictPagination),
+    offset: numberParam(params, "offset", 0, 0, 2_147_483_647, strictPagination)
   };
 }
 
 export function jsonError(error: unknown) {
   return {
-    error: error instanceof Error ? error.message : "Unknown error"
+    error: error instanceof InvalidQueryError ? error.message : "Unable to complete the request."
   };
 }
 
@@ -47,10 +52,13 @@ function collectMulti(params: URLSearchParams, key: string): string | string[] |
   return all;
 }
 
-function numberParam(value: string | null, fallback: number): number {
-  if (!value) {
+function numberParam(params: URLSearchParams, key: string, fallback: number, min: number, max: number, strict: boolean): number {
+  const value = params.get(key);
+  if (value === null) return fallback;
+  const parsed = Number(value);
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    if (strict) throw new InvalidQueryError(`${key} must be an integer between ${min} and ${max}.`);
     return fallback;
   }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return parsed;
 }

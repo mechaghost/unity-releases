@@ -216,39 +216,41 @@ function ProductUpdatesSection({
       {degraded.length > 0 ? (
         <div className="stats-breakdown">
           <h3 className="stats-breakdown__title">Targets needing attention</h3>
-          <table className="stats-table">
-            <thead>
-              <tr>
-                <th scope="col">Source / target</th>
-                <th scope="col">Last success</th>
-                <th scope="col">Failures</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {degraded.map((target) => (
-                <tr key={`${target.sourceKey}:${target.targetKey}`}>
-                  <td>
-                    {target.sourceKey} / {target.targetKey}
-                  </td>
-                  <td>
-                    {target.lastSuccessAt
-                      ? new Date(target.lastSuccessAt)
-                          .toISOString()
-                          .replace("T", " ")
-                          .slice(0, 16) + " UTC"
-                      : "—"}
-                  </td>
-                  <td className="tabnums">{target.consecutiveFailures}</td>
-                  <td>
-                    <span className="stats-status stats-status--stale">
-                      {target.status}
-                    </span>
-                  </td>
+          <div className="table-wrap" role="region" aria-label="Targets needing attention" tabIndex={0}>
+            <table className="stats-table">
+              <thead>
+                <tr>
+                  <th scope="col">Source / target</th>
+                  <th scope="col">Last success</th>
+                  <th scope="col">Failures</th>
+                  <th scope="col">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {degraded.map((target) => (
+                  <tr key={`${target.sourceKey}:${target.targetKey}`}>
+                    <td>
+                      {target.sourceKey} / {target.targetKey}
+                    </td>
+                    <td>
+                      {target.lastSuccessAt
+                        ? new Date(target.lastSuccessAt)
+                            .toISOString()
+                            .replace("T", " ")
+                            .slice(0, 16) + " UTC"
+                        : "—"}
+                    </td>
+                    <td className="tabnums">{target.consecutiveFailures}</td>
+                    <td>
+                      <span className="stats-status stats-status--stale">
+                        {target.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
     </section>
@@ -372,47 +374,49 @@ function FreshnessSection({ freshness }: { freshness: IngestionFreshness[] }) {
         How recently each upstream data source was successfully polled. The
         cron-all Railway service runs every 12 hours.
       </p>
-      <table className="stats-table">
-        <thead>
-          <tr>
-            <th scope="col">Source</th>
-            <th scope="col">Last success</th>
-            <th scope="col">Hours ago</th>
-            <th scope="col">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {freshness.map((row) => {
-            const hours = Number.isFinite(row.hoursSinceLastSuccess)
-              ? Math.round(row.hoursSinceLastSuccess * 10) / 10
-              : null;
-            const statusLabel = row.isStale
-              ? "Stale"
-              : row.lastSuccessAt
-                ? "OK"
-                : "Never";
-            const statusClass = row.isStale
-              ? "stats-status stats-status--stale"
-              : row.lastSuccessAt
-                ? "stats-status stats-status--ok"
-                : "stats-status stats-status--never";
-            return (
-              <tr key={row.sourceType}>
-                <td>{row.sourceType}</td>
-                <td>
-                  {row.lastSuccessAt
-                    ? new Date(row.lastSuccessAt).toISOString().replace("T", " ").slice(0, 16) + " UTC"
-                    : "—"}
-                </td>
-                <td className="tabnums">{hours == null ? "—" : hours.toLocaleString()}</td>
-                <td>
-                  <span className={statusClass}>{statusLabel}</span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="table-wrap" role="region" aria-label="Ingestion freshness" tabIndex={0}>
+        <table className="stats-table">
+          <thead>
+            <tr>
+              <th scope="col">Source</th>
+              <th scope="col">Last success</th>
+              <th scope="col">Hours ago</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {freshness.map((row) => {
+              const hours = Number.isFinite(row.hoursSinceLastSuccess)
+                ? Math.round(row.hoursSinceLastSuccess * 10) / 10
+                : null;
+              const statusLabel = row.isStale
+                ? "Stale"
+                : row.lastSuccessAt
+                  ? "OK"
+                  : "Never";
+              const statusClass = row.isStale
+                ? "stats-status stats-status--stale"
+                : row.lastSuccessAt
+                  ? "stats-status stats-status--ok"
+                  : "stats-status stats-status--never";
+              return (
+                <tr key={row.sourceType}>
+                  <td>{row.sourceType}</td>
+                  <td>
+                    {row.lastSuccessAt
+                      ? new Date(row.lastSuccessAt).toISOString().replace("T", " ").slice(0, 16) + " UTC"
+                      : "—"}
+                  </td>
+                  <td className="tabnums">{hours == null ? "—" : hours.toLocaleString()}</td>
+                  <td>
+                    <span className={statusClass}>{statusLabel}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

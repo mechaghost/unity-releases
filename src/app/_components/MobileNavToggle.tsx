@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { makeInert, trapTabFocus } from "@/lib/focus";
 
 /**
  * Mobile-only hamburger that toggles the slide-in nav drawer.
@@ -29,6 +30,17 @@ export function MobileNavToggle() {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const restoreBackground = makeInert(Array.from(document.querySelectorAll<HTMLElement>(
+      "main, .skip-link, .mobile-topbar__brand"
+    )));
+    function onTab(event: KeyboardEvent) {
+      const nav = document.querySelector<HTMLElement>("#primary-nav");
+      if (nav && toggleRef.current) trapTabFocus(event, [toggleRef.current, nav]);
+    }
+    document.addEventListener("keydown", onTab);
+    const desktop = window.matchMedia("(min-width: 1025px)");
+    const closeOnDesktop = () => { if (desktop.matches) setOpen(false); };
+    desktop.addEventListener("change", closeOnDesktop);
     // Move focus into the drawer once the slide-in starts so keyboard +
     // screen-reader users land where the interaction happens.
     const id = window.requestAnimationFrame(() => {
@@ -40,6 +52,9 @@ export function MobileNavToggle() {
     return () => {
       window.cancelAnimationFrame(id);
       document.body.style.overflow = previousOverflow;
+      restoreBackground();
+      document.removeEventListener("keydown", onTab);
+      desktop.removeEventListener("change", closeOnDesktop);
       toggleRef.current?.focus?.();
     };
   }, [open]);

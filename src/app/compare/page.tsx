@@ -51,7 +51,7 @@ import { ComparePicker } from "../_components/ComparePicker";
 import { CopyMarkdownButton } from "../_components/CopyMarkdownButton";
 import { UpgradeScoreCard } from "../_components/UpgradeScoreCard";
 import { getScoreInputs } from "@/lib/visualizer";
-import { buildLanePageUrl, comparePreservedParams } from "@/lib/compare-url";
+import { buildLanePageUrl, comparePreservedParams, buildCompareExportUrl } from "@/lib/compare-url";
 import {
   aggregateDiffScoreInput,
   scoreAllReleases,
@@ -82,10 +82,13 @@ export async function generateMetadata({
   const from = firstStringParam(params.from);
   const to = firstStringParam(params.to);
   if (from && to) {
-    const mdHref = `/compare.md?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    const mdHref = buildCompareExportUrl({
+      fromVersion: from, toVersion: to,
+      streams: parseCompareStreamSelection(toUrlSearchParams(params).getAll("stream"))
+    });
     const title = `Unity ${from} → ${to} upgrade diff`;
     const description = `Every blocker, breaking change, API change, package bump, and known issue between Unity ${from} and ${to} - bucketed by impact, with a markdown export for LLM analysis.`;
-    const path = `/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    const path = mdHref.replace("/compare.md?", "/compare?");
     return {
       title,
       description,
@@ -239,7 +242,7 @@ export default async function ComparePage({
           <ul className="empty-state__steps">
             <li>
               <strong>Fetch the markdown directly</strong> from{" "}
-              <code>/compare.md?from={fromVersion}&amp;to={toVersion}</code> — that endpoint has
+              <code>{buildCompareExportUrl(scope)}</code> — that endpoint has
               no width cap and is the right tool for full-dataset / LLM use.
             </li>
             <li>
@@ -538,10 +541,14 @@ export default async function ComparePage({
         </section>
       ) : null}
 
+      {fromMinorLine !== toMinorLine ? (
+        <p className="muted text-xs">This compares release notes across Editor lines. A listed fix is not proof it was included in the target version; check its release notes.</p>
+      ) : null}
+
       <UpgradeMarkdownCta
         filename={`unity-${fromVersion}-to-${toVersion}-${range.reversed ? "downgrade" : "upgrade"}`}
-        downloadUrl={`/compare.md?from=${encodeURIComponent(fromVersion)}&to=${encodeURIComponent(toVersion)}`}
-        llmUrl={`${siteUrl()}/compare.md?from=${encodeURIComponent(fromVersion)}&to=${encodeURIComponent(toVersion)}`}
+        downloadUrl={buildCompareExportUrl(scope)}
+        llmUrl={`${siteUrl()}${buildCompareExportUrl(scope)}`}
       />
 
       <FilterChips

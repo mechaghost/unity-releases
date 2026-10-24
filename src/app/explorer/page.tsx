@@ -93,11 +93,7 @@ export default async function ExplorerPage({
       <section className="page-header">
         <h1>Release Notes Search</h1>
         <p>
-          Faceted search across every indexed Unity release-note row.
-          Filter by version, issue, subsystem, package, platform, or
-          upgrade risk. <strong>{total.toLocaleString()}</strong> matches
-          across <strong>{facets.versions.length.toLocaleString()}</strong>{" "}
-          indexed versions.
+          Search changes, fixes, and known issues across Unity releases.
         </p>
       </section>
 
@@ -111,128 +107,134 @@ export default async function ExplorerPage({
             defaultValue={filters.q ?? ""}
           />
         </label>
-        <label>
-          <span>Version</span>
-          <select name="version" defaultValue={filters.version ?? ""} aria-label="Exact editor version">
-            <option value="">Any version</option>
-            {facets.versions.map((version) => (
-              <option value={version} key={version}>
-                {version}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Line</span>
-          <select name="minorLine" defaultValue={filters.minorLine ?? ""} aria-label="Unity minor line">
-            <option value="">Any line</option>
-            {filters.minorLine && !facets.minor_lines.includes(filters.minorLine) && <option value={filters.minorLine}>{filters.minorLine}</option>}
-            {facets.minor_lines.map((line) => (
-              <option value={line} key={line}>
-                {line}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Stream</span>
-          <select name="stream" defaultValue={filters.stream ?? ""} aria-label="Release stream">
-            <option value="">Any stream</option>
-            {facets.streams.map((stream) => (
-              <option value={stream} key={stream}>
-                {streamLabel(stream)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Section</span>
-          <select name="section" defaultValue={filters.section ?? ""} aria-label="Release-note section">
-            <option value="">Any section</option>
-            {facets.sections.map((section) => (
-              <option value={section} key={section}>
-                {section}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Area</span>
-          <select name="area" defaultValue={filters.area ?? ""} aria-label="Subsystem area">
-            <option value="">Any area</option>
-            {facets.areas.map((area) => (
-              <option value={area} key={area}>
-                {area}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Platform</span>
-          <select name="platform" defaultValue={filters.platform ?? ""} aria-label="Platform">
-            <option value="">Any platform</option>
-            {facets.platforms.map((platform) => (
-              <option value={platform} key={platform}>
-                {platform}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Impact</span>
-          <select name="impact" defaultValue={String(filters.impactKind ?? "")} aria-label="Impact kind">
-            <option value="">Any impact</option>
-            {facets.impacts.map((impact) => (
-              <option value={impact} key={impact}>
-                {impactLabel(impact)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Risk</span>
-          <select name="risk" defaultValue={String(filters.riskLevel ?? "")} aria-label="Risk level">
-            <option value="">Any risk</option>
-            {facets.risks.map((risk) => (
-              <option value={risk} key={risk}>
-                {riskLabel(risk)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Package</span>
-          <select name="package" defaultValue={filters.packageName ?? ""} aria-label="Package">
-            <option value="">Any package</option>
-            {facets.packages.map((packageName) => (
-              <option value={packageName} key={packageName}>
-                {packageName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Issue ID</span>
-          <input
-            type="search"
-            name="issue"
-            placeholder="UUM-136929"
-            defaultValue={filters.issueId ?? ""}
-          />
-        </label>
-        <label>
-          <span>Sort</span>
-          <select name="order" defaultValue={filters.order ?? ""} aria-label="Sort order">
-            <option value="">Latest version (default)</option>
-            <option value="rank">Best match</option>
-          </select>
-        </label>
         <button type="submit" className="btn btn--primary">
           Search
         </button>
         <a href="/explorer" className="explorer-filter__clear">
           Clear
         </a>
+        <details className="explorer-filter__details">
+          <summary>Filters{activeFilters.length > 0 ? ` (${activeFilters.length} active)` : ""}</summary>
+          <div className="explorer-filter__fields">
+            <label>
+              <span>Version</span>
+              <select name="version" defaultValue={filters.version ?? ""} aria-label="Exact editor version">
+                <option value="">Any version</option>
+                {facets.versions.map((version) => (
+                  <option value={version} key={version}>
+                    {version}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Line</span>
+              <select name="minorLine" defaultValue={filters.minorLine ?? ""} aria-label="Unity minor line">
+                <option value="">Any line</option>
+                {filters.minorLine && !facets.minor_lines.includes(filters.minorLine) && <option value={filters.minorLine}>{filters.minorLine}</option>}
+                {facets.minor_lines.map((line) => (
+                  <option value={line} key={line}>
+                    {line}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Stream</span>
+              <select name="stream" defaultValue={filters.stream ?? ""} aria-label="Release stream">
+                <option value="">Any stream</option>
+                {facets.streams.map((stream) => (
+                  <option value={stream} key={stream}>
+                    {streamLabel(stream)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Section</span>
+              <select name="section" defaultValue={filters.section ?? ""} aria-label="Release-note section">
+                <option value="">Any section</option>
+                {facets.sections.map((section) => (
+                  <option value={section} key={section}>
+                    {section}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Area</span>
+              <select name="area" defaultValue={filters.area ?? ""} aria-label="Subsystem area">
+                <option value="">Any area</option>
+                {facets.areas.map((area) => (
+                  <option value={area} key={area}>
+                    {area}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Platform</span>
+              <select name="platform" defaultValue={filters.platform ?? ""} aria-label="Platform">
+                <option value="">Any platform</option>
+                {facets.platforms.map((platform) => (
+                  <option value={platform} key={platform}>
+                    {platform}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Impact</span>
+              <select name="impact" defaultValue={String(filters.impactKind ?? "")} aria-label="Impact kind">
+                <option value="">Any impact</option>
+                {facets.impacts.map((impact) => (
+                  <option value={impact} key={impact}>
+                    {impactLabel(impact)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Risk</span>
+              <select name="risk" defaultValue={String(filters.riskLevel ?? "")} aria-label="Risk level">
+                <option value="">Any risk</option>
+                {facets.risks.map((risk) => (
+                  <option value={risk} key={risk}>
+                    {riskLabel(risk)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Package</span>
+              <select name="package" defaultValue={filters.packageName ?? ""} aria-label="Package">
+                <option value="">Any package</option>
+                {facets.packages.map((packageName) => (
+                  <option value={packageName} key={packageName}>
+                    {packageName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Issue ID</span>
+              <input
+                type="search"
+                name="issue"
+                placeholder="UUM-136929"
+                defaultValue={filters.issueId ?? ""}
+              />
+            </label>
+            <label>
+              <span>Sort</span>
+              <select name="order" defaultValue={filters.order ?? ""} aria-label="Sort order">
+                <option value="">Latest version (default)</option>
+                <option value="rank">Best match</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit" className="btn btn--primary">Apply filters</button>
+        </details>
       </form>
 
       <div className="list-toolbar">

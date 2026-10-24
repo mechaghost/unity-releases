@@ -5,6 +5,13 @@ import { compareToMarkdown } from "../../src/lib/compare-markdown";
 const noStatuses = new Map();
 
 describe("compareToMarkdown", () => {
+  test("explains the limit of cross-line comparisons", () => {
+    const md = compareToMarkdown({ fromVersion: "6000.0.85f1", toVersion: "6000.3.0f1", lanes: [] });
+    expect(md).toContain("A listed fix is not proof it was included in the target version");
+    const sameLine = compareToMarkdown({ fromVersion: "6000.0.84f1", toVersion: "6000.0.85f1", lanes: [] });
+    expect(sameLine).not.toContain("across Editor lines");
+  });
+
   test("renders the version range header and skips empty lanes", () => {
     const md = compareToMarkdown({
       fromVersion: "6000.0.43f1",

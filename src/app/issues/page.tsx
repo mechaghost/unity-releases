@@ -180,10 +180,9 @@ export default async function IssueExplorerPage({
                 <h2>Longest-open issues</h2>
               </div>
               <p className="viz-card__sub">
-                Top 10 issues by days-since-first-known-mention that
-                still have no Fix mention (or whose latest Known-Issues
-                mention is newer than every shipped Fix). Click an issue
-                for the full mention history.
+                Top 10 issues by time in their current open period.
+                Reopened issues count from their first known-issue mention
+                after the latest fix. Click an issue for its history.
               </p>
               <div className="viz-scroll">
                 <IssueTable

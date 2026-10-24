@@ -931,27 +931,36 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   cursor: pointer;
 }
 
-/* /explorer has many more facets than /packages so its filter form wraps
-   into a multi-row grid. Each control gets a sensible min width and the
-   Search button + Clear link sit on the trailing row. */
-.explorer-filter {
+/* Keep search and results visible; secondary facets open on demand. */
+.filter-bar.explorer-filter {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  align-items: flex-end;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
   margin-bottom: var(--space-3);
 }
 .explorer-filter > label,
-.explorer-filter > button,
-.explorer-filter > a {
+.explorer-filter__fields > label {
   min-width: 0;
 }
-.explorer-filter label:first-child {
-  /* The free-text search input gets two slots so it has room to breathe. */
-  grid-column: span 2;
+.explorer-filter__details {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
-.explorer-filter select,
-.explorer-filter input[type="search"] {
+.explorer-filter__details > summary {
+  cursor: pointer;
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+}
+.explorer-filter__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+  gap: var(--space-3);
+  margin: var(--space-2) 0 var(--space-3);
+}
+.filter-bar.explorer-filter select,
+.filter-bar.explorer-filter input[type="search"] {
   width: 100%;
+  min-width: 0;
 }
 .explorer-filter__clear {
   align-self: end;
@@ -3061,6 +3070,8 @@ button.filter-section__head:focus-visible {
 }
 .faq-item__answer a {
   color: var(--text-link);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 /* ========================================================================

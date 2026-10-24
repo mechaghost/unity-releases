@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ALL_LANE_IDS,
@@ -29,6 +29,7 @@ import {
   setPersonaPresetAction
 } from "../_actions/filter-prefs";
 import { Icon } from "./Icon";
+import { trapTabFocus } from "@/lib/focus";
 
 type FacetOption = { value: string; count: number };
 
@@ -76,6 +77,25 @@ export function FilterDrawer({
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const initialSerialized = useRef<string>(JSON.stringify(initial));
 
+  const applyFilters = useCallback(() => {
+    const next = JSON.stringify(state);
+    if (next === initialSerialized.current) return;
+    const params = new URLSearchParams();
+    for (const [key, value] of preservedParams) if (value) params.append(key, value);
+    serializeFiltersToParams(state, params);
+    initialSerialized.current = next;
+    startTransition(() => { void setPersonaPresetAction(view, state.preset); });
+    router.push(`${basePath}?${params.toString()}`);
+  }, [state, preservedParams, basePath, view, router, startTransition]);
+
+  function close() {
+    // Done, Escape, and the backdrop must keep the last edit, even during debounce.
+    applyFilters();
+    onClose();
+  }
+  const closeRef = useRef(close);
+  closeRef.current = close;
+
   // Reset internal state to whatever the server reported whenever the drawer
   // opens - guarantees the form mirrors the active URL state, not a stale
   // edit from a previous open.
@@ -110,23 +130,11 @@ export function FilterDrawer({
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        closeRef.current();
       } else if (e.key === "Tab") {
         const root = dialogRef.current;
         if (!root) return;
-        const focusables = root.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
+        trapTabFocus(e, [root]);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -135,7 +143,7 @@ export function FilterDrawer({
       window.removeEventListener("keydown", onKey);
       previouslyFocused.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   // Auto-apply: any state change that diverges from the last-applied state
   // pushes a new URL after a 300ms debounce. The debounce keeps a typing
@@ -143,22 +151,9 @@ export function FilterDrawer({
   // while still feeling immediate for checkboxes and chips.
   useEffect(() => {
     if (!open) return;
-    const next = JSON.stringify(state);
-    if (next === initialSerialized.current) return;
-    const timer = window.setTimeout(() => {
-      const params = new URLSearchParams();
-      for (const [k, v] of preservedParams) {
-        if (v) params.append(k, v);
-      }
-      serializeFiltersToParams(state, params);
-      initialSerialized.current = next;
-      startTransition(() => {
-        void setPersonaPresetAction(view, state.preset);
-      });
-      router.push(`${basePath}?${params.toString()}`);
-    }, 300);
+    const timer = window.setTimeout(applyFilters, 300);
     return () => window.clearTimeout(timer);
-  }, [open, state, preservedParams, basePath, view, router, startTransition]);
+  }, [open, applyFilters]);
 
   function applyPreset(preset: PersonaPreset) {
     setState(presetState(preset));
@@ -179,7 +174,7 @@ export function FilterDrawer({
         className="filter-surface__backdrop"
         aria-label="Close filters"
         tabIndex={open ? 0 : -1}
-        onClick={onClose}
+        onClick={close}
       />
       <aside
         ref={dialogRef}
@@ -194,7 +189,7 @@ export function FilterDrawer({
             ref={closeBtnRef}
             type="button"
             className="filter-surface__close"
-            onClick={onClose}
+            onClick={close}
             aria-label="Close"
           >
             <Icon name="x" size={18} />
@@ -451,7 +446,7 @@ export function FilterDrawer({
           <button type="button" className="btn btn--tertiary btn--small" onClick={reset}>
             Reset
           </button>
-          <button type="button" className="btn btn--primary btn--small" onClick={onClose}>
+          <button type="button" className="btn btn--primary btn--small" onClick={close}>
             Done
           </button>
         </footer>

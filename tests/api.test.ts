@@ -106,13 +106,13 @@ describe("filtersFromSearchParams", () => {
 });
 
 describe("jsonError", () => {
-  test("extracts message from an Error", () => {
-    expect(jsonError(new Error("boom"))).toEqual({ error: "boom" });
+  test("does not expose internal error details", () => {
+    expect(jsonError(new Error("boom"))).toEqual({ error: "Unable to complete the request." });
   });
 
   test("falls back for non-Error throwables", () => {
-    expect(jsonError("string error")).toEqual({ error: "Unknown error" });
-    expect(jsonError(42)).toEqual({ error: "Unknown error" });
-    expect(jsonError(null)).toEqual({ error: "Unknown error" });
+    expect(jsonError("string error")).toEqual({ error: "Unable to complete the request." });
+    expect(jsonError(42)).toEqual({ error: "Unable to complete the request." });
+    expect(jsonError(null)).toEqual({ error: "Unable to complete the request." });
   });
 });

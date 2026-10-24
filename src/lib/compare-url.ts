@@ -72,3 +72,10 @@ export function comparePreservedParams(
   applyCompareScope(params, scope);
   return [...params.entries()];
 }
+
+/** Export scope excludes view filters; repeated streams must still survive. */
+export function buildCompareExportUrl(scope: CompareScope): string {
+  const params = new URLSearchParams();
+  applyCompareScope(params, { ...scope, platform: null });
+  return `/compare.md?${params.toString()}`;
+}

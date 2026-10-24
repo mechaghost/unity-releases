@@ -17,7 +17,7 @@ const itemSchema = z.object({
   platforms: z.array(z.string().min(1).max(80)).max(64),
   tags: z.array(z.string().min(1).max(80)).max(128),
   sourceOrder: z.number().int().nonnegative(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 export const observationSchema = z.object({
@@ -36,7 +36,7 @@ export const observationSchema = z.object({
   title: z.string().min(1).max(500),
   summary: z.string().max(8_000).optional(),
   sourceUrl: httpsUrl,
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   items: z.array(itemSchema).max(5_000)
 });
 

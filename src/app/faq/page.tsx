@@ -422,11 +422,15 @@ const SECTIONS: Section[] = [
               behaviour.
             </p>
             <p>
-              Cross-major diffs work too - 2022.3.50f1 → 6000.3.14f1 is a
-              legitimate question and we answer it. Lane contents on
-              cross-major ranges interleave release notes from two product
-              lines, so the row count is high and the noise is real, but the
-              data is correct.
+              Comparisons follow version order: they exclude the lower version
+              and include the higher version, using the streams you selected.
+              Releases published after the higher version are excluded. Swapping
+              From and To shows the same range as a downgrade.
+            </p>
+            <p>
+              Across Editor lines, these are release notes to review, not proof
+              that every listed fix is in your target. Check the target release
+              notes before relying on a fix.
             </p>
           </>
         )

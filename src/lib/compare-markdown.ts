@@ -44,6 +44,10 @@ export function compareToMarkdown(input: CompareMarkdownInput): string {
 
   lines.push(`# Unity ${input.fromVersion} ${arrow} ${input.toVersion}`);
   lines.push("");
+  if (input.fromVersion.split(".").slice(0, 2).join(".") !== input.toVersion.split(".").slice(0, 2).join(".")) {
+    lines.push("This compares release notes across Editor lines. A listed fix is not proof it was included in the target version; check its release notes.");
+    lines.push("");
+  }
 
   const lanesWithRows = input.lanes.filter((l) => l.totalCount > 0);
   if (lanesWithRows.length === 0) {

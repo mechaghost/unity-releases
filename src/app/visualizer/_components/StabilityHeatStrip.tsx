@@ -60,6 +60,8 @@ export function StabilityHeatStrip({
       </p>
       <div className="viz-scroll" role="region" aria-label="Stability heat strip" tabIndex={0}>
         <svg
+          role="group"
+          aria-label="Release stability by version"
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
           preserveAspectRatio="xMinYMid meet"

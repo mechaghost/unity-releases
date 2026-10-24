@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildLanePageUrl, comparePreservedParams } from "../../src/lib/compare-url";
+import { buildLanePageUrl, comparePreservedParams, buildCompareExportUrl } from "../../src/lib/compare-url";
 import { parseCompareStreamSelection } from "../../src/lib/stream-filter";
 
 const LTS_AND_BETA = ["LTS", "Update/Supported", "beta"];
@@ -192,5 +192,20 @@ describe("comparePreservedParams", () => {
       streams: ["LTS"]
     }).map(([k]) => k);
     expect(keys.some((k) => k.startsWith("p_"))).toBe(false);
+  });
+});
+
+
+describe("buildCompareExportUrl", () => {
+  test("retains Supported instead of falling back to LTS", () => {
+    const url = new URL(buildCompareExportUrl({ fromVersion: "6000.6.6f1", toVersion: "6000.6.7f1", streams: ["Update/Supported"] }), "https://unityreleases.com");
+    expect(url.pathname).toBe("/compare.md");
+    expect(url.searchParams.get("from")).toBe("6000.6.6f1");
+    expect(url.searchParams.getAll("stream")).toEqual(["Update/Supported"]);
+  });
+  test("preserves repeated stream parameters but omits UI-only platform filters", () => {
+    const url = new URL(buildCompareExportUrl({ fromVersion: "6000.0.85f1", toVersion: "6000.7.0b6", streams: ["LTS", "Update/Supported", "beta"], platform: "Android" }), "https://unityreleases.com");
+    expect(url.searchParams.getAll("stream")).toEqual(["LTS", "Update/Supported", "beta"]);
+    expect(url.searchParams.has("platform")).toBe(false);
   });
 });

@@ -63,7 +63,7 @@ export function IssueDomainHeatmap({ cells }: { cells: IssueHeatmapCell[] }) {
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
           preserveAspectRatio="xMinYMid meet"
-          role="img"
+          role="group"
           aria-label={`Issues by domain and status heatmap: ${rows.length} subsystem rows by ${columns.length} status columns`}
           style={{ maxHeight: height + 16, display: "block" }}
         >

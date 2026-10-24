@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { ISSUE_DAYS_OPEN_SQL } from "./issue-duration";
 import { query } from "./db/client";
 import { DOMAINS, type Domain } from "./visualizer-domains";
 import { buildDomainCaseSql } from "./visualizer";
@@ -159,7 +160,7 @@ async function getLongestOpenIssuesImpl(limit = 10): Promise<IssueRow[]> {
         fk.body              AS description,
         fk.version          AS introduced_version,
         fk.release_date::text AS introduced_date,
-        (EXTRACT(EPOCH FROM (now() - fk.release_date)) / 86400)::text AS days_open,
+        (${ISSUE_DAYS_OPEN_SQL})::text AS days_open,
         COALESCE(mc.n, 0)::text AS mention_count,
         ff.version          AS fixed_version,
         ff.release_date::text AS fixed_date,
@@ -177,7 +178,7 @@ async function getLongestOpenIssuesImpl(limit = 10): Promise<IssueRow[]> {
       LEFT JOIN mention_counts mc ON mc.issue_id = fk.issue_id
       WHERE fk.release_date IS NOT NULL
         AND (ff.issue_id IS NULL OR (lk.release_date IS NOT NULL AND lk.release_date > lf.release_date))
-      ORDER BY fk.release_date ASC
+      ORDER BY (${ISSUE_DAYS_OPEN_SQL}) DESC NULLS LAST, fk.issue_id ASC
       LIMIT $1
     `,
     [limit]
@@ -256,11 +257,7 @@ async function getNewestIssuesImpl(limit = 10): Promise<IssueRow[]> {
         fk.body              AS description,
         fk.version          AS introduced_version,
         fk.release_date::text AS introduced_date,
-        CASE
-          WHEN ff.release_date IS NOT NULL
-            THEN (EXTRACT(EPOCH FROM (ff.release_date - fk.release_date)) / 86400)::text
-          ELSE (EXTRACT(EPOCH FROM (now() - fk.release_date)) / 86400)::text
-        END AS days_open,
+        (${ISSUE_DAYS_OPEN_SQL})::text AS days_open,
         COALESCE(mc.n, 0)::text AS mention_count,
         ff.version          AS fixed_version,
         ff.release_date::text AS fixed_date,
@@ -375,11 +372,7 @@ async function getMostMentionedIssuesImpl(limit = 10): Promise<IssueRow[]> {
         fk.release_date::text   AS introduced_date,
         ff.version              AS fixed_version,
         ff.release_date::text   AS fixed_date,
-        CASE
-          WHEN fk.release_date IS NOT NULL
-            THEN (EXTRACT(EPOCH FROM (COALESCE(ff.release_date, now()) - fk.release_date)) / 86400)::text
-          ELSE NULL
-        END AS days_open,
+        (${ISSUE_DAYS_OPEN_SQL})::text AS days_open,
         CASE
           WHEN ff.issue_id IS NULL THEN 'open'
           WHEN lk.release_date IS NOT NULL AND lf.release_date IS NOT NULL
@@ -635,11 +628,7 @@ export async function searchIssues(
         ff.version              AS fixed_version,
         ff.release_date::text   AS fixed_date,
         ff.release_date         AS fixed_date_ts,
-        CASE
-          WHEN fk.release_date IS NOT NULL
-            THEN EXTRACT(EPOCH FROM (COALESCE(ff.release_date, now()) - fk.release_date)) / 86400
-          ELSE NULL
-        END AS days_open,
+        (${ISSUE_DAYS_OPEN_SQL}) AS days_open,
         COALESCE(mc.n, 0) AS mention_count,
         CASE
           WHEN ff.issue_id IS NULL AND fk.issue_id IS NOT NULL THEN 'open'

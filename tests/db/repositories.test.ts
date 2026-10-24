@@ -146,7 +146,7 @@ describe("resolveDiffRange", () => {
           { version: "6000.5.0b6", release_date: "2026-04-30T00:00:00Z", stream: "beta", minor_line: "6000.5" }
         )
       )
-      .mockResolvedValueOnce(rows({ version: "6000.3.14f1" }, { version: "6000.4.5f1" }));
+      .mockResolvedValueOnce(rows({ version: "6000.3.14f1", release_date: "2026-04-22T00:00:00Z" }, { version: "6000.4.5f1", release_date: "2026-04-23T00:00:00Z" }));
 
     const result = await resolveDiffRange("6000.0.30f1", "6000.5.0b6", ["LTS", "Update/Supported"]);
     expect(result?.versions).toEqual(["6000.3.14f1", "6000.4.5f1"]);
@@ -160,13 +160,9 @@ describe("resolveDiffRange", () => {
       "6000.5"
     ]);
 
-    // Second call is the range scan; verify the params it sends.
-    // resolveDiffRange passes the release_date strings through unchanged,
-    // so the assertion uses whatever shape the test supplied above.
+    // Candidate lookup is scoped by streams and lines; version ordering is numeric.
     const [, params] = mocks.query.mock.calls[1];
     expect(params).toEqual([
-      "2025-01-01T00:00:00Z",
-      "2026-04-30T00:00:00Z",
       ["LTS", "Update/Supported"],
       ["6000.0", "6000.1", "6000.2", "6000.3", "6000.4", "6000.5"]
     ]);
@@ -208,7 +204,38 @@ describe("resolveDiffRange", () => {
     // And the range-scan call must pass that same set into minor_line = ANY(...)
     // — without it the diff would still resolve to a 2019.4-only window.
     const [, scanParams] = mocks.query.mock.calls[2];
-    expect(scanParams[3]).toEqual(["2022.3", "2021.3", "2020.3", "2019.4"]);
+    expect(scanParams[1]).toEqual(["2022.3", "2021.3", "2020.3", "2019.4"]);
+  });
+
+  test("uses version boundaries when an older line has the later publication date", async () => {
+    mocks.query.mockResolvedValueOnce(rows(
+      { version: "6000.0.85f1", release_date: "2026-10-15T00:00:00Z", stream: "LTS", minor_line: "6000.0" },
+      { version: "6000.3.0f1", release_date: "2025-12-03T00:00:00Z", stream: "LTS", minor_line: "6000.3" }
+    )).mockResolvedValueOnce(rows(
+      { version: "6000.3.26f1", release_date: "2026-10-08T00:00:00Z" },
+      { version: "6000.0.84f1", release_date: "2026-10-01T00:00:00Z" },
+      { version: "6000.0.85f1", release_date: "2026-10-15T00:00:00Z" },
+      { version: "6000.1.99f1", release_date: "2026-01-01T00:00:00Z" },
+      { version: "6000.1.10f1", release_date: "2025-10-01T00:00:00Z" },
+      { version: "6000.3.0f1", release_date: "2025-12-03T00:00:00Z" }
+    ));
+    const result = await resolveDiffRange("6000.0.85f1", "6000.3.0f1", ["LTS"]);
+    expect(result?.reversed).toBe(false);
+    expect(result?.versions).toEqual(["6000.1.10f1", "6000.3.0f1"]);
+  });
+
+  test("orders prereleases numerically and includes only the half-open version interval", async () => {
+    mocks.query.mockResolvedValueOnce(rows(
+      { version: "6000.6.0b9", release_date: "2026-01-10T00:00:00Z", stream: "beta", minor_line: "6000.6" },
+      { version: "6000.6.0f1", release_date: "2026-02-01T00:00:00Z", stream: "Update/Supported", minor_line: "6000.6" }
+    )).mockResolvedValueOnce(rows(
+      { version: "6000.6.1f1", release_date: "2026-01-20T00:00:00Z" },
+      { version: "6000.6.0f1", release_date: "2026-02-01T00:00:00Z" },
+      { version: "6000.6.0b9", release_date: "2026-01-10T00:00:00Z" },
+      { version: "6000.6.0b10", release_date: "2026-01-15T00:00:00Z" }
+    ));
+    const result = await resolveDiffRange("6000.6.0b9", "6000.6.0f1", ["beta", "Update/Supported"]);
+    expect(result?.versions).toEqual(["6000.6.0b10", "6000.6.0f1"]);
   });
 
   test("flips lower/upper bounds when from > to and marks the result reversed", async () => {
@@ -220,15 +247,12 @@ describe("resolveDiffRange", () => {
           { version: "6000.3.13f1", release_date: "2026-04-08T00:00:00Z", stream: "LTS", minor_line: "6000.3" }
         )
       )
-      .mockResolvedValueOnce(rows({ version: "6000.3.14f1" }));
+      .mockResolvedValueOnce(rows({ version: "6000.3.14f1", release_date: "2026-04-22T00:00:00Z" }, { version: "6000.3.13f1", release_date: "2026-04-08T00:00:00Z" }));
 
     const result = await resolveDiffRange("6000.3.14f1", "6000.3.13f1", ["LTS"]);
     expect(result?.reversed).toBe(true);
 
-    const [, params] = mocks.query.mock.calls[1];
-    // Lower (param 1) should be the older date, upper (param 2) the newer.
-    expect(params[0]).toBe("2026-04-08T00:00:00Z");
-    expect(params[1]).toBe("2026-04-22T00:00:00Z");
+    expect(result?.versions).toEqual(["6000.3.14f1"]);
   });
 });
 

@@ -116,13 +116,13 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
           <table className="dense-table packages-table">
             <thead>
               <tr>
-                <th scope="col">
+                <th scope="col" aria-sort={sort.startsWith("name_") ? (sort.endsWith("_asc") ? "ascending" : "descending") : undefined}>
                   <SortLink field="name" currentSort={sort} q={q} scope={scope} channel={channel}>
                     Package
                   </SortLink>
                 </th>
                 <th scope="col" style={{ width: 140 }}>Latest</th>
-                <th scope="col" style={{ width: 130 }}>
+                <th scope="col" style={{ width: 130 }} aria-sort={sort.startsWith("updated_") ? (sort.endsWith("_asc") ? "ascending" : "descending") : undefined}>
                   <SortLink field="updated" currentSort={sort} q={q} scope={scope} channel={channel}>
                     Updated
                   </SortLink>
@@ -262,7 +262,6 @@ function SortLink({
     <a
       className="sort-link"
       href={href}
-      aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : undefined}
     >
       {children}
       <span aria-hidden="true">{active ? (direction === "asc" ? "↑" : "↓") : "↕"}</span>

@@ -4,24 +4,25 @@ import { HoverInfo } from "@/app/_components/HoverInfo";
 
 /**
  * Per-issue horizontal lifespan bars. x = release_date. Each row is one
- * issue; bar starts at its first known-issue mention and ends at its
- * first fix mention (or "today" if still open). Sorted by days-open desc
+ * issue; bar starts at its observed open period and ends at its
+ * fix mention (or "today" if still open). Sorted by days-open desc
  * so the longest-living bugs surface first.
  */
 export function IssueLifespanLines({ issues }: { issues: IssueLifespan[] }) {
-  const filtered = issues.filter((i) => i.introducedDate).slice(0, 30);
+  const filtered = issues.filter((i) => i.periodStartDate && i.daysOpen != null).slice(0, 30);
+  const unknownDurations = issues.filter((i) => i.daysOpen == null).length;
   if (filtered.length === 0) {
     return (
       <div className="viz-card">
         <h2>Issue lifespan — introduced → fixed</h2>
-        <p className="muted">No lifespan data yet.</p>
+        <p className="muted">No comparable issue durations yet.</p>
       </div>
     );
   }
 
   const dates: Date[] = [];
   for (const i of filtered) {
-    if (i.introducedDate) dates.push(new Date(i.introducedDate));
+    if (i.periodStartDate) dates.push(new Date(i.periodStartDate));
     if (i.fixedDate) dates.push(new Date(i.fixedDate));
   }
   dates.push(new Date());
@@ -51,16 +52,16 @@ export function IssueLifespanLines({ issues }: { issues: IssueLifespan[] }) {
         </div>
       </div>
       <p className="viz-card__sub">
-        Bar start = first <code>Known Issues</code> mention. Bar end = first{" "}
-        <code>Fixes</code> mention (or today, if unfixed). Click an issue id
-        to drill in.
+        Bars show the observed open period. Reopened issues start at the first
+        known-issue mention after their latest fix. Select an issue for its history.
+        {unknownDurations > 0 ? " Issues with no comparable duration are omitted." : ""}
       </p>
       <div className="viz-scroll">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
           preserveAspectRatio="xMinYMid meet"
-          role="img"
+          role="group"
           aria-label={`Lifespan bars for ${filtered.length} long-living Unity issues, sorted by days-open descending`}
         >
           <title>Issue lifespan — introduced → fixed</title>
@@ -84,7 +85,7 @@ export function IssueLifespanLines({ issues }: { issues: IssueLifespan[] }) {
           })}
           {filtered.map((issue, i) => {
             const y = margin.top + i * rowH;
-            const x1 = margin.left + xScale(new Date(issue.introducedDate ?? ""));
+            const x1 = margin.left + xScale(new Date(issue.periodStartDate ?? ""));
             const x2 = margin.left + xScale(new Date(issue.fixedDate ?? new Date().toISOString()));
             const isOpen = !issue.fixedDate;
             const classes = [
@@ -109,7 +110,7 @@ export function IssueLifespanLines({ issues }: { issues: IssueLifespan[] }) {
                       {days != null ? ` after ${days} day${days === 1 ? "" : "s"}` : ""}
                     </p>
                     <p>
-                      Introduced in <code>{issue.introducedVersion ?? "?"}</code>
+                      Known since <code>{issue.periodStartVersion ?? "?"}</code>
                       {issue.fixedVersion ? (
                         <> · fixed in <code>{issue.fixedVersion}</code></>
                       ) : (
@@ -131,7 +132,7 @@ export function IssueLifespanLines({ issues }: { issues: IssueLifespan[] }) {
                 }
               >
                 <g>
-                  <a href={`/issues/${encodeURIComponent(issue.issueId)}`}>
+                  <a href={`/issues/${encodeURIComponent(issue.issueId)}`} aria-label={`${issue.issueId}: ${isOpen ? "still open" : "fixed"}${days != null ? `, ${days} days` : ""} — issue history`}>
                     <text
                       x={margin.left - 8}
                       y={y + rowH / 2}

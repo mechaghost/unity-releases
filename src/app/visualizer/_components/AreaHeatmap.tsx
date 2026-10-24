@@ -71,7 +71,7 @@ export function AreaHeatmap({
           width="100%"
           preserveAspectRatio="xMinYMid meet"
           style={{ maxHeight: height + 16, display: "block" }}
-          role="img"
+          role="group"
           aria-label={`Breaking-change heatmap: ${rows.length} subsystem rows by ${visibleVersions.length} recent versions`}
         >
           <title>Breaking-change heatmap by domain</title>
@@ -117,6 +117,7 @@ export function AreaHeatmap({
                     <a
                       key={v.version}
                       href={`/releases/${encodeURIComponent(v.version)}?lanes=breaking,api`}
+                      aria-label={`${domain}, Unity ${v.version}: ${count} breaking or API changes — release notes`}
                     >
                       <title>{`${domain} · ${v.version} · ${count} breaking/API`}</title>
                       <rect

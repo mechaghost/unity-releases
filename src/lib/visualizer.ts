@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { query } from "./db/client";
+import { ISSUE_DAYS_OPEN_SQL } from "./issue-duration";
 import { DOMAINS, DOMAIN_REGEX_SOURCES, type Domain } from "./visualizer-domains";
 import type { ScoreInput } from "./score";
 
@@ -275,6 +276,9 @@ export type IssueLifespan = {
   fixedVersion: string | null;
   fixedDate: string | null;
   daysOpen: number | null;
+  /** Beginning of the observed open period, reset after a later known mention. */
+  periodStartDate: string | null;
+  periodStartVersion: string | null;
   /** Sample area label from the first known-issue mention (for grouping). */
   area: string | null;
   /** True if the issue has been flagged as a blocker risk-level anywhere. */
@@ -282,8 +286,8 @@ export type IssueLifespan = {
 };
 
 /**
- * Issue lifespan from earliest known-issue mention to earliest fix
- * mention. Ranks by days-open descending so the most stubborn bugs
+ * Observed issue duration, restarting when known issues recur after a fix.
+ * Cross-line fixes with no comparable duration remain unknown. Ranks by days-open descending so the most stubborn bugs
  * surface first. `fixedDate` null means still open as of latest data.
  *
  * Joins against `issue_mentions` which carries the section per mention,
@@ -292,7 +296,7 @@ export type IssueLifespan = {
 export async function getIssueLifespans(options: {
   domain?: Domain | "Other";
   limit?: number;
-  /** When true, only return issues that have NOT been fixed. */
+  /** When true, include never-fixed and reopened issues. */
   onlyOpen?: boolean;
 }): Promise<IssueLifespan[]> {
   const params: unknown[] = [];
@@ -302,7 +306,6 @@ export async function getIssueLifespans(options: {
     params.push(options.domain);
     conds.push(`(${DOMAIN_CASE.replace(/area/g, "im.area")}) = $${params.length}`);
   }
-  const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
   const limit = options.limit ?? 40;
   params.push(limit);
 
@@ -313,6 +316,8 @@ export async function getIssueLifespans(options: {
     fixed_version: string | null;
     fixed_date: string | null;
     days_open: string | null;
+    period_start_date: string | null;
+    period_start_version: string | null;
     area: string | null;
     had_blocker: boolean;
   }>(
@@ -333,6 +338,20 @@ export async function getIssueLifespans(options: {
         WHERE im.section = 'Fixes'
         ORDER BY im.issue_id, ur.release_date ASC NULLS LAST
       ),
+      latest_known AS (
+        SELECT im.issue_id, MAX(ur.release_date) AS release_date
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.section = 'Known Issues'
+        GROUP BY im.issue_id
+      ),
+      latest_fix AS (
+        SELECT im.issue_id, MAX(ur.release_date) AS release_date
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.section = 'Fixes'
+        GROUP BY im.issue_id
+      ),
       blocker_flag AS (
         SELECT DISTINCT n.issue_ids[ord] AS issue_id
         FROM release_note_items n,
@@ -343,21 +362,29 @@ export async function getIssueLifespans(options: {
         fk.issue_id,
         fk.version       AS introduced_version,
         fk.release_date::text  AS introduced_date,
-        ff.version       AS fixed_version,
-        ff.release_date::text  AS fixed_date,
-        CASE
-          WHEN ff.release_date IS NOT NULL AND fk.release_date IS NOT NULL
-            THEN EXTRACT(EPOCH FROM (ff.release_date - fk.release_date)) / 86400
-          WHEN fk.release_date IS NOT NULL
-            THEN EXTRACT(EPOCH FROM (now() - fk.release_date)) / 86400
-          ELSE NULL
-        END::text AS days_open,
+        CASE WHEN lk.release_date > lf.release_date THEN NULL ELSE ff.version END AS fixed_version,
+        CASE WHEN lk.release_date > lf.release_date THEN NULL ELSE ff.release_date::text END AS fixed_date,
+        COALESCE(reopened.release_date, fk.release_date)::text AS period_start_date,
+        COALESCE(reopened.version, fk.version) AS period_start_version,
+        (${ISSUE_DAYS_OPEN_SQL}) AS days_open,
         fk.area,
         (bf.issue_id IS NOT NULL) AS had_blocker
       FROM first_known fk
       LEFT JOIN first_fix    ff ON ff.issue_id = fk.issue_id
       LEFT JOIN blocker_flag bf ON bf.issue_id = fk.issue_id
-      ${options.onlyOpen ? "WHERE ff.issue_id IS NULL" : ""}
+      LEFT JOIN latest_known lk ON lk.issue_id = fk.issue_id
+      LEFT JOIN latest_fix lf ON lf.issue_id = fk.issue_id
+      LEFT JOIN LATERAL (
+        SELECT ur.release_date, ur.version
+        FROM issue_mentions im
+        JOIN unity_releases ur ON ur.id = im.unity_release_id
+        WHERE im.issue_id = fk.issue_id AND im.section = 'Known Issues'
+          AND lk.release_date > lf.release_date
+          AND ur.release_date > lf.release_date AND ur.release_date <= now()
+        ORDER BY ur.release_date ASC, ur.version ASC
+        LIMIT 1
+      ) reopened ON true
+      ${options.onlyOpen ? "WHERE (ff.issue_id IS NULL OR lk.release_date > lf.release_date)" : ""}
       ${conds.length > 0 ? (options.onlyOpen ? "AND" : "WHERE") + " " + conds.map((c) => c.replace(/im\.area/g, "fk.area")).join(" AND ") : ""}
       ORDER BY days_open DESC NULLS LAST
       LIMIT $${params.length}
@@ -372,6 +399,8 @@ export async function getIssueLifespans(options: {
     fixedVersion: row.fixed_version,
     fixedDate: row.fixed_date,
     daysOpen: row.days_open != null ? Number(row.days_open) : null,
+    periodStartDate: row.period_start_date,
+    periodStartVersion: row.period_start_version,
     area: row.area,
     hadBlocker: Boolean(row.had_blocker)
   }));

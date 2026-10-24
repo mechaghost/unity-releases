@@ -57,7 +57,7 @@ export function PatchCadenceDots({ points }: { points: PatchCadencePoint[] }) {
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
           preserveAspectRatio="xMidYMid meet"
-          role="img"
+          role="group"
           aria-label={`Patch cadence dot plot across ${streams.length} release stream${streams.length === 1 ? "" : "s"} for the last ${points.length} releases`}
         >
           <title>Patch cadence per release stream</title>
@@ -124,7 +124,7 @@ export function PatchCadenceDots({ points }: { points: PatchCadencePoint[] }) {
                       </a>
                     }
                   >
-                    <a href={`/releases/${encodeURIComponent(d.version)}`}>
+                    <a href={`/releases/${encodeURIComponent(d.version)}`} aria-label={`Unity ${d.version}, ${streamLabel(d.stream)}, released ${formatReleaseDate(d.releaseDate)} — release notes`}>
                       <circle
                         cx={margin.left + xScale(new Date(d.releaseDate))}
                         cy={y}
