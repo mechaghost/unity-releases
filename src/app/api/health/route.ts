@@ -35,5 +35,5 @@ export async function GET() {
           : null,
       isStale: f.isStale
     }))
-  });
+  }, { status: dbError ? 503 : 200 });
 }

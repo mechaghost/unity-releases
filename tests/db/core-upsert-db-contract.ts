@@ -48,6 +48,35 @@ async function main() {
   const snapshotId = Number(snapshot.rows[0].id);
 
   try {
+    await query("CREATE TABLE ingestion_rollback_probe (value text)");
+    for (const failure of ["handler", "sql"] as const) {
+      await assert.rejects(repositories.withIngestionTransaction(
+        "data-contract", `rollback-${failure}`, async (transaction) => {
+          await transaction.query("INSERT INTO ingestion_rollback_probe VALUES ('must roll back')");
+          if (failure === "sql") await transaction.query("SELECT 1 / 0");
+          throw new Error("handler failed");
+        }
+      ), failure === "sql" ? /division by zero/ : /handler failed/);
+      const attempt = await query<{ status: string; error_message: string; finished: boolean }>(
+        "SELECT status, error_message, finished_at IS NOT NULL AS finished FROM ingestion_runs WHERE job_name = $1",
+        [`rollback-${failure}`]
+      );
+      assert.equal(attempt.rows.length, 1, "failed attempt must survive rollback");
+      assert.equal(attempt.rows[0].status, "failed");
+      assert.equal(attempt.rows[0].finished, true);
+      assert.match(attempt.rows[0].error_message, failure === "sql" ? /division by zero/ : /handler failed/);
+      assert.equal((await query("SELECT * FROM ingestion_rollback_probe")).rows.length, 0);
+    }
+    assert.equal(await repositories.withIngestionTransaction(
+      "data-contract", "commit-probe", async (transaction) => {
+        await transaction.query("INSERT INTO ingestion_rollback_probe VALUES ('committed')");
+        return "result";
+      }
+    ), "result");
+    assert.equal((await query("SELECT * FROM ingestion_rollback_probe")).rows.length, 1);
+    assert.equal((await query("SELECT status FROM ingestion_runs WHERE job_name = 'commit-probe'"))
+      .rows[0].status, "success");
+
     const releaseInput = {
       metadata: {
         version: "6000.3.14f1",

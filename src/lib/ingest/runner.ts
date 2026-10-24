@@ -30,6 +30,13 @@ export async function runWithConcurrency<T>(
   }
 }
 
+export class HttpStatusError extends Error {
+  constructor(public readonly status: number, url: string) {
+    super(`HTTP ${status} for ${url}`);
+    this.name = "HttpStatusError";
+  }
+}
+
 export type FetchRetryOptions = {
   /** Max attempts beyond the first. Default 2 (3 total tries). */
   retries?: number;
@@ -59,21 +66,15 @@ export async function fetchHtmlWithRetry(
   let lastErr: unknown;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
-      const fetched = await Promise.race([
-        fetchText(url),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`timeout for ${url}`)), timeoutMs)
-        )
-      ]);
-      if (fetched.status >= 500 || fetched.status === 429) {
-        throw new Error(`HTTP ${fetched.status} for ${url}`);
-      }
+      const fetched = await fetchText(url, { timeoutMs });
       if (fetched.status >= 400) {
-        // 4xx other than 429 = permanent. Don't retry.
-        throw new Error(`HTTP ${fetched.status} for ${url}`);
+        throw new HttpStatusError(fetched.status, url);
       }
       return fetched;
     } catch (err) {
+      if (err instanceof HttpStatusError && err.status < 500 && err.status !== 429) {
+        throw err;
+      }
       lastErr = err;
       if (attempt < retries) {
         // Exponential backoff: 300ms, 900ms, 2700ms by default.

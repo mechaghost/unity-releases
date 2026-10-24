@@ -13,6 +13,7 @@ vi.mock("../../src/lib/ingest/runner", async (importOriginal) => ({
 }));
 vi.mock("../../src/lib/db/repositories", () => mocks);
 import { fetchResourceDiscovery, pollResources } from "../../src/jobs/poll-resources";
+import { HttpStatusError } from "../../src/lib/ingest/runner";
 import { RESOURCE_PARSER_VERSION } from "../../src/lib/ingest/resources";
 
 const slug = "a-beginners-guide-to-unity-cli-and-the-pipeline-package";
@@ -148,4 +149,22 @@ test("parser drift fails the run and cannot report success", async () => {
   mocks.fetchHtmlWithRetry.mockResolvedValue(source(html.replace(/datePublished/g, "removedDate")));
   await expect(pollResources()).rejects.toThrow("Resource ingestion failed for 1 pages");
   expect(mocks.upsertResource).not.toHaveBeenCalled();
+});
+
+test.each([404, 410])("removed page (%i) does not discard other resource updates", async (status) => {
+  mocks.fetchText.mockReset().mockResolvedValueOnce(source(sitemap("2026-09-17").replace("</urlset>",
+    "<url><loc>https://unity.com/resources/removed</loc></url></urlset>")))
+    .mockResolvedValueOnce(source(sitemap("2026-09-17")))
+    .mockResolvedValueOnce(source(`<a href="/resources/${slug}">Guide</a>`));
+  mocks.fetchHtmlWithRetry.mockImplementation(async (requestedUrl) => {
+    if (requestedUrl.endsWith("/removed")) throw new HttpStatusError(status, requestedUrl);
+    return source(html);
+  });
+  await expect(pollResources()).resolves.toBeUndefined();
+  expect(mocks.upsertResource).toHaveBeenCalledTimes(1);
+});
+
+test.each([403, 503])("HTTP %i still fails the resource run", async (status) => {
+  mocks.fetchHtmlWithRetry.mockRejectedValue(new HttpStatusError(status, url));
+  await expect(pollResources()).rejects.toThrow("Resource ingestion failed");
 });

@@ -249,6 +249,16 @@ describe("docs.unity.com markdown pipeline", () => {
     });
   }
 
+  test("table repair handles long whitespace runs and preserves content pipes", () => {
+    const content = "start" + " ".repeat(20_000) + "end";
+    const escapedPipe = String.fromCharCode(92) + "|";
+    const repaired = repairUnityDocsTables(`| Version | Notes
+| --- | ---
+| 1.0 | ${content}
+continued Foo|Bar |`);
+    expect(repaired).toContain(`${content} continued Foo${escapedPipe}Bar |`);
+  });
+
   test("raw markdown never reaches a parser", () => {
     // The conversion lives in the runner, so a target wired straight to the
     // markdown would throw rather than silently produce nothing.

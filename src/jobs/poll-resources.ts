@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { fetchText, type FetchedSource } from "../lib/ingest/fetch";
-import { fetchHtmlWithRetry, runWithConcurrency } from "../lib/ingest/runner";
+import { fetchHtmlWithRetry, HttpStatusError, runWithConcurrency } from "../lib/ingest/runner";
 import {
   parseResourcePage,
   parseResourcesIndex,
@@ -99,7 +99,7 @@ export async function pollResources() {
       return new Date(entry.lastmod).getTime() > new Date(known.lastmod).getTime();
     }).slice(0, MAX_PER_RUN);
 
-    let stats = { fetched: 0, parsed: 0, skipped404: 0, errors: 0 };
+    let stats = { fetched: 0, parsed: 0, skippedRemoved: 0, errors: 0 };
     await runWithConcurrency(todo, CONCURRENCY, async (entry) => {
       try {
         const fetched = await fetchHtmlWithRetry(entry.url, {
@@ -109,12 +109,16 @@ export async function pollResources() {
         stats.fetched += 1;
         const parsed = parseResourcePage(fetched.text, entry.url, entry.lastmod);
         if (!parsed) {
-          stats.skipped404 += 1;
+          stats.skippedRemoved += 1;
           return;
         }
         stats.parsed += 1;
         await upsertResource(client, parsed, entry.lastmod, runId, entry.sourceSnapshotId);
       } catch (err) {
+        if (err instanceof HttpStatusError && (err.status === 404 || err.status === 410)) {
+          stats.skippedRemoved += 1;
+          return;
+        }
         stats.errors += 1;
         console.error(JSON.stringify({ url: entry.url, error: err instanceof Error ? err.message : String(err) }));
       }

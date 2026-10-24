@@ -1239,24 +1239,25 @@ export async function withIngestionTransaction<T>(
   const client = await getPool().connect();
   let runId: number | null = null;
   try {
-    await client.query("BEGIN");
+    // Persist the attempt before opening the data transaction so failures survive rollback.
     runId = await createIngestionRun(
       client,
       sourceType,
       jobName,
       parserVersion
     );
+    await client.query("BEGIN");
     const result = await handler(client, runId);
     await finishIngestionRun(client, runId, "success", { sourceCount: 1, recordsCreated: 1 });
     await client.query("COMMIT");
     return result;
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
     if (runId) {
       await finishIngestionRun(client, runId, "failed", {
         errorMessage: error instanceof Error ? error.message : "Unknown error"
       }).catch(() => undefined);
     }
-    await client.query("ROLLBACK").catch(() => undefined);
     throw error;
   } finally {
     client.release();
