@@ -7,12 +7,17 @@ import { RELEASE_GUIDES } from "../../src/lib/release-guides";
 test("release overview opens each guide and keeps support types separate", async ({ page }, testInfo) => {
   await page.goto("/whats-new");
   await expect(page.getByRole("heading", { level: 1, name: "What’s new in Unity?" })).toBeVisible();
-  await expect(page.locator(".guide-card")).toHaveCount(7);
+  await expect(page.locator(".guide-card")).toHaveCount(3);
   await expect(page.getByRole("link", { name: "Read the Unity 6.6 guide", exact: true })).toHaveAttribute("href", "/whats-new/unity-6-6");
   expect((await page.locator(".guide-card").first().boundingBox())!.y).toBeLessThanOrEqual(180);
-  await expect(page.locator(".guide-card").filter({ has: page.getByRole("heading", { name: "Unity 6.1", exact: true }) })).toContainText("Superseded");
+  await expect(page.locator("#release-guides")).not.toContainText("Superseded");
+  for (const version of ["6.1", "6.2", "6.4", "6.5"]) {
+    await expect(page.getByRole("link", { name: `Read the Unity ${version} guide`, exact: true })).toHaveCount(0);
+  }
   for (const guide of RELEASE_GUIDES) {
-    await page.getByRole("link", { name: `Read the Unity ${guide.version} guide` }).click();
+    const card = page.getByRole("link", { name: `Read the Unity ${guide.version} guide`, exact: true });
+    if (await card.count()) await card.click();
+    else await page.goto(`/whats-new/${guide.slug}`);
     await expect(page.getByRole("heading", { level: 1, name: `What’s new in Unity ${guide.version}?` })).toBeVisible();
     await expect(page.locator(".guide-highlight")).toHaveCount(guide.highlights.length);
     expect((await page.locator(".guide-highlight").first().boundingBox())!.y).toBeLessThanOrEqual(260);

@@ -1,4 +1,4 @@
-import { RELEASE_GUIDES } from "@/lib/release-guides";
+import { RELEASE_GUIDES, guideStatus } from "@/lib/release-guides";
 import { pageSocialMetadata } from "@/lib/site";
 import { GuideCard, SupportExplainer } from "./GuideParts";
 import { MoreUpdates } from "./MoreUpdates";
@@ -13,7 +13,7 @@ export const metadata = {
 
 export default function WhatsNewPage() {
   const now = new Date();
-  const released = RELEASE_GUIDES.filter(g => g.released <= now.toISOString().slice(0, 10));
+  const released = RELEASE_GUIDES.filter(g => g.released <= now.toISOString().slice(0, 10) && guideStatus(g, now).label !== "Superseded");
   return <div className="release-guide">
     <header className="guide-hero page-header__title-row"><h1>What’s new in Unity?</h1><a className="btn btn--secondary" href="/compare">Compare versions</a></header>
     <section id="release-guides" aria-label="Release guides">

@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 test("home foregrounds release guides and comparison remains a separate tool", async ({ page, baseURL }, testInfo) => {
   await page.goto("/?utm_source=review");
   await expect(page.getByRole("heading", { level: 1, name: "What’s new in Unity?" })).toBeVisible();
-  await expect(page.locator(".guide-card")).toHaveCount(7);
+  await expect(page.locator(".guide-card")).toHaveCount(3);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /^https?:\/\/[^/]+\/?$/);
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", /^https?:\/\/[^/]+\/?$/);
   expect((await page.locator(".guide-card").first().boundingBox())!.y).toBeLessThan(180);
