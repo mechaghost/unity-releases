@@ -7284,6 +7284,18 @@ button.filter-section__head:focus-visible {
 .guide-feature-footer .chip--area { background: var(--azure-700); color: var(--text-on-accent); border-color: var(--azure-500); }
 .guide-feature-action { margin-left: auto; color: var(--text-link); font-weight: var(--weight-medium); }
 .guide-feature-action span { padding-left: var(--space-2); }
+.more-updates { margin-block: var(--space-6); }
+.more-updates > .page-header__title-row { margin-bottom: var(--space-3); }
+.more-updates h2 { margin: 0; }
+.update-section-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.update-section-card { padding: var(--space-4); }
+.update-section-card__heading { display: flex; align-items: center; gap: var(--space-2); }
+.update-section-card__heading h3 { flex: 1; margin: 0; font-size: var(--text-base); }
+.update-section-card__heading > svg, .update-section-card__heading > span { flex: none; color: var(--text-link); }
+.update-section-card p { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: var(--text-sm); }
+.update-section-card:hover h3 { color: var(--text-link); text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 1100px) { .update-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .update-section-grid { grid-template-columns: 1fr; } }
 .feature-intro { max-width: 70ch; color: var(--text-secondary); }
 .feature-release { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
 .guide-hero .feature-release .guide-badges { margin: 0; }

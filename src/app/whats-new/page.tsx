@@ -1,6 +1,7 @@
 import { RELEASE_GUIDES } from "@/lib/release-guides";
 import { pageSocialMetadata } from "@/lib/site";
 import { GuideCard, SupportExplainer } from "./GuideParts";
+import { MoreUpdates } from "./MoreUpdates";
 
 export const dynamic = "force-dynamic";
 const description = "Discover what changed in Unity 6.0 through 6.6, why it matters, and how LTS and Supported Update releases differ.";
@@ -19,6 +20,7 @@ export default function WhatsNewPage() {
       <div className="guide-grid">{released.map((guide, index) => <GuideCard key={guide.slug} guide={guide} now={now} eager={index < 2} />)}</div>
     </section>
     <SupportExplainer />
+    <MoreUpdates />
     <footer className="guide-footer">Independent guides · Reviewed October 24, 2026. <a href="/releases">All Editor releases</a></footer>
   </div>;
 }
