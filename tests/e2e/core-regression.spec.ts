@@ -2,7 +2,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const PAGE_CONTRACTS = [
-  ["/", "Upgrade Intelligence"],
+  ["/", "What’s new in Unity?"],
+  ["/compare", "Compare versions"],
   [
     "/compare?from=6000.0.1f1&to=6000.0.2f1",
     /Unity 6000\.0\.1f1 to 6000\.0\.2f1 upgrade diff/
@@ -245,7 +246,7 @@ test.describe("core surface contract", () => {
     await page.goto("/releases");
     const nav = page.getByRole("navigation", { name: "Primary" });
     for (const label of [
-      "Upgrade Intelligence",
+      "Compare versions",
       "Editor Releases",
       "Release Visualizer",
       "Search Notes",
@@ -264,7 +265,8 @@ test.describe("core surface contract", () => {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
     for (const label of [
-      "Engine & Editor",
+      "Discover",
+      "Developer tools",
       "Unity Products",
       "Community & Reference"
     ]) {

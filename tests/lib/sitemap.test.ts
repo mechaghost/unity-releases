@@ -38,7 +38,6 @@ describe("sitemap", () => {
         "https://unityreleases.com/",
         "https://unityreleases.com/compare",
         "https://unityreleases.com/releases",
-        "https://unityreleases.com/whats-new",
         "https://unityreleases.com/whats-new/unity-6-6",
         "https://unityreleases.com/packages",
         "https://unityreleases.com/resources",

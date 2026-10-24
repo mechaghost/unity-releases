@@ -8,7 +8,7 @@ test("release overview opens each guide and keeps support types separate", async
   await page.goto("/whats-new");
   await expect(page.getByRole("heading", { level: 1, name: "What’s new in Unity?" })).toBeVisible();
   await expect(page.locator(".guide-card")).toHaveCount(7);
-  await expect(page.getByRole("link", { name: "View Unity 6.6 features", exact: true })).toHaveAttribute("href", "/whats-new/unity-6-6");
+  await expect(page.getByRole("link", { name: "Read the Unity 6.6 guide", exact: true })).toHaveAttribute("href", "/whats-new/unity-6-6");
   expect((await page.locator(".guide-card").first().boundingBox())!.y).toBeLessThanOrEqual(180);
   await expect(page.locator(".guide-card").filter({ has: page.getByRole("heading", { name: "Unity 6.1", exact: true }) })).toContainText("Superseded");
   for (const guide of RELEASE_GUIDES) {
@@ -63,6 +63,8 @@ test("guide details work by keyboard and the layout fits small screens in both t
   await expect(page.locator(".guide-support")).toHaveAttribute("open", "");
   for (const theme of ["light", "dark"]) {
     await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
+    // Audit the settled theme, after the shared button color transitions.
+    await page.evaluate(() => Promise.all(Array.from(document.querySelectorAll(".btn")).flatMap(element => element.getAnimations()).map(animation => animation.finished)));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const results = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
     expect(results.violations).toEqual([]);
@@ -139,6 +141,8 @@ test("feature cards open by image or keyboard and details connect to technical t
   await page.setViewportSize({ width: 320, height: 850 });
   for (const theme of ["light", "dark"]) {
     await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
+    // Audit the settled theme, after the shared button color transitions.
+    await page.evaluate(() => Promise.all(Array.from(document.querySelectorAll(".btn")).flatMap(element => element.getAnimations()).map(animation => animation.finished)));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const results = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
     expect(results.violations).toEqual([]);

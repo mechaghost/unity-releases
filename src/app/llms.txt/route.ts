@@ -154,7 +154,9 @@ filtering UI.
 
 ## Pages (HTML)
 
-- [Upgrade Intelligence](${origin}/) - the home page. Pick two versions
+- [What’s new in Unity](${origin}/) - the home page. Explore major-release
+  features, practical guides, and official documentation.
+- [Compare versions](${origin}/compare) - pick two versions
   to diff. Same data as \`/compare.md\` rendered with filtering UI.
 - [Editor Releases](${origin}/releases) - every indexed Unity editor
   release. The current LTS lines are shown by default; the chip row

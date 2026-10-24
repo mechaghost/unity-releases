@@ -5,7 +5,6 @@ import { paginateItems, type PaginationResult } from "@/lib/pagination";
 import {
   buildReleaseFilters,
   defaultReleaseFilters,
-  defaultViewGenerationsLabel,
   nextReleaseSortKey,
   parseReleaseSortKey,
   parseSelectedReleaseFilters,
@@ -28,7 +27,7 @@ const RELEASES_PER_PAGE = 50;
 // Static metadata (evaluated at module load, no DB access), so it stays
 // generation-neutral rather than naming lines that will change.
 const RELEASES_DESCRIPTION =
-  "Every indexed Unity editor release — current LTS lines by default, plus Supported, Beta, Alpha, and the legacy LTS lines when their chips are ticked. Click a version for its lane-bucketed release notes, or diff two versions in Upgrade Intelligence.";
+  "Browse Unity editor releases and their fixes. Filter by release type, open release notes, or compare two versions.";
 
 export const metadata = {
   title: "Editor Releases",
@@ -67,10 +66,6 @@ export default async function ReleasesPage({
   const filterOptions = buildReleaseFilters(all);
   const selectedFilters = parseSelectedReleaseFilters(params.stream, filterOptions);
   const defaultFilters = defaultReleaseFilters(filterOptions);
-  // Describes the DEFAULT selection, not everything indexed - a generation with
-  // only prereleases has no chip and is not in the default view, so naming it
-  // would make the sentence below false. Null when no LTS line exists at all.
-  const defaultGenerations = defaultViewGenerationsLabel(defaultFilters);
   const { results: scoreResults } = scoreAllReleases(scoreInputs);
   // Note counts come straight from the cached score-inputs (which run a
   // single GROUP BY on release_note_items). Killed the parallel
@@ -92,18 +87,14 @@ export default async function ReleasesPage({
   return (
     <>
       <section className="page-header">
-        <h1>Editor Releases</h1>
-        <p>
-          <a href="/whats-new">Looking for the big changes? Read our plain-language release guides.</a>{" "}
-          Every indexed Unity editor release.{" "}
-          {defaultGenerations
-            ? `${defaultGenerations} LTS lines are shown by default; tick a chip to add Supported / Beta / Alpha or the legacy LTS lines.`
-            : "Supported, Beta, and Alpha releases are shown by default; tick a chip to change the scope."}{" "}
-          Click a version for its lane-bucketed release notes, or use{" "}
-          <a href="/">Upgrade Intelligence</a> to diff two of them.{" "}
-          {filtered.length.toLocaleString()} of {all.length.toLocaleString()}{" "}
-          shown.
-        </p>
+        <div className="page-header__title-row">
+          <h1>Editor Releases</h1>
+          <div className="page-header__actions">
+            <a href="/whats-new">Release guides</a>
+            <a href="/compare">Compare versions</a>
+          </div>
+        </div>
+        <p>Browse patch releases and their fixes.</p>
       </section>
 
       <ReleaseStreamChips
@@ -111,6 +102,12 @@ export default async function ReleasesPage({
         options={filterOptions}
         sortKey={sortKey}
       />
+
+      <div className="list-toolbar">
+        <span className="list-toolbar__count">
+          <strong>{filtered.length.toLocaleString()}</strong> of {all.length.toLocaleString()} releases
+        </span>
+      </div>
 
       {filtered.length === 0 ? (
         <div className="releases-table-wrap">

@@ -3,11 +3,13 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { Icon } from "./Icon";
 import { PackageVersionDialog } from "./PackageVersionDialog";
+import type { PackageFeatureLink } from "@/lib/release-guide-links";
 
 type Props = {
   packageName: string;
   displayName: string | null;
   registryUrl: string;
+  featureLinks?: PackageFeatureLink[];
   /** Already-rendered cell contents from the server. We accept ReactNode
    *  so the page-side render can keep its existing JSX (chips, link cells,
    *  etc.) and we don't have to re-implement that here. */
@@ -27,6 +29,7 @@ export function PackageRowClient({
   packageName,
   displayName,
   registryUrl,
+  featureLinks = [],
   children
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -65,6 +68,7 @@ export function PackageRowClient({
         packageName={packageName}
         displayName={displayName}
         registryUrl={registryUrl}
+        featureLinks={featureLinks}
       />
     </>
   );

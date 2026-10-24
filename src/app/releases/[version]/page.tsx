@@ -30,6 +30,7 @@ import { BuildScoreExpander } from "../../_components/BuildScoreExpander";
 import { getScoreInputs } from "@/lib/visualizer";
 import { scoreAllReleases } from "@/lib/score";
 import { jsonLdString, pageSocialMetadata, siteUrl, SITE_NAME } from "@/lib/site";
+import { editorReleaseGuideLink } from "@/lib/release-guide-links";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,7 @@ export default async function ReleasePage({
 }) {
   const { version } = await params;
   const decoded = decodeURIComponent(version);
+  const featureGuide = editorReleaseGuideLink(decoded);
   const query = await searchParams;
   const urlParams = toUrlSearchParams(query);
 
@@ -197,6 +199,7 @@ export default async function ReleasePage({
           <p className="muted">Release not yet indexed.</p>
         )}
         <div className="cluster page-meta-row">
+          {featureGuide && <a href={featureGuide.href}>{featureGuide.label}</a>}
           {release ? (
             <>
               <ExternalLink href={release.release_page_url}>Unity release page</ExternalLink>

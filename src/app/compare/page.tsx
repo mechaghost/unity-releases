@@ -98,13 +98,9 @@ export async function generateMetadata({
       ...pageSocialMetadata({ title, description, path })
     };
   }
-  // Empty state: let the root layout's default title win so `/` (which
-  // re-exports this page) shows "Unity Releases - Unity 6 release & upgrade
-  // intelligence" instead of a doubled-up tagline.
-  const description =
-    "Pick any two Unity editor versions — from Unity 6 or the 2019–2022 LTS lines, same major or across them — and see every blocker, breaking change, API change, package bump, and known issue between them, bucketed into lanes and exportable as markdown for an LLM.";
+  const description = "Compare fixes, breaking changes, and known issues between two Unity Editor versions.";
   return {
-    description,
+    title: "Compare versions", description,
     alternates: { canonical: "/compare" },
     ...pageSocialMetadata({ title: "Compare Unity versions", description, path: "/compare" })
   };
@@ -1005,12 +1001,9 @@ function parseLanePage(raw: string | null): number {
 function LandingIntro() {
   return (
     <section className="page-header">
-      <h1 className="landing-intro__title">Upgrade Intelligence</h1>
+      <h1 className="landing-intro__title">Compare versions</h1>
       <p>
-        Pick two Unity editor versions and see every blocker, breaking change, API
-        change, package bump, and known issue between them - bucketed into lanes,
-        filterable, and exportable as markdown for an LLM. Built for Unity developers
-        deciding when (and whether) to upgrade.
+        Review fixes, breaking changes, and known issues between two Unity versions.
       </p>
     </section>
   );
@@ -1019,13 +1012,9 @@ function LandingIntro() {
 function CompareEmptyPreview() {
   return (
     <div className="empty-state empty-state--preview">
-      <h2>Pick two versions to compare</h2>
+      <h2>Choose your versions</h2>
       <p className="empty-state__lead">
-        Choose your current Unity version on the left and a candidate upgrade target
-        on the right. The result is a single page covering every release in between,
-        bucketed into lanes - known blockers, breaking changes, API changes, security,
-        package bumps, regressions, and fixes - plus a downloadable markdown export
-        of the full dataset for LLM analysis.
+        Set From to your current version and To to the version you want to evaluate.
       </p>
     </div>
   );

@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 import { renderChangelog } from "@/lib/changelog-markdown";
 import { editorPrereleaseLabel } from "@/lib/version-compare";
+import { PackageFeatureLinks } from "./PackageFeatureLinks";
+import type { PackageFeatureLink } from "@/lib/release-guide-links";
 
 type VersionEntry = {
   version: string;
@@ -46,6 +48,7 @@ type Props = {
   /** Registry URL surfaced in the header so the user always has the
    *  external link, even before the version list finishes loading. */
   registryUrl: string;
+  featureLinks?: PackageFeatureLink[];
 };
 
 /**
@@ -61,7 +64,8 @@ export function PackageVersionDialog({
   onClose,
   packageName,
   displayName,
-  registryUrl
+  registryUrl,
+  featureLinks = []
 }: Props) {
   const [load, setLoad] = useState<LoadState>({ status: "idle" });
   const [mounted, setMounted] = useState(false);
@@ -206,6 +210,8 @@ export function PackageVersionDialog({
               {load.data.description}
             </p>
           )}
+
+          <PackageFeatureLinks links={featureLinks} />
 
           {load.status === "loading" ? (
             <DialogSkeleton />

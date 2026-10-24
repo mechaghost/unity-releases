@@ -13,7 +13,7 @@ import { LeftNav } from "../../src/app/_components/LeftNav";
 vi.stubGlobal("React", React);
 
 const CORE_LABELS = [
-  "Upgrade Intelligence",
+  "Compare versions",
   "Editor Releases",
   "Release Visualizer",
   "Search Notes",

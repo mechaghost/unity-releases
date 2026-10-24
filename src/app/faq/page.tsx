@@ -342,7 +342,7 @@ const SECTIONS: Section[] = [
       {
         id: "what-is-upgrade-score",
         question:
-          "What is the Upgrade score on Upgrade Intelligence (/compare)?",
+          "What is the Upgrade score on Compare versions?",
         answer: (
           <>
             <p>
@@ -410,13 +410,12 @@ const SECTIONS: Section[] = [
     items: [
       {
         id: "page-upgrade",
-        question: "What is Upgrade Intelligence (the homepage)?",
+        question: "What does Compare versions show?",
         answer: (
           <>
             <p>
-              The main diff view. Pick two Unity editor versions in the From /
-              To dropdowns and the page lane-buckets every release-note line
-              item shipped between them - blockers, breaking changes, known
+              <a href="/compare">Compare versions</a> groups the release notes
+              between your selected From and To versions by type - blockers, breaking changes, known
               issues, security &amp; install impact, package updates, API
               changes, fixes, improvements, features, other changes. Each lane
               has its own row count, pagination, and (where useful) deduplication
@@ -451,7 +450,7 @@ const SECTIONS: Section[] = [
         question: "What does /releases/[version] show?",
         answer: (
           <>
-            The same lane-bucketed view as Upgrade Intelligence, but for a
+            The same grouped notes as <a href="/compare">Compare versions</a>, but for a
             single release rather than a range. Useful when you want to read
             one release&apos;s notes end-to-end (e.g. &ldquo;what landed in
             6000.0.74f1?&rdquo;) without the noise of every version above and
@@ -804,7 +803,7 @@ const SECTIONS: Section[] = [
             </p>
             <ul>
               <li>
-                On <a href="/">Upgrade Intelligence</a>, the status reflects
+                On <a href="/compare">Compare versions</a>, the status reflects
                 only the majors covered by your <code>from</code> →{" "}
                 <code>to</code> range. A 2019.4.40f1 → 2022.3.50f1 diff won&apos;t
                 tag an issue as <em>fixed in 6000.3.0b1</em>, because the user

@@ -25,9 +25,9 @@ export const SITE_NAME = "Unity Releases";
  * generation ("Unity 6") would need a manual edit the day Unity 7 ships. The
  * data-driven version scope lives on /faq and /llms.txt instead.
  */
-export const SITE_TAGLINE = "Unity release & upgrade intelligence";
+export const SITE_TAGLINE = "Features, releases, and upgrades";
 export const SITE_DESCRIPTION =
-  "Diff any two Unity editor versions. Every blocker, breaking change, API change, package bump, and known issue - bucketed by impact and exportable as markdown for an LLM. Independent project, not affiliated with Unity Technologies.";
+  "Explore what’s new in Unity, read release guides, and compare Editor versions. Find feature documentation, package versions, and reported issues. Independent project, not affiliated with Unity Technologies.";
 
 /**
  * Build per-page Open Graph + Twitter metadata so each route surfaces

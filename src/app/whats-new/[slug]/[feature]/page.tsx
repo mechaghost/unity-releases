@@ -44,7 +44,7 @@ export default async function FeaturePage({ params }: Props) {
       <h1>{feature.title}</h1>
       <p className="feature-intro">{feature.benefit}</p>
       <div className="feature-release"><a href={guideHref(guide)}>Unity {guide.version}</a><GuideBadges guide={guide} now={new Date()} /></div>
-      <a className="feature-primary-link" href={details.links[0].url}>{details.links[0].label} <span aria-hidden="true">↗</span></a>
+      <a className="feature-primary-link btn btn--secondary" href={details.links[0].url}>{details.links[0].label} <span aria-hidden="true">↗</span></a>
     </header>
     <div className="feature-detail-layout">
       <div className="feature-detail-main">

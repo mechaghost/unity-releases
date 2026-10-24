@@ -265,6 +265,31 @@ SELECT
 FROM packages
 WHERE name = 'com.unity.inputsystem';
 
+-- A package with researched feature-guide associations exercises the return path.
+INSERT INTO packages (
+  name, display_name, description, documentation_url, keywords, source_url
+)
+VALUES (
+  'com.unity.render-pipelines.universal',
+  'Universal RP',
+  'A rendering package fixture for feature-guide navigation.',
+  'https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@17.0/manual/index.html',
+  ARRAY['rendering'],
+  'https://packages.unity.com/com.unity.render-pipelines.universal'
+);
+
+INSERT INTO package_versions (
+  package_id, version, published_at, unity_compatibility, is_prerelease,
+  changelog, dependencies_json, dist_tags_json, raw_metadata_json,
+  parser_version, normalized_sha256
+)
+SELECT
+  id, '17.0.0', '2024-10-17T00:00:00Z', '6000.0', false,
+  'Deterministic rendering package fixture.', '{}'::jsonb, '{}'::jsonb,
+  '{}'::jsonb, 'e2e-v1', 'e2e-urp-package-version'
+FROM packages
+WHERE name = 'com.unity.render-pipelines.universal';
+
 INSERT INTO editor_package_versions (
   unity_release_id, editor_version, package_name, from_version, to_version,
   change_kind

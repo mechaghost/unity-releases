@@ -8,6 +8,7 @@ import { SidebarUserPackages } from "../_components/SidebarUserPackages";
 import { PackageRowClient } from "../_components/PackageRowClient";
 import { PackagesFilter } from "../_components/PackagesFilter";
 import { pageSocialMetadata } from "@/lib/site";
+import { packageFeatureLinks } from "@/lib/release-guide-links";
 
 export const dynamic = "force-dynamic";
 
@@ -153,6 +154,7 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                   packageName={pkg.name}
                   displayName={pkg.display_name}
                   registryUrl={pkg.source_url}
+                  featureLinks={packageFeatureLinks(pkg.name)}
                 >
                   <td>
                     <strong>{pkg.display_name ?? pkg.name}</strong>

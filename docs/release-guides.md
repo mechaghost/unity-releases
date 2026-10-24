@@ -61,3 +61,15 @@ All 61 feature detail records were reviewed against official Unity material. Of 
 Review fixes included accurate renderer/platform requirements, Android build settings, Mesh LOD limits, and removing an incorrect package association. Browser review caught and fixed inconsistent portrait-image heights. Integration tests caught and fixed the release-note filter losing its visible selection when that line had no indexed entries.
 
 The full unit suite passed (810 tests; six optional tests skipped). Ten desktop/mobile browser checks passed, including all feature routes, card image/body/keyboard navigation, 320px reflow, light/dark accessibility, images, and release-note filter handoff. TypeScript and the production build passed. This verifies the site UI and source links, not execution of Unity features in the Editor or on physical devices.
+
+## Homepage and shared navigation
+
+The homepage `/` renders the release overview. `/whats-new` remains a working alias with `/` as its canonical URL; guide and feature URLs stay unchanged. The sitemap lists the homepage once. Legacy homepage bookmarks carrying comparison parameters redirect to `/compare`, preserving repeated filters and other query values. Ordinary visits and campaign parameters stay on the overview.
+
+Navigation puts What’s New under Discover and the comparison, release, issue, and package tools under Developer tools. Compare versions has its own `/compare` destination. Brand links return to the release overview. Site descriptions and sharing artwork cover features, releases, and upgrades.
+
+Guide pages use the shared heading, button, spacing, color, border, and focus tokens. Overview cards and feature cards each have one full-card link; image frames preserve the full image. Technical tools retain their compact tables and filters. Page introductions explain the purpose in one sentence.
+
+Technical release pages link to the matching published major-release guide. Package dialogs receive compact, server-selected feature links for exact package IDs; these are editorial associations, not package-version compatibility claims. Unrelated packages show no feature section.
+
+Verification includes the homepage and alias canonical, old comparison bookmarks, one active navigation item, desktop/mobile card interactions, release-to-guide and package-to-feature round trips, 320px layout, and settled light/dark accessibility. The package-versioning check and read-only production package/API checks also passed; no deployment is part of this change.

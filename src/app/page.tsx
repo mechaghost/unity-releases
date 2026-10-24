@@ -1,12 +1,10 @@
-import ComparePage from "./compare/page";
-export { dynamic } from "./compare/page";
+import { redirect } from "next/navigation";
+import { legacyCompareHref } from "@/lib/home-navigation";
+import WhatsNewPage from "./whats-new/page";
+export { dynamic, metadata } from "./whats-new/page";
 
-export default async function HomePage(props: Parameters<typeof ComparePage>[0]) {
-  return <>
-    <aside className="guide-home-entry" aria-label="Discover release highlights">
-      <a href="/whats-new">What’s new in Unity?</a>
-      <span>Explore the big changes in each release, with clear LTS and Supported status.</span>
-    </aside>
-    <ComparePage {...props} />
-  </>;
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const legacy = legacyCompareHref(await searchParams);
+  if (legacy) redirect(legacy);
+  return <WhatsNewPage />;
 }

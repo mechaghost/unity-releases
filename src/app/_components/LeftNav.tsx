@@ -30,23 +30,26 @@ function isEditorToolingPath(pathname: string) {
 
 const NAV: NavSection[] = [
   {
-    label: "Engine & Editor",
+    label: "Discover",
     priority: "primary",
     items: [
       {
-        href: "/whats-new",
+        href: "/",
         label: "What’s new",
         icon: "newspaper",
-        match: (pathname) => pathname === "/whats-new" || pathname.startsWith("/whats-new/")
-      },
+        match: (pathname) => pathname === "/" || pathname === "/whats-new" || pathname.startsWith("/whats-new/")
+      }
+    ]
+  },
+  {
+    label: "Developer tools",
+    priority: "primary",
+    items: [
       {
-        // Compare is the landing page - `/` re-exports the compare route, and
-        // the active-state matcher catches both URLs so the nav highlight
-        // tracks correctly whether you arrived via `/` or `/compare`.
-        href: "/",
-        label: "Upgrade Intelligence",
+        href: "/compare",
+        label: "Compare versions",
         icon: "git-compare",
-        match: (pathname) => pathname === "/" || pathname === "/compare"
+        match: (pathname) => pathname === "/compare"
       },
       {
         href: "/releases",
@@ -165,7 +168,7 @@ export function LeftNav({
         <span className="lnav__brand-name">Unity Releases</span>
         {/* Generation-neutral: naming a single Unity generation here would
             need a manual edit the day the next one ships. */}
-        <span className="lnav__brand-tagline">Unity release &amp; upgrade intel</span>
+        <span className="lnav__brand-tagline">Features, releases, and upgrades</span>
       </a>
       <div className="lnav__sections">
         {NAV.map((section) => {

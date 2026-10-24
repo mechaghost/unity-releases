@@ -53,12 +53,7 @@ export default async function ResourcesPage({
         <div className="page-header__title-row">
           <h1>Resources</h1>
         </div>
-        <p>
-          Unity ebooks, videos, webinars, podcasts, and dev articles. Marketing
-          (case studies, reports, whitepapers) and enterprise content
-          (non-games industries) are hidden by default - toggle them below to
-          see the full library.
-        </p>
+        <p>Unity tutorials, articles, videos, and reference material.</p>
       </section>
 
       <ResourcesFilter

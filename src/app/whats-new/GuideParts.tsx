@@ -12,11 +12,13 @@ export function GuideBadges({ guide, now }: { guide: ReleaseGuide; now: Date }) 
 
 export function GuideCard({ guide, now, eager = false }: { guide: ReleaseGuide; now: Date; eager?: boolean }) {
   return <article className="guide-card">
-    <h2><a href={guideHref(guide)}>Unity {guide.version}{guide.kind === "lts" ? " LTS" : ""}</a></h2>
+    <a className="guide-release-link" href={guideHref(guide)} aria-label={`Read the Unity ${guide.version} guide`}>
+    <h2>Unity {guide.version}{guide.kind === "lts" ? " LTS" : ""}</h2>
     <GuideBadges guide={guide} now={now} />
-    <FeatureImage image={guide.highlights[0].image} eager={eager} guide={guide} />
+    <div className="guide-feature-image"><img src={guide.highlights[0].image.src} alt={guide.highlights[0].image.alt} width={guide.highlights[0].image.width} height={guide.highlights[0].image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
     <p className="guide-card-summary">{guide.summary}</p>
-    <a className="guide-read" href={guideHref(guide)} aria-label={`Read the Unity ${guide.version} guide`}>View features <span aria-hidden="true">→</span></a>
+    <span className="guide-read" aria-hidden="true">View features →</span>
+    </a>
   </article>;
 }
 

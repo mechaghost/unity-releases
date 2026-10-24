@@ -82,9 +82,8 @@ export default function OpenGraphImage() {
             display: "flex"
           }}
         >
-          Diff any two Unity editor versions. Every blocker, breaking change,
-          API change, and known issue - bucketed by impact and exportable as
-          markdown for an LLM.
+          Explore what’s new in Unity. Read feature guides, compare Editor
+          versions, and find the tools for your next upgrade.
         </div>
 
         <div
