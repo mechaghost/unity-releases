@@ -19,12 +19,12 @@ const STREAM_INFO: Record<string, StreamInfo> = {
   lts: {
     label: "LTS",
     blurb: "Long-term support: maintained for ~2 years with bug-fix patches.",
-    guidance: "Pick this for shipping projects and live games — no feature churn, only fixes."
+    guidance: "Useful when locking production to a version. Check its support end date before choosing it."
   },
   stable: {
     label: "Supported",
-    blurb: "Supported / Tech stream: latest features, ~6–12 months of support.",
-    guidance: "Pick this when you need new features but can absorb a future LTS migration."
+    blurb: "Update release: production-ready, supported until the next release replaces it.",
+    guidance: "Consider a currently supported Update for new or mid-cycle projects; plan for regular upgrades."
   },
   tech: {
     label: "Tech Stream",

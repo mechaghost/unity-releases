@@ -34,6 +34,12 @@ const NAV: NavSection[] = [
     priority: "primary",
     items: [
       {
+        href: "/whats-new",
+        label: "What’s new",
+        icon: "newspaper",
+        match: (pathname) => pathname === "/whats-new" || pathname.startsWith("/whats-new/")
+      },
+      {
         // Compare is the landing page - `/` re-exports the compare route, and
         // the active-state matcher catches both URLs so the nav highlight
         // tracks correctly whether you arrived via `/` or `/compare`.

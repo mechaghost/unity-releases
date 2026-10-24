@@ -94,6 +94,7 @@ export default async function ReleasesPage({
       <section className="page-header">
         <h1>Editor Releases</h1>
         <p>
+          <a href="/whats-new">Looking for the big changes? Read our plain-language release guides.</a>{" "}
           Every indexed Unity editor release.{" "}
           {defaultGenerations
             ? `${defaultGenerations} LTS lines are shown by default; tick a chip to add Supported / Beta / Alpha or the legacy LTS lines.`
