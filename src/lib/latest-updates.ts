@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { query } from "./db/client";
 import {
   listDiscoursePosts,
@@ -148,37 +149,46 @@ async function latestProduct(family?: string): Promise<Item | null> {
   return { ...item(title, row.releaseDate), summary: summary(change.rows[0]?.body) ?? meaningfulSummary };
 }
 
+const loaders: Record<LatestUpdateKey, () => Promise<Item | null>> = {
+  releases: latestRelease,
+  packages: latestPackage,
+  "editor-tools": () => latestProduct("editor-tooling"),
+  products: () => latestProduct(),
+  issues: async () => {
+    const [row] = await getNewestIssues(1);
+    return row ? item(`${row.issueId}${row.description ? `: ${row.description.split("\n")[0]}` : ""}`, row.introducedDate, "First noted") : null;
+  },
+  news: async () => {
+    const [row] = await listLatestBlogPosts(1);
+    return row ? item(row.title, row.published_at) : null;
+  },
+  resources: async () => {
+    const { rows: [row] } = await listResources({ limit: 1 });
+    return row ? item(row.title, row.resource_date) : null;
+  },
+  discussions: async () => {
+    const { items: [row] } = await listDiscoursePosts({ firstPostOnly: true, sort: "recent", perPage: 1 });
+    return row ? item(row.topicTitle ?? `Post by ${row.username}`, row.discourseUpdatedAt, "Updated") : null;
+  },
+  github: async () => {
+    const { items: [row] } = await listGithubRepos({ sort: "updated", direction: "desc", perPage: 1 });
+    return row ? item(row.latestCommitMessage ? `${row.name}: ${row.latestCommitMessage.split("\n")[0]}` : row.name, row.repoPushedAt, "Updated") : null;
+  }
+};
+
+// Cache each public source separately; failed loads must throw through the cache
+// so temporary outages are retried instead of becoming cached empty cards.
+const cachedLatestUpdate = unstable_cache(
+  async (key: LatestUpdateKey) => loaders[key](),
+  ["homepage-latest-update-v1"],
+  { revalidate: 300 }
+);
+
 /** A failed source must not hide fresh content from the other sections. */
 export async function getLatestUpdates(productsEnabled: boolean): Promise<Record<LatestUpdateKey, LatestUpdateState>> {
-  const loaders: Record<LatestUpdateKey, () => Promise<Item | null>> = {
-    releases: latestRelease,
-    packages: latestPackage,
-    "editor-tools": () => latestProduct("editor-tooling"),
-    products: () => latestProduct(),
-    issues: async () => {
-      const [row] = await getNewestIssues(1);
-      return row ? item(`${row.issueId}${row.description ? `: ${row.description.split("\n")[0]}` : ""}`, row.introducedDate, "First noted") : null;
-    },
-    news: async () => {
-      const [row] = await listLatestBlogPosts(1);
-      return row ? item(row.title, row.published_at) : null;
-    },
-    resources: async () => {
-      const { rows: [row] } = await listResources({ limit: 1 });
-      return row ? item(row.title, row.resource_date) : null;
-    },
-    discussions: async () => {
-      const { items: [row] } = await listDiscoursePosts({ firstPostOnly: true, sort: "recent", perPage: 1 });
-      return row ? item(row.topicTitle ?? `Post by ${row.username}`, row.discourseUpdatedAt, "Updated") : null;
-    },
-    github: async () => {
-      const { items: [row] } = await listGithubRepos({ sort: "updated", direction: "desc", perPage: 1 });
-      return row ? item(row.latestCommitMessage ? `${row.name}: ${row.latestCommitMessage.split("\n")[0]}` : row.name, row.repoPushedAt, "Updated") : null;
-    }
-  };
   const entries = await Promise.all((Object.keys(loaders) as LatestUpdateKey[]).map(async (key) => {
     if (!productsEnabled && (key === "editor-tools" || key === "products")) return [key, { ...EMPTY }] as const;
-    return [key, await safely(loaders[key])] as const;
+    return [key, await safely(() => cachedLatestUpdate(key))] as const;
   }));
   return Object.fromEntries(entries) as Record<LatestUpdateKey, LatestUpdateState>;
 }

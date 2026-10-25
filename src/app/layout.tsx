@@ -18,8 +18,8 @@ import {
 } from "@/lib/site";
 import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
 
-const inter = localFont({ src: "./fonts/Inter.ttf", variable: "--font-inter", display: "swap", weight: "100 900" });
-const mono = localFont({ src: "./fonts/JetBrainsMono.ttf", variable: "--font-jetbrains", display: "swap", weight: "100 800", preload: false });
+const inter = localFont({ src: "./fonts/Inter.woff2", variable: "--font-inter", display: "swap", weight: "100 900" });
+const mono = localFont({ src: "./fonts/JetBrainsMono.woff2", variable: "--font-jetbrains", display: "swap", weight: "100 800", preload: false });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),

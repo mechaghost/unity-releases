@@ -1,4 +1,13 @@
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+
+await vi.hoisted(async () => {
+  const { AsyncLocalStorage } = await import("node:async_hooks");
+  Object.assign(globalThis, { AsyncLocalStorage });
+});
+
+// Exercise Next's real cache wrapper with an isolated in-memory storage backend.
+const entries = new Map<string, { value: unknown; savedAt: number }>();
+let now = 0;
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(), issues: vi.fn(), news: vi.fn(), resources: vi.fn(),
@@ -21,6 +30,16 @@ import { getLatestUpdates } from "../../src/lib/latest-updates";
 
 beforeEach(() => {
   vi.resetAllMocks();
+  entries.clear();
+  now = 0;
+  vi.stubGlobal("__incrementalCache", {
+    generateSimpleCacheKey: async (key: string) => key,
+    get: async (key: string, options: { revalidate: number }) => {
+      const entry = entries.get(key);
+      return entry ? { value: entry.value, isStale: now - entry.savedAt >= options.revalidate * 1000 } : null;
+    },
+    set: async (key: string, value: unknown) => { entries.set(key, { value, savedAt: now }); }
+  });
   mocks.query.mockResolvedValue({ rows: [] });
   mocks.issues.mockResolvedValue([]);
   mocks.news.mockResolvedValue([]);
@@ -30,6 +49,8 @@ beforeEach(() => {
   mocks.products.mockResolvedValue([]);
   mocks.schemaReady.mockResolvedValue(true);
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 test("disabled product surfaces do not query their schema or data", async () => {
   const result = await getLatestUpdates(false);
@@ -149,6 +170,7 @@ test("product cards retain meaningful source summaries but omit generated counts
   mocks.products.mockResolvedValue([{ id: 42, title: "Unity Hub 3.14", productName: "Unity Hub", releaseDate: null, summary: "11 documented changes across 5 sections." }]);
   let result = await getLatestUpdates(true);
   expect(result["editor-tools"].item?.summary).toBeUndefined();
+  now += 300_000;
   mocks.products.mockResolvedValue([{ id: 42, title: "Unity Hub 3.14", productName: "Unity Hub", releaseDate: null, summary: "Added project templates." }]);
   result = await getLatestUpdates(true);
   expect(result["editor-tools"].item?.summary).toBe("Added project templates.");
@@ -162,4 +184,45 @@ test("release teasers hide legacy LTS when modern LTS exists, with a legacy fall
   expect(sql).toContain("modern_lts.stream = 'LTS'");
   expect(sql).toContain("modern_lts.version");
   expect(sql).toContain(">= 6000");
+});
+
+
+test("warm homepage visits reuse each source, then refresh after five minutes", async () => {
+  await getLatestUpdates(false);
+  const queryCount = mocks.query.mock.calls.length;
+  await getLatestUpdates(false);
+  expect(mocks.query).toHaveBeenCalledTimes(queryCount);
+  expect(mocks.news).toHaveBeenCalledTimes(1);
+  now += 300_000;
+  await getLatestUpdates(false);
+  expect(mocks.query).toHaveBeenCalledTimes(queryCount * 2);
+  expect(mocks.news).toHaveBeenCalledTimes(2);
+});
+
+test("failed sources retry while healthy sources stay cached", async () => {
+  mocks.news.mockRejectedValueOnce(new Error("temporary outage"));
+  expect((await getLatestUpdates(false)).news.unavailable).toBe(true);
+  mocks.news.mockResolvedValue([{ title: "Recovered", published_at: null }]);
+  expect((await getLatestUpdates(false)).news.item?.title).toBe("Recovered");
+  expect(mocks.news).toHaveBeenCalledTimes(2);
+  expect(mocks.resources).toHaveBeenCalledTimes(1);
+});
+
+test("enabling products after a warm disabled visit loads their own cache entries", async () => {
+  await getLatestUpdates(false);
+  await getLatestUpdates(true);
+  expect(mocks.products).toHaveBeenCalledTimes(2);
+  expect(mocks.news).toHaveBeenCalledTimes(1);
+});
+
+test("refresh timestamp is shared across visits and expires after five minutes", async () => {
+  const { lastDataUpdate } = await import("../../src/lib/last-data-update");
+  mocks.query.mockResolvedValue({ rows: [{ updated_at: "2026-10-25T10:00:00Z" }] });
+  expect(await lastDataUpdate()).toBe("2026-10-25T10:00:00.000Z");
+  expect(await lastDataUpdate()).toBe("2026-10-25T10:00:00.000Z");
+  expect(mocks.query).toHaveBeenCalledTimes(1);
+  now += 300_000;
+  mocks.query.mockResolvedValue({ rows: [{ updated_at: "2026-10-25T10:05:00Z" }] });
+  expect(await lastDataUpdate()).toBe("2026-10-25T10:05:00.000Z");
+  expect(mocks.query).toHaveBeenCalledTimes(2);
 });
