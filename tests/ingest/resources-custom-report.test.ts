@@ -10,7 +10,8 @@ const reports = [
  ['mobile-growth-monetization-report-2024','2024 Mobile Growth and Monetization Report'],
  ['gaming-report-2024','2024 Unity Gaming Report'],
  ['gaming-report-2025','2025 Unity Gaming Report'],
- ['2023-esg-report','2023 Unity ESG Report']
+ ['2023-esg-report','2023 Unity ESG Report'],
+ ['gaming-report','2026 Unity Game Development Report']
 ];
 test.each(reports)('verified custom report %s', (slug, title) => {
  const result = parseResourcePage(fixture(slug), url(slug));
@@ -18,8 +19,10 @@ test.each(reports)('verified custom report %s', (slug, title) => {
    rawMetadata: { parserPath: 'custom-report', canonicalUrl: url(slug) } });
  expect(result!.summary.length).toBeGreaterThan(40);
 });
-test.each(['canonical','heading','content','description','og-url','soft-404'])('reject report missing genuine %s', reason => {
- const slug = 'gaming-report-2025'; const $ = cheerio.load(fixture(slug));
+test.each(['gaming-report-2025', 'gaming-report'].flatMap(slug =>
+ ['canonical','heading','content','description','og-url','soft-404'].map(reason => [slug, reason])
+))('reject %s missing genuine %s', (slug, reason) => {
+ const $ = cheerio.load(fixture(slug));
  if(reason==='canonical') $('link[rel=canonical]').attr('href',url('another-report'));
  if(reason==='heading') $('h1').text('Resources');
  if(reason==='content') $('main p').remove();
@@ -27,6 +30,11 @@ test.each(['canonical','heading','content','description','og-url','soft-404'])('
  if(reason==='og-url') $('meta[property="og:url"]').attr('content',url('another-report'));
  if(reason==='soft-404') $('title').text('404: Not found');
  expect(parseResourcePage($.html(),url(slug))).toBeNull();
+});
+test('rolling report rejects an unrelated report heading', () => {
+ const $ = cheerio.load(fixture('gaming-report'));
+ $('h1').text('2026 Another Report');
+ expect(parseResourcePage($.html(), url('gaming-report'))).toBeNull();
 });
 test('unrecognized pages do not gain a generic metadata fallback', () => {
  const slug='other-report'; const $=cheerio.load(fixture('gaming-report-2025'));
