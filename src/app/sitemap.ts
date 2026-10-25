@@ -1,3 +1,4 @@
+import { TOOLING_GUIDES, TOOLING_REVIEWED } from "@/lib/tooling-guides";
 import { RELEASE_GUIDES, guideHref } from "@/lib/release-guides";
 import { featureHref, guideFeatures } from "@/lib/release-features";
 import type { MetadataRoute } from "next";
@@ -28,6 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Omit lastModified when no content update timestamp is available.
   const staticEntries: MetadataRoute.Sitemap = [
+    ...TOOLING_GUIDES.map(guide => ({ url: `${origin}/whats-new/${guide.slug}`, lastModified: new Date(TOOLING_REVIEWED), changeFrequency: "weekly" as const, priority: 0.8 })),
     ...RELEASE_GUIDES.map(guide => ({ url: `${origin}${guideHref(guide)}`, lastModified: new Date(guide.reviewed), changeFrequency: "weekly" as const, priority: 0.8 })),
     ...RELEASE_GUIDES.flatMap(guide => guideFeatures(guide).map(feature => ({ url: `${origin}${featureHref(guide, feature)}`, lastModified: new Date(guide.reviewed), changeFrequency: "monthly" as const, priority: 0.7 }))),
     { url: `${origin}/`, changeFrequency: "daily", priority: 1.0 },

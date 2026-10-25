@@ -184,6 +184,8 @@ filtering UI.
   webinars, and articles.
 - [Site Stats](${origin}/stats) - live artifact counts and per-source
   ingestion freshness.
+- [Unity Pipeline features and updates](${origin}/whats-new/unity-pipeline) - Editor automation, package changes, and command references.
+- [Unity CLI features and updates](${origin}/whats-new/unity-cli) - terminal workflows, CLI changes, and setup.
 - [Agentic Coding with Unity guide](${origin}/guides/agentic-coding-with-unity) - coding agents, CLI/Pipeline setup, gameplay tests, CI/CD, deployment, and maintenance workflows.
 - [FAQ](${origin}/faq) - explanations of the impact lanes, risk levels,
   data sources, refresh cadence, and filter semantics.
