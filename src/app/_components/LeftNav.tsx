@@ -43,7 +43,7 @@ const NAV: NavSection[] = [
       {
         href: "/guides/ai-with-unity",
         label: "AI with Unity",
-        icon: "terminal",
+        icon: "sparkles",
         match: (pathname) => pathname === "/guides/ai-with-unity"
       }
     ]
