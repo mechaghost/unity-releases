@@ -79,3 +79,23 @@ Cards reuse the site's `guide-grid`, `guide-card`, `guide-feature-image`,
 `guide-highlight-copy`, and `guide-badge` classes for the same surfaces, image
 frames, spacing, and responsive behavior as the release cards. The overview
 and closed cards together stay under 700 words.
+
+## Four-perspective editorial review — October 25, 2026
+
+Reviewed for technical writing, AI claims, Unity accuracy, and reader usefulness.
+Shortened card titles and removed the claim that tests prove a project works.
+Explained the agent's role once: creating and debugging automation, with saved
+scripts running without AI on every invocation. Added prompt-adaptation and
+result-reporting guidance plus the missing project-folder handoff after setup.
+
+Technical corrections: CI prompts use complete Unity configuration paths and
+the reader's target platform; parallel Unity jobs get separate checkouts; import
+cache keys include runner OS. Gameplay prompts investigate repeated damage in
+a physics step without assuming a bug exists. Performance comparisons specify
+build settings, resolution, quality, frame cap, device, and graphics API. Sentis
+preprocessing now includes pixel scaling. Retained sample/version compatibility
+and the explicit lack of Mecha Drive Sentis validation.
+
+Evidence notes are shorter and labeled 'Evidence and limits'. Historical dates
+and Editor/device boundaries remain. Official release images remain contextual
+illustrations, not screenshots of the proposed test jobs or executed prompts.

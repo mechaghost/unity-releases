@@ -25,7 +25,7 @@ test("AI guide is discoverable and its workflow cards work on desktop and mobile
     await expect(card.getByRole("heading", { name: "Workflow", exact: true })).toBeVisible();
     await expect(card.locator("ol li")).toHaveCount(3);
     await expect(card.locator("pre")).toBeVisible();
-    await expect(card.getByRole("heading", { name: "What we’ve checked" })).toBeVisible();
+    await expect(card.getByRole("heading", { name: "Evidence and limits" })).toBeVisible();
     await expect(card.getByRole("heading", { name: "Check the result" })).toBeVisible();
     await disclosure.focus();
     await page.keyboard.press("Enter");

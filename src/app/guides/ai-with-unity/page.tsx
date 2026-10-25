@@ -29,7 +29,7 @@ export default function AiWithUnityPage() {
         </div>
       </dl>
       <p><strong>The working loop:</strong> describe a task → let the agent inspect and change it → run tests or a build → review the evidence.</p>
-      <p>A CI pipeline runs your saved automation on a schedule or code change. The Pipeline package connects to the Editor; it is not a hosted CI service. <ExternalLink href="https://unity.com/resources/unity-pipeline-cli-technical-walkthrough">See Unity’s technical walkthrough</ExternalLink>.</p>
+      <p>The agent helps create and debug your automation. Saved scripts can run without AI on each run. A CI service runs them when code changes or on a schedule; the Pipeline package provides the Editor connection. <ExternalLink href="https://unity.com/resources/unity-pipeline-cli-technical-walkthrough">See Unity’s technical walkthrough</ExternalLink>.</p>
     </div>
 
     <details id="setup" className={styles.setup}>
@@ -42,12 +42,12 @@ unity pipeline install
 unity pipeline list
 unity command`}</code></pre>
         <p>Check for your project and <strong>Pipeline: Installed</strong>. If several Editors are open, use <code>unity command --project-path=&lt;path-to-your-project&gt;</code>. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package">Setup help</ExternalLink>.</p>
-        <p>The agent writes scripts and helps investigate failures. Your CI runner executes the saved tests and build scripts on each run; it needs its own Editor, platform modules, and licensing setup.</p>
+        <p>Open your coding agent in this project folder, then choose a prompt below. For CI, the build machine also needs the correct Editor, platform modules, and licensing setup.</p>
       </div>
     </details>
 
     <h2 className={styles.examplesHeading}>Put it to work</h2>
-    <p className={styles.intro}>Open a card for the workflow, prompt, and checks. The notes explain what we’ve used in Mecha Drive and what remains a suggested extension.</p>
+    <p className={styles.intro}>Choose a task and adapt its platform, scene, and rules to your project. Ask the agent to report changed files, commands run, results, and anything it could not check.</p>
     <div className={`guide-grid ${styles.cards}`}>
       {AI_GUIDE_EXAMPLES.map((example, index) => <section className={`guide-card ${styles.card}`} id={example.id} key={example.id} aria-labelledby={`${example.id}-heading`}>
         <figure>
@@ -68,7 +68,7 @@ unity command`}</code></pre>
               <pre className={styles.prompt}><code>{example.prompt}</code></pre>
               <h3>Check the result</h3>
               <p>{example.checks}</p>
-              <h3>What we’ve checked</h3>
+              <h3>Evidence and limits</h3>
               <p>{example.evidence}</p>
               {example.id === "sentis" && <p>Sentis runs trained models on the player’s CPU or GPU; it does not train them. The <ExternalLink href="https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/get-started.html">2.6 docs</ExternalLink> use <code>com.unity.ai.inference</code> and <code>Unity.InferenceEngine</code>. Match examples to your installed version.</p>}
               <p><ExternalLink href={example.link}>{example.linkText}</ExternalLink></p>
@@ -78,7 +78,7 @@ unity command`}</code></pre>
       </section>)}
     </div>
     <footer className={styles.footer}>
-      <p>These are workflows to adapt to your project. Images show Unity features, not results from these prompts.</p>
+      <p>Evidence notes draw on our Unity game, Mecha Drive, and distinguish recorded results from suggested additions. Images show Unity features, not results from these prompts.</p>
       <p>Keep exploring: <a href="/resources?q=Unity%20CLI">Unity CLI resources</a> · <a href="/resources?q=Sentis">Sentis resources</a></p>
       <p>Independent guide · Reviewed October 25, 2026</p>
     </footer>
