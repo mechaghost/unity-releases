@@ -12,6 +12,14 @@ export function ToolingCards() {
       <a href={`/whats-new/${guide.slug}`} className={styles.cardLink}>
         <span className={styles.role}>{guide.role}</span><h3>{guide.name}</h3>
         <div className="guide-badges"><span className="guide-badge">{guide.status}</span><span className="guide-badge guide-badge--quiet">{guide.version}</span></div>
+        <figure className={styles.artwork}>
+          <div className={styles.artworkPanel} aria-hidden="true">
+            {guide.slug === "unity-cli"
+              ? <img src="/images/tooling/unity-cli-official.png" alt="" width={512} height={178} loading="lazy" decoding="async" />
+              : <div className={styles.pipelineWordmark}><span>UNITY</span><strong>PIPELINE</strong><small>EDITOR AUTOMATION</small></div>}
+          </div>
+          <figcaption>{guide.slug === "unity-cli" ? "Official Unity launch artwork · version shown is from launch" : "Pipeline text treatment · not an official logo"}</figcaption>
+        </figure>
         <p>{guide.summary}</p>
         <div className={styles.latest}><span>Latest reviewed release · <time dateTime={guide.released}>{formatGuideDate(guide.released)}</time></span><strong>{guide.headline}</strong></div>
         <span className="guide-read">Explore features and updates <span aria-hidden="true">→</span></span>
