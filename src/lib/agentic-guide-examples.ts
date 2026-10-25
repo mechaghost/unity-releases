@@ -20,7 +20,7 @@ Run Edit Mode and Play Mode tests, then build a test player for our target platf
 Add timeouts and cancel superseded branch runs. Summarize the first actionable error with its file and line.
 Verify that a deliberately failing test blocks the build, then remove that test and run again.`,
     checks: "A broken test blocks the build. A clean checkout succeeds. A cache miss still works. CI uploads useful evidence on failure.",
-    evidence: "Mecha Drive has scripted content, level, build, and release checks. The pull-request schedule, caching, and failure report here are suggested additions, not a verified CI service.",
+    evidence: "Mecha Drive uses scripts to check game content and builds. Running those checks automatically on every pull request is a suggested next step.",
     link: "https://docs.unity.com/en-us/engine/6000.3/manual/programming-environment/test-framework-introduction/running-tests/run-tests-from-command-line", linkText: "Unity: tests from the command line"
   },
   {
@@ -39,7 +39,7 @@ Check whether two collisions in one physics step apply damage twice. If that bre
 Keep the test and attach failure logs. Isolate test saves and clean up spawned objects.
 Report which checks ran in the Editor, in a built player, and which still need a person.`,
     checks: "If a bug is found, the test fails before the fix and passes afterward. Repeated runs start clean. A person still checks feel, readability, and controls.",
-    evidence: "Mecha Drive uses recorded-drive tests for contact timing, rewards, and run outcomes. Its October 17 web checks recorded a finish, pause/resume, Retry, and reload. The key-and-death scenario above is an adaptation, not a test we ran there.",
+    evidence: "Mecha Drive tests driving, rewards, finishing a run, pausing, retrying, and reloading. The example above applies that approach to a different game.",
     link: cliSource, linkText: "Unity: Pipeline technical walkthrough"
   },
   {
@@ -58,7 +58,7 @@ Publish a preview. In a real browser, verify the loader, compressed files, first
 Promote those exact files using our production approval rules; do not rebuild them.
 Verify the live version and document a rollback to the previous build. If a step fails, stop and retain its logs.`,
     checks: "The deployed commit matches the tested build. A real browser reaches gameplay. A rollback restores the earlier version and its content.",
-    evidence: "Mecha Drive’s release script verifies the package before deployment. Its October 17 record covers live WebGPU gameplay, Retry, reload, health checks, and gzip delivery. Automated preview promotion and rollback tests are suggested additions.",
+    evidence: "Mecha Drive checks its build before publishing, then tests the live game in a browser. Automatic preview releases and rollback tests are suggested next steps.",
     link: "https://docs.unity.com/en-us/build-automation/build-automation-glossary", linkText: "Unity: build and deployment terms"
   },
   {
@@ -77,7 +77,7 @@ Add a command that CI can run, with asset paths and a nonzero exit code for bloc
 Apply only the import fixes we select. Preserve .meta files and GUIDs. Do not delete assets just because a simple reference search misses them.
 Compare the affected scene screenshots and build size before and after.`,
     checks: "An intentionally broken prefab fails validation. Exceptions stay explicit. Running fixes twice creates no extra changes or broken references.",
-    evidence: "Mecha Drive checks texture compression, source hashes, asset IDs, and gameplay rules. Its October 17 build record covers 2,273 imported art textures. Missing-script and prefab scanning are suggested additions.",
+    evidence: "Mecha Drive checks that game assets stay intact and use the expected image settings. The broader asset scanner above is a suggested next step.",
     link: cliSource, linkText: "Unity: custom Editor automation"
   },
   {
@@ -97,7 +97,7 @@ Compare with the last accepted build using our existing budgets. Save raw result
 Investigate the largest repeatable regression. Make one focused fix, then compare performance and matching screenshots.
 Do not reduce enemy count or visual quality to make the numbers pass.`,
     checks: "The comparison uses the same hardware and settings. The slowdown repeats. The fix improves the measured cost without changing the intended scene.",
-    evidence: "Mecha Drive’s October 25 recordings and Editor timings caught an optimization that made one road slower. It was rejected. Phone timing was still unverified; the nightly device job is a suggested addition.",
+    evidence: "Testing caught a change that made Mecha Drive slower, so it was left out. Those measurements came from the Unity Editor; phone performance still needs separate testing.",
     link: "https://unity.com/blog/engine-platform/performance-benchmarking-in-unity-how-to-get-started", linkText: "Unity: performance benchmarking"
   }
 ] as const;
