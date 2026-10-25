@@ -1,0 +1,56 @@
+{
+  "auditDateLocal": "2026-10-24",
+  "timezone": "America/Los_Angeles",
+  "generatedAt": "2026-10-25T00:17:18.465Z",
+  "origin": "https://unityreleases.com",
+  "deployedCommit": "fa413e77c833a9c11e07da70e5bd682e810d5f57",
+  "deployedStatus": "SUCCESS",
+  "sitemapUrls": 1689,
+  "sitemapOutcomes": {
+    "reachable": 1689
+  },
+  "baseUrlsRequested": 2265,
+  "queryUrlsRequested": 3318,
+  "linkedQueryUrls": 3314,
+  "packageHistoryEndpoints": 197,
+  "distinctSiteUrlsRequested": 5780,
+  "siteOutcomes": {
+    "reachable": 5734,
+    "http_error": 46
+  },
+  "distinctLinks": 21112,
+  "linkOutcomes": {
+    "reachable": 7498,
+    "http_error": 77,
+    "blocked_or_rate_limited": 1027,
+    "host_blocked_or_rate_limited": 12479,
+    "soft_404": 30,
+    "network_error": 1
+  },
+  "distinctBrokenLinkedDestinations": 107,
+  "brokenInternalDestinations": 43,
+  "brokenExternalDestinations": 64,
+  "externalRequestsAttempted": 3064,
+  "externalStatusCounts": {
+    "200": 2002,
+    "403": 46,
+    "404": 34,
+    "429": 981
+  },
+  "externalNetworkErrors": 1,
+  "externalUrlsSkippedAfterHostBlock": 12479,
+  "tests": {
+    "passed": 855,
+    "skipped": 6,
+    "typecheck": "passed"
+  },
+  "limitations": [
+    "URL fragments not checked",
+    "External 403/429 and host-blocked URLs unverified",
+    "200 confirms reachability, not semantic accuracy",
+    "No exhaustive mobile, accessibility, visual, or all-control-state testing",
+    "Only server-anchor and package-dialog links enumerated; links appearing solely in additional filtered states not recursively enumerated",
+    "Outgoing-link sample references capped; destination inventory complete for extracted links",
+    "Source review and tests precede unrelated concurrent brand edits"
+  ]
+}
