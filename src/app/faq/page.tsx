@@ -49,7 +49,7 @@ const SECTIONS: Section[] = [
         answer: <p>Follow the <a href="/guides/ai-with-unity">AI with Unity guide</a>
           {" "}to connect a coding agent through Unity CLI, build and check a small feature,
           or get started with Sentis for running models in your game. It includes setup steps,
-          example prompts, troubleshooting, and official resources.</p>
+          a short example prompt and official resources.</p>
       },
       {
         id: "not-affiliated",

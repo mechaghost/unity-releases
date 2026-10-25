@@ -10,10 +10,18 @@ test("AI guide is discoverable and its steps work on desktop and mobile", async 
   await expect(page.locator('.lnav a[aria-current="page"]')).toHaveText("AI with Unity");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/guides\/ai-with-unity$/);
   await expect(page.locator("main")).not.toContainText(/Muse|MCP/);
-  await page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: "Run a model with Sentis" }).focus();
+  await page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: /Run a model with Sentis/ }).focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#sentis$/);
+  await page.getByText("Which Sentis package?", { exact: true }).click();
   await expect(page.locator("#sentis")).toContainText("com.unity.ai.inference");
+  const images = page.locator("main img");
+  await expect(images).toHaveCount(2);
+  for (const img of await images.all()) {
+    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+  }
+  const wordCount = (await page.locator("main").innerText()).trim().split(/\s+/).length;
+  expect(wordCount).toBeLessThan(650);
   await expect(page.locator("#sentis")).toContainText("Unity.InferenceEngine");
 
   const internalLinks = await page.locator('main a[href^="/"]').evaluateAll(els => [...new Set(els.map(el => el.getAttribute("href")!))]);

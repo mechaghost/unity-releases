@@ -26,7 +26,7 @@ Official pages read for this revision:
 - https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/get-started.html
 - https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/understand-sentis-workflow.html
 
-The pickup exercise and prompts are original editorial recommendations. They are
+The rotating-cube prompt is an original editorial recommendation. They are
 not a downloadable sample or evidence of a Unity playtest. Setup and API guidance
 were checked against the sources; no Unity project was created or modified.
 
@@ -50,3 +50,21 @@ llms.txt.
 section links, internal destinations, keyboard access, 320px overflow, and light
 and dark accessibility. The sitemap unit test includes the new route. Use the
 existing full unit suite and typecheck alongside the production browser build.
+
+## Editorial pass — October 25, 2026
+
+Replaced the long pickup exercise with three short steps and a rotating-cube
+prompt. Kept Sentis as a separate path. Removed the long prompt collection,
+troubleshooting list, and repeated source descriptions. Package details now sit
+in a native disclosure. Browser checks cap the guide at 650 words.
+
+Two official Unity images introduce the paths. The cube is a still from Unity's
+CLI tutorial (not a capture of our example); its original is:
+https://cdn.sanity.io/images/fuvbjjlp/production/67fba7edc3bfc24878c3a25c5eeb940fcd06f17d-640x414.gif
+Source article: https://unity.com/resources/a-beginners-guide-to-unity-cli-and-the-pipeline-package
+Local optimized copy: public/images/ai-guide/rotating-cube.webp (640 × 414).
+
+The Sentis image reuses public/images/release-guides/6.0-5.webp from the Unity 6
+release announcement. Its original URL is recorded in src/lib/release-guide-images.json.
+Both images retain their full frame, have descriptive alt text, and link their
+source in a caption. No generated artwork or remote image requests are added.
