@@ -1,3 +1,4 @@
+import { expectGuideCardsNearTop } from "./guide-layout";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -7,7 +8,7 @@ test("home foregrounds release guides and comparison remains a separate tool", a
   await expect(page.locator(".guide-card")).toHaveCount(3);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /^https?:\/\/[^/]+\/?$/);
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", /^https?:\/\/[^/]+\/?$/);
-  expect((await page.locator(".guide-card").first().boundingBox())!.y).toBeLessThan(180);
+  await expectGuideCardsNearTop(page);
   const card = page.locator(".guide-card").first();
   await expect(card.locator("a")).toHaveCount(1);
   await card.locator("img").evaluate((img: HTMLImageElement) => img.decode());

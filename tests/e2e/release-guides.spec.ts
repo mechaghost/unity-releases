@@ -1,3 +1,4 @@
+import { expectGuideCardsNearTop } from "./guide-layout";
 import { test, expect } from "@playwright/test";
 import { featureHref, guideFeatures } from "../../src/lib/release-features";
 import { load } from "cheerio";
@@ -9,7 +10,7 @@ test("release overview opens each guide and keeps support types separate", async
   await expect(page.getByRole("heading", { level: 1, name: "What’s new in Unity?" })).toBeVisible();
   await expect(page.locator(".guide-card")).toHaveCount(3);
   await expect(page.getByRole("link", { name: "Read the Unity 6.6 guide", exact: true })).toHaveAttribute("href", "/whats-new/unity-6-6");
-  expect((await page.locator(".guide-card").first().boundingBox())!.y).toBeLessThanOrEqual(180);
+  await expectGuideCardsNearTop(page);
   await expect(page.locator("#release-guides")).not.toContainText("Superseded");
   for (const version of ["6.1", "6.2", "6.4", "6.5"]) {
     await expect(page.getByRole("link", { name: `Read the Unity ${version} guide`, exact: true })).toHaveCount(0);
@@ -80,7 +81,7 @@ test("guide details work by keyboard and the layout fits small screens in both t
   await page.emulateMedia({ media: "screen" });
   await page.goto("/whats-new");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect((await page.locator(".guide-card").first().boundingBox())!.y).toBeLessThanOrEqual(180);
+  await expectGuideCardsNearTop(page);
   const overviewAudit = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
   expect(overviewAudit.violations).toEqual([]);
 });
