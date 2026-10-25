@@ -111,7 +111,7 @@ export type ParsedResource = {
 // documents. Do not turn generic SEO metadata into a resource fallback.
 const CUSTOM_REPORT_SLUGS = new Set([
   "2024-impact-report", "mobile-growth-monetization-report-2024",
-  "gaming-report-2024", "gaming-report-2025", "2023-esg-report"
+  "gaming-report-2024", "gaming-report-2025", "2023-esg-report", "gaming-report"
 ]);
 
 function genuinePage(html: string, url: string) {
@@ -141,7 +141,12 @@ function parseCustomReport(html: string, url: string, lastmod: string | null): P
   const slug = extractSlug(url);
   if (!slug || !CUSTOM_REPORT_SLUGS.has(slug)) return null;
   const page = genuinePage(html, url);
-  if (!page || !/\breport\b/i.test(page.title) || !page.title.includes(slug.match(/20\d{2}/)![0])) return null;
+  if (!page) return null;
+  // The current annual report has a rolling, yearless URL. Keep its heading
+  // specific; other verified reports must still match the year in their URL.
+  if (slug === "gaming-report") {
+    if (!/^20\d{2} Unity Game Development Report$/.test(page.title)) return null;
+  } else if (!/\breport\b/i.test(page.title) || !page.title.includes(slug.match(/20\d{2}/)![0])) return null;
   const { $, title } = page;
   const summary = normalizeWhitespace($("meta[name='description']").attr("content") ?? null);
   if (!summary || summary.length < 40 || $("meta[property='og:url']").attr("content") !== url) return null;
