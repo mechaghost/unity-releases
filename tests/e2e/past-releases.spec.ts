@@ -19,7 +19,7 @@ test("past releases are reachable below current cards and open their guides", as
       await page.goBack();
     }
     await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "What’s new" }).click();
-    await expect(page.locator(".guide-card")).toHaveCount(3);
+    await expect(page.locator("#release-guides .guide-card")).toHaveCount(3);
   }
   if (testInfo.project.name.startsWith("mobile")) await page.setViewportSize({ width: 320, height: 850 });
   await page.goto("/whats-new/past-releases");
