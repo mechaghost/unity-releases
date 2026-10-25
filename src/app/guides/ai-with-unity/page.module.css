@@ -30,3 +30,22 @@
 .tools dd { margin: 0; }
 .examplesHeading { margin: var(--space-6) 0 var(--space-2); }
 @media (max-width: 650px) { .tools { grid-template-columns: 1fr; gap: var(--space-4); } }
+
+.loop { margin: var(--space-6) 0; padding: var(--space-5); border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--surface-raised); }
+.loop figcaption { font-weight: var(--weight-semibold); margin-bottom: var(--space-5); }
+.loopSteps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-6); list-style: none; padding: 0; margin: 0; }
+.loopSteps li { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.loopSymbol { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: var(--space-3); border-radius: 50%; background: var(--accent-soft); color: var(--accent-soft-fg); }
+.loopRole { font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: var(--space-1); }
+.loopSteps strong { line-height: 1.4; }
+.loopDescription { margin-top: var(--space-2); font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.5; }
+.loopArrow { position: absolute; top: 12px; right: 0; color: var(--text-muted); }
+.loopReturn { display: flex; align-items: center; gap: var(--space-2); border-top: 1px dashed var(--border-default); margin-top: var(--space-5); padding-top: var(--space-3); color: var(--text-secondary); font-size: var(--text-sm); }
+.loopReturn > span { color: var(--text-link); font-size: var(--text-xl); }
+@media (max-width: 700px) {
+  .loopSteps { grid-template-columns: 1fr; gap: var(--space-5); }
+  .loopSteps li { padding-left: 60px; min-height: 74px; }
+  .loopSymbol { position: absolute; left: 0; top: 0; }
+  .loopArrow { top: auto; bottom: -19px; left: 12px; right: auto; transform: rotate(90deg); }
+  .loopSteps strong { font-size: var(--text-base); }
+}

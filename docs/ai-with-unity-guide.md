@@ -99,3 +99,16 @@ and the explicit lack of Mecha Drive Sentis validation.
 Evidence notes are shorter and labeled 'Evidence and limits'. Historical dates
 and Editor/device boundaries remain. Official release images remain contextual
 illustrations, not screenshots of the proposed test jobs or executed prompts.
+
+## Working-loop infographic
+
+The overview now shows four steps with roles, icons, arrows, and a repeat cue:
+describe → make the change → run checks → review. It uses semantic HTML and the
+site's existing SVG Icon component. The diagram stacks vertically on narrow
+screens, inherits both themes, and adds no image download or client JavaScript.
+Browser coverage checks its accessible figure label and four ordered steps.
+
+The card introduction identifies Mecha Drive as a vibe-coded Unity game and
+links to https://mechadrive.games. It immediately explains that the cards separate
+verified game workflows from suggested additions; it does not extend Mecha Drive
+validation to Sentis or the proposed hosted CI service.

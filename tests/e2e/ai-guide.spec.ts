@@ -13,6 +13,12 @@ test("AI guide is discoverable and its workflow cards work on desktop and mobile
   await expect(page.locator("main header")).toContainText("Use a coding agent with Unity CLI and the Pipeline package");
   await expect(page.locator("main dl")).toContainText("Unity CLI: the terminal tool");
   await expect(page.locator("main dl")).toContainText("Unity Pipeline: the Editor connection");
+  const loop = page.getByRole("figure", { name: "The working loop" });
+  await expect(loop).toBeVisible();
+  await expect(loop.locator("ol li")).toHaveCount(4);
+  await expect(loop).toContainText("Refine the task and repeat");
+  await expect(page.getByRole("link", { name: "Mecha Drive", exact: true })).toHaveAttribute("href", "https://mechadrive.games");
+  await expect(page.locator("main")).toContainText("vibe-coded Unity game");
   const cards = page.locator("main .guide-card");
   await expect(cards).toHaveCount(6);
   const wordCount = (await page.locator("main").innerText()).trim().split(/\s+/).length;

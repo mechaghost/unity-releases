@@ -1,3 +1,4 @@
+import { Icon, type IconName } from "../../_components/Icon";
 import { ExternalLink } from "../../_components/ExternalLink";
 import { pageSocialMetadata } from "@/lib/site";
 import { AI_GUIDE_EXAMPLES } from "@/lib/ai-guide-examples";
@@ -10,6 +11,13 @@ export const metadata = {
   alternates: { canonical: "/guides/ai-with-unity" },
   ...pageSocialMetadata({ title, description, path: "/guides/ai-with-unity" })
 };
+
+const workingLoop: { title: string; role: string; description: string; icon: IconName }[] = [
+  { title: "Describe", role: "You", description: "Set the task and what success looks like.", icon: "message-square" },
+  { title: "Make the change", role: "Agent", description: "Inspect the project, then edit code or assets.", icon: "sparkles" },
+  { title: "Run checks", role: "Unity + scripts", description: "Run tests or a build. Save results and logs.", icon: "terminal" },
+  { title: "Review", role: "You", description: "Check the diff, results, and game behavior.", icon: "check" }
+];
 
 export default function AiWithUnityPage() {
   return <article className={styles.guide}>
@@ -28,7 +36,19 @@ export default function AiWithUnityPage() {
           <dd>A package inside your Unity 6+ project. It exposes Editor commands through a local API, so an agent can inspect and change the project through the CLI. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package">Pipeline setup and commands</ExternalLink>.</dd>
         </div>
       </dl>
-      <p><strong>The working loop:</strong> describe a task → let the agent inspect and change it → run tests or a build → review the evidence.</p>
+      <figure className={styles.loop} aria-labelledby="working-loop-caption">
+        <figcaption id="working-loop-caption">The working loop</figcaption>
+        <ol className={styles.loopSteps}>
+          {workingLoop.map((step, index) => <li key={step.title}>
+            <div className={styles.loopSymbol}><Icon name={step.icon} size={24} /></div>
+            <span className={styles.loopRole}>{index + 1} · {step.role}</span>
+            <strong>{step.title}</strong>
+            <span className={styles.loopDescription}>{step.description}</span>
+            {index < workingLoop.length - 1 && <span className={styles.loopArrow}><Icon name="arrow-right" size={20} /></span>}
+          </li>)}
+        </ol>
+        <div className={styles.loopReturn}><span aria-hidden="true">↶</span> Need a change? Refine the task and repeat.</div>
+      </figure>
       <p>The agent helps create and debug your automation. Saved scripts can run without AI on each run. A CI service runs them when code changes or on a schedule; the Pipeline package provides the Editor connection. <ExternalLink href="https://unity.com/resources/unity-pipeline-cli-technical-walkthrough">See Unity’s technical walkthrough</ExternalLink>.</p>
     </div>
 
@@ -47,7 +67,8 @@ unity command`}</code></pre>
     </details>
 
     <h2 className={styles.examplesHeading}>Put it to work</h2>
-    <p className={styles.intro}>Choose a task and adapt its platform, scene, and rules to your project. Ask the agent to report changed files, commands run, results, and anything it could not check.</p>
+    <p className={styles.intro}><ExternalLink href="https://mechadrive.games">Mecha Drive</ExternalLink> is a vibe-coded Unity game we used to check these workflows in practice. Each card explains what was verified in the game and what is still a suggested addition.</p>
+    <p className={styles.intro}>Adapt the prompts to your project. Ask the agent to report changed files, commands run, results, and anything it could not check.</p>
     <div className={`guide-grid ${styles.cards}`}>
       {AI_GUIDE_EXAMPLES.map((example, index) => <section className={`guide-card ${styles.card}`} id={example.id} key={example.id} aria-labelledby={`${example.id}-heading`}>
         <figure>
@@ -78,7 +99,7 @@ unity command`}</code></pre>
       </section>)}
     </div>
     <footer className={styles.footer}>
-      <p>Evidence notes draw on our Unity game, Mecha Drive, and distinguish recorded results from suggested additions. Images show Unity features, not results from these prompts.</p>
+      <p>Images show Unity features, not results from these prompts.</p>
       <p>Keep exploring: <a href="/resources?q=Unity%20CLI">Unity CLI resources</a> · <a href="/resources?q=Sentis">Sentis resources</a></p>
       <p>Independent guide · Reviewed October 25, 2026</p>
     </footer>
