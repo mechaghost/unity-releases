@@ -31,6 +31,27 @@ const SECTIONS: Section[] = [
     title: "About this site",
     items: [
       {
+        id: "getting-started",
+        question: "Where should I start?",
+        answer: <>
+          <p>Open <a href="/">What’s new</a> to choose a Unity release family,
+          then open a feature for an explanation and links to the official docs.
+          Use <a href="/whats-new/unity-6-features">all Unity 6 features</a> to browse
+          across releases or <a href="/whats-new/past-releases">past releases</a> for older guides.</p>
+          <p>Planning an upgrade? Open <a href="/compare">Compare versions</a>,
+          select your starting and target versions, then review known issues and breaking changes.
+          Guides explain features; comparisons help you inspect the changes between specific builds.</p>
+        </>
+      },
+      {
+        id: "ai-guide",
+        question: "How do I use AI with Unity?",
+        answer: <p>Follow the <a href="/guides/ai-with-unity">AI with Unity guide</a>
+          {" "}to connect a coding agent through Unity CLI, build and check a small feature,
+          or get started with Sentis for running models in your game. It includes setup steps,
+          example prompts, troubleshooting, and official resources.</p>
+      },
+      {
         id: "not-affiliated",
         question: "Is this an official Unity site?",
         answer: (
@@ -69,7 +90,7 @@ const SECTIONS: Section[] = [
         question: "Where does the data come from?",
         answer: (
           <>
-            Seven public Unity sources, all polled on a schedule:
+            We check public Unity sources on a schedule:
             <ul>
               <li>
                 <strong>Editor releases (Unity 6):</strong> the three landing
@@ -136,18 +157,20 @@ const SECTIONS: Section[] = [
         answer: (
           <>
             <p>
-              Everything refreshes together on one scheduled ingestion run,
-              twice a day - editor releases, packages, news, resources, GitHub,
-              and discussions in sequence. The authoritative answer is always
-              the live <a href="/api/health">/api/health</a> endpoint - it
-              reports each source&apos;s last-success timestamp and
-              hours-since-success, with a <code>stale</code> flag that flips
-              when nothing has succeeded for the better part of a month.
+              Core sources are checked twice a day: Editor releases, legacy LTS,
+              packages and package docs, news, resources, GitHub, and discussions.
+              Product updates have their own source schedules. Check the live
+              {" "}<a href="/api/health">data health</a> and
+              {" "}<a href="/api/updates/health">product update health</a> endpoints
+              for the latest results. Core jobs are marked stale after 36 hours
+              without a successful run; failures are reported separately.
             </p>
             <p>
-              Legacy LTS releases are bundled into the same{" "}
-              <code>editor_release</code> ingestion bucket as Unity 6 - one
-              health entry covers both.
+              The homepage’s update cards and “Last updated” time use a five-minute
+              cache, so newly indexed information can take a few minutes to appear.
+              “Last updated” is a completed data refresh, shown in your timezone,
+              not the time you opened the page. Release guides are reviewed separately;
+              their review date is shown on the page.
             </p>
           </>
         )
@@ -283,7 +306,7 @@ const SECTIONS: Section[] = [
               score falls back to the global <code>ALL</code> cohort. This
               matters mostly for fresh streams; once a stream accumulates
               eight patches it scores against itself. The cohort baseline
-              is recomputed per request from current data — no frozen
+              uses current data with a short cache — no frozen
               snapshots yet, so an old release&apos;s score can shift
               slightly as new releases land.
             </p>
@@ -886,7 +909,7 @@ const SECTIONS: Section[] = [
         question: "What does “Affects my team” do?",
         answer: (
           <>
-            Set your project&apos;s package list once via the sidebar (paste
+            Set your project&apos;s package list under <strong>My packages</strong> on the <a href="/packages">Packages</a> page (paste
             your <code>manifest.json</code> or just a comma-separated list).
             Toggling &ldquo;Affects my team&rdquo; intersects every visible
             row&apos;s <code>package_names</code> with your list, so HDRP notes

@@ -184,6 +184,7 @@ filtering UI.
   webinars, and articles.
 - [Site Stats](${origin}/stats) - live artifact counts and per-source
   ingestion freshness.
+- [AI with Unity guide](${origin}/guides/ai-with-unity) - practical CLI/Pipeline setup, a first feature, and Sentis runtime inference.
 - [FAQ](${origin}/faq) - explanations of the impact lanes, risk levels,
   data sources, refresh cadence, and filter semantics.
 
