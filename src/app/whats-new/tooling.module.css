@@ -25,12 +25,3 @@
 .feature a { font-size: var(--text-sm); }
 .code { white-space: pre-wrap; overflow-wrap: anywhere; padding: var(--space-5); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-sunken); font-size: var(--text-sm); line-height: 1.7; }
 @media (max-width: 650px) { .features { grid-template-columns: 1fr; } .cardLink { padding: var(--space-4); } }
-
-.artwork { margin: var(--space-4) 0 0; }
-.artworkPanel { display: grid; place-items: center; aspect-ratio: 512 / 178; overflow: hidden; border-radius: var(--radius-md); background: #0b0b0a; container-type: inline-size; }
-.artworkPanel img { display: block; width: 100%; height: auto; }
-.artwork figcaption { margin-top: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); line-height: 1.5; }
-.pipelineWordmark { display: flex; flex-direction: column; align-items: center; color: #399bdb; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1; }
-.pipelineWordmark > span { font-size: 4cqi; letter-spacing: 0.5em; padding-left: 0.5em; }
-.pipelineWordmark strong { font-size: 11cqi; letter-spacing: 0.035em; margin-block: 2cqi; text-shadow: 2px 2px #0b0b0a, 3px 3px #399bdb; }
-.pipelineWordmark small { font-size: 2.3cqi; letter-spacing: 0.3em; }
