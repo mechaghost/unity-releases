@@ -27,6 +27,9 @@ export async function GET() {
     dbError,
     ingestion: freshness.map((f) => ({
       sourceType: f.sourceType,
+      jobName: f.jobName,
+      status: f.status,
+      cadenceHours: f.cadenceHours,
       lastSuccessAt: f.lastSuccessAt,
       lastRunAt: f.lastRunAt,
       hoursSinceLastSuccess:

@@ -16,8 +16,10 @@ export async function setupE2eDatabase() {
 
     const schema = await readFile(join(process.cwd(), "src/lib/db/schema.sql"), "utf8");
     const fixture = await readFile(join(process.cwd(), "tests/e2e/core-regression.sql"), "utf8");
+    const historyFixture = await readFile(join(process.cwd(), "tests/e2e/audit-history.sql"), "utf8");
     await client.query(schema);
     await client.query(fixture);
+    await client.query(historyFixture);
     console.log(`E2E database fixture ready in schema ${E2E_SCHEMA}`);
   } finally {
     await client.end();

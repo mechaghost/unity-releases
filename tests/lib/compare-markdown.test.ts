@@ -5,6 +5,13 @@ import { compareToMarkdown } from "../../src/lib/compare-markdown";
 const noStatuses = new Map();
 
 describe("compareToMarkdown", () => {
+  test.each(["by-release", "by-issue"] as const)("preserves real source slugs in %s exports", mode => {
+    const source = "https://issuetracker.unity3d.com/issues/crash-on-mono-log-write-logfile-when-more-than-one-copy-of-bee-backend-is-running";
+    const md = compareToMarkdown({fromVersion:"6000.3.26f1",toVersion:"6000.3.27f1",lanes:[{id:"fixes",title:"Fixes",mode,totalCount:1,rows:[{version:"6000.3.27f1",body:"Crash fixed",issue_ids:["UUM-142773"],issue_links_json:[{id:"UUM-142773",url:source}],release_date:null}]}]});
+    expect(md).toContain(`[UUM-142773](${source})`);
+    expect(md).not.toContain("?q=");
+  });
+
   test("explains the limit of cross-line comparisons", () => {
     const md = compareToMarkdown({ fromVersion: "6000.0.85f1", toVersion: "6000.3.0f1", lanes: [] });
     expect(md).toContain("A listed fix is not proof it was included in the target version");
@@ -53,7 +60,7 @@ describe("compareToMarkdown", () => {
     });
     expect(md).toContain("## Active known blockers (1)");
     expect(md).toContain("- Crash on tlsf_free");
-    expect(md).toContain("[UUM-141061](https://issuetracker.unity3d.com/issues/uum-141061)");
+    expect(md).toContain("[UUM-141061](https://issuetracker.unity.com/?q=UUM-141061)");
     expect(md).toContain("seen 6000.0.61f1 → 6000.0.74f1 (2 mentions)");
   });
 

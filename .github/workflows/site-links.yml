@@ -1,0 +1,30 @@
+name: Live site links and freshness
+on:
+  schedule:
+    - cron: '30 9 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: live-site-link-check
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check internal links, health, and rotating external sample
+        run: npx tsx scripts/check-site-links.ts --site https://unityreleases.com --max-pages 12000 --external-limit 250 --output .artifacts/link-check.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-link-evidence
+          path: .artifacts/link-check.json
+          if-no-files-found: warn
+          retention-days: 14

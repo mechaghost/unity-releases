@@ -63,6 +63,19 @@ describe("timeline Editor release links", () => {
     expect($(links[4]).text()).toBe(title);
   });
 
+  test("removed articles stay readable without dead links in standalone, grouped, and imported events", async () => {
+    const dead = "https://unity.com/blog/unity-plugin-for-codex";
+    const event = {...content("Original story", "blog_post"), sourceUrl: dead};
+    const $ = await render([
+      event,
+      {...event,id:"group",eventType:"blog_post_group",isGroup:true,groupItems:[event]},
+      {type:"ingestion",id:"run",jobName:"poll-news",sourceType:"blog_rss",timestamp,finishedAt:timestamp,status:"success",recordsCreated:1,recordsUpdated:0,recordsDeleted:0,errorMessage:null,updates:[event]}
+    ]);
+    expect($(`a[href="${dead}"]`)).toHaveLength(0);
+    expect($(".timeline").text()).toContain("Original story");
+    expect($(".timeline").text()).toContain("Source unavailable");
+  });
+
   test("preserves package, news, and product destinations", async () => {
     const $ = await render([
       { ...content("com.unity.inputsystem 1.14.0", "package_version"), id: "package" },

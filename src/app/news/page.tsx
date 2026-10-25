@@ -2,6 +2,7 @@ import { listLatestBlogPosts } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
 import { NewsRowClient } from "../_components/NewsRowClient";
 import { pageSocialMetadata } from "@/lib/site";
+import { LoadError } from "../_components/LoadError";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,10 @@ export const metadata = {
 
 export default async function NewsPage() {
   const news = await safeListNews();
+  if (news === null) return <>
+    <section className="page-header"><h1>News</h1></section>
+    <LoadError subject="news" retryHref="/news" />
+  </>;
 
   return (
     <>
@@ -58,7 +63,7 @@ export default async function NewsPage() {
       {news.length === 0 ? (
         <div className="empty-state">
           <h2>No news indexed yet.</h2>
-          <p>Run <code>npm run ingest:news</code> to fetch the Unity blog RSS.</p>
+          <p>New posts will appear after the next successful update.</p>
         </div>
       ) : null}
     </>
@@ -78,6 +83,6 @@ async function safeListNews() {
   try {
     return await listLatestBlogPosts(100);
   } catch {
-    return [];
+    return null;
   }
 }

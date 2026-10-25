@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { ExternalLink } from "@/app/_components/ExternalLink";
+import { parseChangelog, changelogInlineMatches, isSafeChangelogUrl, type Block } from "./changelog-links";
 
 /**
  * Lightweight markdown renderer scoped to what Unity package
@@ -16,128 +18,8 @@ import type { ReactNode } from "react";
  * swap in `marked` + DOMPurify; today this covers what's in the DB.
  */
 export function renderChangelog(input: string): ReactNode[] {
-  const lines = input.replace(/\r\n/g, "\n").split("\n");
-  const blocks: Block[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    if (trimmed === "") {
-      i += 1;
-      continue;
-    }
-
-    // Fenced code block - gobble until the closing fence (or EOF).
-    const fenceMatch = /^```(.*)$/.exec(trimmed);
-    if (fenceMatch) {
-      const buf: string[] = [];
-      i += 1;
-      while (i < lines.length && !/^```/.test(lines[i].trim())) {
-        buf.push(lines[i]);
-        i += 1;
-      }
-      // Skip the closing fence if present.
-      if (i < lines.length) i += 1;
-      blocks.push({ kind: "code", text: buf.join("\n") });
-      continue;
-    }
-
-    // Heading - 1 to 6 leading hashes.
-    const headingMatch = /^(#{1,6})\s+(.*)$/.exec(trimmed);
-    if (headingMatch) {
-      blocks.push({
-        kind: "heading",
-        level: headingMatch[1].length,
-        text: headingMatch[2].trim()
-      });
-      i += 1;
-      continue;
-    }
-
-    // Unordered list - every consecutive line starting with `- ` or `* `.
-    if (/^[-*]\s+/.test(trimmed)) {
-      const items: string[] = [];
-      while (i < lines.length) {
-        const t = lines[i].trim();
-        if (t === "") break;
-        const m = /^[-*]\s+(.*)$/.exec(t);
-        if (!m) {
-          // Continuation line - append to the previous item with a space
-          // separator so wrapped bullet text doesn't split into a new
-          // paragraph.
-          if (items.length > 0) items[items.length - 1] += " " + t;
-          else break;
-        } else {
-          items.push(m[1]);
-        }
-        i += 1;
-      }
-      blocks.push({ kind: "ul", items });
-      continue;
-    }
-
-    // Ordered list - every consecutive line starting with `<n>. `.
-    if (/^\d+\.\s+/.test(trimmed)) {
-      const items: string[] = [];
-      while (i < lines.length) {
-        const t = lines[i].trim();
-        if (t === "") break;
-        const m = /^\d+\.\s+(.*)$/.exec(t);
-        if (!m) {
-          if (items.length > 0) items[items.length - 1] += " " + t;
-          else break;
-        } else {
-          items.push(m[1]);
-        }
-        i += 1;
-      }
-      blocks.push({ kind: "ol", items });
-      continue;
-    }
-
-    // Blockquote - every consecutive line starting with `>`.
-    if (/^>\s?/.test(trimmed)) {
-      const buf: string[] = [];
-      while (i < lines.length && /^>\s?/.test(lines[i].trim())) {
-        buf.push(lines[i].trim().replace(/^>\s?/, ""));
-        i += 1;
-      }
-      blocks.push({ kind: "quote", text: buf.join(" ") });
-      continue;
-    }
-
-    // Paragraph - every consecutive non-blank, non-special line.
-    const buf: string[] = [];
-    while (i < lines.length) {
-      const t = lines[i].trim();
-      if (t === "") break;
-      if (
-        /^#{1,6}\s+/.test(t) ||
-        /^[-*]\s+/.test(t) ||
-        /^\d+\.\s+/.test(t) ||
-        /^>\s?/.test(t) ||
-        /^```/.test(t)
-      ) {
-        break;
-      }
-      buf.push(t);
-      i += 1;
-    }
-    blocks.push({ kind: "paragraph", text: buf.join(" ") });
-  }
-
-  return blocks.map((block, idx) => renderBlock(block, idx));
+  return parseChangelog(input).map((block, idx) => renderBlock(block, idx));
 }
-
-type Block =
-  | { kind: "heading"; level: number; text: string }
-  | { kind: "paragraph"; text: string }
-  | { kind: "ul"; items: string[] }
-  | { kind: "ol"; items: string[] }
-  | { kind: "quote"; text: string }
-  | { kind: "code"; text: string };
 
 function renderBlock(block: Block, key: number): ReactNode {
   switch (block.kind) {
@@ -201,22 +83,21 @@ function renderInline(text: string): ReactNode[] {
 
   // We tokenize by scanning for the next match across all patterns and
   // emitting whatever plain text precedes it, then the styled token.
-  const PATTERN = /(`[^`\n]+`)|(\[([^\]\n]+)\]\(([^)\s]+)\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)/g;
-
-  for (let m = PATTERN.exec(text); m !== null; m = PATTERN.exec(text)) {
-    if (m.index > cursor) {
-      out.push(text.slice(cursor, m.index));
+  for (const m of changelogInlineMatches(text)) {
+    const index = m.index ?? 0;
+    if (index > cursor) {
+      out.push(text.slice(cursor, index));
     }
     const [matched, codeTok, , linkText, linkUrl, boldTok, italicTok] = m;
     if (codeTok) {
       out.push(<code key={key++} className="md-inline-code">{codeTok.slice(1, -1)}</code>);
     } else if (linkText && linkUrl) {
-      const safe = isSafeUrl(linkUrl);
+      const safe = isSafeChangelogUrl(linkUrl);
       if (safe) {
         out.push(
-          <a key={key++} href={linkUrl} target="_blank" rel="noopener noreferrer">
+          <ExternalLink key={key++} href={linkUrl}>
             {linkText}
-          </a>
+          </ExternalLink>
         );
       } else {
         // Render the original markdown for unsafe URLs - never a
@@ -228,15 +109,8 @@ function renderInline(text: string): ReactNode[] {
     } else if (italicTok) {
       out.push(<em key={key++}>{italicTok.slice(1, -1)}</em>);
     }
-    cursor = m.index + matched.length;
+    cursor = index + matched.length;
   }
   if (cursor < text.length) out.push(text.slice(cursor));
   return out;
-}
-
-function isSafeUrl(url: string): boolean {
-  // Allow http(s) and protocol-relative; reject javascript:, data:, etc.
-  if (url.startsWith("//")) return true;
-  if (url.startsWith("/")) return true;
-  return /^https?:\/\//i.test(url);
 }

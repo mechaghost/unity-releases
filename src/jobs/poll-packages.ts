@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+import { scheduledJobMain } from "../lib/ingest/job-health";
 import { fetchText } from "../lib/ingest/fetch";
 import { normalizePackageForStorage } from "../lib/ingest/packages";
 import {
@@ -28,9 +30,18 @@ async function ingestOne(packageName: string): Promise<"ingested" | "missing" | 
     return "error";
   }
 
+  const payload: unknown = JSON.parse(fetched.text);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error(`Invalid registry payload for ${packageName}`);
+  const registry = payload as Record<string, unknown>;
+  if (registry.name !== packageName || !registry.versions || typeof registry.versions !== "object" ||
+      Array.isArray(registry.versions) || Object.keys(registry.versions).length === 0 ||
+      Object.values(registry.versions).some(version => !version || typeof version !== "object" || Array.isArray(version))) {
+    throw new Error(`Invalid registry name or versions for ${packageName}`);
+  }
+  const parsed = parsePackageRegistry(registry);
+
   await withIngestionTransaction("package_registry", "poll-packages", async (client, runId) => {
     const sourceSnapshotId = await recordSourceSnapshot(client, "package_registry", fetched);
-    const parsed = parsePackageRegistry(JSON.parse(fetched.text));
     await upsertPackageBundle(
       client,
       normalizePackageForStorage({
@@ -52,7 +63,7 @@ async function ingestOne(packageName: string): Promise<"ingested" | "missing" | 
   return "ingested";
 }
 
-async function main() {
+export async function main() {
   const packages = (
     process.env.PACKAGE_ALLOWLIST?.split(",") ?? [
       ...UNITY_OFFICIAL_PACKAGES,
@@ -62,6 +73,7 @@ async function main() {
     .map((item) => item.trim())
     .filter(Boolean);
 
+  if (packages.length === 0) throw new Error("Package ingestion has no configured targets");
   const counts = { ingested: 0, missing: 0, error: 0 };
 
   for (const packageName of packages) {
@@ -78,9 +90,9 @@ async function main() {
   }
 
   console.log(JSON.stringify({ summary: counts }));
+  if (counts.error > 0) throw new Error(`Package ingestion failed for ${counts.error} packages`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void scheduledJobMain("poll-packages", main);
+}

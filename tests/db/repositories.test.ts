@@ -22,7 +22,8 @@ import {
   listTimelineFeed,
   listFeedEvents,
   listFeedEventsByType,
-  listLatestBlogPosts
+  listLatestBlogPosts,
+  listIssueHistory
 } from "../../src/lib/db/repositories";
 
 type Row = Record<string, unknown>;
@@ -37,6 +38,16 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+test("issue history includes every mention for status and scope before UI paging", async () => {
+  const mentions = Array.from({ length: 155 }, (_, id) => ({ id, version: "6000.0.1f1" }));
+  mocks.query.mockResolvedValueOnce({ rows: mentions });
+  expect(await listIssueHistory("UUM-123124")).toEqual(mentions);
+  const [sql, params] = mocks.query.mock.calls[0];
+  expect(sql).not.toMatch(/\bLIMIT\b|\bOFFSET\b/);
+  expect(sql).toContain("source_order ASC, id ASC");
+  expect(params).toEqual(["UUM-123124"]);
 });
 
 // ─── listReleaseSummaries ───────────────────────────────────────

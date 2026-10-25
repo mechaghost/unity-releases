@@ -2,6 +2,9 @@ import { listResources, type ResourceRow } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
 import { ResourcesFilter } from "../_components/ResourcesFilter";
 import { pageSocialMetadata } from "@/lib/site";
+import { pageBounds, pageNumber, pageHref, queryParams } from "@/lib/pagination";
+import { Pagination } from "../_components/Pagination";
+import { LoadError } from "../_components/LoadError";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +29,7 @@ type SearchParams = Promise<{
   type?: string | string[];
   marketing?: string | string[];
   enterprise?: string | string[];
+  page?: string | string[];
 }>;
 
 export default async function ResourcesPage({
@@ -39,13 +43,14 @@ export default async function ResourcesPage({
   const includeMarketing = firstString(params.marketing) === "1";
   const includeEnterprise = firstString(params.enterprise) === "1";
 
-  const { rows, total } = await safeListResources({
+  const requestedPage = pageNumber(params.page);
+  const { rows, total, error, page, pages } = await safeListResources({
     includeMarketing,
     includeEnterprise,
     types: types.length > 0 ? types : undefined,
     q: q || undefined,
     limit: 200
-  });
+  }, requestedPage);
 
   return (
     <>
@@ -64,16 +69,16 @@ export default async function ResourcesPage({
         includeEnterprise={includeEnterprise}
       />
 
-      <div className="list-toolbar">
+      {!error && <div className="list-toolbar">
         <span className="list-toolbar__count">
           <strong>{total.toLocaleString()}</strong>{" "}
           {total === 1 ? "resource" : "resources"}
           {q ? <> matching <code>{q}</code></> : null}
           {rows.length < total ? <> · showing {rows.length}</> : null}
         </span>
-      </div>
+      </div>}
 
-      {rows.length === 0 ? (
+      {error ? <LoadError subject="resources" retryHref={pageHref("/resources", queryParams(params), requestedPage)} /> : rows.length === 0 ? (
         <div className="empty-state">
           <h2>No resources match these filters.</h2>
           <p>
@@ -88,6 +93,7 @@ export default async function ResourcesPage({
           ))}
         </ul>
       )}
+      {!error && <Pagination path="/resources" params={queryParams(params)} page={page} pages={pages} />}
     </>
   );
 }
@@ -147,10 +153,16 @@ function formatDate(iso: string): string {
   });
 }
 
-async function safeListResources(filters: Parameters<typeof listResources>[0]) {
+async function safeListResources(filters: Parameters<typeof listResources>[0], requestedPage: number) {
   try {
-    return await listResources(filters);
+    const pageSize = filters?.limit ?? 200;
+    let result = await listResources({ ...filters, offset: (requestedPage - 1) * pageSize });
+    const bounds = pageBounds(result.total, requestedPage, pageSize);
+    if (bounds.page !== requestedPage) {
+      result = await listResources({ ...filters, offset: bounds.offset });
+    }
+    return { ...result, ...bounds, error: false };
   } catch {
-    return { rows: [], total: 0 };
+    return { rows: [], total: 0, page: 1, pages: 1, error: true };
   }
 }

@@ -360,8 +360,7 @@ function FreshnessSection({ freshness }: { freshness: IngestionFreshness[] }) {
       <section className="stats-section">
         <h2>Ingestion Freshness</h2>
         <p className="muted">
-          No ingestion runs recorded yet. The cron-all service polls every 12h
-          (00:00 + 12:00 UTC); this table fills in after the first run.
+          Could not load ingestion freshness. Try again shortly.
         </p>
       </section>
     );
@@ -371,8 +370,8 @@ function FreshnessSection({ freshness }: { freshness: IngestionFreshness[] }) {
     <section className="stats-section">
       <h2>Ingestion Freshness</h2>
       <p className="muted">
-        How recently each upstream data source was successfully polled. The
-        cron-all Railway service runs every 12 hours.
+        How recently each import job succeeded, compared with its expected schedule.
+        A failed latest attempt is shown even when an earlier success is recent.
       </p>
       <div className="table-wrap" role="region" aria-label="Ingestion freshness" tabIndex={0}>
         <table className="stats-table">
@@ -389,19 +388,15 @@ function FreshnessSection({ freshness }: { freshness: IngestionFreshness[] }) {
               const hours = Number.isFinite(row.hoursSinceLastSuccess)
                 ? Math.round(row.hoursSinceLastSuccess * 10) / 10
                 : null;
-              const statusLabel = row.isStale
-                ? "Stale"
-                : row.lastSuccessAt
-                  ? "OK"
-                  : "Never";
-              const statusClass = row.isStale
-                ? "stats-status stats-status--stale"
-                : row.lastSuccessAt
-                  ? "stats-status stats-status--ok"
-                  : "stats-status stats-status--never";
+              const status = row.status ?? (row.lastSuccessAt ? row.isStale ? "stale" : "ok" : "never");
+              const statusLabel = { ok: "OK", failed: "Failed", never: "Never run", stale: "Stale" }[status];
+              const statusClass = status === "never"
+                ? "stats-status stats-status--never"
+                : status === "ok" ? "stats-status stats-status--ok"
+                  : "stats-status stats-status--stale";
               return (
-                <tr key={row.sourceType}>
-                  <td>{row.sourceType}</td>
+                <tr key={row.jobName ?? row.sourceType}>
+                  <td>{row.jobName ?? row.sourceType}{row.cadenceHours ? <div className="muted text-xs">Every {row.cadenceHours} hours</div> : null}</td>
                   <td>
                     {row.lastSuccessAt
                       ? new Date(row.lastSuccessAt).toISOString().replace("T", " ").slice(0, 16) + " UTC"

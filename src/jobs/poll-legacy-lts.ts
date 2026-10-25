@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+import { scheduledJobMain } from "../lib/ingest/job-health";
 /**
  * Ingester for legacy LTS editor releases (Unity 2019.4 / 2020.3 /
  * 2021.3 / 2022.3). Unity's main /releases/editor/{latest,beta,alpha}
@@ -7,9 +9,7 @@
  * LTS minor line for each year, and run each version through the
  * same release-page parser the Unity-6 poller uses.
  *
- * Incremental: skips versions whose sitemap lastmod hasn't advanced
- * past the value already on file (column unity_releases.updated_at
- * is good enough — the existing upsert already touches it).
+ * Rechecks the bounded sitemap list each run; upserts preserve identity.
  *
  * Concurrency 4 / 20s timeout / 3 retries on 5xx, polite to Unity.
  */
@@ -39,12 +39,14 @@ const PARSER_VERSION =
 
 type SitemapEntry = { url: string; version: string; lastmod: string | null };
 
-async function main() {
+export async function main() {
   await withIngestionTransaction("editor_release", "poll-legacy-lts", async (client, runId) => {
     const allEntries: SitemapEntry[] = [];
 
     for (const year of LEGACY_MAJORS) {
       const sm = await fetchText(SITEMAP_URL(year));
+      if (sm.status !== 200) throw new Error(`Legacy sitemap HTTP ${sm.status}: ${year}`);
+      if (parseSitemap(sm.text).length === 0) throw new Error(`Empty legacy sitemap: ${year}`);
       await recordSourceSnapshot(client, `legacy_lts_sitemap_${year}`, sm);
       for (const entry of parseSitemap(sm.text)) {
         const parsed = safeParseVersion(entry.version);
@@ -70,15 +72,9 @@ async function main() {
         let notesSnapshotId = sourceSnapshotId;
         let releaseNotesMarkdown = page.text;
         if (metadata.releaseNotesUrl) {
-          try {
-            const notes = await fetchHtmlWithRetry(metadata.releaseNotesUrl, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
-            notesSnapshotId = await recordSourceSnapshot(client, "editor_release_notes", notes);
-            releaseNotesMarkdown = notes.text;
-          } catch {
-            // Fall back to the release-page HTML if the notes endpoint
-            // ever 404s — pre-Unity-6 release notes layouts have moved
-            // around and we don't want a single failure to drop the row.
-          }
+          const notes = await fetchHtmlWithRetry(metadata.releaseNotesUrl, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
+          notesSnapshotId = await recordSourceSnapshot(client, "editor_release_notes", notes);
+          releaseNotesMarkdown = notes.text;
         }
 
         const bundle = normalizeReleaseForStorage({
@@ -101,6 +97,7 @@ async function main() {
     });
 
     console.log(JSON.stringify({ majors: LEGACY_MAJORS, ...stats }));
+    if (stats.errors > 0) throw new Error(`Legacy ingestion failed for ${stats.errors} releases`);
   }, PARSER_VERSION);
 }
 
@@ -129,7 +126,6 @@ function safeParseVersion(version: string): ReturnType<typeof parseUnityVersion>
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void scheduledJobMain("poll-legacy-lts", main);
+}

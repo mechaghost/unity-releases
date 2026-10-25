@@ -1,4 +1,4 @@
-import { searchReleaseNotes } from "@/lib/db/repositories";
+import { listIssueHistory } from "@/lib/db/repositories";
 import { ImpactPill } from "../../_components/ImpactPill";
 import { RiskBadge } from "../../_components/RiskBadge";
 import { ExternalLink } from "../../_components/ExternalLink";
@@ -19,6 +19,9 @@ import {
   uniqueMajorsDesc
 } from "@/lib/issue-page-scope";
 import { pageSocialMetadata } from "@/lib/site";
+import { pageBounds, pageNumber, pageHref, queryParams } from "@/lib/pagination";
+import { Pagination } from "../../_components/Pagination";
+import { LoadError } from "../../_components/LoadError";
 
 export const dynamic = "force-dynamic";
 
@@ -60,9 +63,14 @@ export default async function IssuePage({
 }) {
   const { issueId } = await params;
   const id = decodeURIComponent(issueId);
-  const allResults = (await safeIssue(id)) as Mention[];
-  const trackerUrl = issueTrackerHref(id);
   const sp = (await searchParams) ?? {};
+  const path = `/issues/${encodeURIComponent(id)}`;
+  const allResults = await safeIssue(id);
+  if (allResults === null) return <>
+    <section className="page-header"><h1>{id}</h1></section>
+    <LoadError subject="issue history" retryHref={pageHref(path, queryParams(sp), pageNumber(sp.page))} />
+  </>;
+  const trackerUrl = issueTrackerHref(id);
   // Available scope chips are the majors this issue actually has mentions
   // in. Defaulting to "all" (activeMajor === null) preserves the prior
   // behaviour; picking a chip re-derives the status so users on legacy
@@ -79,6 +87,8 @@ export default async function IssuePage({
     ? allResults
     : allResults.filter((r) => majorOf(r.version) === activeMajor);
   const status = deriveIssueStatus(results);
+  const pagination = pageBounds(results.length, pageNumber(sp.page), 100);
+  const visibleResults = results.slice(pagination.offset, pagination.offset + 100);
 
   return (
     <>
@@ -176,7 +186,7 @@ export default async function IssuePage({
             </tr>
           </thead>
           <tbody>
-            {results.map((row) => (
+            {visibleResults.map((row) => (
               <tr key={row.id}>
                 <td>
                   <a className="link-internal--accent tabnums" href={`/releases/${encodeURIComponent(row.version)}`}>
@@ -203,15 +213,16 @@ export default async function IssuePage({
           </tbody>
         </table></div>
       )}
+      <Pagination path={path} params={queryParams(sp)} page={pagination.page} pages={pagination.pages} />
     </>
   );
 }
 
 async function safeIssue(issueId: string) {
   try {
-    return await searchReleaseNotes({ issueId });
+    return (await listIssueHistory(issueId)) as Mention[];
   } catch {
-    return [];
+    return null;
   }
 }
 

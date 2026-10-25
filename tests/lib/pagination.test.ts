@@ -1,6 +1,24 @@
 import { describe, expect, test } from "vitest";
 
-import { paginateItems } from "../../src/lib/pagination";
+import { paginateItems, firstQueryValue, pageBounds, pageHref, pageNumber, queryParams } from "../../src/lib/pagination";
+
+test("page links preserve repeated filters while replacing old paging", () => {
+  const params = queryParams({ platform: ["iOS", "Android"], q: "render", page: "2", offset: "100" });
+  const next = new URL(pageHref("/explorer", params, 3), "https://example.test");
+  expect(next.searchParams.getAll("platform")).toEqual(["iOS", "Android"]);
+  expect(next.searchParams.get("q")).toBe("render");
+  expect(next.searchParams.get("page")).toBe("3");
+  expect(next.searchParams.has("offset")).toBe(false);
+  expect(pageHref("/explorer", new URLSearchParams("page=2"), 1)).toBe("/explorer");
+});
+
+test("normalizes repeated and unsafe query values", () => {
+  expect(firstQueryValue([" input ", "ignored"])).toBe("input");
+  expect(pageNumber(["2", "3"])).toBe(2);
+  for (const value of ["-1", "NaN", "1.2", "1e3", "999999999999999999"]) expect(pageNumber(value)).toBe(1);
+  expect(pageBounds(155, 999, 100)).toEqual({ page: 2, pages: 2, offset: 100 });
+  expect(pageBounds(0, 5, 100)).toEqual({ page: 1, pages: 1, offset: 0 });
+});
 
 describe("paginateItems", () => {
   const items = Array.from({ length: 105 }, (_, index) => index + 1);

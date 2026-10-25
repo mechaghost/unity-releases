@@ -1,3 +1,5 @@
+import { issueTrackerHref } from "@/lib/issue-tracker-links";
+export { issueTrackerHref } from "@/lib/issue-tracker-links";
 import {
   issueStatusLabel,
   issueStatusTone,
@@ -21,14 +23,8 @@ type IssuePillProps = {
   compact?: boolean;
 };
 
-const ISSUE_TRACKER_BASE = "https://issuetracker.unity3d.com/issues";
-
-export function issueTrackerHref(id: string): string {
-  return `${ISSUE_TRACKER_BASE}/${id.toLowerCase()}`;
-}
-
 export function IssuePill({ id, url, status, compact = false }: IssuePillProps) {
-  const href = url ?? issueTrackerHref(id);
+  const href = issueTrackerHref(id, url);
   const tone = status && status.kind !== "unknown" ? issueStatusTone(status) : null;
   const chip = (
     <a

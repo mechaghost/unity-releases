@@ -1,3 +1,5 @@
+import { issueTrackerHref } from "../issue-tracker-links";
+
 export type IssueLink = {
   id: string;
   url: string;
@@ -134,7 +136,7 @@ export function normalizeIssueLinks(issueIds: string[] = [], rawLinks: unknown):
 
   for (const link of parsedLinks) {
     if (!isIssueLink(link)) continue;
-    byId.set(link.id, { id: link.id, url: link.url });
+    byId.set(link.id, { id: link.id, url: issueTrackerHref(link.id, link.url) });
   }
 
   for (const id of issueIds) {
@@ -147,7 +149,7 @@ export function normalizeIssueLinks(issueIds: string[] = [], rawLinks: unknown):
 }
 
 export function issueTrackerSearchUrl(issueId: string): string {
-  return `https://issuetracker.unity3d.com/issues?search=${encodeURIComponent(issueId)}`;
+  return issueTrackerHref(issueId);
 }
 
 function isIssueLink(value: unknown): value is IssueLink {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ExternalLink } from "@/app/_components/ExternalLink";
 import { notFound } from "next/navigation";
 import {
   ProductUpdateFilters,
@@ -144,23 +145,23 @@ function ProductPageHeader({
           <h1>{productName}</h1>
         </div>
         {primaryAction ? (
-          <a
+          <ExternalLink
             className="btn btn--primary"
             href={primaryAction.href}
             target="_blank"
             rel="noopener noreferrer"
           >
             {primaryAction.label}
-          </a>
+          </ExternalLink>
         ) : canonicalUrl ? (
-          <a
+          <ExternalLink
             className="btn btn--secondary"
             href={canonicalUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
             Official product page
-          </a>
+          </ExternalLink>
         ) : null}
       </div>
       {description ? <p>{description}</p> : null}

@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { fetchHtmlWithRetry, HttpStatusError } from "../../src/lib/ingest/runner";
+import { fetchHtmlWithRetry, HttpStatusError, runWithConcurrency } from "../../src/lib/ingest/runner";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -42,4 +42,21 @@ test("exhausted transient failures retain their HTTP status", async () => {
   vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response("retry", { status: 503 })));
   await expect(fetchHtmlWithRetry("https://example.test", { backoffMs: 0 }))
     .rejects.toBeInstanceOf(HttpStatusError);
+});
+
+test("worker failure waits for active siblings before rejecting", async () => {
+  let release!:()=>void;
+  const held=new Promise<void>(resolve=>{release=resolve;});
+  let siblingFinished=false;
+  let settled=false;
+  const run=runWithConcurrency([1,2],2,async item=>{
+    if(item===1) throw new Error("worker failed");
+    await held; siblingFinished=true;
+  }).finally(()=>{settled=true;});
+  const rejected=expect(run).rejects.toThrow("worker failed");
+  await new Promise(resolve=>setImmediate(resolve));
+  expect(settled).toBe(false);
+  release();
+  await rejected;
+  expect(siblingFinished).toBe(true);
 });

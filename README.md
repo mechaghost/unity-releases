@@ -145,13 +145,13 @@ shipped the schema) and let the cron services keep the data fresh.
 
 ## Functional Surfaces
 
-- `/`: redirects to `/releases`
+- `/`, `/whats-new`: current release guides; `/whats-new/past-releases`: superseded guides
 - `/releases`, `/releases/[version]`: editor release index + per-release notes
 - `/compare?from=X&to=Y`: diff lanes between two versions
-- `/packages`, `/packages/[name]`: official Unity package index + history
+- `/packages`: official Unity package index with paged history dialogs
 - `/news`: official Unity blog feed
 - `/explorer`: release-note search/filter surface
-- `/upgrade`: rule-based upgrade-impact page
+- `/upgrade`: redirects to `/compare`, preserving supported filters
 - `/issues/[issueId]`: every release-note that mentions a UUM-xxxxx
 - `/faq`: source list + disclaimer
 - `/updates`, `/updates/[family]`, `/updates/products/[product]`: optional,
@@ -170,3 +170,54 @@ shipped the schema) and let the cron services keep the data fresh.
 - Unity Issue Tracker pages are linked, not crawled.
 - Backport-status filter is blocked on missing source data — see
   `docs/filter-plan.md` § Phase 3.
+
+## Verification and link upkeep
+
+Pushes to `main` and `release`, and pull requests, run `.github/workflows/verification.yml`:
+unit tests, type checking, database contracts, and desktop/mobile browser regressions.
+Database tests use disposable schemas; never point the browser fixture setup at a production database.
+The browser suite builds production code before testing it.
+
+A daily GitHub Actions check (`site-links.yml`, 09:30 UTC) crawls public internal
+links and health endpoints, then checks a rotating sample of external links.
+Run it manually with:
+
+```bash
+npx tsx scripts/check-site-links.ts --site https://unityreleases.com --output .artifacts/link-check.json
+```
+
+It detects HTTP errors, Unity's HTTP-200 not-found pages, missing internal anchors,
+and unhealthy ingestion payloads. It also follows package-history pages using the
+same link parser as the dialog. It stops checking a host after 403/429, bounds
+requests and response sizes, and never calls the analytics write endpoint.
+Failures return exit code 1; hitting the internal crawl limit returns exit code 2. Blocked URLs, request limits, and unsampled external
+links remain explicitly unverified in the JSON artifact. Use `--require-complete`
+to return exit code 2 when there are no confirmed failures but verification is
+incomplete. Set `--max-pages`, `--external-limit`, and `--sample-index` to control
+coverage. A successful bounded run is not proof that every external link works.
+
+Confirmed removed sources are listed in `src/lib/external-links.ts`. Their text
+and original URL remain available, but the UI labels them “Source unavailable”
+and does not send users to dead pages. Recheck a listed destination before
+removing it from that list; a 403/429 is not evidence of removal or recovery.
+Never replace an old source with a guessed URL.
+
+Core freshness uses whole-job records for all eight scheduled imports, including
+separate modern Editor, legacy Editor, registry, and package-docs jobs. A recent
+failure stays visible during a retry. Missing successes and more than 36 hours
+without success are unhealthy for the 12-hour schedule. `/api/health` returns
+HTTP 200 while the database works, even if ingestion is stale, so an upstream
+outage does not block a healthy web process. `npm run health:ingest` returns a
+nonzero exit code for failed, never-run, stale, or unavailable ingestion.
+
+The additive audit migration creates `core_job_runs` and resource availability
+fields. Run `npm run db:migrate` before running the new jobs/web code. Existing
+per-item success records are not treated as proof of whole-job success: a newly
+upgraded database shows jobs as never completed until each new scheduled job
+finishes. Confirm freshness after the next full scheduled cycle. Resource imports
+also recheck up to 100 older URLs per run, including URLs no longer in the sitemap;
+confirmed 404/410 responses hide the entry without deleting history, and a later
+valid response restores it.
+
+Audit evidence and repair acceptance are in
+[`docs/audits/2026-10-24-site-audit/`](docs/audits/2026-10-24-site-audit/report.md).

@@ -197,7 +197,8 @@ ${productUpdates}## Operational
 ## Conventions
 
 - Issue IDs follow Unity's tracker format (e.g. \`UUM-12345\`) and link
-  out to \`https://issuetracker.unity3d.com/issues/<id>\`.
+  out to Unity’s source issue URL when available, or
+  \`https://issuetracker.unity.com/?q=<id>\` when only an issue ID is known.
 - Versions follow Unity's editor scheme: \`<major>.<minor>.<patch><tag>\`
   where \`<tag>\` is \`f<n>\` (final), \`b<n>\` (beta), or \`a<n>\` (alpha).
   Since Unity 6 the major is the generation times 1000, so \`6000.7\` is

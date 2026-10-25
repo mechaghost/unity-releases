@@ -1000,3 +1000,18 @@ ALTER TABLE github_events ADD COLUMN IF NOT EXISTS head_commit_message TEXT;
 ALTER TABLE github_repos ADD COLUMN IF NOT EXISTS latest_commit_message TEXT;
 ALTER TABLE github_repos ADD COLUMN IF NOT EXISTS latest_commit_at TIMESTAMPTZ;
 ALTER TABLE github_repos ADD COLUMN IF NOT EXISTS latest_commit_url TEXT;
+
+-- Whole-job outcomes survive item transactions and cannot be masked by partial success.
+CREATE TABLE IF NOT EXISTS core_job_runs (
+  id BIGSERIAL PRIMARY KEY,
+  job_name TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  finished_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'success', 'failed')),
+  error_message TEXT
+);
+CREATE INDEX IF NOT EXISTS core_job_runs_job_started_idx ON core_job_runs (job_name, started_at DESC);
+
+-- Additive migration also upgrades databases where resources already exists.
+ALTER TABLE resources ADD COLUMN IF NOT EXISTS unavailable_at TIMESTAMPTZ;
+ALTER TABLE resources ADD COLUMN IF NOT EXISTS availability_checked_at TIMESTAMPTZ;

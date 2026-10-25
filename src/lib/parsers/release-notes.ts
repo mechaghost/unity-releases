@@ -1,3 +1,4 @@
+import { issueTrackerHref } from "../issue-tracker-links";
 import {
   classifyImpact,
   classifyRisk,
@@ -309,7 +310,7 @@ function normalizeSectionName(title: string): string {
 function extractIssueLinks(body: string): IssueLink[] {
   return [...body.matchAll(ISSUE_LINK_RE)].map((match) => ({
     id: match[1],
-    url: match[2]
+    url: issueTrackerHref(match[1], match[2])
   }));
 }
 

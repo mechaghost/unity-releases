@@ -17,10 +17,8 @@ export async function fetchText(
   opts?: {
     userAgent?: string;
     /**
-     * Abort the request (throwing TimeoutError) after this many ms. Opt-in:
-     * only callers that hold scarce resources while waiting - e.g. the
-     * poll-editor stream lookup inside an open ingestion transaction -
-     * should bound the wait; plain polls keep undici's defaults.
+     * Abort the request (throwing TimeoutError) after this many ms.
+     * Every ingestion request is bounded; default 30 seconds.
      */
     timeoutMs?: number;
   }
@@ -34,7 +32,7 @@ export async function fetchText(
       accept: "text/html,application/rss+xml,application/xml,text/xml,application/json,text/plain,*/*"
     },
     redirect: "follow",
-    signal: opts?.timeoutMs !== undefined ? AbortSignal.timeout(opts.timeoutMs) : undefined
+    signal: AbortSignal.timeout(opts?.timeoutMs ?? 30_000)
   });
   const text = await response.text();
 

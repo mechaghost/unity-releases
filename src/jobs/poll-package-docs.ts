@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+import { scheduledJobMain } from "../lib/ingest/job-health";
 /**
  * Discover packages that use Unity 6.4+ "unified versioning" by probing the
  * documentation site.
@@ -65,8 +67,8 @@ async function targetMinors(): Promise<string[]> {
       .map((r) => marketingMinor(r.major, r.minor))
       .filter((m): m is string => m !== null);
     return minors.length ? minors : [SEED_MINOR];
-  } catch {
-    return [SEED_MINOR];
+  } catch (error) {
+    throw new Error("Cannot select package documentation target versions", { cause: error });
   }
 }
 
@@ -90,23 +92,25 @@ async function probePackage(pkg: string, minors: string[]): Promise<ProbeResult>
       const res = await fetchText(url);
       if (res.status === 200) {
         const top = parseDocsChangelogTopVersion(res.text);
+        if (!top) { sawTransient = true; continue; }
         // Two guards. The newest changelog version must match the probed
         // minor (otherwise the docs redirected to the package's own latest,
         // so it isn't aligned), AND its date must be in the unified-
         // versioning era - the SRP family shipped a real 6.5.x line in
         // 2019 that satisfies the version check by coincidence.
         if (top && unityMinorOfVersion(top.version) === minor && isPlausibleUnifiedRelease(top)) {
+          if (sawTransient) return { status: "uncertain" };
           return { status: "aligned", aligned: { unityMinor: minor, version: top.version, date: top.date, url } };
         }
         // 200 but non-matching -> definitive "not aligned at this minor".
-      } else if (res.status >= 500 || res.status === 403 || res.status === 429) {
+      } else if (res.status !== 404 && res.status !== 410) {
         // 5xx, a WAF/permission 403, or a 429 rate limit say nothing about
         // whether the changelog exists. Treating them as "not here" would
         // clear every aligned row the moment the docs host tightened access
         // - the silent-degradation class CLAUDE.md rule 2 exists to stop.
         sawTransient = true;
       }
-      // 404 / 410 (and any other 4xx) -> definitive "not here", try the
+      // Only 404 / 410 -> definitive "not here", try the
       // next minor.
     } catch {
       sawTransient = true; // network/timeout - transient
@@ -115,7 +119,7 @@ async function probePackage(pkg: string, minors: string[]): Promise<ProbeResult>
   return sawTransient ? { status: "uncertain" } : { status: "not-aligned" };
 }
 
-async function main() {
+export async function main() {
   const minors = await targetMinors();
   console.log(JSON.stringify({ status: "starting", minors, packages: UNITY_OFFICIAL_PACKAGES.length }));
 
@@ -151,9 +155,9 @@ async function main() {
   }
 
   console.log(JSON.stringify({ status: "done", found, uncertain, of: UNITY_OFFICIAL_PACKAGES.length }));
+  if (uncertain > 0) throw new Error(`Package documentation checks incomplete for ${uncertain} packages`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void scheduledJobMain("poll-package-docs", main);
+}

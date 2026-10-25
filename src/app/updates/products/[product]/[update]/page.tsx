@@ -1,3 +1,4 @@
+import { ExternalLink } from "@/app/_components/ExternalLink";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
@@ -91,14 +92,14 @@ export default async function ProductUpdateDetailPage({
             <h1>{detail.update.title}</h1>
           </div>
           {primaryAction ? (
-            <a
+            <ExternalLink
               className="btn btn--primary"
               href={primaryAction.href}
               target="_blank"
               rel="noopener noreferrer"
             >
               {primaryAction.label}
-            </a>
+            </ExternalLink>
           ) : null}
         </div>
       </section>

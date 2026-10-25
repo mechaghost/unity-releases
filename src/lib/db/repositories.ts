@@ -1,3 +1,4 @@
+import { evaluateJobFreshness } from "../ingest/job-health";
 import { assertReleaseBundleComplete } from "../ingest/release-integrity";
 import type { PoolClient } from "pg";
 import { getPool, query } from "./client";
@@ -54,6 +55,19 @@ function contentEventWhere(productUpdates: ProductUpdateFeedMode) {
 export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
   const built = buildReleaseNoteSearchQuery(filters);
   const result = await query(built.text, built.values);
+  return result.rows;
+}
+
+/** Complete history for issue status and scope; display pagination happens later. */
+export async function listIssueHistory(issueId: string) {
+  const result = await query(
+    `SELECT id, version, section, area, body, impact_kind, risk_level,
+            release_date::text AS release_date
+       FROM release_note_items
+      WHERE issue_ids @> ARRAY[$1]::text[]
+      ORDER BY release_date DESC NULLS LAST, source_order ASC, id ASC`,
+    [issueId]
+  );
   return result.rows;
 }
 
@@ -117,42 +131,24 @@ export type IngestionFreshness = {
   lastRunAt: string | null;
   /** Hours since lastSuccessAt; Infinity if never. */
   hoursSinceLastSuccess: number;
-  /** True if no successful run in the last 30 days. */
+  /** True if a scheduled batch failed, never completed, or missed three polls. */
   isStale: boolean;
+  jobName?: string;
+  status?: string;
+  cadenceHours?: number;
 };
 
 /** Inventory of every ingestion source's last-success timestamps. */
 export async function listIngestionFreshness(): Promise<IngestionFreshness[]> {
   const result = await query<{
-    source_type: string;
-    last_success: string | null;
-    last_run: string | null;
-  }>(
-    `
-      SELECT
-        source_type,
-        MAX(finished_at) FILTER (WHERE status = 'success') AS last_success,
-        MAX(finished_at)                                   AS last_run
-      FROM ingestion_runs
-      GROUP BY source_type
-      ORDER BY source_type ASC
-    `
-  );
-  const now = Date.now();
-  return result.rows.map((row) => {
-    const ts = row.last_success ? new Date(row.last_success).getTime() : null;
-    const hours = ts == null ? Infinity : (now - ts) / (1000 * 60 * 60);
-    return {
-      sourceType: row.source_type,
-      lastSuccessAt: row.last_success,
-      lastRunAt: row.last_run,
-      hoursSinceLastSuccess: hours,
-      // "Stale" threshold: 30 days. The polling cadence is up to the operator;
-      // a real outage is when nothing has succeeded for the better part of a
-      // month. Tighter banners belong in monitoring, not the dashboard.
-      isStale: hours > 24 * 30
-    };
-  });
+    job_name: string; last_success: string | null; last_run: string | null; latest_status: string | null; last_completed_status: string | null;
+  }>(`SELECT job_name,
+    MAX(finished_at) FILTER (WHERE status = 'success')::text AS last_success,
+    MAX(started_at)::text AS last_run,
+    (array_agg(status ORDER BY started_at DESC, id DESC))[1] AS latest_status,
+    (array_agg(status ORDER BY started_at DESC, id DESC) FILTER (WHERE status <> 'running'))[1] AS last_completed_status
+    FROM core_job_runs GROUP BY job_name`);
+  return evaluateJobFreshness(result.rows);
 }
 
 export type DiffRangeBounds = {
@@ -1766,9 +1762,9 @@ export async function upsertResource(
       INSERT INTO resources (
         slug, url, title, summary, og_image, resource_type, industry, topics,
         is_gated, sfdc_form_id, resource_date, read_duration, author,
-        lastmod, body_hash, raw_metadata_json, source_snapshot_id, ingestion_run_id
+        lastmod, body_hash, raw_metadata_json, source_snapshot_id, ingestion_run_id, availability_checked_at
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,now())
       ON CONFLICT (slug) DO UPDATE SET
         url = EXCLUDED.url,
         title = EXCLUDED.title,
@@ -1794,6 +1790,8 @@ export async function upsertResource(
         raw_metadata_json = EXCLUDED.raw_metadata_json,
         source_snapshot_id = EXCLUDED.source_snapshot_id,
         ingestion_run_id = EXCLUDED.ingestion_run_id,
+        unavailable_at = NULL,
+        availability_checked_at = now(),
         updated_at = now()
     `,
     [
@@ -1879,7 +1877,7 @@ export async function listResources(
   filters: ResourceListFilters = {}
 ): Promise<{ rows: ResourceRow[]; total: number }> {
   const params: unknown[] = [];
-  const conds: string[] = [];
+  const conds: string[] = ["unavailable_at IS NULL"];
 
   if (!filters.includeMarketing) {
     params.push(RESOURCE_MARKETING_TYPES);
@@ -3471,4 +3469,21 @@ export async function getGithubStats(): Promise<GithubStats> {
     latestPushAt: row?.latest_push ? new Date(row.latest_push).toISOString() : null,
     latestEventAt: row?.latest_event ? new Date(row.latest_event).toISOString() : null
   };
+}
+
+/** Bounded rechecks include missing sitemap URLs and retired rows, so links can recover. */
+export async function listResourceRechecks(limit = 100) {
+  const result = await query<{ url: string; lastmod: string | null }>(
+    `SELECT url, lastmod::text FROM resources
+     WHERE availability_checked_at IS NULL OR availability_checked_at < now() - interval '7 days'
+     ORDER BY availability_checked_at ASC NULLS FIRST, id LIMIT $1`, [limit]);
+  return result.rows;
+}
+export async function markResourceUnavailable(client: PoolClient, url: string) {
+  await client.query(`UPDATE resources SET unavailable_at=COALESCE(unavailable_at, now()),
+    availability_checked_at=now() WHERE url=$1`, [url]);
+}
+
+export async function recordResourceCheckAttempt(url: string) {
+  await query("UPDATE resources SET availability_checked_at=now() WHERE url=$1", [url]);
 }

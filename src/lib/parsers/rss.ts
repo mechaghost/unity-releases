@@ -19,17 +19,25 @@ export function parseUnityBlogRss(xml: string, feedUrl: string): ParsedBlogPost[
   const parsed = parser.parse(xml) as {
     rss?: { channel?: { item?: unknown } };
   };
-  const items = asArray(parsed.rss?.channel?.item);
+  if (!parsed.rss?.channel) throw new Error("Expected an RSS channel");
+  const items = asArray(parsed.rss.channel.item);
+  if (items.length === 0) throw new Error("RSS feed contained no posts");
 
   return items.map((item) => {
+    if (!item || typeof item !== "object") throw new Error("RSS post must be an object");
     const record = item as Record<string, unknown>;
-    const link = stringValue(record.link);
-    const guid = stringValue(record.guid) || link;
-    const pubDate = stringValue(record.pubDate);
+    const link = stringValue(record.link).trim();
+    const guid = stringValue(record.guid).trim() || link;
+    const title = stringValue(record.title).trim();
+    const pubDate = stringValue(record.pubDate).trim();
+    let validLink = false;
+    try { validLink = ["http:", "https:"].includes(new URL(link).protocol); } catch { /* Invalid source URL. */ }
+    if (!guid || !title || !validLink) throw new Error("RSS post requires a title, identifier, and HTTP(S) link");
+    if (pubDate && !Number.isFinite(Date.parse(pubDate))) throw new Error("RSS post has an invalid publication date");
 
     return {
       guid,
-      title: stringValue(record.title),
+      title,
       description: stringValue(record.description),
       link,
       publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date(0).toISOString(),

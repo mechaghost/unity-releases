@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPackage } from "@/lib/db/repositories";
 import { isNewerVersion } from "@/lib/version-compare";
+import { pageBounds } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -11,15 +12,20 @@ const PACKAGE_NAME_RE = /^com\.unity\.[a-z0-9][a-z0-9._-]{0,120}$/;
 /**
  * GET /api/packages/<name>/versions
  *
- * Returns the most recent versions of a single Unity package along with
- * their changelogs. Used by the on-screen Package row dialog to lazy-
+ * Returns a page of versions of a single Unity package along with
+ * their changelogs (`?page=1`, 50 per page). Used by the Package row dialog to lazy-
  * load notes only when the user clicks a row - eager-loading every
  * package's full version history would balloon the /packages payload.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ name: string }> }
 ) {
+  const pageValue = new URL(request.url).searchParams.get("page") ?? "1";
+  if (!/^[1-9]\d{0,5}$/.test(pageValue)) {
+    return NextResponse.json({ error: "invalid-page" }, { status: 400 });
+  }
+  const requestedPage = Number(pageValue);
   const { name } = await context.params;
   let packageName: string;
   try {
@@ -44,8 +50,9 @@ export async function GET(
     return NextResponse.json({ error: "not-found" }, { status: 404 });
   }
 
+  const pagination = pageBounds(result.versions.length, requestedPage, VERSION_CAP);
   const versions = (result.versions as PackageVersionRow[])
-    .slice(0, VERSION_CAP)
+    .slice(pagination.offset, pagination.offset + VERSION_CAP)
     .map((v) => ({
       version: v.version,
       publishedAt: v.published_at ? new Date(v.published_at).toISOString() : null,
@@ -58,7 +65,7 @@ export async function GET(
   // Surface the Unity-6.4+ aligned version only when it's genuinely newer than
   // the registry latest (the dialog frames the two schemes). Same gate as
   // /packages, so the two views agree.
-  const registryLatest = versions[0]?.version ?? null;
+  const registryLatest = (result.versions[0] as PackageVersionRow | undefined)?.version ?? null;
   const unified =
     result.unified && isNewerVersion(result.unified.aligned_version, registryLatest)
       ? { unityMinor: result.unified.unity_minor, version: result.unified.aligned_version }
@@ -71,6 +78,9 @@ export async function GET(
       description: result.package.description ?? null,
       sourceUrl: result.package.source_url ?? null,
       totalVersions: result.versions.length,
+      page: pagination.page,
+      pages: pagination.pages,
+      pageSize: VERSION_CAP,
       unified,
       versions
     },

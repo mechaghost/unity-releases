@@ -9,8 +9,7 @@ import { fetchText, type FetchedSource } from "./fetch";
  */
 
 /** Run `worker(item)` over `items` with at most `n` in-flight at once.
- *  Errors thrown inside a worker propagate to `Promise.all` (the loop
- *  re-throws). Callers should catch + log per-item failures inside the
+ *  Errors propagate only after every active worker has settled. Callers should catch + log per-item failures inside the
  *  worker so one bad URL doesn't kill the whole crawl. */
 export async function runWithConcurrency<T>(
   items: T[],
@@ -20,7 +19,9 @@ export async function runWithConcurrency<T>(
   const queue = items.slice();
   const inflight: Promise<void>[] = [];
   for (let i = 0; i < n; i += 1) inflight.push(loop());
-  await Promise.all(inflight);
+  const outcomes = await Promise.allSettled(inflight);
+  const failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+  if (failure) throw failure.reason;
 
   async function loop() {
     while (queue.length > 0) {

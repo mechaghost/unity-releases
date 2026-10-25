@@ -1,3 +1,4 @@
+import { scheduledJobMain } from "../lib/ingest/job-health";
 import type { PoolClient } from "pg";
 import { fetchText, type FetchedSource } from "../lib/ingest/fetch";
 import {
@@ -609,8 +610,5 @@ export async function confirmAndTombstoneDeletedPost(
 const isDirectRun =
   process.argv[1] && process.argv[1].endsWith("poll-discussions.ts");
 if (isDirectRun) {
-  pollDiscussions().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
+  void scheduledJobMain("poll-discussions", pollDiscussions);
 }

@@ -227,14 +227,14 @@ export function ProductPrimaryActions({
               </span>
             </div>
             <div className="product-primary-actions__buttons">
-              <a
+              <ExternalLink
                 className="btn btn--primary"
                 href={action.href}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 {action.label}
-              </a>
+              </ExternalLink>
               <a
                 className="btn btn--secondary"
                 href={`/updates/products/${product.slug}`}

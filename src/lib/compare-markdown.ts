@@ -1,4 +1,4 @@
-import { cleanReleaseNoteText } from "./release-notes/format";
+import { cleanReleaseNoteText, normalizeIssueLinks } from "./release-notes/format";
 import { dedupeByIssue } from "./diff-grouping";
 import { issueStatusSuffix, type IssueStatus } from "./issue-status";
 
@@ -6,6 +6,7 @@ export type CompareMarkdownRow = {
   version: string;
   body: string;
   issue_ids: string[];
+  issue_links_json?: unknown;
   package_names?: string[];
   release_date: string | Date | null;
 };
@@ -32,8 +33,6 @@ export type CompareMarkdownInput = {
    */
   rowsPerLane?: number | null;
 };
-
-const ISSUE_TRACKER = "https://issuetracker.unity3d.com/issues";
 
 export function compareToMarkdown(input: CompareMarkdownInput): string {
   const rawCap = input.rowsPerLane;
@@ -132,6 +131,7 @@ function toDedupeRow(row: CompareMarkdownRow) {
     version: row.version,
     body: row.body,
     issue_ids: row.issue_ids,
+    issue_links_json: row.issue_links_json,
     release_date: row.release_date
   };
 }
@@ -146,7 +146,7 @@ function formatIssueBullet(
     item.firstVersion === item.lastVersion
       ? `seen in ${item.firstVersion}`
       : `seen ${item.firstVersion} → ${item.lastVersion} (${item.mentionCount} mentions)`;
-  return `- ${text}${issueSuffix(issueId, statuses)} · ${trail}`;
+  return `- ${text}${issueSuffix(issueId, statuses, item.primary.issue_links_json)} · ${trail}`;
 }
 
 function formatReleaseBullet(
@@ -155,7 +155,7 @@ function formatReleaseBullet(
 ): string {
   const text = cleanReleaseNoteText(row.body ?? "");
   const id = (row.issue_ids ?? [])[0];
-  return `- **${row.version}**${dateSuffix(row.release_date)} ${text}${issueSuffix(id, statuses)}`;
+  return `- **${row.version}**${dateSuffix(row.release_date)} ${text}${issueSuffix(id, statuses, row.issue_links_json)}`;
 }
 
 /**
@@ -177,10 +177,12 @@ function dateSuffix(date: string | Date | null | undefined): string {
 
 function issueSuffix(
   id: string | undefined,
-  statuses: Map<string, IssueStatus> | undefined
+  statuses: Map<string, IssueStatus> | undefined,
+  rawLinks?: unknown
 ): string {
   if (!id) return "";
-  const link = `[${id}](${ISSUE_TRACKER}/${id.toLowerCase()})`;
+  const href = normalizeIssueLinks([id], rawLinks).find(link => link.id === id)!.url;
+  const link = `[${id}](${href})`;
   const status = statuses?.get(id);
   const suffix = status ? issueStatusSuffix(status) : null;
   return suffix ? ` - ${link} (${suffix})` : ` - ${link}`;

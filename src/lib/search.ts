@@ -110,7 +110,7 @@ export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): 
       SELECT *, COUNT(*) OVER() AS total_count
       FROM release_note_items
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY ${order}
+      ORDER BY ${order}, id ASC
       LIMIT ${limitParam}
       OFFSET ${offsetParam}
     `.trim(),

@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+import { scheduledJobMain } from "../lib/ingest/job-health";
 import { assertReleaseSourceOk, assertReleaseMetadataComplete } from "../lib/ingest/release-integrity";
 import { fetchText } from "../lib/ingest/fetch";
 import { fetchApiStream, resolveIngestStream } from "../lib/ingest/release-stream";
@@ -19,7 +21,7 @@ const EDITOR_SOURCES = [
 const PARSER_VERSION =
   process.env.PARSER_VERSION ?? EDITOR_RELEASE_PARSER_VERSION;
 
-async function main() {
+export async function main() {
   for (const url of EDITOR_SOURCES) {
     await withIngestionTransaction("editor_release", "poll-editor", async (client, runId) => {
       const fetched = await fetchText(url);
@@ -66,7 +68,6 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void scheduledJobMain("poll-editor", main);
+}

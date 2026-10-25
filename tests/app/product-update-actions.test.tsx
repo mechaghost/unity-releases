@@ -38,7 +38,7 @@ describe("Editor tooling product actions", () => {
     expect(html).toContain(">Install Unity CLI<");
     expect(html).toContain(">Unity Hub release history<");
     expect(html).toContain(">Unity CLI release history<");
-    expect(html.match(/class="btn btn--primary"/g)).toHaveLength(2);
+    expect(html.match(/class="[^"]*\bbtn btn--primary\b[^"]*"/g)).toHaveLength(2);
   });
 
   test("falls back to the official product link for every tracked product", () => {

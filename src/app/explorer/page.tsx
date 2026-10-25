@@ -8,6 +8,9 @@ import { type IssueStatus } from "@/lib/issue-status";
 import { streamLabel } from "@/lib/stream-labels";
 import { NoteRow, type NoteRowData } from "../_components/NoteRow";
 import { pageSocialMetadata } from "@/lib/site";
+import { pageBounds, pageNumber, pageHref } from "@/lib/pagination";
+import { Pagination } from "../_components/Pagination";
+import { LoadError } from "../_components/LoadError";
 
 export const dynamic = "force-dynamic";
 
@@ -70,8 +73,12 @@ export default async function ExplorerPage({
 }) {
   const params = toUrlSearchParams(await searchParams);
   const filters = filtersFromSearchParams(params);
-  const [{ results, error }, facets] = await Promise.all([safeSearch(filters), safeFacets()]);
-  const total = Number(results[0]?.total_count ?? results.length);
+  const pageSize = filters.limit ?? 100;
+  const requestedPage = params.has("page") ? pageNumber(params.get("page") ?? undefined)
+    : Math.floor((filters.offset ?? 0) / pageSize) + 1;
+  const [{ results, error, total, page, pages }, facets] = await Promise.all([
+    safeSearch({ ...filters, offset: (requestedPage - 1) * pageSize }, requestedPage), safeFacets()
+  ]);
   const grouped = groupByVersion(results);
   const activeFilters = activeFilterLabels(filters);
   const issueIds = uniqueValues(results.flatMap((r) => r.issue_ids ?? []));
@@ -237,7 +244,7 @@ export default async function ExplorerPage({
         </details>
       </form>
 
-      <div className="list-toolbar">
+      {!error && <div className="list-toolbar">
         <span className="list-toolbar__count">
           <strong>{total.toLocaleString()}</strong>{" "}
           {total === 1 ? "match" : "matches"}
@@ -252,13 +259,10 @@ export default async function ExplorerPage({
             ))}
           </div>
         ) : null}
-      </div>
+      </div>}
 
       {error ? (
-        <div className="empty-state">
-          <h2>Could not load release notes.</h2>
-          <p>The database is unreachable or the query timed out. Try narrowing the filters.</p>
-        </div>
+        <LoadError subject="release notes" retryHref={pageHref("/explorer", params, requestedPage)} />
       ) : grouped.length === 0 ? (
         <div className="empty-state">
           <h2>No release notes match these filters.</h2>
@@ -297,16 +301,28 @@ export default async function ExplorerPage({
           ))}
         </div>
       )}
+      {!error && <Pagination path="/explorer" params={params} page={page} pages={pages} />}
     </>
   );
 }
 
-async function safeSearch(filters: ReturnType<typeof filtersFromSearchParams>) {
+async function safeSearch(filters: ReturnType<typeof filtersFromSearchParams>, requestedPage: number) {
   try {
-    const results = (await searchReleaseNotes({ ...filters, limit: filters.limit ?? 100 })) as ReleaseNoteRow[];
-    return { results, error: false };
+    const pageSize = filters.limit ?? 100;
+    let results = (await searchReleaseNotes(filters)) as ReleaseNoteRow[];
+    // A window count is absent when the requested offset is beyond the end.
+    // Recover the count so a stale bookmark can land on the last real page.
+    const firstPage = results.length === 0 && (filters.offset ?? 0) > 0
+      ? (await searchReleaseNotes({ ...filters, offset: 0 })) as ReleaseNoteRow[] : results;
+    const total = Number(firstPage[0]?.total_count ?? firstPage.length);
+    const bounds = pageBounds(total, requestedPage, pageSize);
+    if (bounds.page !== requestedPage) {
+      results = bounds.page === 1 ? firstPage
+        : (await searchReleaseNotes({ ...filters, offset: bounds.offset })) as ReleaseNoteRow[];
+    }
+    return { results, error: false, total, ...bounds };
   } catch {
-    return { results: [] as ReleaseNoteRow[], error: true };
+    return { results: [] as ReleaseNoteRow[], error: true, total: 0, page: 1, pages: 1 };
   }
 }
 

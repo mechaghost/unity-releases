@@ -1,4 +1,5 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
+import { resolveExternalLink } from "@/lib/external-links";
 
 type ExternalLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   href: string;
@@ -27,15 +28,24 @@ export function isUnityExternalHref(href: string): boolean {
 }
 
 export function ExternalLink({ href, children, className, ...rest }: ExternalLinkProps) {
+  const resolved = resolveExternalLink(href);
+  const isButton = className?.split(/\s+/).includes("btn") ?? false;
+  if (!resolved.href) {
+    return (
+      <span className={className} title={`${resolved.reason} Original URL: ${href}`}>
+        {children} <span className="muted">(Source unavailable)</span>
+      </span>
+    );
+  }
   return (
     <a
-      href={href}
+      href={resolved.href}
       target="_blank"
       rel="noopener noreferrer"
-      className={["link-external", className].filter(Boolean).join(" ")}
+      className={[isButton ? null : "link-external", className].filter(Boolean).join(" ")}
       {...rest}
     >
-      <span>{children}</span>
+      {isButton ? children : <span>{children}</span>}
     </a>
   );
 }

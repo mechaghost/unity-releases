@@ -163,11 +163,11 @@ describe("isUnityExternalHref", () => {
 
 describe("issueTrackerHref", () => {
   test("emits a lowercased Unity Issue Tracker URL", () => {
-    expect(issueTrackerHref("UUM-12345")).toBe("https://issuetracker.unity3d.com/issues/uum-12345");
-    expect(issueTrackerHref("uum-12345")).toBe("https://issuetracker.unity3d.com/issues/uum-12345");
+    expect(issueTrackerHref("UUM-12345")).toBe("https://issuetracker.unity.com/?q=UUM-12345");
+    expect(issueTrackerHref("uum-12345")).toBe("https://issuetracker.unity.com/?q=UUM-12345");
   });
 
   test("preserves the input shape rather than trying to rewrite the id", () => {
-    expect(issueTrackerHref("FOO-1")).toContain("foo-1");
+    expect(issueTrackerHref("FOO-1")).toContain("FOO-1");
   });
 });

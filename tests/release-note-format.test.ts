@@ -102,7 +102,7 @@ describe("release note formatting", () => {
 
   test("falls back to issue tracker search for issue ids without parsed urls", () => {
     expect(issueTrackerSearchUrl("UUM-136929")).toBe(
-      "https://issuetracker.unity3d.com/issues?search=UUM-136929"
+      "https://issuetracker.unity.com/?q=UUM-136929"
     );
   });
 });

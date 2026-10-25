@@ -9,6 +9,8 @@ import { PackageRowClient } from "../_components/PackageRowClient";
 import { PackagesFilter } from "../_components/PackagesFilter";
 import { pageSocialMetadata } from "@/lib/site";
 import { packageFeatureLinks } from "@/lib/release-guide-links";
+import { firstQueryValue, queryParams } from "@/lib/pagination";
+import { LoadError } from "../_components/LoadError";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +42,10 @@ type PackageRow = {
 };
 
 type SearchParams = Promise<{
-  q?: string;
-  scope?: string;
-  channel?: string;
-  sort?: string;
+  q?: string | string[];
+  scope?: string | string[];
+  channel?: string | string[];
+  sort?: string | string[];
 }>;
 
 type SortKey = "name_asc" | "name_desc" | "updated_desc" | "updated_asc";
@@ -59,16 +61,20 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 export default async function PackagesPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const q = normalizeQuery(params.q);
-  const scope = parseScope(params.scope);
-  const channel = parseChannel(params.channel);
-  const sort = parseSort(params.sort);
+  const q = firstQueryValue(params.q);
+  const scope = parseScope(firstQueryValue(params.scope));
+  const channel = parseChannel(firstQueryValue(params.channel));
+  const sort = parseSort(firstQueryValue(params.sort));
 
   const [allPackages, userPackages, bundledVersions] = await Promise.all([
-    safeListPackages() as Promise<PackageRow[]>,
+    safeListPackages() as Promise<PackageRow[] | null>,
     getUserPackages(),
     safeBundledVersions()
   ]);
+  if (allPackages === null) return <>
+    <section className="page-header"><h1>All Packages</h1></section>
+    <LoadError subject="packages" retryHref={`/packages?${queryParams(params).toString()}`} />
+  </>;
   const userSet = new Set(userPackages);
   const filtered = sortPackages(
     allPackages.filter((pkg) => matchesPackage(pkg, { q, scope, channel, userSet })),
@@ -346,10 +352,6 @@ function parseChannel(value: string | undefined): ChannelKey {
   return "all";
 }
 
-function normalizeQuery(value: string | undefined) {
-  return (value ?? "").trim();
-}
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
@@ -369,7 +371,7 @@ async function safeListPackages() {
   try {
     return await listPackages(10000);
   } catch {
-    return [];
+    return null;
   }
 }
 

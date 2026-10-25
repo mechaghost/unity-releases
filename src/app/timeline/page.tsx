@@ -1,3 +1,5 @@
+import type { AnchorHTMLAttributes } from "react";
+import { ExternalLink } from "../_components/ExternalLink";
 import type { Metadata } from "next";
 import { listTimelineFeed, type TimelineEvent } from "@/lib/db/repositories";
 import { TimelineFilter } from "../_components/TimelineFilter";
@@ -215,9 +217,9 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
                     <span className={`chip chip--small chip--event-${event.eventType.replace("_group", "")}`}>
                       {isPackageGroup ? "package" : isNewsGroup ? "news" : "update"}
                     </span>
-                    <a href={href} target={target} rel={target ? "noopener noreferrer" : undefined}>
+                    <TimelineSourceLink href={href} target={target} rel={target ? "noopener noreferrer" : undefined}>
                       {item.title}
-                    </a>
+                    </TimelineSourceLink>
                   </li>
                 );
               })}
@@ -248,24 +250,24 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
       <div className="timeline-content">
         <h2 className="timeline-content__title">
           {isEditor && (
-            <a href={editorReleaseHref(event.title)}>
+            <TimelineSourceLink href={editorReleaseHref(event.title)}>
               Editor Released: <strong>{event.title}</strong>
-            </a>
+            </TimelineSourceLink>
           )}
           {isPackage && (
-            <a href={`/packages?q=${encodeURIComponent(event.title.split(" ")[0] || "")}`}>
+            <TimelineSourceLink href={`/packages?q=${encodeURIComponent(event.title.split(" ")[0] || "")}`}>
               Package Updated: <strong>{event.title}</strong>
-            </a>
+            </TimelineSourceLink>
           )}
           {isNews && (
-            <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer">
+            <TimelineSourceLink href={event.sourceUrl} target="_blank" rel="noopener noreferrer">
               News: <strong>{event.title}</strong>
-            </a>
+            </TimelineSourceLink>
           )}
           {isProductUpdate && (
-            <a href={event.sourceUrl}>
+            <TimelineSourceLink href={event.sourceUrl}>
               Product Update: <strong>{event.title}</strong>
-            </a>
+            </TimelineSourceLink>
           )}
         </h2>
 
@@ -286,7 +288,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
               ))}
             </div>
           )}
-          <a
+          <TimelineSourceLink
             href={isEditor ? editorReleaseHref(event.title) : event.sourceUrl}
             target={isEditor || isProductUpdate ? undefined : "_blank"}
             rel={isEditor || isProductUpdate ? undefined : "noopener noreferrer"}
@@ -303,7 +305,7 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
               name={isEditor || isProductUpdate ? "arrow-right" : "external-link"}
               size={12}
             />
-          </a>
+          </TimelineSourceLink>
         </div>
       </div>
     );
@@ -389,9 +391,9 @@ function TimelineCardBody({ event }: { event: TimelineEvent }) {
                           <span className={`chip chip--small chip--event-${update.eventType}`}>
                             {update.eventType === "unity_release" ? "editor" : update.eventType === "package_version" ? "package" : "news"}
                           </span>
-                          <a href={href} target={target} rel={target ? "noopener noreferrer" : undefined}>
+                          <TimelineSourceLink href={href} target={target} rel={target ? "noopener noreferrer" : undefined}>
                             {update.title}
-                          </a>
+                          </TimelineSourceLink>
                         </li>
                       );
                     })}
@@ -441,4 +443,11 @@ async function safeListTimelineFeed(
     console.error("Failed to load timeline feed:", err);
     return [];
   }
+}
+
+/** Keep local navigation unchanged while applying the reviewed source-link policy. */
+function TimelineSourceLink({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) {
+  return /^https?:\/\//i.test(href)
+    ? <ExternalLink href={href} {...props}>{children}</ExternalLink>
+    : <a href={href} {...props}>{children}</a>;
 }

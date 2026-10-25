@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+import { scheduledJobMain } from "../lib/ingest/job-health";
 import type { PoolClient } from "pg";
 import { getPool } from "../lib/db/client";
 import {
@@ -51,7 +53,7 @@ async function inTx<T>(handler: (client: PoolClient) => Promise<T>): Promise<T> 
   }
 }
 
-async function main() {
+export async function main() {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     console.warn("[github] GITHUB_TOKEN not set — using the unauthenticated GitHub API (60 req/hr, shared IP).");
@@ -129,7 +131,6 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void scheduledJobMain("poll-github", main);
+}

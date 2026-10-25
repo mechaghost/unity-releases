@@ -27,6 +27,9 @@ type PackageDetail = {
   description: string | null;
   sourceUrl: string | null;
   totalVersions: number;
+  page: number;
+  pages: number;
+  pageSize: number;
   /** Unity 6.4+ unified versioning: the Editor-aligned version (e.g. 6.4.0)
    *  that the registry version list below doesn't carry. Null otherwise. */
   unified: { unityMinor: string; version: string } | null;
@@ -70,43 +73,41 @@ export function PackageVersionDialog({
 }: Props) {
   const [load, setLoad] = useState<LoadState>({ status: "idle" });
   const [mounted, setMounted] = useState(false);
+  const [requestedPage, setRequestedPage] = useState(1);
+  const [attempt, setAttempt] = useState(0);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMounted(true), []);
 
-  // Lazy fetch - only hit the API the first time the dialog is opened
-  // for this package. Re-opening reuses the cached result; switching to
-  // a different package resets the state.
+  useEffect(() => setRequestedPage(1), [packageName]);
+
+  // Each open/page/retry owns its request. Aborting a closed dialog cannot
+  // leave a loading flag that blocks the next open, or overwrite a newer page.
   useEffect(() => {
     if (!open) return;
-    if (load.status === "loaded" || load.status === "loading") return;
-
-    let cancelled = false;
+    const controller = new AbortController();
     setLoad({ status: "loading" });
 
-    fetch(`/api/packages/${encodeURIComponent(packageName)}/versions`)
+    fetch(`/api/packages/${encodeURIComponent(packageName)}/versions?page=${requestedPage}`, {
+      signal: controller.signal
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error(`Status ${res.status}`);
         return (await res.json()) as PackageDetail;
       })
       .then((data) => {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         setLoad({ status: "loaded", data });
       })
       .catch((err: Error) => {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         setLoad({ status: "error", message: err.message || "Request failed" });
       });
 
-    return () => {
-      cancelled = true;
-    };
-    // We intentionally re-run only when `open` flips so the fetch fires on
-    // first open for this dialog instance; load is read inside.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, packageName]);
+    return () => controller.abort();
+  }, [open, packageName, requestedPage, attempt]);
 
   // Focus management: capture the previously focused element when we open,
   // move focus inside, restore it on close. ESC closes; body scroll locks.
@@ -207,12 +208,19 @@ export function PackageVersionDialog({
           {load.status === "loading" ? (
             <DialogSkeleton />
           ) : load.status === "error" ? (
-            <p className="pkg-dialog__error">
-              Couldn&apos;t load versions ({load.message}). Try again in a
-              moment, or check the registry link above.
-            </p>
+            <div className="pkg-dialog__error" role="alert">
+              <p>Couldn&apos;t load versions ({load.message}).</p>
+              <button type="button" className="btn btn--secondary" onClick={() => setAttempt(value => value + 1)}>Try again</button>
+            </div>
           ) : load.status === "loaded" ? (
-            <VersionList data={load.data} />
+            <>
+              <VersionList data={load.data} />
+              {load.data.pages > 1 && <nav className="lane__pagination" aria-label="Package history pages">
+                {load.data.page > 1 && <button type="button" className="lane__pagination-btn" onClick={() => setRequestedPage(load.data.page - 1)}>Previous versions</button>}
+                <span>Page {load.data.page} of {load.data.pages}</span>
+                {load.data.page < load.data.pages && <button type="button" className="lane__pagination-btn" onClick={() => setRequestedPage(load.data.page + 1)}>Older versions</button>}
+              </nav>}
+            </>
           ) : null}
         </div>
       </div>
@@ -261,7 +269,7 @@ function VersionList({ data }: { data: PackageDetail }) {
         </div>
       ) : null}
       <p className="pkg-dialog__count">
-        Showing the most recent <strong>{data.versions.length}</strong> of{" "}
+        Showing <strong>{(data.page - 1) * data.pageSize + 1}–{(data.page - 1) * data.pageSize + data.versions.length}</strong> of{" "}
         <strong>{data.totalVersions}</strong> indexed versions.
       </p>
       <ol className="pkg-dialog__versions">

@@ -1,3 +1,4 @@
+import { scheduledJobMain } from "../lib/ingest/job-health";
 import { pathToFileURL } from "node:url";
 import { fetchText, type FetchedSource } from "../lib/ingest/fetch";
 import { fetchHtmlWithRetry, HttpStatusError, runWithConcurrency } from "../lib/ingest/runner";
@@ -14,6 +15,9 @@ import {
 } from "../lib/ingest/resources";
 import {
   getResourceFreshness,
+  listResourceRechecks,
+  markResourceUnavailable,
+  recordResourceCheckAttempt,
   recordSourceSnapshot,
   upsertResource,
   withIngestionTransaction
@@ -53,7 +57,7 @@ export async function fetchResourceDiscovery(url: string): Promise<FetchedSource
 }
 
 export async function pollResources() {
-  await withIngestionTransaction("resources", "poll-resources", async (client, runId) => {
+  const { todo, sitemapEntries } = await withIngestionTransaction("resources", "poll-resources-discovery", async (client) => {
     const discovered: (SitemapEntry & { sourceSnapshotId: number })[] = [];
     const failures: string[] = [];
     for (const url of [SITEMAP_URL, CONTENT_SITEMAP_URL, RESOURCES_INDEX_URL]) {
@@ -89,7 +93,7 @@ export async function pollResources() {
     // Incremental filter: re-fetch only when the sitemap lastmod has
     // advanced past what we already have on file. Brand-new slugs get
     // fetched too. Cap per run so a `--full` re-crawl is opt-in.
-    const todo = entries.filter((entry) => {
+    const todo: (SitemapEntry & { sourceSnapshotId: number | null })[] = entries.filter((entry) => {
       if (FORCE) return true;
       const known = freshness.get(slugFromUrl(entry.url));
       if (!known) return true;
@@ -99,41 +103,50 @@ export async function pollResources() {
       return new Date(entry.lastmod).getTime() > new Date(known.lastmod).getTime();
     }).slice(0, MAX_PER_RUN);
 
-    let stats = { fetched: 0, parsed: 0, skippedRemoved: 0, errors: 0 };
-    await runWithConcurrency(todo, CONCURRENCY, async (entry) => {
-      try {
-        const fetched = await fetchHtmlWithRetry(entry.url, {
-          timeoutMs: REQUEST_TIMEOUT_MS,
-          retries: MAX_RETRIES
-        });
-        stats.fetched += 1;
-        const parsed = parseResourcePage(fetched.text, entry.url, entry.lastmod);
-        if (!parsed) {
-          stats.skippedRemoved += 1;
-          return;
-        }
-        stats.parsed += 1;
-        await upsertResource(client, parsed, entry.lastmod, runId, entry.sourceSnapshotId);
-      } catch (err) {
-        if (err instanceof HttpStatusError && (err.status === 404 || err.status === 410)) {
-          stats.skippedRemoved += 1;
-          return;
-        }
-        stats.errors += 1;
-        console.error(JSON.stringify({ url: entry.url, error: err instanceof Error ? err.message : String(err) }));
+    const rechecks = await listResourceRechecks(100);
+    const queued = new Set(todo.map(entry => entry.url));
+    for (const entry of rechecks) {
+      if (!queued.has(entry.url)) {
+        todo.push({ ...entry, sourceSnapshotId: null });
+        queued.add(entry.url);
       }
-    });
+    }
 
-    console.log(
-      JSON.stringify({
-        sitemapEntries: entries.length,
-        force: FORCE,
-        considered: todo.length,
-        ...stats
-      })
-    );
-    if (stats.errors > 0) throw new Error(`Resource ingestion failed for ${stats.errors} pages`);
+    return { todo, sitemapEntries: entries.length };
   });
+
+  const stats = { fetched: 0, parsed: 0, skippedRemoved: 0, errors: 0 };
+  await runWithConcurrency(todo, CONCURRENCY, async (entry) => {
+    try {
+      let fetched: FetchedSource;
+      try {
+        fetched = await fetchHtmlWithRetry(entry.url, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
+      } catch (error) {
+        if (error instanceof HttpStatusError && (error.status === 404 || error.status === 410)) {
+          await withIngestionTransaction("resources", "poll-resources-item", client => markResourceUnavailable(client, entry.url));
+          stats.skippedRemoved += 1;
+          return;
+        }
+        throw error;
+      }
+      stats.fetched += 1;
+      const parsed = parseResourcePage(fetched.text, entry.url, entry.lastmod);
+      if (!parsed) throw new Error(`Resource page could not be parsed: ${entry.url}`);
+      await withIngestionTransaction("resources", "poll-resources-item", (client, runId) =>
+        upsertResource(client, parsed, entry.lastmod, runId, entry.sourceSnapshotId));
+      stats.parsed += 1;
+    } catch (error) {
+      stats.errors += 1;
+      console.error(JSON.stringify({ url: entry.url, error: error instanceof Error ? error.message : String(error) }));
+      // Commit attempts independently so a blocked old URL cannot monopolize
+      // the oldest-100 recheck queue. Preserve its previous content/availability.
+      await recordResourceCheckAttempt(entry.url).catch(attemptError => {
+        console.error(JSON.stringify({ url: entry.url, attemptError: String(attemptError) }));
+      });
+    }
+  });
+  console.log(JSON.stringify({ sitemapEntries, force: FORCE, considered: todo.length, ...stats }));
+  if (stats.errors > 0) throw new Error(`Resource ingestion failed for ${stats.errors} pages`);
 }
 
 function slugFromUrl(url: string): string {
@@ -142,8 +155,5 @@ function slugFromUrl(url: string): string {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  pollResources().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
+  void scheduledJobMain("poll-resources", pollResources);
 }

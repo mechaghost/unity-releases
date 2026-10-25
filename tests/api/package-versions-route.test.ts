@@ -15,6 +15,27 @@ beforeEach(() => {
 });
 
 describe("GET /api/packages/[name]/versions", () => {
+  test("pages complete history without changing unified-version metadata", async () => {
+    const versions = Array.from({ length: 55 }, (_, i) => ({
+      version: i === 0 ? "8.0.0" : `1.0.${54 - i}`,
+      changelog: `Entry ${i + 1}`
+    }));
+    mocks.getPackage.mockResolvedValue({
+      package: { name: "com.unity.test" }, versions,
+      unified: { unity_minor: "6.4", aligned_version: "6.4.0" }
+    });
+    const request = (page: string) => GET(new Request(`http://localhost/api/packages/com.unity.test/versions?page=${page}`), {
+      params: Promise.resolve({ name: "com.unity.test" })
+    });
+    const first = await (await request("1")).json();
+    const second = await (await request("2")).json();
+    expect(first).toMatchObject({ page: 1, pages: 2, pageSize: 50, totalVersions: 55, unified: null });
+    expect(first.versions).toHaveLength(50);
+    expect(second).toMatchObject({ page: 2, totalVersions: 55, unified: null });
+    expect(second.versions.map((v: { changelog: string }) => v.changelog)).toEqual(["Entry 51", "Entry 52", "Entry 53", "Entry 54", "Entry 55"]);
+    expect((await (await request("999")).json()).page).toBe(2);
+    expect((await request("-1")).status).toBe(400);
+  });
   test("rejects invalid package-name shapes before querying", async () => {
     const response = await GET(new Request("http://localhost"), {
       params: Promise.resolve({ name: "../../../release_notes" })
