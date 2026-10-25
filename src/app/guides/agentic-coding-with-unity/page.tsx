@@ -46,13 +46,11 @@ export default function AiWithUnityPage() {
             {index < workingLoop.length - 1 && <span className={styles.loopArrow}><Icon name="arrow-right" size={32} strokeWidth={2.5} /></span>}
           </li>)}
         </ol>
-        <div className={styles.loopReturn}><span aria-hidden="true">↶</span> Need a change? Refine the task and repeat.</div>
       </figure>
-      <p>The agent helps create and debug your automation. Saved scripts can run without an agent on each run. A CI service runs them when code changes or on a schedule; the Pipeline package provides the Editor connection. <ExternalLink href="https://unity.com/resources/unity-pipeline-cli-technical-walkthrough">See Unity’s technical walkthrough</ExternalLink>.</p>
     </div>
 
     <details id="setup" className={styles.setup}>
-      <summary>First time? Connect your coding agent to Unity</summary>
+      <summary>Connect your coding agent</summary>
       <div className={styles.detailBody}>
         <p>Use Unity 6.0 or later and a coding agent that can run terminal commands. Save your work, then <ExternalLink href="https://docs.unity.com/en-us/unity-cli/use-unity-cli">install Unity CLI</ExternalLink>. Reopen your terminal in the project folder with Unity open.</p>
         <pre className={styles.prompt}><code>{`unity auth login
@@ -65,9 +63,8 @@ unity command`}</code></pre>
       </div>
     </details>
 
-    <h2 className={styles.examplesHeading}>Put it to work</h2>
-    <p className={styles.intro}><ExternalLink href="https://mechadrive.games">Mecha Drive</ExternalLink> is a vibe-coded Unity game we used to check these workflows in practice. Each card explains what was verified in the game and what is still a suggested addition.</p>
-    <p className={styles.intro}>Adapt the prompts to your project. Ask the agent to report changed files, commands run, results, and anything it could not check.</p>
+    <h2 className={styles.examplesHeading}>Example workflows</h2>
+    <p className={styles.intro}>These examples draw on <ExternalLink href="https://mechadrive.games">Mecha Drive</ExternalLink>, a vibe-coded Unity game. Each workflow notes what was verified.</p>
     <div className={`guide-grid ${styles.cards}`}>
       {AGENTIC_GUIDE_EXAMPLES.map((example, index) => <section className={`guide-card ${styles.card}`} id={example.id} key={example.id} aria-labelledby={`${example.id}-heading`}>
         <figure>
@@ -96,10 +93,5 @@ unity command`}</code></pre>
         </div>
       </section>)}
     </div>
-    <footer className={styles.footer}>
-      <p>Card images show Unity features, not results from these prompts. Workflow illustrations are AI-generated.</p>
-      <p>Keep exploring: <a href="/resources?q=Unity%20CLI">Unity CLI resources</a> · <a href="https://unity.com/resources/unity-pipeline-cli-technical-walkthrough">Pipeline walkthrough</a></p>
-      <p>Independent guide · Reviewed October 25, 2026</p>
-    </footer>
   </article>;
 }

@@ -21,7 +21,6 @@
 .detailBody code { overflow-wrap: anywhere; }
 .prompt { margin-block: var(--space-3); padding: var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); line-height: 1.65; }
 .prompt code { padding: 0; border: 0; background: transparent; font-size: inherit; }
-.footer { margin-top: var(--space-6); padding-top: var(--space-3); border-top: 1px solid var(--border-default); color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.6; }
  .overview { margin-block: var(--space-6); line-height: 1.65; }
 .examplesHeading { font-size: var(--text-xl); line-height: 1.35; }
 .overview p, .tools dd { color: var(--text-secondary); }
@@ -41,8 +40,6 @@
 .loopSteps strong { line-height: 1.4; }
 .loopDescription { margin-top: var(--space-2); font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.5; }
 .loopArrow { position: absolute; display: flex; top: 48px; right: 0; color: var(--text-link); }
-.loopReturn { display: flex; align-items: center; gap: var(--space-2); border-top: 1px dashed var(--border-default); margin-top: var(--space-5); padding-top: var(--space-3); color: var(--text-secondary); font-size: var(--text-sm); }
-.loopReturn > span { color: var(--text-link); font-size: var(--text-xl); }
 @media (max-width: 700px) {
   .loopSteps { grid-template-columns: 1fr; gap: var(--space-8); }
   .loopSteps li { padding-left: 96px; min-height: 110px; }

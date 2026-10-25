@@ -80,3 +80,7 @@ WebP copies from public/images/agentic-workflow, totaling 42,540 bytes. Desktop
 uses 128px images; mobile uses 80px. No new JavaScript dependency is added.
 The page labels the workflow illustrations as AI-generated and keeps them
 separate from the official release screenshots used in the cards.
+
+Editorial trim: removed the repeated automation explanation, repeat cue, generic
+prompt instructions, and footer commentary. Setup and detailed workflows remain.
+The short Mecha Drive introduction and per-workflow evidence keep the scope clear.

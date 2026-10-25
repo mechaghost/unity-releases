@@ -20,7 +20,6 @@ test("Agentic coding guide is discoverable and its workflow cards work on deskto
   const loop = page.getByRole("figure", { name: "The working loop" });
   await expect(loop).toBeVisible();
   await expect(loop.locator("ol li")).toHaveCount(4);
-  await expect(loop).toContainText("Refine the task and repeat");
   await expect(page.getByRole("link", { name: "Mecha Drive", exact: true })).toHaveAttribute("href", "https://mechadrive.games");
   await expect(page.locator("main")).toContainText("vibe-coded Unity game");
   const cards = page.locator("main section.guide-card");
