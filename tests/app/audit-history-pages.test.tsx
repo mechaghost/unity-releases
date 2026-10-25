@@ -102,3 +102,15 @@ test("database failures are visible rather than empty-content claims", async () 
     expect(html).not.toContain("No resources match");
   }
 });
+
+test("unknown issue URLs return not found instead of an indexable empty page", async () => {
+  mocks.listIssueHistory.mockResolvedValue([]);
+  await expect(IssuePage({ params: Promise.resolve({ issueId: "UUM-999999999" }) })).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+  await expect(IssuePage({ params: Promise.resolve({ issueId: "UUM-NOT-REAL" }) })).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+});
+
+test("filtered package pages are noindex but the main package index remains indexable", async () => {
+  const { generateMetadata } = await import("@/app/packages/page");
+  expect((await generateMetadata({ searchParams: Promise.resolve({ q: "nuget.castle-core" }) })).robots).toMatchObject({ index: false, googleBot: { index: false } });
+  expect((await generateMetadata({ searchParams: Promise.resolve({}) })).robots).toMatchObject({ index: true });
+});

@@ -1,3 +1,4 @@
+import { filteredPageRobots, type SearchQuery } from "@/lib/search-indexing";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import {
@@ -35,8 +36,9 @@ import { editorReleaseGuideLink } from "@/lib/release-guide-links";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
-  params
+  params, searchParams
 }: {
+  searchParams?: Promise<SearchQuery>;
   params: Promise<{ version: string }>;
 }) {
   const { version } = await params;
@@ -45,6 +47,7 @@ export async function generateMetadata({
   const path = `/releases/${encodeURIComponent(version)}`;
   return {
     title,
+    robots: filteredPageRobots((await searchParams) ?? {}, ["q", "lanes", "risks", "platforms", "packages", "areas", "pipelines", "scope", "issue", "manifest", "tracker", "hide_noise", "preset"]),
     description,
     alternates: { canonical: path },
     ...pageSocialMetadata({ title, description, path })

@@ -1,3 +1,6 @@
+import { cache } from "react";
+import { notFound } from "next/navigation";
+import { filteredPageRobots, type SearchQuery } from "@/lib/search-indexing";
 import { listIssueHistory } from "@/lib/db/repositories";
 import { ImpactPill } from "../../_components/ImpactPill";
 import { RiskBadge } from "../../_components/RiskBadge";
@@ -26,17 +29,22 @@ import { LoadError } from "../../_components/LoadError";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
-  params
+  params, searchParams
 }: {
+  searchParams?: Promise<SearchQuery>;
   params: Promise<{ issueId: string }>;
 }) {
   const { issueId } = await params;
   const id = decodeURIComponent(issueId);
+  if (!/^UUM-\d+$/.test(id)) notFound();
+  const mentions = await safeIssue(id);
+  if (mentions?.length === 0) notFound();
   const title = `${id} - Unity release-note mentions`;
   const description = `Every indexed Unity release-note row that mentions ${id} - with derived resolution status, impact, and risk across the editor versions where it appears.`;
   const path = `/issues/${encodeURIComponent(id)}`;
   return {
     title,
+    robots: filteredPageRobots((await searchParams) ?? {}, ["major"]),
     description,
     alternates: { canonical: path },
     ...pageSocialMetadata({ title, description, path })
@@ -65,7 +73,9 @@ export default async function IssuePage({
   const id = decodeURIComponent(issueId);
   const sp = (await searchParams) ?? {};
   const path = `/issues/${encodeURIComponent(id)}`;
+  if (!/^UUM-\d+$/.test(id)) notFound();
   const allResults = await safeIssue(id);
+  if (allResults?.length === 0) notFound();
   if (allResults === null) return <>
     <section className="page-header"><h1>{id}</h1></section>
     <LoadError subject="issue history" retryHref={pageHref(path, queryParams(sp), pageNumber(sp.page))} />
@@ -218,13 +228,13 @@ export default async function IssuePage({
   );
 }
 
-async function safeIssue(issueId: string) {
+const safeIssue = cache(async (issueId: string) => {
   try {
     return (await listIssueHistory(issueId)) as Mention[];
   } catch {
     return null;
   }
-}
+});
 
 function statusDetail(status: IssueStatus): string {
   switch (status.kind) {

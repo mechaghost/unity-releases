@@ -1,3 +1,4 @@
+import { filteredPageRobots, type SearchQuery } from "@/lib/search-indexing";
 import {
   getIssueDomainHeatmap,
   getIssueStats,
@@ -32,12 +33,16 @@ export const revalidate = 300;
 const PAGE_DESCRIPTION =
   "Issue Explorer — the longest-open Unity issues, where they cluster by subsystem, and which UUM ids Unity has re-listed the most across the indexed release corpus.";
 
-export const metadata = {
+const baseMetadata = {
   title: "Issue Explorer",
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/issues" },
   ...pageSocialMetadata({ title: "Issue Explorer", description: PAGE_DESCRIPTION, path: "/issues" })
 };
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchQuery> }) {
+  return { ...baseMetadata, robots: filteredPageRobots(await searchParams, ["q", "status", "sort", "area", "fixed_within"]) };
+}
 
 export default async function IssueExplorerPage({
   searchParams

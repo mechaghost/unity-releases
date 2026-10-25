@@ -1,3 +1,4 @@
+import { filteredPageRobots, type SearchQuery } from "@/lib/search-indexing";
 import { formatReleaseDate } from "@/lib/format-date";
 import type { ReactNode } from "react";
 import { listPackages, getEditorBundledVersions, type EditorBundledVersion } from "@/lib/db/repositories";
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 const PACKAGES_DESCRIPTION =
   "Latest versions and release histories for tracked official Unity packages - Input System, Addressables, URP, HDRP, Cinemachine, Burst, and more - sourced from the Unity package registry.";
 
-export const metadata = {
+const baseMetadata = {
   title: "Packages",
   description: PACKAGES_DESCRIPTION,
   alternates: { canonical: "/packages" },
@@ -28,6 +29,10 @@ export const metadata = {
     path: "/packages"
   })
 };
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchQuery> }) {
+  return { ...baseMetadata, robots: filteredPageRobots(await searchParams, ["q", "scope", "channel", "sort"]) };
+}
 
 type PackageRow = {
   name: string;
