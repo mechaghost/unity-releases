@@ -12,11 +12,11 @@ export const metadata = {
   ...pageSocialMetadata({ title, description, path: "/guides/agentic-coding-with-unity" })
 };
 
-const workingLoop: { title: string; role: string; description: string; image: string }[] = [
-  { title: "Describe", role: "You", description: "Set the task and what success looks like.", image: "describe" },
-  { title: "Make the change", role: "Agent", description: "Inspect the project, then edit code or assets.", image: "change" },
-  { title: "Run checks", role: "Unity + scripts", description: "Run tests or a build. Save results and logs.", image: "checks" },
-  { title: "Review", role: "You", description: "Check the diff, results, and game behavior.", image: "review" }
+const workingLoop: { title: string; description: string; image: string }[] = [
+  { title: "Describe the task", description: "You define the goal and what success looks like.", image: "describe" },
+  { title: "Make the change", description: "The agent inspects the project and edits code or assets.", image: "change" },
+  { title: "Run checks", description: "Unity runs the tests or build. Scripts save results and logs.", image: "checks" },
+  { title: "Review the result", description: "You check the changes, test results, and game behavior.", image: "review" }
 ];
 
 export default function AiWithUnityPage() {
@@ -41,8 +41,7 @@ export default function AiWithUnityPage() {
         <ol className={styles.loopSteps}>
           {workingLoop.map((step, index) => <li key={step.title}>
             <div className={styles.loopSymbol}><img src={`/images/agentic-workflow/${step.image}.webp`} width={256} height={256} alt="" decoding="async" /></div>
-            <span className={styles.loopRole}>{index + 1} · {step.role}</span>
-            <strong>{step.title}</strong>
+            <strong>{index + 1}. {step.title}</strong>
             <span className={styles.loopDescription}>{step.description}</span>
             {index < workingLoop.length - 1 && <span className={styles.loopArrow}><Icon name="arrow-right" size={20} /></span>}
           </li>)}

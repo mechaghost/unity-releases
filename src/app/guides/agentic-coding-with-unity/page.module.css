@@ -37,7 +37,6 @@
 .loopSteps li { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
 .loopSymbol { width: 128px; height: 128px; margin-bottom: var(--space-3); }
 .loopSymbol img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.loopRole { font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: var(--space-1); }
 .loopSteps strong { line-height: 1.4; }
 .loopDescription { margin-top: var(--space-2); font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.5; }
 .loopArrow { position: absolute; top: 54px; right: 0; color: var(--text-muted); }
