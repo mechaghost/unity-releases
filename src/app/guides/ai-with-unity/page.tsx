@@ -17,7 +17,22 @@ export default function AiWithUnityPage() {
       <h1>{title}</h1>
       <p>Put AI to work on the tests, builds, and repetitive jobs you keep putting off.</p>
     </header>
-    <p className={styles.intro}>Pick a task. Open its card for the workflow, a prompt to adapt, and what to check.</p>
+    <section className={styles.overview} aria-labelledby="overview-heading">
+      <h2 id="overview-heading">How the tools fit together</h2>
+      <p>Your coding agent writes code and scripts. Unity CLI and the Pipeline package let it work with your project and check the results in the Editor.</p>
+      <dl className={styles.tools}>
+        <div>
+          <dt>Unity CLI: the terminal tool</dt>
+          <dd>Install Editors and platform modules, open projects, and run commands from scripts or CI. It works without the Hub desktop app. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/use-unity-cli">Install and use the CLI</ExternalLink>.</dd>
+        </div>
+        <div>
+          <dt>Unity Pipeline: the Editor connection</dt>
+          <dd>A package inside your Unity 6+ project. It exposes Editor commands through a local API, so an agent can inspect and change the project through the CLI. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package">Pipeline setup and commands</ExternalLink>.</dd>
+        </div>
+      </dl>
+      <p><strong>The working loop:</strong> describe a task → let the agent inspect and change it → run tests or a build → review the evidence.</p>
+      <p>A CI pipeline runs your saved automation on a schedule or code change. The Pipeline package connects to the Editor; it is not a hosted CI service. <ExternalLink href="https://unity.com/resources/unity-pipeline-cli-technical-walkthrough">See Unity’s technical walkthrough</ExternalLink>.</p>
+    </section>
 
     <details id="setup" className={styles.setup}>
       <summary>First time? Connect your coding agent to Unity</summary>
@@ -33,14 +48,16 @@ unity command`}</code></pre>
       </div>
     </details>
 
-    <div className={styles.cards}>
-      {AI_GUIDE_EXAMPLES.map((example, index) => <section className={styles.card} id={example.id} key={example.id} aria-labelledby={`${example.id}-heading`}>
+    <h2 className={styles.examplesHeading}>Put it to work</h2>
+    <p className={styles.intro}>Open a card for the workflow, prompt, and checks. The notes explain what we’ve used in Mecha Drive and what remains a suggested extension.</p>
+    <div className={`guide-grid ${styles.cards}`}>
+      {AI_GUIDE_EXAMPLES.map((example, index) => <section className={`guide-card ${styles.card}`} id={example.id} key={example.id} aria-labelledby={`${example.id}-heading`}>
         <figure>
-          <img src={example.image.src} alt={example.image.alt} width={example.image.width} height={example.image.height} loading={index < 2 ? "eager" : "lazy"} decoding="async" />
+          <div className="guide-feature-image"><img src={example.image.src} alt={example.image.alt} width={example.image.width} height={example.image.height} loading={index < 2 ? "eager" : "lazy"} decoding="async" /></div>
           <figcaption>Image: <ExternalLink href={example.imageSource}>Unity release announcement</ExternalLink></figcaption>
         </figure>
-        <div className={styles.cardBody}>
-          <p className={styles.category}>{example.category}</p>
+        <div className={`guide-highlight-copy ${styles.cardBody}`}>
+          <div className="guide-badges"><span className="guide-badge">{example.category}</span></div>
           <h2 id={`${example.id}-heading`}>{example.title}</h2>
           <p className={styles.summary}>{example.summary}</p>
           <details className={styles.workflow}>
@@ -53,6 +70,8 @@ unity command`}</code></pre>
               <pre className={styles.prompt}><code>{example.prompt}</code></pre>
               <h3>Check the result</h3>
               <p>{example.checks}</p>
+              <h3>What we’ve checked</h3>
+              <p>{example.evidence}</p>
               {example.id === "sentis" && <p>Sentis runs trained models on the player’s CPU or GPU; it does not train them. The <ExternalLink href="https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/get-started.html">2.6 docs</ExternalLink> use <code>com.unity.ai.inference</code> and <code>Unity.InferenceEngine</code>. Match examples to your installed version.</p>}
               <p><ExternalLink href={example.link}>{example.linkText}</ExternalLink></p>
             </div>

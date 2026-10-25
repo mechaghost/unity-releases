@@ -54,5 +54,28 @@ layout costs still apply. Content lives in `src/lib/ai-guide-examples.ts`.
 cards, keyboard disclosure controls, workflow steps, prompts, setup, local image
 loading, and internal destinations. It checks overflow at 320px and accessibility
 in light/dark themes with cards closed and open, and saves screenshots. The
-collapsed overview stays below 500 words; detailed workflows have no artificial
+collapsed overview stays below 700 words; detailed workflows have no artificial
 word cap. Run typecheck and the focused production-build browser tests.
+
+## Mecha Drive cross-check — October 25, 2026
+
+Read the current ArmoredDrive/armored-drive source and saved receipts. This was
+a source/evidence review, not a fresh Unity run or deployment. No Mecha Drive
+files were changed. Historical receipts certify their captured revision and
+platform, not today's working tree. Each card now states its evidence and limits.
+
+| Card | Files inspected in ArmoredDrive/armored-drive | What they establish |
+| --- | --- | --- |
+| CI/CD | `package.json` (`validate`, `validate:release`, `check:content-admission`, `check:web-demo`) | Scripted checks exist. No running PR CI service, nightly schedule, or cache strategy was established. |
+| Game testing | `unity/Assets/ArmoredDrive/Tests/EditMode/RecordedDriveTests.cs`; `docs/design/music-web-delivery-2026-10-17/README.md` and `browser-live.json` | Recorded-drive regression tests and historical live finish/pause/retry/reload checks. The inventory/death example is an adaptation. |
+| Deployment | `tools/web/release.mjs`; the October 17 delivery README | Package verification before deployment commits; saved successful deployment and live browser evidence. Automatic preview promotion and rollback drills are suggestions. |
+| Assets | `tools/content/texture-compression.test.mjs`; the October 17 delivery README | Source hashes, GUID preservation, compression receipts, and 2,273 imported art texture checks. Generic missing-script scanning is an extension. |
+| Performance | `docs/design/interstate-full-route-2026-10-25.json`; `docs/levels/interstate-completion-2026-10-22.md` | Matched images, recordings, and Editor timings. The slower Ironwater draw-range approach was rejected. The receipt explicitly leaves phone timing, heat, and memory unverified. |
+| Sentis | Unity's official sample catalog and package docs | Official starting point only; no Mecha Drive implementation or runtime result. |
+
+The visible overview distinguishes standalone CLI, the in-project Pipeline
+package, and hosted CI. Setup links were rechecked against official documentation.
+Cards reuse the site's `guide-grid`, `guide-card`, `guide-feature-image`,
+`guide-highlight-copy`, and `guide-badge` classes for the same surfaces, image
+frames, spacing, and responsive behavior as the release cards. The overview
+and closed cards together stay under 700 words.

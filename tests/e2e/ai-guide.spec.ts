@@ -10,10 +10,13 @@ test("AI guide is discoverable and its workflow cards work on desktop and mobile
   await expect(page.locator('.lnav a[aria-current="page"]')).toHaveText("AI with Unity");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/guides\/ai-with-unity$/);
   await expect(page.locator("main")).not.toContainText(/Muse|MCP/);
-  const cards = page.locator("main section");
+  await expect(page.getByRole("heading", { name: "How the tools fit together" })).toBeVisible();
+  await expect(page.locator("main dl")).toContainText("Unity CLI: the terminal tool");
+  await expect(page.locator("main dl")).toContainText("Unity Pipeline: the Editor connection");
+  const cards = page.locator("main .guide-card");
   await expect(cards).toHaveCount(6);
   const wordCount = (await page.locator("main").innerText()).trim().split(/\s+/).length;
-  expect(wordCount).toBeLessThan(500);
+  expect(wordCount).toBeLessThan(700);
   for (const card of await cards.all()) {
     const disclosure = card.locator("summary");
     await disclosure.focus();
@@ -22,6 +25,7 @@ test("AI guide is discoverable and its workflow cards work on desktop and mobile
     await expect(card.getByRole("heading", { name: "Workflow", exact: true })).toBeVisible();
     await expect(card.locator("ol li")).toHaveCount(3);
     await expect(card.locator("pre")).toBeVisible();
+    await expect(card.getByRole("heading", { name: "What we’ve checked" })).toBeVisible();
     await expect(card.getByRole("heading", { name: "Check the result" })).toBeVisible();
     await disclosure.focus();
     await page.keyboard.press("Enter");

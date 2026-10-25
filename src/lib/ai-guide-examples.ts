@@ -20,6 +20,7 @@ Run Edit Mode and Play Mode tests, then build the Windows test player. Keep logs
 Add timeouts and cancel superseded branch runs. Summarize the first actionable error with its file and line.
 Prove the gate works with one deliberately failing test, then remove that test and run again.`,
     checks: "A broken test blocks the build. A clean checkout succeeds. A cache miss still works. CI uploads useful evidence on failure.",
+    evidence: "Mecha Drive has scripted content, level, build, and release checks. This pull-request schedule, cache setup, and failure-summary job are suggested extensions; they were not verified as a running CI service.",
     link: "https://docs.unity.com/en-us/engine/6000.3/manual/programming-environment/test-framework-introduction/running-tests/run-tests-from-command-line", linkText: "Unity: tests from the command line"
   },
   {
@@ -38,6 +39,7 @@ Add a case where two colliders hit on the same frame. Isolate test saves and cle
 Reproduce the existing double-damage bug before fixing it. Keep the regression test and attach failure logs.
 Report which checks ran in the Editor, in a built player, and which still need a person.`,
     checks: "The test fails on the original bug and passes after the fix. Repeated runs start clean. A person still checks feel, readability, and controls.",
+    evidence: "Mecha Drive uses recorded-drive tests for contact timing, rewards, and run outcomes. Its October 17 web checks recorded a finish, pause/resume, Retry, and reload. The key-and-death scenario above is an adaptation, not a test we ran there.",
     link: cliSource, linkText: "Unity: Pipeline technical walkthrough"
   },
   {
@@ -56,6 +58,7 @@ Publish a preview. In a real browser, verify the loader, compressed files, first
 Promote those exact files using our production approval rules; do not rebuild them.
 Verify the live version and document a rollback to the previous build. If a step fails, stop and retain its logs.`,
     checks: "The deployed commit matches the tested build. A real browser reaches gameplay. A rollback restores the earlier version and its content.",
+    evidence: "Mecha Drive’s release script verifies the package before creating a deployment commit. The October 17 receipt records live WebGPU gameplay, Retry, reload, health checks, and versioned gzip delivery. Automated preview promotion and rollback drills remain extensions.",
     link: "https://docs.unity.com/en-us/build-automation/build-automation-glossary", linkText: "Unity: build and deployment terms"
   },
   {
@@ -74,6 +77,7 @@ Add a command that CI can run, with asset paths and a nonzero exit code for bloc
 Apply only the import fixes we select. Preserve .meta files and GUIDs. Do not delete assets just because a simple reference search misses them.
 Compare the affected scene screenshots and build size before and after.`,
     checks: "An intentionally broken prefab fails validation. Exceptions stay explicit. Running fixes twice creates no extra changes or broken references.",
+    evidence: "Mecha Drive checks texture compression, source hashes, preserved GUIDs, and gameplay content rules. Its October 17 build receipt records checks for 2,273 imported art textures. The generic missing-script and prefab scanner above is an extension.",
     link: cliSource, linkText: "Unity: custom Editor automation"
   },
   {
@@ -92,6 +96,7 @@ Compare with the last accepted build using our existing budgets. Save raw result
 Investigate the largest repeatable regression. Make one focused fix, then compare performance and matching screenshots.
 Do not reduce enemy count or visual quality to make the numbers pass.`,
     checks: "The comparison uses the same hardware and settings. The slowdown repeats. The fix improves the measured cost without changing the intended scene.",
+    evidence: "Mecha Drive’s October 25 review compares matched recordings, images, and Editor GPU timings. It rejected an optimization that made Ironwater slower. Physical-phone timing was still unverified; a nightly device job is an extension.",
     link: "https://unity.com/blog/engine-platform/performance-benchmarking-in-unity-how-to-get-started", linkText: "Unity: performance benchmarking"
   },
   {
@@ -110,6 +115,7 @@ Trigger an action only after a raised hand is held briefly. Add smoothing, adjus
 When the person leaves the frame, stop camera-driven movement and retain keyboard controls.
 Measure inference time and memory on the target device. Test repeated camera start/stop cycles for leaks.`,
     checks: "Low-confidence poses do not trigger actions. Losing the camera returns control cleanly. Frame time and memory stay within the device budget.",
+    evidence: "This example is based on Unity’s official Sentis samples and versioned docs. It has not been implemented or validated in Mecha Drive.",
     link: "https://github.com/Unity-Technologies/sentis-samples", linkText: "Unity: Sentis samples"
   }
 ] as const;
