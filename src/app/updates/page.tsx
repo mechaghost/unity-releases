@@ -16,7 +16,7 @@ import { productUpdatesSchemaReady } from "@/lib/product-updates/repositories";
 export const dynamic = "force-dynamic";
 
 const DESCRIPTION =
-  "Validated release notes for Unity products beyond the Editor, organized by product family and kept separate from core upgrade intelligence.";
+  "Release notes for Unity products beyond the Editor, organized by product family.";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -55,9 +55,8 @@ export default async function ProductUpdatesPage({
           </div>
         </div>
         <p>
-          Release notes for Unity products beyond the Editor. These sources are
-          isolated from Editor ingestion, so a changing product page cannot affect
-          upgrade comparisons, release search, issues, or packages.
+          Browse release notes for Unity tools, services, and platforms.
+          Choose a product family to find versions, changes, and official release notes.
         </p>
       </section>
 

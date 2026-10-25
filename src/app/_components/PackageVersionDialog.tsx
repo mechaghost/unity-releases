@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
+import { formatReleaseDate } from "@/lib/format-date";
 import { makeInert, trapTabFocus } from "@/lib/focus";
 import { renderChangelog } from "@/lib/changelog-markdown";
 import { editorPrereleaseLabel } from "@/lib/version-compare";
@@ -280,7 +281,7 @@ function VersionList({ data }: { data: PackageDetail }) {
             <div className="pkg-version__head">
               <span className="pkg-version__num tabnums">{v.version}</span>
               <span className="pkg-version__meta">
-                {v.publishedAt ? formatDate(v.publishedAt) : "Unknown date"}
+                {v.publishedAt ? formatReleaseDate(v.publishedAt) : "Unknown date"}
                 {v.isPrerelease ? (
                   <span className="pkg-version__pre">Prerelease</span>
                 ) : null}
@@ -321,12 +322,4 @@ function VersionList({ data }: { data: PackageDetail }) {
       </ol>
     </>
   );
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
 }

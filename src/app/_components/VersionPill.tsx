@@ -35,8 +35,8 @@ const STREAM_MARK: Record<string, string> = {
   preview: "B"
 };
 
-export function streamMark(stream?: string | null): string {
-  if (!stream) return "U";
+export function streamMark(stream?: string | null): string | undefined {
+  if (!stream) return undefined;
   const key = stream.toLowerCase();
   return STREAM_MARK[key] ?? key.charAt(0).toUpperCase();
 }

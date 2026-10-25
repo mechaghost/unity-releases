@@ -5,8 +5,8 @@ import { DOMAINS, DOMAIN_KEYWORDS, type Domain } from "@/lib/visualizer-domains"
 import { HoverInfo } from "@/app/_components/HoverInfo";
 
 /**
- * URL-state filter chips. Sticky at the top of the page; every chart
- * below reads `?domain=` from the URL via the server component.
+ * URL-state filter chips for stability, known-issue trends, lifespans,
+ * and facts. The other charts keep their all-domain scope.
  *
  * "All" clears the filter. Selecting a domain replaces it (single-select).
  */
@@ -37,6 +37,7 @@ export function DomainFilterChips({ activeDomain }: { activeDomain: Domain | "Ot
       </button>
       {DOMAINS.map((d) => (
         <HoverInfo
+          asChild
           key={d}
           title={`Domain: ${d}`}
           body={
@@ -54,8 +55,9 @@ export function DomainFilterChips({ activeDomain }: { activeDomain: Domain | "Ot
                 ))}
               </p>
               <p className="muted">
-                Pinning a domain narrows every chart on this page to notes
-                in this bucket, and re-scores the Top-10 facts in domain.
+                Filters stability, the known-issue trend, issue lifespans, and
+                Top-10 facts. Build scores, the area heatmap, packages, and
+                patch cadence keep their full scope.
               </p>
             </>
           }
@@ -71,6 +73,7 @@ export function DomainFilterChips({ activeDomain }: { activeDomain: Domain | "Ot
         </HoverInfo>
       ))}
       <HoverInfo
+        asChild
         title="Domain: Other"
         body={
           <p>

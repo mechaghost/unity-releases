@@ -76,6 +76,7 @@ export function FilterDrawer({
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const initialSerialized = useRef<string>(JSON.stringify(initial));
+  const wasOpen = useRef(false);
 
   const applyFilters = useCallback(() => {
     const next = JSON.stringify(state);
@@ -96,14 +97,14 @@ export function FilterDrawer({
   const closeRef = useRef(close);
   closeRef.current = close;
 
-  // Reset internal state to whatever the server reported whenever the drawer
-  // opens - guarantees the form mirrors the active URL state, not a stale
-  // edit from a previous open.
+  // Start each editing session from the URL. Responses to our own automatic
+  // updates must not replace newer edits made while a request was in flight.
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpen.current) {
       setState(initial);
       initialSerialized.current = JSON.stringify(initial);
     }
+    wasOpen.current = open;
   }, [open, initial]);
 
   // Body scroll lock while the surface is open.
@@ -208,6 +209,7 @@ export function FilterDrawer({
           <Section title="Search" count={state.q ? 1 : 0}>
             <input
               type="search"
+              aria-label="Search release notes"
               className="filter-input"
               placeholder="memory leak, GC.Alloc, compute shader…"
               value={state.q}
@@ -218,6 +220,7 @@ export function FilterDrawer({
           <Section title="Issue ID" count={state.issueId ? 1 : 0}>
             <input
               type="text"
+              aria-label="Issue ID"
               className="filter-input"
               placeholder="UUM-12345"
               value={state.issueId}
@@ -266,6 +269,7 @@ export function FilterDrawer({
             >
               <div className="filter-subrange">
                 <select
+                  aria-label="Sub-range start version"
                   value={state.subFromVersion}
                   onChange={(e) =>
                     setState({ ...state, subFromVersion: e.target.value })
@@ -280,6 +284,7 @@ export function FilterDrawer({
                 </select>
                 <span aria-hidden="true">→</span>
                 <select
+                  aria-label="Sub-range end version"
                   value={state.subToVersion}
                   onChange={(e) =>
                     setState({ ...state, subToVersion: e.target.value })
@@ -558,6 +563,7 @@ function PresetsSection({
               type="text"
               className="filter-input"
               placeholder="Save current as…"
+              aria-label="Preset name"
               value={name}
               maxLength={40}
               onChange={(e) => setName(e.target.value)}

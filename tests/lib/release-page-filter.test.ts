@@ -81,6 +81,11 @@ describe("buildReleaseFilters", () => {
 });
 
 describe("release page filters", () => {
+  test("preserves an explicitly empty selection without changing defaults", () => {
+    expect(parseSelectedReleaseFilters("none", FILTERS)).toEqual([]);
+    expect(parseSelectedReleaseFilters(["none", "beta"], FILTERS)).toEqual(["beta"]);
+    expect(releasePageHref(1, [])).toBe("/releases?stream=none");
+  });
   test("defaults to every modern LTS line and Supported updates", () => {
     expect(parseSelectedReleaseFilters(undefined, FILTERS)).toEqual([
       "6000.3-lts",

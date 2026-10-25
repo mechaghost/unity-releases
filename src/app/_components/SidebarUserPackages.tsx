@@ -40,6 +40,7 @@ export function SidebarUserPackages({ packages }: Props) {
       <form className="sidebar-packages__form" onSubmit={handleSubmit}>
         <textarea
           name="manifest"
+          aria-label="Package manifest or package names"
           rows={5}
           placeholder={`Paste your manifest.json or list package names…\n\ncom.unity.inputsystem\ncom.unity.cinemachine`}
           defaultValue={packages.join("\n")}

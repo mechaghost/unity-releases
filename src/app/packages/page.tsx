@@ -1,3 +1,4 @@
+import { formatReleaseDate } from "@/lib/format-date";
 import type { ReactNode } from "react";
 import { listPackages, getEditorBundledVersions, type EditorBundledVersion } from "@/lib/db/repositories";
 import { isRegistryFrozen } from "@/lib/ingest/unity-packages";
@@ -214,11 +215,11 @@ export default async function PackagesPage({ searchParams }: { searchParams: Sea
                     ) : null}
                   </td>
                   <td data-label="Channel">
-                    {pkg.latest_is_prerelease ? (
-                      <span className="chip chip--impact-known_issue">Pre</span>
+                    {pkg.latest_version && pkg.latest_is_prerelease === true ? (
+                      <span className="chip chip--impact-known_issue">Prerelease</span>
                     ) : (
                       <span className="muted text-xs">
-                        Stable
+                        {pkg.latest_version && pkg.latest_is_prerelease === false ? "Stable" : "Unknown"}
                       </span>
                     )}
                   </td>
@@ -297,8 +298,8 @@ function matchesPackage(
   input: { q: string; scope: ScopeKey; channel: ChannelKey; userSet: Set<string> }
 ) {
   if (input.scope === "manifest" && !input.userSet.has(pkg.name)) return false;
-  if (input.channel === "stable" && pkg.latest_is_prerelease) return false;
-  if (input.channel === "prerelease" && !pkg.latest_is_prerelease) return false;
+  if (input.channel === "stable" && (!pkg.latest_version || pkg.latest_is_prerelease !== false)) return false;
+  if (input.channel === "prerelease" && (!pkg.latest_version || pkg.latest_is_prerelease !== true)) return false;
   if (!input.q) return true;
 
   const haystack = [
@@ -353,17 +354,14 @@ function parseChannel(value: string | undefined): ChannelKey {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  return formatReleaseDate(iso);
 }
 
 function formatMonthYear(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
-    month: "short"
+    month: "short",
+    timeZone: "UTC"
   });
 }
 

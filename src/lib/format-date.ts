@@ -1,15 +1,17 @@
 /**
  * Shared "released on" date formatter. Used by /releases, /releases/[version],
  * and /compare so a release date renders identically everywhere.
+ * Publication dates use UTC and a fixed locale on both server and client.
  *
  * Accepts ISO strings (most repository reads) or Date instances (some pg
  * column reads, depending on parser config).
  */
 export function formatReleaseDate(value: string | Date): string {
-  return new Date(value).toLocaleDateString(undefined, {
+  return new Date(value).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
-    day: "numeric"
+    day: "numeric",
+    timeZone: "UTC"
   });
 }
 

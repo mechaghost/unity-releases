@@ -100,10 +100,10 @@ describe("streamMark", () => {
     expect(streamMark("z")).toBe("Z");
   });
 
-  test("returns 'U' (the most stable assumption) for null / empty", () => {
-    expect(streamMark(null)).toBe("U");
-    expect(streamMark(undefined)).toBe("U");
-    expect(streamMark("")).toBe("U");
+  test("omits the marker when the stream is unknown", () => {
+    expect(streamMark(null)).toBeUndefined();
+    expect(streamMark(undefined)).toBeUndefined();
+    expect(streamMark("")).toBeUndefined();
   });
 });
 

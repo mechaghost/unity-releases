@@ -143,6 +143,8 @@ export function parseSelectedReleaseFilters(
   });
 
   if (selected.length > 0) return Array.from(new Set(selected));
+  // Checkbox forms submit this sentinel so clearing every option stays empty.
+  if (values.some((value) => value === "none")) return [];
   // An explicit LTS scope stays empty when there are no LTS releases yet.
   if (values.some((value) => typeof value === "string" && value.toLowerCase() === "lts")) return [];
   return defaults;
@@ -260,6 +262,7 @@ export function releasePageHref(
   defaults: readonly ReleaseFilterValue[] = []
 ): string {
   const params = new URLSearchParams();
+  if (selectedFilters.length === 0) params.set("stream", "none");
   if (!selectedFiltersAreDefault(selectedFilters, defaults)) {
     for (const filter of selectedFilters) {
       params.append("stream", filter);

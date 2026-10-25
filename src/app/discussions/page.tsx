@@ -1,3 +1,6 @@
+import { pageBounds, pageNumber } from "@/lib/pagination";
+import { LoadError } from "../_components/LoadError";
+import { formatReleaseDate } from "@/lib/format-date";
 import {
   listDiscoursePosts,
   listDiscourseFilterFacets,
@@ -68,7 +71,7 @@ export default async function DiscussionsPage({
   // and their content duplicates /issues. Explicitly filtering by that
   // author still works (the repo layer skips the exclusion then).
   const includeAutomated = firstString(params.bots) === "1";
-  const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
+  const requestedPage = pageNumber(params.page);
 
   const [facets, stats] = await Promise.all([safeFacets(), safeStats()]);
 
@@ -79,7 +82,7 @@ export default async function DiscussionsPage({
     ? facets.categories.find((c) => c.slug === categorySlug)?.discourseCategoryId
     : undefined;
 
-  const { items, total } = await safeListPosts({
+  const { items, total, page, error } = await safeListPosts({
     q: q || undefined,
     categoryIds: categoryId ? [categoryId] : undefined,
     usernames: author ? [author] : undefined,
@@ -87,7 +90,7 @@ export default async function DiscussionsPage({
     firstPostOnly: !includeReplies,
     includeAutomated,
     sort,
-    page,
+    page: requestedPage,
     perPage: PER_PAGE
   });
 
@@ -151,7 +154,7 @@ export default async function DiscussionsPage({
         authors={authorOptions}
       />
 
-      <div className="list-toolbar">
+      {!error && <div className="list-toolbar">
         <span className="list-toolbar__count">
           <strong className="tabnums">{total.toLocaleString()}</strong>{" "}
           {includeReplies
@@ -166,9 +169,9 @@ export default async function DiscussionsPage({
             <> · showing {start.toLocaleString()}–{end.toLocaleString()}</>
           ) : null}
         </span>
-      </div>
+      </div>}
 
-      {items.length === 0 ? (
+      {error ? <LoadError subject="staff discussions" retryHref={hrefFor(requestedPage)} /> : items.length === 0 ? (
         <div className="empty-state">
           <h2>
             {filtered ? "No staff posts match these filters." : "No staff posts indexed yet."}
@@ -189,7 +192,7 @@ export default async function DiscussionsPage({
         </ul>
       )}
 
-      {totalPages > 1 ? (
+      {!error && totalPages > 1 ? (
         <nav className="lane__pagination" aria-label="Staff discussion pagination">
           <span className="lane__pagination-status">
             Page <strong className="tabnums">{page}</strong> of{" "}
@@ -335,11 +338,7 @@ function DiscussionCard({ post }: { post: DiscoursePostListItem }) {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  return formatReleaseDate(iso);
 }
 
 function firstString(value: string | string[] | undefined): string {
@@ -373,10 +372,13 @@ async function safeStats(): Promise<DiscoursePostStats> {
 
 async function safeListPosts(
   filters: Parameters<typeof listDiscoursePosts>[0]
-): Promise<{ items: DiscoursePostListItem[]; total: number }> {
+): Promise<{ items: DiscoursePostListItem[]; total: number; page: number; error: boolean }> {
   try {
-    return await listDiscoursePosts(filters);
+    let result = await listDiscoursePosts(filters);
+    const { page } = pageBounds(result.total, filters.page ?? 1, filters.perPage ?? PER_PAGE);
+    if (page !== (filters.page ?? 1)) result = await listDiscoursePosts({ ...filters, page });
+    return { ...result, page, error: false };
   } catch {
-    return { items: [], total: 0 };
+    return { items: [], total: 0, page: 1, error: true };
   }
 }

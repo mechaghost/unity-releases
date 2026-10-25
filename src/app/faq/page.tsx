@@ -511,9 +511,9 @@ const SECTIONS: Section[] = [
               </li>
             </ul>
             <p>
-              The domain filter chips at the top pin every chart to one
-              subsystem; the Top-10 facts panel on the side surfaces
-              dynamic SQL-driven highlights (longest-open blocker,
+              The domain filter applies to stability, the known-issue trend,
+              issue lifespans, and Top-10 facts. Other charts show all domains.
+              The Top-10 facts panel highlights (longest-open blocker,
               fastest fix turnaround, biggest breaking patch, etc.). The
               trust rail at the bottom names every formula and the last
               ingestion timestamps.

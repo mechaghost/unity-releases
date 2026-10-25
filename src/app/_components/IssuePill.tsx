@@ -6,6 +6,7 @@ import {
   type IssueStatus
 } from "@/lib/issue-status";
 import { HoverInfo } from "./HoverInfo";
+import { Icon } from "./Icon";
 
 type IssuePillProps = {
   id: string;
@@ -41,32 +42,42 @@ export function IssuePill({ id, url, status, compact = false }: IssuePillProps) 
   if (compact) return chip;
 
   return (
-    <HoverInfo
-      // asChild: the chip itself is already a focusable <a>. Avoids
-      // doubling the tab stops on lane-heavy pages (~50 issue pills
-      // per release-detail view).
-      asChild
-      title={id}
-      body={
-        <>
-          <p>
-            <strong>{statusHeadline(status)}</strong>
-          </p>
-          {statusBody(status)}
-        </>
-      }
-      footer={
-        <>
-          <a href={`/issues/${encodeURIComponent(id)}`}>All mentions of {id}</a>
-          {" · "}
-          <a href={href} target="_blank" rel="noopener noreferrer">
-            Unity Issue Tracker ↗
-          </a>
-        </>
-      }
-    >
-      {chip}
-    </HoverInfo>
+    <span className="issue-links">
+      <HoverInfo
+        // asChild: the chip itself is already a focusable <a>. Avoids
+        // doubling the tab stops on lane-heavy pages (~50 issue pills
+        // per release-detail view).
+        asChild
+        title={id}
+        body={
+          <>
+            <p>
+              <strong>{statusHeadline(status)}</strong>
+            </p>
+            {statusBody(status)}
+          </>
+        }
+        footer={
+          <>
+            <a href={`/issues/${encodeURIComponent(id)}`}>All mentions of {id}</a>
+            {" · "}
+            <a href={href} target="_blank" rel="noopener noreferrer">
+              Unity Issue Tracker ↗
+            </a>
+          </>
+        }
+      >
+        {chip}
+      </HoverInfo>
+      <a
+        className="chip issue-links__history"
+        href={`/issues/${encodeURIComponent(id)}`}
+        aria-label={`All mentions of ${id}`}
+        title={`All mentions of ${id}`}
+      >
+        <Icon name="clock" size={12} />
+      </a>
+    </span>
   );
 }
 

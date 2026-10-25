@@ -1,3 +1,4 @@
+import { formatReleaseDate } from "@/lib/format-date";
 import { ExternalLink } from "../../_components/ExternalLink";
 import {
   getProductUpdatePrimaryAction,
@@ -644,10 +645,5 @@ export function ProductUpdatesUnavailable() {
 export function formatProductUpdateDate(value: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC"
-  });
+  return formatReleaseDate(date);
 }

@@ -1,3 +1,4 @@
+import { formatReleaseDate } from "@/lib/format-date";
 import { listResources, type ResourceRow } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
 import { ResourcesFilter } from "../_components/ResourcesFilter";
@@ -146,11 +147,7 @@ function collectStrings(value: string | string[] | undefined): string[] {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  return formatReleaseDate(iso);
 }
 
 async function safeListResources(filters: Parameters<typeof listResources>[0], requestedPage: number) {

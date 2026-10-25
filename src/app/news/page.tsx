@@ -1,3 +1,4 @@
+import { formatReleaseDate } from "@/lib/format-date";
 import { listLatestBlogPosts } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
 import { NewsRowClient } from "../_components/NewsRowClient";
@@ -72,11 +73,7 @@ export default async function NewsPage() {
 
 function formatDate(iso: string | null): string {
   if (!iso) return "Date not supplied";
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  return formatReleaseDate(iso);
 }
 
 async function safeListNews() {

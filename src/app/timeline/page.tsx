@@ -4,8 +4,10 @@ import type { Metadata } from "next";
 import { listTimelineFeed, type TimelineEvent } from "@/lib/db/repositories";
 import { TimelineFilter } from "../_components/TimelineFilter";
 import { Icon, type IconName } from "../_components/Icon";
-import { formatRelativeDate } from "@/lib/format-date";
+import { formatReleaseDate, formatRelativeDate } from "@/lib/format-date";
 import { pageSocialMetadata } from "@/lib/site";
+import { firstQueryValue, queryParams } from "@/lib/pagination";
+import { LoadError } from "../_components/LoadError";
 
 export const dynamic = "force-dynamic";
 
@@ -24,15 +26,16 @@ export const metadata: Metadata = {
 };
 
 type SearchParams = Promise<{
-  q?: string;
-  filter?: string;
+  q?: string | string[];
+  filter?: string | string[];
 }>;
 
 export default async function TimelinePage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const q = (params.q ?? "").trim().toLowerCase();
+  const search = firstQueryValue(params.q);
+  const q = search.trim().toLowerCase();
   const showProductUpdates = process.env.PRODUCT_UPDATE_UI_ENABLED === "true";
-  const requestedFilter = params.filter ?? "all";
+  const requestedFilter = firstQueryValue(params.filter) || "all";
   const filterKey =
     requestedFilter === "content" ||
     requestedFilter === "system" ||
@@ -47,7 +50,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Sea
   );
 
   // Apply filters
-  let filtered = allEvents;
+  let filtered = allEvents ?? [];
   if (filterKey === "content") {
     filtered = filtered.filter((e) => e.type === "content");
   } else if (filterKey === "system") {
@@ -91,14 +94,16 @@ export default async function TimelinePage({ searchParams }: { searchParams: Sea
 
       <div className="packages-settings">
         <TimelineFilter
-          q={params.q ?? ""}
+          q={search}
           filter={filterKey}
           showProductUpdates={showProductUpdates}
         />
       </div>
 
       <div className="timeline-section">
-        {filtered.length === 0 ? (
+        {allEvents === null ? (
+          <LoadError subject="activity" retryHref={`/timeline?${queryParams(params).toString()}`} />
+        ) : filtered.length === 0 ? (
           <div className="empty-state">
             <h2>No activity logs found.</h2>
             <p>Try clearing search or picking another filter option.</p>
@@ -424,24 +429,19 @@ function formatDateTime(value: string | Date): string {
 
 function formatTimelineTimestamp(event: TimelineEvent): string {
   if (event.type === "content" && event.eventType === "product_update") {
-    return new Date(event.timestamp).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      timeZone: "UTC"
-    });
+    return formatReleaseDate(event.timestamp);
   }
   return formatDateTime(event.timestamp);
 }
 
 async function safeListTimelineFeed(
   productUpdates: "exclude" | "only"
-): Promise<TimelineEvent[]> {
+): Promise<TimelineEvent[] | null> {
   try {
     return await listTimelineFeed(200, { productUpdates });
   } catch (err) {
     console.error("Failed to load timeline feed:", err);
-    return [];
+    return null;
   }
 }
 

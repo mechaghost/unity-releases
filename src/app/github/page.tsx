@@ -1,3 +1,5 @@
+import { pageBounds, pageNumber } from "@/lib/pagination";
+import { LoadError } from "../_components/LoadError";
 import {
   listGithubRepos,
   listGithubRepoFacets,
@@ -57,14 +59,14 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
   const dir = normalizeGithubDir(firstString(params.dir));
   const notableOnly = firstString(params.notable) === "1";
   const includeForks = firstString(params.forks) === "1";
-  const page = Math.max(1, parseInt(firstString(params.page) || "1", 10) || 1);
+  const requestedPage = pageNumber(params.page);
 
   // When the user is searching by name, span everything (archived + forks)
   // so a specific repo is findable even if it's archived or a fork — those
   // are only hidden from the default *browse*, not from explicit search.
   const searching = q.length > 0;
 
-  const [stats, facets, { items, total }] = await Promise.all([
+  const [stats, facets, { items, total, page, error }] = await Promise.all([
     safeStats(),
     safeFacets(),
     safeListRepos({
@@ -76,7 +78,7 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
       includeForks: searching || includeForks,
       sort,
       direction: dir,
-      page,
+      page: requestedPage,
       perPage: PER_PAGE
     })
   ]);
@@ -176,23 +178,23 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
         languages={languageOptions}
       />
 
-      <div className="list-toolbar">
+      {!error && <div className="list-toolbar">
         <span className="list-toolbar__count">
           <strong className="tabnums">{total.toLocaleString()}</strong>{" "}
           {total === 1 ? "repository" : "repositories"}
           {q ? <> matching <code>{q}</code></> : null}
           {total > 0 ? <> · showing {start.toLocaleString()}–{end.toLocaleString()}</> : null}
         </span>
-      </div>
+      </div>}
 
-      {items.length === 0 ? (
+      {error ? <LoadError subject="repositories" retryHref={hrefFor(requestedPage)} /> : items.length === 0 ? (
         <div className="empty-state">
           <h2>{filtered ? "No repositories match these filters." : "No repositories indexed yet."}</h2>
           <p>
             {filtered ? (
               <>Loosen the search, clear the language, or untick Notable only.</>
             ) : (
-              <>Run <code>npm run ingest:github</code> (with <code>GITHUB_TOKEN</code> set) to mirror the Unity-Technologies org.</>
+              <>Repositories will appear after the next successful update.</>
             )}
           </p>
         </div>
@@ -204,7 +206,7 @@ export default async function GithubPage({ searchParams }: { searchParams: Searc
         </ul>
       )}
 
-      {totalPages > 1 ? (
+      {!error && totalPages > 1 ? (
         <nav className="lane__pagination" aria-label="Repository pagination">
           <span className="lane__pagination-status">
             Page <strong className="tabnums">{page}</strong> of{" "}
@@ -268,11 +270,11 @@ function RepoCard({ repo, activity }: { repo: GithubRepoListItem; activity?: Rep
   return (
     <li className="github-card">
       <header className="github-card__head">
-        <h3 className="github-card__name">
+        <h2 className="github-card__name">
           <ExternalLink href={repo.htmlUrl} className="link-internal--accent">
             {repo.name}
           </ExternalLink>
-        </h3>
+        </h2>
         {activity?.releaseTag ? (
           <span className="chip github-card__release" title="Recent release">
             Released {activity.releaseTag}
@@ -347,10 +349,13 @@ async function safeActivity(fullNames: string[]): Promise<Map<string, RepoLatest
 
 async function safeListRepos(
   filters: Parameters<typeof listGithubRepos>[0]
-): Promise<{ items: GithubRepoListItem[]; total: number }> {
+): Promise<{ items: GithubRepoListItem[]; total: number; page: number; error: boolean }> {
   try {
-    return await listGithubRepos(filters);
+    let result = await listGithubRepos(filters);
+    const { page } = pageBounds(result.total, filters.page ?? 1, filters.perPage ?? PER_PAGE);
+    if (page !== (filters.page ?? 1)) result = await listGithubRepos({ ...filters, page });
+    return { ...result, page, error: false };
   } catch {
-    return { items: [], total: 0 };
+    return { items: [], total: 0, page: 1, error: true };
   }
 }

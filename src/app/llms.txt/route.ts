@@ -159,9 +159,8 @@ filtering UI.
 - [Compare versions](${origin}/compare) - pick two versions
   to diff. Same data as \`/compare.md\` rendered with filtering UI.
 - [Editor Releases](${origin}/releases) - every indexed Unity editor
-  release. The current LTS lines are shown by default; the chip row
-  reveals the Supported / Beta / Alpha streams and the legacy LTS
-  lines. (See the indexed-lines list above for the exact set.)
+  release. Current LTS lines and Supported updates are shown by default;
+  the chip row adds Beta / Alpha streams and legacy LTS lines. (See the indexed-lines list above for the exact set.)
 - [Per-release notes](${origin}/releases/6000.0.74f1) - replace the
   version segment with any indexed release; the body shows lane-bucketed
   release notes for that single release.

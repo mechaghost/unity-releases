@@ -4520,7 +4520,8 @@ button.filter-section__head:focus-visible {
   .filter-bar { gap: var(--space-2); margin-bottom: var(--space-4); }
   .filter-bar > label,
   .filter-bar > .field { flex: 1 1 100%; }
-  .stream-checkbox-filter > .stream-checkbox-filter__option { flex: 0 1 auto; }
+  .filter-bar > .resources-filter__search { flex-basis: 100%; min-width: 0; }
+  .filter-bar > label.stream-checkbox-filter__option { flex: 0 1 auto; }
   .stream-checkbox-filter { margin-bottom: var(--space-4); }
   .card { border-radius: var(--radius-md); }
 
@@ -6140,6 +6141,9 @@ button.filter-section__head:focus-visible {
   border-radius: var(--radius-xs);
   outline: none;
 }
+
+.issue-links { display: inline-flex; align-items: center; gap: var(--space-1); }
+.issue-links__history { min-width: 24px; min-height: 24px; justify-content: center; }
 .hover-info__trigger:focus-visible {
   box-shadow: 0 0 0 2px var(--border-focus);
 }

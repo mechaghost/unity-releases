@@ -51,9 +51,8 @@ export async function TrackedVersionsAnswer() {
       <>
         <p>
           Unity 6 and newer (<code>6000.x</code> and up) is the primary focus.
-          LTS minor lines get pinned by default; <strong>Supported</strong>,{" "}
-          <strong>Beta</strong>, and <strong>Alpha</strong> chips reveal the
-          rest.
+          Current LTS lines and <strong>Supported</strong> updates are shown by default.
+          Use the <strong>Beta</strong> and <strong>Alpha</strong> chips to include previews.
         </p>
         <p>
           Legacy LTS lines are also indexed for upgrade planning. Pre-2019 lines
@@ -99,8 +98,8 @@ export async function TrackedVersionsAnswer() {
       })}
 
       <p>
-        LTS lines get pinned by default; the <strong>Supported</strong>,{" "}
-        <strong>Beta</strong>, and <strong>Alpha</strong> chips reveal the rest.
+        Current LTS lines and <strong>Supported</strong> updates are shown by default.
+        Use the <strong>Beta</strong> and <strong>Alpha</strong> chips to include previews.
       </p>
 
       {legacy.length > 0 ? (

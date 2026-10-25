@@ -35,6 +35,7 @@ export function ReleaseStreamChips({
       action="/releases"
       aria-label="Stream filter"
     >
+      <input type="hidden" name="stream" value="none" />
       {sortKey ? <input type="hidden" name="sort" value={sortKey} /> : null}
       {options.map((option) => {
         const checked = selectedSet.has(option.value);

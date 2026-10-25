@@ -9,8 +9,12 @@ const STORAGE_KEY = "unity-releases:theme";
 
 function readSavedTheme(): Theme | null {
   if (typeof window === "undefined") return null;
-  const value = window.localStorage.getItem(STORAGE_KEY);
-  return value === "light" || value === "dark" ? value : null;
+  try {
+    const value = window.localStorage.getItem(STORAGE_KEY);
+    return value === "light" || value === "dark" ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 function preferredTheme(): Theme {

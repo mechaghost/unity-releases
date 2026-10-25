@@ -1,3 +1,4 @@
+import { pageBounds } from "@/lib/pagination";
 import { notFound } from "next/navigation";
 import {
   countProductUpdates,
@@ -67,7 +68,7 @@ export async function loadProductUpdates(options: {
   try {
     if (!(await productUpdatesSchemaReady())) return null;
     const pageSize = Math.min(Math.max(options.limit ?? 50, 1), 100);
-    const page = Math.min(Math.max(options.page ?? 1, 1), 10_000);
+    let page = Math.min(Math.max(options.page ?? 1, 1), 10_000);
     const listOptions = {
       family: options.family,
       product: options.product,
@@ -78,7 +79,7 @@ export async function loadProductUpdates(options: {
       from: options.from,
       to: options.to
     };
-    const [products, updates, total, facets] = await Promise.all([
+    const [products, initialUpdates, total, facets] = await Promise.all([
       listUnityProducts(options.family),
       listProductUpdates({
         ...listOptions,
@@ -93,6 +94,12 @@ export async function loadProductUpdates(options: {
           })
         : Promise.resolve(null)
     ]);
+    let updates = initialUpdates;
+    const bounded = pageBounds(total, page, pageSize);
+    if (bounded.page !== page) {
+      page = bounded.page;
+      updates = await listProductUpdates({ ...listOptions, limit: pageSize, offset: bounded.offset });
+    }
     return {
       products,
       updates,

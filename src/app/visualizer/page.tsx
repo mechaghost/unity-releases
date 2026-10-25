@@ -73,18 +73,18 @@ export default async function VisualizerPage({
   const domain = parseDomain(params.domain);
   const unknownDomain = unknownDomainInput(params.domain, domain);
 
-  // Every DB call below is wrapped in a `safeX` helper that swallows
-  // errors and returns an empty default. A single dead query no longer
-  // 500s the whole page — each chart card has its own "no data yet"
-  // empty state, so the page degrades gracefully if (e.g.) the
-  // `issue_mentions` index isn't built yet on a fresh deploy.
+  let partialLoad = false;
+  const onLoadError = () => { partialLoad = true; };
+
+  // Keep working charts visible when one query fails, while making the
+  // partial failure explicit instead of presenting it as missing source data.
   const [versions, facts, freshness, lifespans, cadence, scoreInputs] = await Promise.all([
-    safeVersionAggregates(domain),
-    safeVersionFacts(domain),
-    safeFreshness(),
-    safeIssueLifespans(domain),
-    safePatchCadence(),
-    safeScoreInputs()
+    safeVersionAggregates(domain, onLoadError),
+    safeVersionFacts(domain, onLoadError),
+    safeFreshness(onLoadError),
+    safeIssueLifespans(domain, onLoadError),
+    safePatchCadence(onLoadError),
+    safeScoreInputs(onLoadError)
   ]);
   const { results: scoreResults } = scoreAllReleases(scoreInputs);
   // Build a version→ScoreInput lookup once so the leaderboard's
@@ -108,8 +108,8 @@ export default async function VisualizerPage({
   // reference the same version set.
   const visibleVersionIds = versions.slice(0, 60).map((v) => v.version);
   const [heatmapCells, matrix] = await Promise.all([
-    safeHeatmap(visibleVersionIds),
-    safeMatrix()
+    safeHeatmap(visibleVersionIds, onLoadError),
+    safeMatrix(onLoadError)
   ]);
 
   return (
@@ -122,12 +122,14 @@ export default async function VisualizerPage({
           A visual read on what each Unity 6+ release actually shipped —
           stability per patch, where breaking changes landed, which bugs
           are still open, and how packages drift alongside the editor.
-          Every number on this page is a raw count from the underlying
-          release notes; formulas are visible inline.
+          Counts come from indexed release notes. Build scores are calculated
+          ratings; each chart explains its measure.
         </p>
       </section>
 
       <DomainFilterChips activeDomain={domain} />
+      <p className="muted">Domain filters apply to stability, the known-issue trend, issue lifespans, and Top-10 facts. Other charts show all domains.</p>
+      {partialLoad ? <div className="viz-warning" role="alert">Some charts could not load. <a href={domain ? `/visualizer?domain=${encodeURIComponent(domain)}` : "/visualizer"}>Try again</a>.</div> : null}
 
       {unknownDomain ? (
         <div className="viz-warning" role="alert">
@@ -156,76 +158,84 @@ export default async function VisualizerPage({
   );
 }
 
-async function safeVersionAggregates(domain: Domain | "Other" | null): Promise<VersionAggregate[]> {
+async function safeVersionAggregates(domain: Domain | "Other" | null, onLoadError: () => void): Promise<VersionAggregate[]> {
   try {
     return await getVersionAggregates({ domain: domain ?? undefined, limit: 120 });
   } catch (err) {
+    onLoadError();
     console.error("[visualizer] getVersionAggregates failed:", err);
     return [];
   }
 }
 
-async function safeVersionFacts(domain: Domain | "Other" | null): Promise<VersionFact[]> {
+async function safeVersionFacts(domain: Domain | "Other" | null, onLoadError: () => void): Promise<VersionFact[]> {
   try {
     return await getVersionFacts({ domain: domain ?? undefined });
   } catch (err) {
+    onLoadError();
     console.error("[visualizer] getVersionFacts failed:", err);
     return [];
   }
 }
 
-async function safeFreshness(): Promise<IngestionFreshness[]> {
+async function safeFreshness(onLoadError: () => void): Promise<IngestionFreshness[]> {
   try {
     return await listIngestionFreshness();
   } catch (err) {
+    onLoadError();
     console.error("[visualizer] listIngestionFreshness failed:", err);
     return [];
   }
 }
 
-async function safeIssueLifespans(domain: Domain | "Other" | null): Promise<IssueLifespan[]> {
+async function safeIssueLifespans(domain: Domain | "Other" | null, onLoadError: () => void): Promise<IssueLifespan[]> {
   try {
     return await getIssueLifespans({ domain: domain ?? undefined, limit: 30 });
   } catch (err) {
+    onLoadError();
     console.error("[visualizer] getIssueLifespans failed:", err);
     return [];
   }
 }
 
-async function safePatchCadence(): Promise<PatchCadencePoint[]> {
+async function safePatchCadence(onLoadError: () => void): Promise<PatchCadencePoint[]> {
   try {
     return await getPatchCadence({ monthsBack: 18 });
   } catch (err) {
+    onLoadError();
     console.error("[visualizer] getPatchCadence failed:", err);
     return [];
   }
 }
 
-async function safeScoreInputs(): Promise<ScoreInput[]> {
+async function safeScoreInputs(onLoadError: () => void): Promise<ScoreInput[]> {
   try {
     return await getScoreInputs();
   } catch (err) {
+    onLoadError();
     console.error("[visualizer] getScoreInputs failed:", err);
     return [];
   }
 }
 
-async function safeHeatmap(versions: string[]): Promise<AreaHeatmapCell[]> {
+async function safeHeatmap(versions: string[], onLoadError: () => void): Promise<AreaHeatmapCell[]> {
   try {
     return await getAreaHeatmap(versions);
   } catch (err) {
+    onLoadError();
     console.error("[visualizer] getAreaHeatmap failed:", err);
     return [];
   }
 }
 
-async function safeMatrix(): Promise<{ rows: PackageMatrixRow[]; packages: string[] }> {
+async function safeMatrix(onLoadError: () => void): Promise<{ rows: PackageMatrixRow[]; packages: string[] }> {
   try {
     // 30 rows so the drift log surfaces enough change events to be
     // useful — most editor releases don't bump curated packages, so a
     // smaller window mostly shows "no changes" rows.
     return await getPackageEditorMatrix({ editorLimit: 30 });
   } catch (err) {
+    onLoadError();
     console.error("[visualizer] getPackageEditorMatrix failed:", err);
     return { rows: [], packages: [] };
   }

@@ -193,7 +193,7 @@ export default async function ReleasePage({
             {release.release_date ? <> · Released {formatReleaseDate(release.release_date)}</> : null}
             {release.changeset ? <> · Changeset {release.changeset}</> : null}
             {" · "}
-            <strong className="tabnums">{rows.length.toLocaleString()}</strong> release notes
+            <strong className="tabnums">{rows.length.toLocaleString()}</strong> release {rows.length === 1 ? "note" : "notes"}
           </p>
         ) : (
           <p className="muted">Release not yet indexed.</p>
