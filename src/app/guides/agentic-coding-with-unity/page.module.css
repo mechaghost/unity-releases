@@ -9,11 +9,11 @@
 .card figcaption { padding: var(--space-2) var(--space-4) 0; font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.5; }
 .cardBody { min-width: 0; }
 .cardBody > :global(.guide-badges) { margin-bottom: var(--space-3); }
-.card h2 { margin: 0; font-size: var(--text-xl); line-height: 1.35; }
+.cardBody > h3 { margin: 0; font-size: var(--text-xl); line-height: 1.35; }
 .summary { color: var(--text-secondary); line-height: 1.6; margin: var(--space-3) 0 var(--space-4); }
 .workflow { border-top: 1px solid var(--border-default); padding-top: var(--space-3); font-size: var(--text-sm); }
 .detailBody { line-height: 1.65; }
-.detailBody h3 { font-size: var(--text-sm); margin: var(--space-5) 0 var(--space-2); }
+.detailBody h4 { font-size: var(--text-sm); margin: var(--space-5) 0 var(--space-2); }
 .detailBody p { margin: var(--space-3) 0; }
 .detailBody ol { padding-left: var(--space-5); }
 .detailBody li + li { margin-top: var(--space-3); }

@@ -39,7 +39,7 @@ Check whether two collisions in one physics step apply damage twice. If that bre
 Keep the test and attach failure logs. Isolate test saves and clean up spawned objects.
 Report which checks ran in the Editor, in a built player, and which still need a person.`,
     checks: "If a bug is found, the test fails before the fix and passes afterward. Repeated runs start clean. A person still checks feel, readability, and controls.",
-    evidence: "Mecha Drive tests driving, rewards, finishing a run, pausing, retrying, and reloading. The example above applies that approach to a different game.",
+    evidence: "Mecha Drive has automated tests for driving and rewards, plus browser checks for finishing a run, pausing, retrying, and reloading. The key-and-damage example above is a suggested adaptation.",
     link: cliSource, linkText: "Unity: Pipeline technical walkthrough"
   },
   {
@@ -50,7 +50,7 @@ Report which checks ran in the Editor, in a built player, and which still need a
     steps: [
       "Have the agent turn the release checklist into a script: select the profile, set the version, build, and record the commit and file hashes.",
       "Upload to a preview destination. Launch the actual build and check its first scene, content downloads, save loading, and Console or player logs.",
-      "Promote the tested files to production under your release rules. Verify the live version and retain the previous files for rollback. Store releases also need platform signing and review."
+      "Promote the tested files to production under your release rules. Verify the live version and retain the previous files for rollback. For store releases, follow the platform’s signing and review requirements."
     ],
     prompt: `Automate our Unity Web release using the existing build profile and hosting provider.
 Create a versioned output folder and a manifest with the commit and file hashes. Keep credentials in CI secrets.

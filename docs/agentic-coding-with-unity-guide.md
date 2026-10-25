@@ -10,8 +10,7 @@ package. Five cards cover CI/CD, gameplay testing, deployment, asset validation,
 and performance. Runtime model inference is outside the guide's scope.
 
 Keep one main heading and a short definition of agentic coding. The overview
-explains CLI versus Pipeline and separates agent-authored work from saved scripts
-that run without an agent. A four-step infographic shows describe, change, check,
+explains CLI versus Pipeline and makes the running Editor requirement clear. A four-step infographic shows describe, change, check,
 and review. Setup and detailed workflows use native HTML disclosures.
 
 Prompts are examples to adapt, not executed case studies. Keep the platform,
@@ -78,9 +77,13 @@ and source paths are in docs/art/agentic-workflow/generation.json. Full PNG
 masters are retained beside that file. The page serves four 256px transparent
 WebP copies from public/images/agentic-workflow, totaling 42,540 bytes. Desktop
 uses 128px images; mobile uses 80px. No new JavaScript dependency is added.
-The page labels the workflow illustrations as AI-generated and keeps them
-separate from the official release screenshots used in the cards.
+Generation provenance is recorded here; card captions link the official release
+screenshots to their sources.
 
 Editorial trim: removed the repeated automation explanation, repeat cue, generic
 prompt instructions, and footer commentary. Setup and detailed workflows remain.
 The short Mecha Drive introduction and per-workflow evidence keep the scope clear.
+
+Final review: workflow card headings nest under Example workflows, with detail
+headings one level below. Setup commands were checked against current Unity docs.
+Gameplay evidence distinguishes automated tests from recorded browser checks.

@@ -19,7 +19,7 @@ const workingLoop: { title: string; description: string; image: string }[] = [
   { title: "Review the result", description: "You check the changes, test results, and game behavior.", image: "review" }
 ];
 
-export default function AiWithUnityPage() {
+export default function AgenticCodingWithUnityPage() {
   return <article className={styles.guide}>
     <header className="page-header">
       <h1>{title}</h1>
@@ -33,7 +33,7 @@ export default function AiWithUnityPage() {
         </div>
         <div className={`guide-card ${styles.toolCard}`}>
           <dt>Unity Pipeline: the Editor connection</dt>
-          <dd>A package inside your Unity 6+ project. It exposes Editor commands through a local API, so an agent can inspect and change the project through the CLI. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package">Pipeline setup and commands</ExternalLink>.</dd>
+          <dd>A package inside your Unity 6+ project. It connects the CLI to your running Editor, so an agent can inspect the project, make changes, and run checks. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package">Pipeline setup and commands</ExternalLink>.</dd>
         </div>
       </dl>
       <figure className={styles.loop} aria-labelledby="working-loop-caption">
@@ -50,7 +50,7 @@ export default function AiWithUnityPage() {
     </div>
 
     <details id="setup" className={styles.setup}>
-      <summary>Connect your coding agent</summary>
+      <summary>Set up Unity for your coding agent</summary>
       <div className={styles.detailBody}>
         <p>Use Unity 6.0 or later and a coding agent that can run terminal commands. Save your work, then <ExternalLink href="https://docs.unity.com/en-us/unity-cli/use-unity-cli">install Unity CLI</ExternalLink>. Reopen your terminal in the project folder with Unity open.</p>
         <pre className={styles.prompt}><code>{`unity auth login
@@ -73,19 +73,19 @@ unity command`}</code></pre>
         </figure>
         <div className={`guide-highlight-copy ${styles.cardBody}`}>
           <div className="guide-badges"><span className="guide-badge">{example.category}</span></div>
-          <h2 id={`${example.id}-heading`}>{example.title}</h2>
+          <h3 id={`${example.id}-heading`}>{example.title}</h3>
           <p className={styles.summary}>{example.summary}</p>
           <details className={styles.workflow}>
             <summary aria-label={`View workflow and prompt: ${example.title}`}>View workflow and prompt</summary>
             <div className={styles.detailBody}>
               <p><strong>Give the agent:</strong> {example.needs}</p>
-              <h3>Workflow</h3>
+              <h4>Workflow</h4>
               <ol>{example.steps.map(step => <li key={step}>{step}</li>)}</ol>
-              <h3>Try this prompt</h3>
+              <h4>Try this prompt</h4>
               <pre className={styles.prompt}><code>{example.prompt}</code></pre>
-              <h3>Check the result</h3>
+              <h4>Check the result</h4>
               <p>{example.checks}</p>
-              <h3>Evidence and limits</h3>
+              <h4>Evidence and limits</h4>
               <p>{example.evidence}</p>
               <p><ExternalLink href={example.link}>{example.linkText}</ExternalLink></p>
             </div>
