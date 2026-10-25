@@ -1,16 +1,12 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Preserve the original guide-density budget while accounting for the catalog
- * action added in 6aa230d. Bound that action and the following gap independently
- * so a growing header cannot hide behind a larger absolute page-height limit.
- */
+/** Keep the active guides near the top; browsing older/all features belongs
+ * below the cards and must not push them farther down the page. */
 export async function expectGuideCardsNearTop(page: Page) {
-  const catalog = page.locator('.feature-catalog-entry');
-  await expect(catalog.getByRole('link', { name: 'Browse all Unity 6 features' })).toBeVisible();
-  const action = (await catalog.boundingBox())!;
-  const card = (await page.locator('.guide-card').first().boundingBox())!;
-  expect(action.height).toBeLessThanOrEqual(44);
-  expect(card.y).toBeGreaterThanOrEqual(action.y + action.height);
-  expect(card.y - action.y - action.height).toBeLessThanOrEqual(24);
-  expect(card.y - action.height).toBeLessThan(180);
+  const browse = page.getByRole('navigation', { name: 'Browse release guides' });
+  await expect(browse.getByRole('link', { name: 'Browse all Unity 6 features' })).toBeVisible();
+  const grid = (await page.locator('#release-guides .guide-grid').boundingBox())!;
+  const nav = (await browse.boundingBox())!;
+  expect(grid.y).toBeLessThanOrEqual(180);
+  expect(nav.y).toBeGreaterThanOrEqual(grid.y + grid.height);
 }

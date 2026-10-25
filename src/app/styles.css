@@ -7331,7 +7331,15 @@ button.filter-section__head:focus-visible {
 }
 
 /* Unity 6 feature catalog: shared guide cards, URL-based filters. */
-.feature-catalog-entry { margin: 0 0 var(--space-6); }
+.guide-browse-links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); margin-block: var(--space-5); }
+.guide-browse-links a { font-size: var(--text-sm); text-decoration: underline; text-underline-offset: 3px; }
+.guide-updated { display: flex; flex-direction: column; gap: var(--space-1); margin-left: auto; text-align: right; color: var(--text-muted); font-size: var(--text-sm); }
+.guide-updated time { color: var(--text-secondary); }
+@media (max-width: 600px) {
+  .guide-hero.page-header__title-row { gap: var(--space-3); }
+  .guide-browse-links { gap: var(--space-3); }
+  .guide-browse-links a { font-size: var(--text-xs); }
+}
 .feature-catalog-filters {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3);
   padding: var(--space-4); background: var(--surface-base);
