@@ -27,11 +27,11 @@ export default function AiWithUnityPage() {
     </header>
     <div className={styles.overview}>
       <dl className={styles.tools}>
-        <div>
+        <div className={`guide-card ${styles.toolCard}`}>
           <dt>Unity CLI: the terminal tool</dt>
           <dd>Install Editors and platform modules, open projects, and run commands from scripts or CI. It works without the Hub desktop app. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/use-unity-cli">Install and use the CLI</ExternalLink>.</dd>
         </div>
-        <div>
+        <div className={`guide-card ${styles.toolCard}`}>
           <dt>Unity Pipeline: the Editor connection</dt>
           <dd>A package inside your Unity 6+ project. It exposes Editor commands through a local API, so an agent can inspect and change the project through the CLI. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package">Pipeline setup and commands</ExternalLink>.</dd>
         </div>
