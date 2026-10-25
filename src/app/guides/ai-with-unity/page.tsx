@@ -15,11 +15,9 @@ export default function AiWithUnityPage() {
   return <article className={styles.guide}>
     <header className="page-header">
       <h1>{title}</h1>
-      <p>Put AI to work on the tests, builds, and repetitive jobs you keep putting off.</p>
+      <p>Use a coding agent with Unity CLI and the Pipeline package to automate tests, builds, and repetitive Editor work.</p>
     </header>
-    <section className={styles.overview} aria-labelledby="overview-heading">
-      <h2 id="overview-heading">How the tools fit together</h2>
-      <p>Your coding agent writes code and scripts. Unity CLI and the Pipeline package let it work with your project and check the results in the Editor.</p>
+    <div className={styles.overview}>
       <dl className={styles.tools}>
         <div>
           <dt>Unity CLI: the terminal tool</dt>
@@ -32,7 +30,7 @@ export default function AiWithUnityPage() {
       </dl>
       <p><strong>The working loop:</strong> describe a task → let the agent inspect and change it → run tests or a build → review the evidence.</p>
       <p>A CI pipeline runs your saved automation on a schedule or code change. The Pipeline package connects to the Editor; it is not a hosted CI service. <ExternalLink href="https://unity.com/resources/unity-pipeline-cli-technical-walkthrough">See Unity’s technical walkthrough</ExternalLink>.</p>
-    </section>
+    </div>
 
     <details id="setup" className={styles.setup}>
       <summary>First time? Connect your coding agent to Unity</summary>

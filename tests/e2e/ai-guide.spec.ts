@@ -10,7 +10,7 @@ test("AI guide is discoverable and its workflow cards work on desktop and mobile
   await expect(page.locator('.lnav a[aria-current="page"]')).toHaveText("AI with Unity");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/guides\/ai-with-unity$/);
   await expect(page.locator("main")).not.toContainText(/Muse|MCP/);
-  await expect(page.getByRole("heading", { name: "How the tools fit together" })).toBeVisible();
+  await expect(page.locator("main header")).toContainText("Use a coding agent with Unity CLI and the Pipeline package");
   await expect(page.locator("main dl")).toContainText("Unity CLI: the terminal tool");
   await expect(page.locator("main dl")).toContainText("Unity Pipeline: the Editor connection");
   const cards = page.locator("main .guide-card");
