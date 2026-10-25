@@ -1,4 +1,4 @@
-import { guideHref, guideStatus, SUPPORT_SOURCE, type GuideImage, type ReleaseGuide } from "@/lib/release-guides";
+import { guideHref, guideStatus, guideSupportLines, SUPPORT_SOURCE, type GuideImage, type ReleaseGuide } from "@/lib/release-guides";
 import { ExternalLink } from "../_components/ExternalLink";
 import { Chip } from "../_components/Chip";
 import { featureHref, type ReleaseFeature } from "@/lib/release-features";
@@ -16,6 +16,7 @@ export function GuideCard({ guide, now, eager = false }: { guide: ReleaseGuide; 
     <a className="guide-release-link" href={guideHref(guide)} aria-label={`Read the Unity ${guide.version} guide`}>
     <h2>Unity {guide.version}{guide.kind === "lts" ? " LTS" : ""}</h2>
     <GuideBadges guide={guide} now={now} />
+    <div className="guide-card-support">{guideSupportLines(guide, now).map(line => <span key={line}>{line}</span>)}</div>
     <div className="guide-feature-image"><img src={guide.highlights[0].image.src} alt={guide.highlights[0].image.alt} width={guide.highlights[0].image.width} height={guide.highlights[0].image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
     <p className="guide-card-summary">{guide.summary}</p>
     <span className="guide-read" aria-hidden="true">View features →</span>

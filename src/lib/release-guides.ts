@@ -150,3 +150,25 @@ export function formatGuideDate(day: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
     .format(new Date(day + "T00:00:00Z"));
 }
+
+/** Quiet card copy using published support months and the first stable successor. */
+export function guideSupportLines(guide: ReleaseGuide, now = new Date()): string[] {
+  const today = now.toISOString().slice(0, 10);
+  const month = (value: string) => new Intl.DateTimeFormat("en-US", {
+    month: "short", year: "numeric", timeZone: "UTC"
+  }).format(new Date(value + "-01T00:00:00Z"));
+  if (today < guide.released) return ["Support begins at the stable release"];
+  if (guide.kind === "lts") {
+    if (!guide.supportThrough || !guide.extendedThrough) return ["Support dates not yet confirmed"];
+    const label = (end: string) => today.slice(0, 7) > end ? "support ended" : "supported through";
+    return [
+      `Personal / Pro: ${label(guide.supportThrough)} ${month(guide.supportThrough)}`,
+      `Enterprise / Industry: ${label(guide.extendedThrough)} ${month(guide.extendedThrough)}`
+    ];
+  }
+  const successor = RELEASE_GUIDES
+    .filter(candidate => candidate.released > guide.released && candidate.released <= today)
+    .sort((a, b) => a.released.localeCompare(b.released))[0];
+  return [successor ? `Support ended ${month(successor.released.slice(0, 7))}`
+    : "Supported until the next stable version releases"];
+}

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { createRequire } from "node:module";
 const sharp = createRequire(import.meta.url)("sharp");
 import { describe, expect, test } from "vitest";
-import { formatGuideDate, findReleaseGuide, guideHref, guideNotesHref, guideStatus, RELEASE_GUIDES } from "../../src/lib/release-guides";
+import { formatGuideDate, findReleaseGuide, guideHref, guideNotesHref, guideStatus, guideSupportLines, RELEASE_GUIDES } from "../../src/lib/release-guides";
 const at = (day: string) => new Date(`${day}T12:00:00Z`);
 const get = (version: string) => RELEASE_GUIDES.find(g => g.version === version)!;
 
@@ -66,4 +66,20 @@ describe("release guides", () => {
     expect(findReleaseGuide("6000.6.0f1")).toBeUndefined();
     expect(findReleaseGuide("unity-99-0")).toBeUndefined();
   });
+});
+
+test("support lines separate plans and keep the published LTS months", () => {
+  expect(guideSupportLines(get("6.3"), at("2026-10-24"))).toEqual([
+    "Personal / Pro: supported through Dec 2027",
+    "Enterprise / Industry: supported through Dec 2028"
+  ]);
+  expect(guideSupportLines(get("6.0"), at("2026-11-01"))).toEqual([
+    "Personal / Pro: support ended Oct 2026",
+    "Enterprise / Industry: supported through Oct 2027"
+  ]);
+});
+test("update support ends at the first stable successor, not the newest release", () => {
+  expect(guideSupportLines(get("6.1"), at("2026-10-24"))).toEqual(["Support ended Aug 2025"]);
+  expect(guideSupportLines(get("6.5"), at("2026-08-31"))).toEqual(["Supported until the next stable version releases"]);
+  expect(guideSupportLines(get("6.5"), at("2026-09-01"))).toEqual(["Support ended Sep 2026"]);
 });
