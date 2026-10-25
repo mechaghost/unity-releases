@@ -33,7 +33,7 @@ export async function fetchApiStream(version: string): Promise<string | null> {
     // transaction, so a stalled API must fail fast into the null path (and
     // the stored-stream retention) rather than hold the transaction open
     // for undici's ~300s default.
-    const fetched = await fetchText(url, { timeoutMs: 15_000 });
+    const fetched = await fetchText(url, { timeoutMs: 15_000, retries: 0 });
     if (fetched.status !== 200) {
       return null;
     }

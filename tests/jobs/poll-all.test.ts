@@ -145,3 +145,19 @@ describe("runAllJobs", () => {
     expect(summary.totalDurationMs).toBeGreaterThanOrEqual(0);
   });
 });
+
+test("a timeout is a failure even if a child catches SIGTERM and exits zero", async () => {
+  const spawn: SpawnJob = vi.fn().mockResolvedValueOnce({ exitCode: 0, timedOut: true }).mockResolvedValue({ exitCode: 0 });
+  const result = await runAllJobs(JOBS, spawn);
+  expect(result.failed).toBe(1);
+  expect(result.jobs[0].timedOut).toBe(true);
+  expect(spawn).toHaveBeenCalledTimes(3);
+});
+
+test("shutdown stops scheduling remaining jobs", async () => {
+  const controller = new AbortController();
+  const spawn: SpawnJob = vi.fn(async () => { controller.abort(); return { exitCode: null, cancelled: true }; });
+  const result = await runAllJobs(JOBS, spawn, controller.signal);
+  expect(result.failed).toBe(1);
+  expect(spawn).toHaveBeenCalledTimes(1);
+});

@@ -25,12 +25,21 @@ export function getPool(): Pool {
     throw new Error("DATABASE_URL is required");
   }
 
-  pool ??= new Pool({
-    connectionString: process.env.DATABASE_URL,
-    max: 15,
-    statement_timeout: 8000,
-    ssl: poolSslConfig()
-  });
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: 15,
+      statement_timeout: 8000,
+      connectionTimeoutMillis: 10_000,
+      idleTimeoutMillis: 30_000,
+      ssl: poolSslConfig()
+    });
+    // pg removes failed idle clients. Without a listener the EventEmitter error
+    // can terminate a cron or the web server before a fresh connection is tried.
+    pool.on("error", (error) => {
+      console.error("Idle database connection failed", { message: error.message });
+    });
+  }
 
   return pool;
 }

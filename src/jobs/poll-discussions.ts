@@ -112,7 +112,9 @@ export class RequestBudget {
     this.count += 1;
     let source: FetchedSource;
     try {
-      source = await fetchText(url, { userAgent: DISCOURSE_USER_AGENT });
+      // Every request must count against the Discourse budget. A 429 stops
+      // the entire crawl, so do not hide retries inside the shared fetcher.
+      source = await fetchText(url, { userAgent: DISCOURSE_USER_AGENT, retries: 0 });
     } finally {
       if (REQUEST_DELAY_MS > 0) await sleep(REQUEST_DELAY_MS);
     }

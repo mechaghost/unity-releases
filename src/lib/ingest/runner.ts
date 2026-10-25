@@ -49,7 +49,7 @@ export type FetchRetryOptions = {
 
 /**
  * Fetch a URL with bounded retries on transient failures (5xx / 429 /
- * network/timeout errors). 4xx other than 429 fails fast — those pages
+ * network/timeout errors). 4xx other than 408/429 fails fast — those pages
  * are gone permanently and retrying just wastes Unity's CDN credits.
  *
  * Uses the project's `fetchText` so the resulting `FetchedSource`
@@ -60,30 +60,7 @@ export async function fetchHtmlWithRetry(
   url: string,
   options: FetchRetryOptions = {}
 ): Promise<FetchedSource> {
-  const retries = options.retries ?? 2;
-  const timeoutMs = options.timeoutMs ?? 20_000;
-  const baseBackoff = options.backoffMs ?? 300;
-
-  let lastErr: unknown;
-  for (let attempt = 0; attempt <= retries; attempt += 1) {
-    try {
-      const fetched = await fetchText(url, { timeoutMs });
-      if (fetched.status >= 400) {
-        throw new HttpStatusError(fetched.status, url);
-      }
-      return fetched;
-    } catch (err) {
-      if (err instanceof HttpStatusError && err.status < 500 && err.status !== 429) {
-        throw err;
-      }
-      lastErr = err;
-      if (attempt < retries) {
-        // Exponential backoff: 300ms, 900ms, 2700ms by default.
-        await new Promise((r) =>
-          setTimeout(r, baseBackoff * Math.pow(3, attempt))
-        );
-      }
-    }
-  }
-  throw lastErr;
+  const fetched = await fetchText(url, { ...options, timeoutMs: options.timeoutMs ?? 20_000 });
+  if (fetched.status >= 400) throw new HttpStatusError(fetched.status, url);
+  return fetched;
 }

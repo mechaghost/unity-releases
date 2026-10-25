@@ -39,7 +39,8 @@ export async function fetchResourceDiscovery(url: string): Promise<FetchedSource
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
     let source: FetchedSource | null = null;
     try {
-      source = await fetchText(url, { timeoutMs: 60_000 });
+      // Discovery owns its retry loop; avoid multiplying the shared retries.
+      source = await fetchText(url, { timeoutMs: 60_000, retries: 0 });
     } catch (error) {
       const transient = error instanceof Error &&
         (error instanceof TypeError || error.name === "TimeoutError" || error.name === "AbortError");

@@ -244,3 +244,18 @@ function adapter(sourceKey: string): ProductUpdateAdapter {
     parse: () => []
   };
 }
+
+test("shutdown reports unstarted product sources and starts no more work", async () => {
+  mocks.adaptersForFamily.mockReturnValue([hub, cli]);
+  const controller = new AbortController();
+  const runSource = vi.fn(async () => {
+    controller.abort();
+    return { ok: false, exitCode: null, signal: null, timedOut: false, durationMs: 1, error: "cancelled" };
+  });
+  const summary = await runProductUpdateGroup(["editor-tooling", "--force"], {
+    runSource, concurrency: 1, signal: controller.signal
+  });
+  expect(runSource).toHaveBeenCalledTimes(1);
+  expect(summary[1]).toMatchObject({ sourceKey: "unity-cli", status: "cancelled", ok: false });
+  expect(process.exitCode).toBe(1);
+});

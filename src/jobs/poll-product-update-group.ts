@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { cronShutdown, runSupervisedProcess } from "../lib/ingest/supervised-process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getPool } from "../lib/db/client";
 import { productUpdateAdaptersForFamily } from "../lib/product-updates/sources";
@@ -17,7 +17,7 @@ type SourceProcessResult = {
 type GroupSummaryEntry = {
   sourceKey: string;
   ok: boolean;
-  status: "success" | "failed" | "skipped-disabled" | "skipped-budget";
+  status: "success" | "failed" | "skipped-disabled" | "skipped-budget" | "cancelled";
   exitCode?: number | null;
   timedOut?: boolean;
   durationMs?: number;
@@ -26,6 +26,7 @@ type GroupSummaryEntry = {
 };
 
 type RunGroupOptions = {
+  signal?: AbortSignal;
   runSource?: (
     sourceKey: string,
     flags: string[],
@@ -41,7 +42,6 @@ const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_GROUP_DEADLINE_MS = 20 * 60_000;
 const DEFAULT_SOURCE_DEADLINE_MS = 10 * 60_000;
 const TERMINATION_GRACE_MS = 5_000;
-const MAX_CAPTURED_OUTPUT = 64 * 1024;
 
 export async function runProductUpdateGroup(
   argv = process.argv.slice(2),
@@ -83,7 +83,7 @@ export async function runProductUpdateGroup(
     1,
     4
   );
-  const runSource = options.runSource ?? runSourceProcess;
+  const runSource = options.runSource ?? ((key, flags, deadline) => runSourceProcess(key, flags, deadline, { signal: options.signal }));
   const sourceAllowlist = new Set(
     (process.env.PRODUCT_UPDATE_SOURCES ?? "")
       .split(",")
@@ -96,7 +96,7 @@ export async function runProductUpdateGroup(
   let cursor = 0;
 
   const worker = async () => {
-    while (cursor < adapters.length) {
+    while (cursor < adapters.length && !options.signal?.aborted) {
       const index = cursor;
       cursor += 1;
       const adapter = adapters[index];
@@ -158,6 +158,17 @@ export async function runProductUpdateGroup(
     )
   );
 
+  if (options.signal?.aborted) {
+    for (let index = 0; index < adapters.length; index++) {
+      summary[index] ??= {
+        sourceKey: adapters[index].manifest.sourceKey,
+        ok: false,
+        status: "cancelled",
+        error: "Group stopped before this source started"
+      };
+    }
+  }
+
   console.log(
     JSON.stringify({
       event: "product_update_group_complete",
@@ -177,90 +188,26 @@ export async function runSourceProcess(
   testOptions: {
     nodeArgs?: string[];
     terminationGraceMs?: number;
+    signal?: AbortSignal;
   } = {}
 ): Promise<SourceProcessResult> {
   const startedAt = Date.now();
   const script = fileURLToPath(new URL("./poll-product-update.ts", import.meta.url));
-  const child = spawn(
+  const result = await runSupervisedProcess(
     process.execPath,
     testOptions.nodeArgs ?? ["--import", "tsx", script, sourceKey, ...flags],
-    {
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: process.platform !== "win32"
-    }
+    { timeoutMs: deadlineMs, graceMs: testOptions.terminationGraceMs ?? TERMINATION_GRACE_MS, signal: testOptions.signal }
   );
-  let stdout = "";
-  let stderr = "";
-  let timedOut = false;
-  let killTimer: NodeJS.Timeout | null = null;
-  const append = (current: string, chunk: Buffer | string) =>
-    `${current}${chunk.toString()}`.slice(-MAX_CAPTURED_OUTPUT);
-  child.stdout?.on("data", (chunk) => {
-    stdout = append(stdout, chunk);
-  });
-  child.stderr?.on("data", (chunk) => {
-    stderr = append(stderr, chunk);
-  });
-
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    terminateProcessGroup(child.pid, "SIGTERM");
-    killTimer = setTimeout(
-      () => terminateProcessGroup(child.pid, "SIGKILL"),
-      testOptions.terminationGraceMs ?? TERMINATION_GRACE_MS
-    );
-    killTimer.unref();
-  }, deadlineMs);
-  timeout.unref();
-
-  return await new Promise<SourceProcessResult>((resolve) => {
-    child.once("error", (error) => {
-      clearTimeout(timeout);
-      if (killTimer) clearTimeout(killTimer);
-      resolve({
-        ok: false,
-        exitCode: null,
-        signal: null,
-        timedOut,
-        durationMs: Date.now() - startedAt,
-        error: error.message
-      });
-    });
-    child.once("close", (exitCode, signal) => {
-      clearTimeout(timeout);
-      if (killTimer) clearTimeout(killTimer);
-      const output = parseStructuredOutput(stdout);
-      const errorText = normalizeChildError(stderr || stdout);
-      resolve({
-        ok: exitCode === 0 && !timedOut,
-        exitCode,
-        signal,
-        timedOut,
-        durationMs: Date.now() - startedAt,
-        ...(output === undefined ? {} : { output }),
-        ...(exitCode === 0 && !timedOut
-          ? {}
-          : {
-              error: timedOut
-                ? `Source exceeded its ${deadlineMs}ms hard deadline`
-                : errorText || `Source process exited with code ${exitCode}`
-            })
-      });
-    });
-  });
-}
-
-function terminateProcessGroup(
-  pid: number | undefined,
-  signal: NodeJS.Signals
-) {
-  if (!pid) return;
-  try {
-    process.kill(process.platform === "win32" ? pid : -pid, signal);
-  } catch {
-    // The child may have exited between the deadline and signal delivery.
-  }
+  const ok = result.exitCode === 0 && !result.timedOut && !result.cancelled;
+  const output = parseStructuredOutput(result.stdout);
+  return {
+    ok, exitCode: result.exitCode, signal: result.signal, timedOut: result.timedOut,
+    durationMs: Date.now() - startedAt,
+    ...(output === undefined ? {} : { output }),
+    ...(ok ? {} : { error: result.cancelled ? "Source cancelled during shutdown"
+      : result.timedOut ? `Source exceeded its ${deadlineMs}ms hard deadline`
+      : normalizeChildError(result.stderr || result.stdout) || `Source process exited with code ${result.exitCode}` })
+  };
 }
 
 function parseStructuredOutput(stdout: string) {
@@ -295,9 +242,11 @@ function boundedInteger(
 }
 
 async function main() {
+  const shutdown = cronShutdown();
   try {
-    await runProductUpdateGroup();
+    await runProductUpdateGroup(process.argv.slice(2), { signal: shutdown.signal });
   } finally {
+    shutdown.dispose();
     await getPool().end().catch(() => undefined);
   }
 }

@@ -106,7 +106,7 @@ test.each([new TypeError("fetch failed"), Object.assign(new Error("aborted"), { 
     mocks.fetchText.mockReset().mockRejectedValueOnce(error).mockResolvedValueOnce(source(sitemap("2026-09-17")));
     await expect(fetchResourceDiscovery(url)).resolves.toMatchObject({ status: 200 });
     expect(mocks.fetchText).toHaveBeenCalledTimes(2);
-    expect(mocks.fetchText).toHaveBeenCalledWith(url, { timeoutMs: 60_000 });
+    expect(mocks.fetchText).toHaveBeenCalledWith(url, { timeoutMs: 60_000, retries: 0 });
   }
 );
 

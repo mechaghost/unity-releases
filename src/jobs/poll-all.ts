@@ -10,7 +10,7 @@
  * at the end if anything failed so Railway flags the run as failed
  * in its deployment history.
  */
-import { spawn } from "node:child_process";
+import { cronShutdown, runSupervisedProcess } from "../lib/ingest/supervised-process";
 
 export type JobName =
   | "editor"
@@ -76,6 +76,8 @@ export type JobResult = {
   ok: boolean;
   durationMs: number;
   exitCode: number | null;
+  timedOut?: boolean;
+  cancelled?: boolean;
 };
 
 export type RunSummary = {
@@ -86,7 +88,7 @@ export type RunSummary = {
   jobs: JobResult[];
 };
 
-export type SpawnJob = (job: JobDefinition) => Promise<{ exitCode: number | null }>;
+export type SpawnJob = (job: JobDefinition, signal?: AbortSignal) => Promise<{ exitCode: number | null; timedOut?: boolean; cancelled?: boolean }>;
 
 /** Windows needs BOTH of these and neither is optional:
  *
@@ -120,38 +122,39 @@ export function npmRunCommand(npmScript: string): [string, string[]] {
  *  arbitrary job list - validate rather than trust every future caller. */
 const SAFE_NPM_SCRIPT = /^[a-z0-9](?:[a-z0-9:_-]*[a-z0-9])?$/i;
 
-/** Default spawner: shells out to `npm run <script>` and inherits stdio
+/** Default spawner: shells out to `npm run <script>` and streams output
  *  so the child's logs appear in Railway's log stream live. */
-const defaultSpawn: SpawnJob = (job) =>
-  new Promise((resolve, reject) => {
-    if (!SAFE_NPM_SCRIPT.test(job.npmScript)) {
-      reject(new Error(`Refusing to spawn unsafe npm script name: ${job.npmScript}`));
-      return;
-    }
-    const [command, args] = npmRunCommand(job.npmScript);
-    const proc = spawn(command, args, {
-      stdio: "inherit",
-      env: process.env
-    });
-    proc.on("exit", (exitCode) => resolve({ exitCode }));
-    proc.on("error", (err) => reject(err));
+const defaultSpawn: SpawnJob = async (job, signal) => {
+  if (!SAFE_NPM_SCRIPT.test(job.npmScript)) {
+    throw new Error(`Refusing to spawn unsafe npm script name: ${job.npmScript}`);
+  }
+  const [command, args] = npmRunCommand(job.npmScript);
+  return runSupervisedProcess(command, args, {
+    timeoutMs: (job.name === "backfill" ? 60 : 30) * 60_000,
+    signal,
+    streamOutput: true
   });
+};
 
 /** Pure orchestrator extracted from `main` so tests can inject a fake
  *  spawner and assert ordering, summary shape, and exit-code semantics
  *  without actually shelling out to npm. */
 export async function runAllJobs(
   jobs: JobDefinition[] = JOB_ORDER,
-  spawnJob: SpawnJob = defaultSpawn
+  spawnJob: SpawnJob = defaultSpawn,
+  signal?: AbortSignal
 ): Promise<RunSummary> {
   const runStart = Date.now();
   const results: JobResult[] = [];
   for (const job of jobs) {
+    if (signal?.aborted) break;
     console.log(JSON.stringify({ event: "job_start", job: job.name }));
     const start = Date.now();
     let exitCode: number | null = null;
+    let timedOut = false;
+    let cancelled = false;
     try {
-      ({ exitCode } = await spawnJob(job));
+      ({ exitCode, timedOut = false, cancelled = false } = await spawnJob(job, signal));
     } catch (error) {
       // `spawn` itself failed (npm missing, permission denied, etc).
       // Log and treat as a failure but keep going so the rest of the
@@ -166,14 +169,16 @@ export async function runAllJobs(
       exitCode = -1;
     }
     const durationMs = Date.now() - start;
-    const ok = exitCode === 0;
-    results.push({ name: job.name, ok, durationMs, exitCode });
+    const ok = exitCode === 0 && !timedOut && !cancelled;
+    results.push({ name: job.name, ok, durationMs, exitCode, timedOut, cancelled });
     console.log(
       JSON.stringify({
         event: "job_end",
         job: job.name,
         ok,
         exitCode,
+        timedOut,
+        cancelled,
         durationMs
       })
     );
@@ -190,11 +195,14 @@ export async function runAllJobs(
 }
 
 async function main() {
-  const summary = await runAllJobs();
-  console.log(JSON.stringify({ event: "run_summary", ...summary }));
-  if (summary.failed > 0) {
-    process.exitCode = 1;
-  }
+  const shutdown = cronShutdown();
+  try {
+    const summary = await runAllJobs(JOB_ORDER, defaultSpawn, shutdown.signal);
+    console.log(JSON.stringify({ event: "run_summary", ...summary }));
+    if (summary.failed > 0) {
+      process.exitCode = 1;
+    }
+  } finally { shutdown.dispose(); }
 }
 
 // `import.meta.url === pathToFileURL(process.argv[1])` style guard,

@@ -36,3 +36,9 @@ test("starting a retry does not hide the previous failed batch", () => {
   const rows=evaluateJobFreshness([{job_name:"poll-news",last_success:"2026-10-23T12:00:00Z",last_run:"2026-10-24T00:00:00Z",latest_status:"running",last_completed_status:"failed"}],Date.parse("2026-10-24T00:00:00Z"));
   expect(rows.find(row=>row.jobName==="poll-news")?.status).toBe("failed");
 });
+
+test("an interrupted running batch cannot look healthy indefinitely", () => {
+  const now = Date.parse("2026-10-24T04:00:00Z");
+  const rows = evaluateJobFreshness([{job_name:"poll-news",last_success:"2026-10-24T00:00:00Z",last_run:"2026-10-24T01:00:00Z",latest_status:"running",last_completed_status:"success"}], now);
+  expect(rows.find(row=>row.jobName==="poll-news")?.status).toBe("failed");
+});
