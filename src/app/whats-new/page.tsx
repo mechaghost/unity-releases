@@ -18,6 +18,7 @@ export default function WhatsNewPage() {
     <header className="guide-hero page-header__title-row"><h1>What’s new in Unity?</h1><a className="btn btn--secondary" href="/compare">Compare versions</a></header>
     <section id="release-guides" aria-label="Release guides">
       <div className="guide-grid">{released.map((guide, index) => <GuideCard key={guide.slug} guide={guide} now={now} eager={index < 2} />)}</div>
+      <p><a href="/whats-new/past-releases">Past releases <span aria-hidden="true">→</span></a></p>
     </section>
     <SupportExplainer />
     <MoreUpdates />

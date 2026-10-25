@@ -31,6 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...RELEASE_GUIDES.map(guide => ({ url: `${origin}${guideHref(guide)}`, lastModified: new Date(guide.reviewed), changeFrequency: "weekly" as const, priority: 0.8 })),
     ...RELEASE_GUIDES.flatMap(guide => guideFeatures(guide).map(feature => ({ url: `${origin}${featureHref(guide, feature)}`, lastModified: new Date(guide.reviewed), changeFrequency: "monthly" as const, priority: 0.7 }))),
     { url: `${origin}/`, lastModified: now, changeFrequency: "daily", priority: 1.0 },
+    { url: `${origin}/whats-new/past-releases`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${origin}/compare`, lastModified: now, changeFrequency: "daily", priority: 0.95 },
     { url: `${origin}/releases`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${origin}/packages`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
