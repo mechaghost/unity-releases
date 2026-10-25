@@ -27,6 +27,8 @@ describe("pageSocialMetadata", () => {
     expect(og.url).toBe("https://unityreleases.com/releases");
     expect(og.siteName).toBe("Unity Releases");
     expect(og.locale).toBe("en_US");
+    expect(og.images).toEqual([{ url: "https://unityreleases.com/opengraph-image", width: 1200, height: 630, alt: "Unity Releases" }]);
+    expect(twitter.images).toEqual(["https://unityreleases.com/opengraph-image"]);
     expect(twitter.card).toBe("summary_large_image");
     expect(twitter.title).toBe("Editor Releases - Unity Releases");
     expect(twitter.description).toBe("Every indexed Unity editor release.");

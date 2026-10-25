@@ -7,12 +7,9 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        // Health endpoint is operational, not content; explorer URLs are
-        // dynamic faceted searches that produce near-infinite duplicate
-        // pages - keep them out of the index. /api/track is the analytics
-        // ingress; it's already under /api/ so the existing disallow
-        // covers it.
-        disallow: ["/api/", "/explorer"]
+        // Let crawlers read /explorer's noindex directive. API routes are
+        // operational endpoints rather than search content.
+        disallow: ["/api/"]
       }
     ],
     sitemap: `${siteUrl()}/sitemap.xml`,

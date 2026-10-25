@@ -18,6 +18,7 @@ const EXPLORER_DESCRIPTION =
   "Faceted search across every indexed Unity release-note row — filter by version, issue, subsystem, package, platform, and upgrade risk.";
 
 export const metadata = {
+  robots: { index: false, follow: true, googleBot: { index: false, follow: true } },
   title: "Release Notes Search",
   description: EXPLORER_DESCRIPTION,
   alternates: { canonical: "/explorer" },

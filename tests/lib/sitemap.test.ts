@@ -28,6 +28,21 @@ afterEach(() => {
 });
 
 describe("sitemap", () => {
+  test("does not invent modification dates for unchanged content", async () => {
+    repo.listReleaseSummaries.mockResolvedValue([{ version: "6000.3.15f1", release_date: null }]);
+    repo.listTopIssueIds.mockResolvedValue(["UUM-12345"]);
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-25T00:00:00Z"));
+      const first = await sitemap();
+      vi.setSystemTime(new Date("2026-10-26T00:00:00Z"));
+      expect(await sitemap()).toEqual(first);
+      for (const path of ["/faq", "/issues/UUM-12345", "/releases/6000.3.15f1"]) {
+        expect(first.find(entry => entry.url.endsWith(path))?.lastModified).toBeUndefined();
+      }
+    } finally { vi.useRealTimers(); }
+  });
+
   test("renders the static surface pages with no /upgrade or /explorer", async () => {
     repo.listReleaseSummaries.mockResolvedValue([]);
     repo.listTopIssueIds.mockResolvedValue([]);
