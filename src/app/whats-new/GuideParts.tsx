@@ -32,13 +32,14 @@ export function FeatureImage({ image, eager = false, guide }: { image: GuideImag
   </figure>;
 }
 
-export function FeatureCard({ guide, feature, eager = false }: { guide: ReleaseGuide; feature: ReleaseFeature; eager?: boolean }) {
+export function FeatureCard({ guide, feature, eager = false, showVersion = false }: { guide: ReleaseGuide; feature: ReleaseFeature; eager?: boolean; showVersion?: boolean }) {
   const headingId = `feature-${feature.id}`;
   const preview = /\b(beta|experimental)\b/i.test(feature.limitation ?? "");
   return <article className="guide-highlight">
     <a className="guide-feature-link" href={featureHref(guide, feature)} aria-labelledby={headingId}>
       <div className="guide-feature-image"><img src={feature.image.src} alt={feature.image.alt} width={feature.image.width} height={feature.image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
       <div className="guide-highlight-copy">
+        {showVersion && <p className="feature-catalog-version">Introduced in Unity {guide.version}</p>}
         <h2 id={headingId}>{feature.title}</h2>
         <p>{feature.benefit}</p>
         <div className="guide-feature-footer"><Chip className="chip--area">{feature.category}</Chip>{preview && <span className="guide-badge">Preview at launch</span>}<span className="guide-feature-action" aria-hidden="true">Explore feature <span>→</span></span></div>

@@ -73,3 +73,11 @@ Guide pages use the shared heading, button, spacing, color, border, and focus to
 Technical release pages link to the matching published major-release guide. Package dialogs receive compact, server-selected feature links for exact package IDs; these are editorial associations, not package-version compatibility claims. Unrelated packages show no feature section.
 
 Verification includes the homepage and alias canonical, old comparison bookmarks, one active navigation item, desktop/mobile card interactions, release-to-guide and package-to-feature round trips, 320px layout, and settled light/dark accessibility. The package-versioning check and read-only production package/API checks also passed; no deployment is part of this change.
+
+## Unity 6 feature catalog
+
+`/whats-new/unity-6-features` combines the existing feature cards for every published Unity 6 guide, including superseded releases. The overview links to it with “Browse all Unity 6 features.” Each card names the version that introduced the highlight and links to the existing feature detail page.
+
+Search (`q`), version (`version`) and category (`category`) are GET parameters, so filtered views can be bookmarked and shared. Search matches all entered words across titles, benefits, categories, requirements and editorial search terms. Unknown filter options fall back to all versions/categories. The count, empty state and clear-filters link reflect the combined filters. All matching cards render together; images below the first row load lazily.
+
+This is a catalog of selected launch highlights, not every release-note change or a promise that older Editor versions include later features. Future releases and non-Unity-6 guides are excluded. Existing per-release guides and the past-release archive stay available. The canonical and sitemap include the unfiltered catalog URL.

@@ -16,6 +16,7 @@ export default function WhatsNewPage() {
   const released = RELEASE_GUIDES.filter(g => g.released <= now.toISOString().slice(0, 10) && guideStatus(g, now).label !== "Superseded");
   return <div className="release-guide">
     <header className="guide-hero page-header__title-row"><h1>What’s new in Unity?</h1><a className="btn btn--secondary" href="/compare">Compare versions</a></header>
+    <p className="feature-catalog-entry"><a className="btn btn--secondary" href="/whats-new/unity-6-features">Browse all Unity 6 features <span aria-hidden="true">→</span></a></p>
     <section id="release-guides" aria-label="Release guides">
       <div className="guide-grid">{released.map((guide, index) => <GuideCard key={guide.slug} guide={guide} now={now} eager={index < 2} />)}</div>
       <p><a href="/whats-new/past-releases">Past releases <span aria-hidden="true">→</span></a></p>

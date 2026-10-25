@@ -7329,3 +7329,19 @@ button.filter-section__head:focus-visible {
   .feature-detail-layout { display: block; }
   .guide-feature-image { max-height: 180px; }
 }
+
+/* Unity 6 feature catalog: shared guide cards, URL-based filters. */
+.feature-catalog-entry { margin: 0 0 var(--space-6); }
+.feature-catalog-filters {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3);
+  padding: var(--space-4); background: var(--surface-base);
+  border: 1px solid var(--border-default); border-radius: var(--radius-lg);
+}
+.feature-catalog-filters label { display: flex; flex: 1 1 180px; flex-direction: column; gap: var(--space-2); min-width: 0; font-weight: var(--weight-medium); }
+.feature-catalog-filters .feature-catalog-search { flex-basis: 280px; }
+.feature-catalog-filters input, .feature-catalog-filters select { width: 100%; min-width: 0; min-height: 40px; }
+.feature-catalog-count { margin: var(--space-5) 0; color: var(--text-secondary); }
+.guide-highlight-copy .feature-catalog-version { margin: 0 0 var(--space-2); font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-link); }
+@media (max-width: 600px) {
+  .feature-catalog-filters label, .feature-catalog-filters .feature-catalog-search { flex-basis: 100%; }
+}
