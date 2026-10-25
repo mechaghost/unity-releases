@@ -1,0 +1,29 @@
+{
+  "tool": "Built-in image_gen",
+  "basePrompt": "Create one square miniature editorial 3D product illustration for a software development workflow on a professional website. Minimalist but tangible real objects, satin porcelain white and muted cobalt-blue accents, soft studio lighting, subtle realistic shadows and material texture, three-quarter isometric view, isolated on a transparent background. Strong clear silhouette readable at 96px. Center the subject, consistent generous margin, no words, no letters, no labels, no logos, no border, no decorative sparkles. This is a rendered object illustration, not a flat line icon. ",
+  "subjects": [
+    [
+      "describe",
+      "A small white clipboard holding a neat task brief: three short embossed horizontal blue lines and a small blue pencil resting diagonally against the clipboard. The meaning is describing a clear task."
+    ],
+    [
+      "change",
+      "A compact white desktop monitor showing a few neat cobalt code-like bars on its dark screen, with a small blue pencil leaning against its lower right corner. The meaning is editing code. No actual text."
+    ],
+    [
+      "checks",
+      "A small white standing test report board with three clear cobalt check marks beside three short blue-gray horizontal bars. A small low-profile cobalt play button at the bottom. The meaning is running automated tests."
+    ],
+    [
+      "review",
+      "A white document showing two small columns of blue-gray change bars, with a tangible cobalt-rimmed magnifying glass resting over the lower right. The meaning is carefully reviewing changes."
+    ]
+  ],
+  "describeRevision": "Remove pencil entirely; preserve clipboard, materials, camera angle and transparent background.",
+  "files": {
+    "describe": "/Users/mechaghost/.codex/generated_images/01a1739e-0086-71e2-8350-4e720f6066f1/exec-77a84825-0576-48a0-af11-f75c6784f56f.png",
+    "change": "/Users/mechaghost/.codex/generated_images/01a1739e-0086-71e2-8350-4e720f6066f1/exec-76ba9ff9-8e5f-450a-aa90-6aacf749404e.png",
+    "checks": "/Users/mechaghost/.codex/generated_images/01a1739e-0086-71e2-8350-4e720f6066f1/exec-27c51392-163e-4432-b334-0be13eac1489.png",
+    "review": "/Users/mechaghost/.codex/generated_images/01a1739e-0086-71e2-8350-4e720f6066f1/exec-b58cfb3a-24d8-457b-acb6-571f32c09879.png"
+  }
+}

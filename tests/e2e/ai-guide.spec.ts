@@ -43,8 +43,9 @@ test("Agentic coding guide is discoverable and its workflow cards work on deskto
   await page.locator("#setup > summary").click();
   await expect(page.locator("#setup pre")).toContainText("unity pipeline install");
   await page.locator("#setup > summary").click();
+  await expect(loop.locator("img")).toHaveCount(4);
   const images = page.locator("main img");
-  await expect(images).toHaveCount(5);
+  await expect(images).toHaveCount(9);
   for (const img of await images.all()) {
     await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);

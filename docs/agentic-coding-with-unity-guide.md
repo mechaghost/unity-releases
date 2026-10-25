@@ -54,8 +54,8 @@ are contextual illustrations, not proof that the prompts ran. Source URLs live
 in src/lib/release-guide-images.json and captions link the announcements.
 Image keys: 6.6-2, 6.0-7, 6.0-3, 6.5-1, and 6.3-1.
 
-The diagram uses semantic HTML and existing SVG icons. It stacks on mobile and
-adds no image download or client JavaScript. Lower card images load lazily.
+The diagram uses semantic HTML and small local raster illustrations. It stacks
+on mobile and adds no client JavaScript. Lower card images load lazily.
 The page adds no database call or video. Shared layout costs still apply.
 
 ## Verification
@@ -66,11 +66,17 @@ link, four-step infographic, 320px overflow, and light/dark accessibility.
 Run typecheck and the sitemap test when changing routes. Verify the sidebar's
 long title remains readable. The overview and closed cards stay under 700 words.
 
-## Workflow icons
+## Workflow images
 
-The four steps use Lucide's clipboard-list (task brief), square-pen (edit),
-list-checks (test results), and scan-eye (review). SVG shapes are stored in
-WorkflowIcon.tsx, with the upstream ISC license in public/licenses/lucide.txt.
-Source: https://github.com/lucide-icons/lucide/tree/main/icons (October 25, 2026).
-They render inline at 28px using the site's stroke weight and theme colors;
-there is no new package, client JavaScript, or remote image request.
+The four steps use generated raster illustrations: a clipboard brief, a monitor
+with an editing pencil, test results with a play button, and a document under a
+magnifying glass. The brief's pencil was removed after review so only the editing
+image uses that object.
+
+Generated with the built-in image_gen tool. Exact prompts, the targeted edit,
+and source paths are in docs/art/agentic-workflow/generation.json. Full PNG
+masters are retained beside that file. The page serves four 256px transparent
+WebP copies from public/images/agentic-workflow, totaling 42,540 bytes. Desktop
+uses 128px images; mobile uses 80px. No new JavaScript dependency is added.
+The page labels the workflow illustrations as AI-generated and keeps them
+separate from the official release screenshots used in the cards.

@@ -2,7 +2,6 @@ import { Icon } from "../../_components/Icon";
 import { ExternalLink } from "../../_components/ExternalLink";
 import { pageSocialMetadata } from "@/lib/site";
 import { AGENTIC_GUIDE_EXAMPLES } from "@/lib/agentic-guide-examples";
-import { WorkflowIcon, type WorkflowIconName } from "./WorkflowIcon";
 import styles from "./page.module.css";
 
 const title = "Agentic Coding with Unity";
@@ -13,11 +12,11 @@ export const metadata = {
   ...pageSocialMetadata({ title, description, path: "/guides/agentic-coding-with-unity" })
 };
 
-const workingLoop: { title: string; role: string; description: string; icon: WorkflowIconName }[] = [
-  { title: "Describe", role: "You", description: "Set the task and what success looks like.", icon: "clipboard-list" },
-  { title: "Make the change", role: "Agent", description: "Inspect the project, then edit code or assets.", icon: "square-pen" },
-  { title: "Run checks", role: "Unity + scripts", description: "Run tests or a build. Save results and logs.", icon: "list-checks" },
-  { title: "Review", role: "You", description: "Check the diff, results, and game behavior.", icon: "scan-eye" }
+const workingLoop: { title: string; role: string; description: string; image: string }[] = [
+  { title: "Describe", role: "You", description: "Set the task and what success looks like.", image: "describe" },
+  { title: "Make the change", role: "Agent", description: "Inspect the project, then edit code or assets.", image: "change" },
+  { title: "Run checks", role: "Unity + scripts", description: "Run tests or a build. Save results and logs.", image: "checks" },
+  { title: "Review", role: "You", description: "Check the diff, results, and game behavior.", image: "review" }
 ];
 
 export default function AiWithUnityPage() {
@@ -41,7 +40,7 @@ export default function AiWithUnityPage() {
         <figcaption id="working-loop-caption">The working loop</figcaption>
         <ol className={styles.loopSteps}>
           {workingLoop.map((step, index) => <li key={step.title}>
-            <div className={styles.loopSymbol}><WorkflowIcon name={step.icon} /></div>
+            <div className={styles.loopSymbol}><img src={`/images/agentic-workflow/${step.image}.webp`} width={256} height={256} alt="" decoding="async" /></div>
             <span className={styles.loopRole}>{index + 1} · {step.role}</span>
             <strong>{step.title}</strong>
             <span className={styles.loopDescription}>{step.description}</span>
@@ -99,7 +98,7 @@ unity command`}</code></pre>
       </section>)}
     </div>
     <footer className={styles.footer}>
-      <p>Images show Unity features, not results from these prompts.</p>
+      <p>Card images show Unity features, not results from these prompts. Workflow illustrations are AI-generated.</p>
       <p>Keep exploring: <a href="/resources?q=Unity%20CLI">Unity CLI resources</a> · <a href="https://unity.com/resources/unity-pipeline-cli-technical-walkthrough">Pipeline walkthrough</a></p>
       <p>Independent guide · Reviewed October 25, 2026</p>
     </footer>
