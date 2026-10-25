@@ -7353,3 +7353,16 @@ button.filter-section__head:focus-visible {
 @media (max-width: 600px) {
   .feature-catalog-filters label, .feature-catalog-filters .feature-catalog-search { flex-basis: 100%; }
 }
+
+/* Expandable support reference: compare release types without dense paragraphs. */
+.support-explainer__body { margin-top: var(--space-2); padding: var(--space-5); background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.support-explainer__comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+.support-explainer__comparison section + section { border-left: 1px solid var(--border-default); padding-left: var(--space-6); }
+.support-explainer__comparison h3 { margin: 0; font-size: var(--text-md); }
+.support-explainer__comparison p { margin: var(--space-3) 0 0; max-width: 48ch; line-height: 1.6; }
+.support-explainer__comparison .support-explainer__definition { margin-top: var(--space-1); margin-bottom: var(--space-4); color: var(--text-muted); font-size: var(--text-sm); }
+.support-explainer__source { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border-default); font-size: var(--text-sm); }
+@media (max-width: 600px) {
+  .support-explainer__comparison { grid-template-columns: 1fr; gap: var(--space-5); }
+  .support-explainer__comparison section + section { border-left: 0; padding-left: 0; border-top: 1px solid var(--border-default); padding-top: var(--space-5); }
+}

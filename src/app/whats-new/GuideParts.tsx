@@ -49,10 +49,24 @@ export function FeatureCard({ guide, feature, eager = false, showVersion = false
 }
 
 export function SupportExplainer() {
-  return <details className="guide-support" id="support">
+  return <details className="guide-support support-explainer" id="support">
     <summary>LTS and support explained</summary>
-    <p><strong>LTS:</strong> Generally two years of fixes, plus an extra year for Enterprise and Industry.</p>
-    <p><strong>Update:</strong> Supported until the next release replaces it. Superseded releases are no longer supported.</p>
-    <ExternalLink href={SUPPORT_SOURCE}>Unity’s support policy</ExternalLink>
+    <div className="support-explainer__body">
+      <div className="support-explainer__comparison">
+        <section aria-labelledby="support-lts-heading">
+          <h3 id="support-lts-heading">LTS releases</h3>
+          <p className="support-explainer__definition">Long-term support</p>
+          <p>Generally <strong>two years of fixes</strong>.</p>
+          <p>Enterprise and Industry get <strong>one extra year</strong>.</p>
+        </section>
+        <section aria-labelledby="support-update-heading">
+          <h3 id="support-update-heading">Update releases</h3>
+          <p className="support-explainer__definition">Support until the next release</p>
+          <p>Supported <strong>until the next release replaces it</strong>.</p>
+          <p>Once marked <strong>Superseded</strong>, the release is no longer supported.</p>
+        </section>
+      </div>
+      <div className="support-explainer__source"><ExternalLink href={SUPPORT_SOURCE}>Read Unity’s support policy</ExternalLink></div>
+    </div>
   </details>;
 }
