@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import pg from "pg";
+import { testSearchPath } from "../e2e/test-extensions";
 import { baseDatabaseUrl } from "../e2e/test-database";
 
 // Dedicated throwaway schema: never use public or the browser fixture schema.
@@ -9,7 +10,8 @@ const client = await pool.connect();
 const schema = `ingestion_contract_${process.pid}`;
 try {
   await client.query(`CREATE SCHEMA ${schema}`);
-  await client.query(`SET search_path TO ${schema}, public`);
+  const searchPath = await testSearchPath(client, schema);
+  await client.query(`SET search_path TO ${searchPath}`);
   const sql = await readFile("src/lib/db/schema.sql", "utf8");
   // Start at the old schema to prove ALTERs upgrade existing resources.
   const boundary = sql.indexOf("-- Whole-job outcomes survive");
@@ -18,7 +20,7 @@ try {
   await client.query(sql);
   await client.query(sql);
   const url = new URL(baseDatabaseUrl());
-  url.searchParams.set("options", `-csearch_path=${schema},public`);
+  url.searchParams.set("options", `-csearch_path=${searchPath}`);
   process.env.DATABASE_URL = url.toString();
   const { upsertResource, markResourceUnavailable, listResources, listIngestionFreshness, listResourceRechecks, recordResourceCheckAttempt } = await import("../../src/lib/db/repositories");
   const { parseResourcePage } = await import("../../src/lib/ingest/resources");
@@ -32,6 +34,19 @@ try {
   assert.equal((await client.query("SELECT count(*)::int n FROM resources")).rows[0].n,1,"retirement preserves historical row");
   await upsertResource(client,resource,"2026-09-17",run.rows[0].id,null);
   assert.equal((await listResources({includeMarketing:true,includeEnterprise:true})).total,1,"valid recovery makes link visible");
+  const reportUrl = "https://unity.com/resources/gaming-report-2025";
+  const report = parseResourcePage(await readFile("tests/fixtures/resources/gaming-report-2025.report.html", "utf8"), reportUrl);
+  assert.ok(report);
+  await upsertResource(client, { ...report, resourceDate: "2025-03-01", industry: "Games", topics: ["Gaming"], isGated: true, author: "Unity" }, null, run.rows[0].id, null);
+  await upsertResource(client, report, null, run.rows[0].id, null);
+  const storedReport = (await client.query("SELECT title, industry, topics, is_gated, resource_date::text, author, unavailable_at FROM resources WHERE url=$1", [reportUrl])).rows[0];
+  assert.equal(storedReport.title, "2025 Unity Gaming Report");
+  assert.equal(storedReport.industry, "Games");
+  assert.deepEqual(storedReport.topics, ["Gaming"]);
+  assert.equal(storedReport.is_gated, true);
+  assert.equal(storedReport.resource_date, "2025-03-01");
+  assert.equal(storedReport.author, "Unity");
+  assert.equal(storedReport.unavailable_at, null);
   await client.query("INSERT INTO core_job_runs(job_name,status,finished_at) VALUES ('poll-editor','success',now()-interval '12 hours'),('poll-editor','failed',now()),('poll-legacy-lts','success',now())");
   const result = await client.query("SELECT job_name,(array_agg(status ORDER BY started_at DESC,id DESC))[1] status FROM core_job_runs GROUP BY job_name");
   assert.equal(result.rows.find(r=>r.job_name==='poll-editor')?.status,'failed');

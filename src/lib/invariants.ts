@@ -150,14 +150,14 @@ export const INVARIANTS: Invariant[] = [
   ...corruptTextChecks("resources", ["title", "summary"]),
   decoyTitleCheck("resources", "title"),
   {
-    name: "resources: parsed via the authoritative Flight reader",
+    name: "resources: parsed via the Flight reader or verified custom report parser",
     severity: "error",
     describe:
       "Rows produced by the legacy string-scanner fallback. Non-zero means Next.js changed how it inlines the payload and the resource parser has silently degraded to the brittle path.",
     sql: `
       SELECT COUNT(*)::int AS n, MIN(slug) AS sample
       FROM resources
-      WHERE raw_metadata_json->>'parserPath' IS DISTINCT FROM 'flight'
+      WHERE COALESCE(raw_metadata_json->>'parserPath', '') NOT IN ('flight', 'custom-report')
     `,
     // Rows ingested before parserPath existed have no value; allow the
     // current corpus size until one forced re-crawl has run everywhere.

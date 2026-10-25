@@ -26,6 +26,8 @@ import { UNITY_OFFICIAL_PACKAGES } from "../lib/ingest/unity-packages";
 import {
   isPlausibleUnifiedRelease,
   parseDocsChangelogTopVersion,
+  parseDocsLatestRedirectMinor,
+  isPackageManagerManualRedirect,
   unityMinorOfVersion
 } from "../lib/parsers/package-docs";
 import { marketingMinor, modernMajorSql } from "../lib/unity-generation";
@@ -84,35 +86,61 @@ type ProbeResult =
   | { status: "not-aligned" }
   | { status: "uncertain" };
 
-async function probePackage(pkg: string, minors: string[]): Promise<ProbeResult> {
+export async function probePackage(pkg: string, minors: string[]): Promise<ProbeResult> {
   let sawTransient = false;
   for (const minor of minors) {
     const url = `${DOCS_BASE}/${pkg}@${minor}/changelog/CHANGELOG.html`;
     try {
       const res = await fetchText(url);
+      const diagnostic = { event: "package_docs_probe", pkg, minor, url,
+        finalUrl: res.finalUrl, httpStatus: res.status };
       if (res.status === 200) {
         const top = parseDocsChangelogTopVersion(res.text);
-        if (!top) { sawTransient = true; continue; }
+        if (!top) {
+          if (isPackageManagerManualRedirect(res.text, res.finalUrl, pkg)) {
+            console.log(JSON.stringify({ ...diagnostic, outcome: "not-aligned", reason: "editor_manual_redirect" }));
+            continue;
+          }
+          const redirectMinor = parseDocsLatestRedirectMinor(res.text, res.finalUrl, pkg);
+          if (redirectMinor && redirectMinor !== minor) {
+            console.log(JSON.stringify({ ...diagnostic, outcome: "not-aligned",
+              reason: "latest_redirect_different_minor", redirectMinor }));
+            continue;
+          }
+          console.warn(JSON.stringify({ ...diagnostic, outcome: "uncertain", reason: "unrecognized_changelog" }));
+          sawTransient = true;
+          continue;
+        }
         // Two guards. The newest changelog version must match the probed
         // minor (otherwise the docs redirected to the package's own latest,
         // so it isn't aligned), AND its date must be in the unified-
         // versioning era - the SRP family shipped a real 6.5.x line in
         // 2019 that satisfies the version check by coincidence.
         if (top && unityMinorOfVersion(top.version) === minor && isPlausibleUnifiedRelease(top)) {
+          console.log(JSON.stringify({ ...diagnostic, outcome: "aligned", version: top.version, date: top.date }));
           if (sawTransient) return { status: "uncertain" };
           return { status: "aligned", aligned: { unityMinor: minor, version: top.version, date: top.date, url } };
         }
+        console.log(JSON.stringify({ ...diagnostic, outcome: "not-aligned", version: top.version,
+          date: top.date, reason: unityMinorOfVersion(top.version) !== minor ? "different_minor" : "predates_unified_versioning" }));
         // 200 but non-matching -> definitive "not aligned at this minor".
       } else if (res.status !== 404 && res.status !== 410) {
         // 5xx, a WAF/permission 403, or a 429 rate limit say nothing about
         // whether the changelog exists. Treating them as "not here" would
         // clear every aligned row the moment the docs host tightened access
         // - the silent-degradation class CLAUDE.md rule 2 exists to stop.
+        console.warn(JSON.stringify({ ...diagnostic, outcome: "uncertain", reason: "http_error" }));
         sawTransient = true;
+      } else {
+        console.log(JSON.stringify({ ...diagnostic, outcome: "not-found" }));
       }
       // Only 404 / 410 -> definitive "not here", try the
       // next minor.
-    } catch {
+    } catch (error) {
+      console.warn(JSON.stringify({ event: "package_docs_probe", pkg, minor, url,
+        outcome: "uncertain", reason: "fetch_error", error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : undefined,
+        cause: error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined }));
       sawTransient = true; // network/timeout - transient
     }
   }
@@ -151,6 +179,7 @@ export async function main() {
     } else {
       // Transient docs error - leave any existing row untouched.
       uncertain += 1;
+      console.warn(JSON.stringify({ event: "package_docs_incomplete", pkg, minors, action: "preserve_existing" }));
     }
   }
 

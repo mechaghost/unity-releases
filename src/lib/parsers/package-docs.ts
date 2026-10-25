@@ -12,6 +12,40 @@
  */
 
 import { marketingMinorOfEditor } from "../unity-generation";
+import * as cheerio from "cheerio";
+
+/** Unity's @latest landing page redirects with JS and an equivalent HTML link.
+ * Read the link as data; never execute the script or infer absence from a bare 200.
+ */
+export function parseDocsLatestRedirectMinor(html: string, finalUrl: string, pkg: string): string | null {
+  let base: URL;
+  try { base = new URL(finalUrl); } catch { return null; }
+  if (base.origin !== "https://docs.unity3d.com" || base.pathname !== `/Packages/${pkg}@latest/`) return null;
+  const $ = cheerio.load(html);
+  if ($("title").text().trim() !== `Redirecting to latest version of ${pkg}`) return null;
+  const link = $("body a").filter((_, node) => $(node).text().trim() === "follow this link");
+  if (link.length !== 1) return null;
+  let target: URL;
+  try { target = new URL(link.attr("href")!, base); } catch { return null; }
+  const prefix = `/Packages/${pkg}@`;
+  if (target.origin !== base.origin || !target.pathname.startsWith(prefix)) return null;
+  const match = /^(\d+\.\d+)\/index\.html$/.exec(target.pathname.slice(prefix.length));
+  return match?.[1] ?? null;
+}
+
+/** Package Manager UI was folded into the Editor manual, not a versioned changelog. */
+export function isPackageManagerManualRedirect(html: string, finalUrl: string, pkg: string): boolean {
+  if (pkg !== "com.unity.package-manager-ui") return false;
+  let destination: URL;
+  try { destination = new URL(finalUrl); } catch { return false; }
+  if (destination.href !== "https://docs.unity3d.com/Manual/upm-ui.html") return false;
+  const $ = cheerio.load(html);
+  const canonical = $('link[rel="canonical"]').attr("href") ?? "";
+  return /^https:\/\/docs\.unity3d\.com\/\d+\.\d+\/Documentation\/Manual\/upm-ui\.html$/.test(canonical)
+    && $("title").text().trim() === "Unity - Manual: Package Manager window reference"
+    && $("#content-wrap h1").text().trim() === "Package Manager window reference"
+    && $("#content-wrap p").text().length > 500;
+}
 
 export type DocsChangelogEntry = {
   version: string;

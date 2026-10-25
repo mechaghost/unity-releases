@@ -23,3 +23,23 @@ test("failure probing a newer minor cannot downgrade to an older aligned version
   await expect(main()).rejects.toThrow("incomplete for 1 packages");
   expect(mocks.query.mock.calls.some(([sql])=>/INSERT|DELETE/.test(sql))).toBe(false);
 });
+
+test('unrecognized changelog diagnostics identify package, minor, URL and HTTP cause',async()=>{
+ const warn=vi.spyOn(console,'warn').mockImplementation(()=>{});
+ const url='https://docs.unity3d.com/Packages/com.unity.entities@6.7/changelog/CHANGELOG.html';
+ mocks.fetchText.mockResolvedValue({status:200,text:'Unavailable',finalUrl:url});
+ await expect(main()).rejects.toThrow('incomplete for 1 packages');
+ expect(warn.mock.calls.map(([line])=>JSON.parse(line))).toContainEqual(expect.objectContaining({
+  event:'package_docs_probe',pkg:'com.unity.entities',minor:'6.7',url,finalUrl:url,httpStatus:200,
+  outcome:'uncertain',reason:'unrecognized_changelog'
+ }));
+ warn.mockRestore();
+});
+
+test('same-minor latest redirect remains uncertain without an actual changelog', async()=>{
+ const pkg='com.unity.entities';
+ mocks.fetchText.mockResolvedValue({status:200,finalUrl:`https://docs.unity3d.com/Packages/${pkg}@latest/`,
+  text:`<title>Redirecting to latest version of ${pkg}</title><body><a href='../${pkg}@6.7/index.html'>follow this link</a></body>`});
+ await expect(main()).rejects.toThrow('incomplete for 1 packages');
+ expect(mocks.query.mock.calls.some(([sql])=>/INSERT|DELETE/.test(sql))).toBe(false);
+});

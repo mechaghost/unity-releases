@@ -231,3 +231,21 @@ test("retirement write failure waits for sibling work before returning a failed 
   expect(mocks.upsertResource).toHaveBeenCalledTimes(1);
   expect(mocks.recordResourceCheckAttempt).toHaveBeenCalledWith(removed);
 });
+
+test('verified nonresource redirect retires only its original URL without inserting a report', async () => {
+ const oldUrl='https://unity.com/resources/ai2-thor-session';
+ mocks.listResourceRechecks.mockResolvedValue([{url:oldUrl,lastmod:null}]);
+ mocks.fetchHtmlWithRetry.mockImplementation(async (requested:string) => requested===oldUrl ? {
+  url:oldUrl, finalUrl:'https://unity.com/solutions/robotics',status:200,
+  text:readFileSync('tests/fixtures/resources/ai2-thor-session.report.html','utf8')
+ } : source(html));
+ await pollResources();
+ expect(mocks.markResourceUnavailable).toHaveBeenCalledExactlyOnceWith({},oldUrl);
+ expect(mocks.upsertResource).toHaveBeenCalledTimes(1);
+});
+test('unverified redirects fail without retiring or overwriting existing data', async()=>{
+ mocks.fetchHtmlWithRetry.mockResolvedValue({url,finalUrl:'https://unity.com/solutions/robotics',status:200,text:'<h1>Unavailable</h1>'});
+ await expect(pollResources()).rejects.toThrow('Resource ingestion failed');
+ expect(mocks.markResourceUnavailable).not.toHaveBeenCalled();
+ expect(mocks.upsertResource).not.toHaveBeenCalled();
+});

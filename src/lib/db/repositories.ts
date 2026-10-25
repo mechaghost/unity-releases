@@ -1770,21 +1770,24 @@ export async function upsertResource(
         title = EXCLUDED.title,
         summary = EXCLUDED.summary,
         og_image = EXCLUDED.og_image,
-        resource_type = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+        resource_type = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' IN ('content-header', 'custom-report')
           THEN COALESCE(EXCLUDED.resource_type, resources.resource_type) ELSE EXCLUDED.resource_type END,
-        industry = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+        industry = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' IN ('content-header', 'custom-report')
           THEN COALESCE(EXCLUDED.industry, resources.industry) ELSE EXCLUDED.industry END,
         topics = CASE
-          WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+          WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' IN ('content-header', 'custom-report')
             AND EXCLUDED.raw_metadata_json->>'topicsAvailable' = 'false'
           THEN resources.topics ELSE EXCLUDED.topics END,
-        is_gated = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+        is_gated = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' IN ('content-header', 'custom-report')
           THEN resources.is_gated ELSE EXCLUDED.is_gated END,
-        sfdc_form_id = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'content-header'
+        sfdc_form_id = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' IN ('content-header', 'custom-report')
           THEN COALESCE(EXCLUDED.sfdc_form_id, resources.sfdc_form_id) ELSE EXCLUDED.sfdc_form_id END,
-        resource_date = EXCLUDED.resource_date,
-        read_duration = EXCLUDED.read_duration,
-        author = EXCLUDED.author,
+        resource_date = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'custom-report'
+          THEN COALESCE(EXCLUDED.resource_date, resources.resource_date) ELSE EXCLUDED.resource_date END,
+        read_duration = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'custom-report'
+          THEN COALESCE(EXCLUDED.read_duration, resources.read_duration) ELSE EXCLUDED.read_duration END,
+        author = CASE WHEN EXCLUDED.raw_metadata_json->>'sourceFormat' = 'custom-report'
+          THEN COALESCE(EXCLUDED.author, resources.author) ELSE EXCLUDED.author END,
         lastmod = EXCLUDED.lastmod,
         body_hash = EXCLUDED.body_hash,
         raw_metadata_json = EXCLUDED.raw_metadata_json,

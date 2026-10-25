@@ -4,6 +4,7 @@ import { fetchText, type FetchedSource } from "../lib/ingest/fetch";
 import { fetchHtmlWithRetry, HttpStatusError, runWithConcurrency } from "../lib/ingest/runner";
 import {
   parseResourcePage,
+  isNonResourceRedirect,
   parseResourcesIndex,
   parseResourcesSitemap,
   mergeResourceEntries,
@@ -131,6 +132,17 @@ export async function pollResources() {
         throw error;
       }
       stats.fetched += 1;
+      if (isNonResourceRedirect(fetched)) {
+        await withIngestionTransaction("resources", "poll-resources-item", client => markResourceUnavailable(client, entry.url));
+        console.log(JSON.stringify({ event: "resource_nonresource_redirect", url: entry.url,
+          finalUrl: fetched.finalUrl, httpStatus: fetched.status, action: "mark_unavailable" }));
+        stats.skippedRemoved += 1;
+        return;
+      }
+      // Do not parse a different destination under the original resource URL.
+      if (fetched.finalUrl && fetched.finalUrl.replace(/\/$/, "") !== entry.url.replace(/\/$/, "")) {
+        throw new Error(`Unverified resource redirect: ${entry.url} -> ${fetched.finalUrl}`);
+      }
       const parsed = parseResourcePage(fetched.text, entry.url, entry.lastmod);
       if (!parsed) throw new Error(`Resource page could not be parsed: ${entry.url}`);
       await withIngestionTransaction("resources", "poll-resources-item", (client, runId) =>

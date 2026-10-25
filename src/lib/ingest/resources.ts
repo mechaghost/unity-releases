@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { sha256 } from "./hash";
+import type { FetchedSource } from "./fetch";
 import {
   extractFlightStream,
   findFlightObject,
@@ -105,6 +106,56 @@ export type ParsedResource = {
   bodyHash: string;
   rawMetadata: Record<string, unknown>;
 };
+
+// These verified reports use bespoke HTML layouts, without resource Flight
+// documents. Do not turn generic SEO metadata into a resource fallback.
+const CUSTOM_REPORT_SLUGS = new Set([
+  "2024-impact-report", "mobile-growth-monetization-report-2024",
+  "gaming-report-2024", "gaming-report-2025", "2023-esg-report"
+]);
+
+function genuinePage(html: string, url: string) {
+  const $ = cheerio.load(html);
+  if ($('link[rel="canonical"]').attr("href") !== url) return null;
+  const main = $("main").clone();
+  main.find("script,style,nav,header,footer").remove();
+  const title = normalizeWhitespace(main.find("h1").first().text());
+  const documentTitle = $("title").text();
+  if (!title || /\b(?:404|not found|access denied|unavailable|error)\b/i.test(`${title} ${documentTitle}`)) return null;
+  const paragraphs = main.find("p").map((_, node) => $(node).text().trim()).get()
+    .filter(text => text.length >= 80);
+  if (paragraphs.length < 2 || paragraphs.join(" ").length < 500) return null;
+  return { $, title };
+}
+
+/** A confirmed redirect to a genuine Unity solutions page is no longer a resource. */
+export function isNonResourceRedirect(source: FetchedSource): boolean {
+  if (source.status !== 200 || source.finalUrl === source.url) return false;
+  let destination: URL;
+  try { destination = new URL(source.finalUrl); } catch { return false; }
+  if (destination.origin !== "https://unity.com" || !/^\/solutions\/[^/]+\/?$/.test(destination.pathname)) return false;
+  return genuinePage(source.text, source.finalUrl) !== null;
+}
+
+function parseCustomReport(html: string, url: string, lastmod: string | null): ParsedResource | null {
+  const slug = extractSlug(url);
+  if (!slug || !CUSTOM_REPORT_SLUGS.has(slug)) return null;
+  const page = genuinePage(html, url);
+  if (!page || !/\breport\b/i.test(page.title) || !page.title.includes(slug.match(/20\d{2}/)![0])) return null;
+  const { $, title } = page;
+  const summary = normalizeWhitespace($("meta[name='description']").attr("content") ?? null);
+  if (!summary || summary.length < 40 || $("meta[property='og:url']").attr("content") !== url) return null;
+  return {
+    slug, url, title, summary,
+    ogImage: $("meta[property='og:image']").attr("content") ?? null,
+    resourceType: "Report", industry: null, topics: [], isGated: false,
+    sfdcFormId: null, resourceDate: null, readDuration: null, author: null,
+    bodyHash: sha256(html),
+    rawMetadata: { lastmod, parserPath: "custom-report", parserVersion: RESOURCE_PARSER_VERSION,
+      sourceFormat: "custom-report", topicsAvailable: false, canonicalUrl: url,
+      seoTitle: title, seoDescription: summary }
+  };
+}
 
 /** Shape of the Sanity resource document inside the Flight payload. */
 function isResourceDocument(node: Record<string, unknown>): boolean {
@@ -262,6 +313,8 @@ export function parseResourcePage(
 ): ParsedResource | null {
   const viaFlight = parseViaFlight(html, url, lastmod);
   if (viaFlight) return viaFlight;
+
+  if (CUSTOM_REPORT_SLUGS.has(extractSlug(url) ?? "")) return parseCustomReport(html, url, lastmod);
 
   const slug = extractSlug(url);
   if (!slug) return null;
