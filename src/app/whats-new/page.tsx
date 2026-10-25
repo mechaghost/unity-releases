@@ -2,7 +2,7 @@ import { LocalUpdatedTime } from "../_components/LocalUpdatedTime";
 import { lastDataUpdate } from "@/lib/last-data-update";
 import { RELEASE_GUIDES, guideStatus } from "@/lib/release-guides";
 import { pageSocialMetadata } from "@/lib/site";
-import { GuideCard, SupportExplainer } from "./GuideParts";
+import { GuideCard } from "./GuideParts";
 import { ToolingCards } from "./ToolingGuides";
 import { MoreUpdates } from "./MoreUpdates";
 
@@ -28,7 +28,6 @@ export default async function WhatsNewPage() {
       </nav>
     </section>
     <ToolingCards />
-    <SupportExplainer />
     <MoreUpdates />
     <footer className="guide-footer">Independent guides · Reviewed October 24, 2026. <a href="/releases">All Editor releases</a></footer>
   </div>;

@@ -1,5 +1,4 @@
-import { guideHref, guideStatus, guideSupportLines, SUPPORT_SOURCE, type GuideImage, type ReleaseGuide } from "@/lib/release-guides";
-import { ExternalLink } from "../_components/ExternalLink";
+import { guideHref, guideStatus, guideSupportLines, type GuideImage, type ReleaseGuide } from "@/lib/release-guides";
 import { Chip } from "../_components/Chip";
 import { featureHref, type ReleaseFeature } from "@/lib/release-features";
 
@@ -47,27 +46,4 @@ export function FeatureCard({ guide, feature, eager = false, showVersion = false
       </div>
     </a>
   </article>;
-}
-
-export function SupportExplainer() {
-  return <details className="guide-support support-explainer" id="support">
-    <summary>LTS and support explained</summary>
-    <div className="support-explainer__body">
-      <div className="support-explainer__comparison">
-        <section aria-labelledby="support-lts-heading">
-          <h3 id="support-lts-heading">LTS releases</h3>
-          <p className="support-explainer__definition">Long-term support</p>
-          <p>Generally <strong>two years of fixes</strong>.</p>
-          <p>Enterprise and Industry get <strong>one extra year</strong>.</p>
-        </section>
-        <section aria-labelledby="support-update-heading">
-          <h3 id="support-update-heading">Update releases</h3>
-          <p className="support-explainer__definition">Support until the next release</p>
-          <p>Supported <strong>until the next release replaces it</strong>.</p>
-          <p>Once marked <strong>Superseded</strong>, the release is no longer supported.</p>
-        </section>
-      </div>
-      <div className="support-explainer__source"><ExternalLink href={SUPPORT_SOURCE}>Read Unity’s support policy</ExternalLink></div>
-    </div>
-  </details>;
 }
