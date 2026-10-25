@@ -2,69 +2,57 @@
 
 Route: `/guides/ai-with-unity`. Reviewed October 25, 2026.
 
-The guide helps a developer connect a coding agent to an existing Unity project,
-make one small change, and verify it. A separate path covers Sentis runtime
-inference. Muse and MCP are intentionally excluded at the user's request.
+Six illustrated cards cover CI/CD, gameplay tests, deployment, asset validation,
+performance checks, and Sentis pose controls. The overview stays short. Native
+HTML disclosures contain prerequisites, three workflow steps, a substantial
+prompt, acceptance checks, and official reading. Setup is another disclosure.
 
-## Sources and scope
+The prompts are original project scenarios, not completed case studies or
+ready-to-run samples. They distinguish agent-authored automation from the CI
+runner that executes it. No Unity project or actual deployment pipeline was
+created or tested for this article. Muse and MCP are excluded at user request.
 
-The local Resources index supplied the September 17, 2026 Unity CLI beginner
-article and the August 13, 2026 Pipeline technical walkthrough. Both were read.
-The newer official CLI and Pipeline docs govern setup, rather than installation
-commands or version claims in the older articles. The indexed package catalog
-includes `com.unity.ai.inference`, and the GitHub index includes Sentis samples.
+## Sources
 
-Official pages read for this revision:
+The site's Resources index supplied the Unity CLI beginner article and Pipeline
+technical walkthrough. The package catalog and GitHub index supplied Sentis.
+Official docs govern setup; versioned Sentis examples must match the installed
+package. The guide links each workflow's relevant source directly.
 
 - https://docs.unity.com/en-us/unity-cli/use-unity-cli
 - https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package
 - https://unity.com/resources/a-beginners-guide-to-unity-cli-and-the-pipeline-package
 - https://unity.com/resources/unity-pipeline-cli-technical-walkthrough
-- https://docs.unity3d.com/Packages/com.unity.ai.assistant@2.7/manual/install/install-chat.html
-- https://docs.unity.com/en-us/ai/unity-dashboard/ai-settings
-- https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/index.html
+- https://docs.unity.com/en-us/engine/6000.3/manual/programming-environment/test-framework-introduction/running-tests/run-tests-from-command-line
+- https://docs.unity.com/en-us/build-automation/build-automation-glossary
+- https://unity.com/blog/engine-platform/performance-benchmarking-in-unity-how-to-get-started
 - https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/get-started.html
 - https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/understand-sentis-workflow.html
+- https://github.com/Unity-Technologies/sentis-samples
 
-The rotating-cube prompt is an original editorial recommendation. They are
-not a downloadable sample or evidence of a Unity playtest. Setup and API guidance
-were checked against the sources; no Unity project was created or modified.
+Sentis 2.6 uses `com.unity.ai.inference` and `Unity.InferenceEngine`. The official
+sample catalog includes Blaze face/hand/pose detection. The proposed control
+mapping, smoothing, and fallback are application work described by this guide.
 
-## Maintenance
+## Images and performance
 
-Keep this as reviewed content, not a live aggregation of search results. Check
-versioned package docs and CLI setup before changing the review date. Sentis 2.6
-uses `com.unity.ai.inference` and `Unity.InferenceEngine`; do not silently mix
-older API examples into this guide. Avoid fixed pricing and unverified speed
-claims. Links sit beside relevant guidance and in a short reading list.
+All six images reuse optimized local WebP files from the release guides. The
+manifest `src/lib/release-guide-images.json` records their original URLs. Each
+card links the release announcement. Images retain the full frame, with alt text
+and fixed dimensions. The page explains that these illustrate Unity features,
+not results of the example prompts. Lower images load lazily.
 
-The page reuses shared navigation, the FAQ contents links, fonts, tokens, and
-ExternalLink. Its CSS module adds only article layout. It has no page-specific
-client code, database calls, remote images, or embedded video. Shared-layout costs
-still apply. Discovery links live in navigation, Resources, FAQ, sitemap, and
-llms.txt.
+Image keys: 6.6-2 (Build Analysis), 6.0-7 (UI Builder), 6.0-3 (Build Profiles),
+6.5-1 (2D Profiler), 6.3-1 (Profiler), 6.0-5 (Sentis).
+
+The page adds no client component, database call, remote image, or video. Shared
+layout costs still apply. Content lives in `src/lib/ai-guide-examples.ts`.
 
 ## Verification
 
-`tests/e2e/ai-guide.spec.ts` checks discovery, active navigation, canonical URL,
-section links, internal destinations, keyboard access, 320px overflow, and light
-and dark accessibility. The sitemap unit test includes the new route. Use the
-existing full unit suite and typecheck alongside the production browser build.
-
-## Editorial pass — October 25, 2026
-
-Replaced the long pickup exercise with three short steps and a rotating-cube
-prompt. Kept Sentis as a separate path. Removed the long prompt collection,
-troubleshooting list, and repeated source descriptions. Package details now sit
-in a native disclosure. Browser checks cap the guide at 650 words.
-
-Two official Unity images introduce the paths. The cube is a still from Unity's
-CLI tutorial (not a capture of our example); its original is:
-https://cdn.sanity.io/images/fuvbjjlp/production/67fba7edc3bfc24878c3a25c5eeb940fcd06f17d-640x414.gif
-Source article: https://unity.com/resources/a-beginners-guide-to-unity-cli-and-the-pipeline-package
-Local optimized copy: public/images/ai-guide/rotating-cube.webp (640 × 414).
-
-The Sentis image reuses public/images/release-guides/6.0-5.webp from the Unity 6
-release announcement. Its original URL is recorded in src/lib/release-guide-images.json.
-Both images retain their full frame, have descriptive alt text, and link their
-source in a caption. No generated artwork or remote image requests are added.
+`tests/e2e/ai-guide.spec.ts` checks discovery, navigation, canonical URL, all six
+cards, keyboard disclosure controls, workflow steps, prompts, setup, local image
+loading, and internal destinations. It checks overflow at 320px and accessibility
+in light/dark themes with cards closed and open, and saves screenshots. The
+collapsed overview stays below 500 words; detailed workflows have no artificial
+word cap. Run typecheck and the focused production-build browser tests.

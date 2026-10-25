@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-test("AI guide is discoverable and its steps work on desktop and mobile", async ({ page, request }, testInfo) => {
+test("AI guide is discoverable and its workflow cards work on desktop and mobile", async ({ page, request }, testInfo) => {
   await page.goto("/resources");
   await page.getByRole("link", { name: "Start with the AI with Unity guide", exact: true }).click();
   await expect(page).toHaveURL(/\/guides\/ai-with-unity$/);
@@ -10,19 +10,36 @@ test("AI guide is discoverable and its steps work on desktop and mobile", async 
   await expect(page.locator('.lnav a[aria-current="page"]')).toHaveText("AI with Unity");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/guides\/ai-with-unity$/);
   await expect(page.locator("main")).not.toContainText(/Muse|MCP/);
-  await page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: /Run a model with Sentis/ }).focus();
-  await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/#sentis$/);
-  await page.getByText("Which Sentis package?", { exact: true }).click();
-  await expect(page.locator("#sentis")).toContainText("com.unity.ai.inference");
+  const cards = page.locator("main section");
+  await expect(cards).toHaveCount(6);
+  const wordCount = (await page.locator("main").innerText()).trim().split(/\s+/).length;
+  expect(wordCount).toBeLessThan(500);
+  for (const card of await cards.all()) {
+    const disclosure = card.locator("summary");
+    await disclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(card.locator("details")).toHaveAttribute("open", "");
+    await expect(card.getByRole("heading", { name: "Workflow", exact: true })).toBeVisible();
+    await expect(card.locator("ol li")).toHaveCount(3);
+    await expect(card.locator("pre")).toBeVisible();
+    await expect(card.getByRole("heading", { name: "Check the result" })).toBeVisible();
+    await disclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(card.locator("pre")).not.toBeVisible();
+  }
+  await page.locator("#setup > summary").click();
+  await expect(page.locator("#setup pre")).toContainText("unity pipeline install");
+  await page.locator("#setup > summary").click();
   const images = page.locator("main img");
-  await expect(images).toHaveCount(2);
+  await expect(images).toHaveCount(6);
   for (const img of await images.all()) {
+    await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
   }
-  const wordCount = (await page.locator("main").innerText()).trim().split(/\s+/).length;
-  expect(wordCount).toBeLessThan(650);
+  await page.locator("#sentis summary").click();
+  await expect(page.locator("#sentis")).toContainText("com.unity.ai.inference");
   await expect(page.locator("#sentis")).toContainText("Unity.InferenceEngine");
+  await page.locator("#sentis summary").click();
 
   const internalLinks = await page.locator('main a[href^="/"]').evaluateAll(els => [...new Set(els.map(el => el.getAttribute("href")!))]);
   for (const href of internalLinks) expect((await request.get(href)).status(), href).toBe(200);
@@ -38,6 +55,11 @@ test("AI guide is discoverable and its steps work on desktop and mobile", async 
     expect((await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: testInfo.outputPath(`ai-guide-${theme}.png`), fullPage: true });
+    for (const summary of await page.locator("main details > summary").all()) await summary.click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect((await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+    await page.locator("#ci").screenshot({ path: testInfo.outputPath(`ai-guide-workflow-${theme}.png`) });
+    for (const summary of await page.locator("main details > summary").all()) await summary.click();
   }
   await page.goto("/faq");
   await page.getByRole("link", { name: "AI with Unity guide", exact: true }).click();

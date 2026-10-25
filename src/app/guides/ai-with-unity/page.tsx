@@ -1,96 +1,69 @@
 import { ExternalLink } from "../../_components/ExternalLink";
 import { pageSocialMetadata } from "@/lib/site";
+import { AI_GUIDE_EXAMPLES } from "@/lib/ai-guide-examples";
 import styles from "./page.module.css";
 
 const title = "How to use AI with Unity";
-const description = "A quick start for building with an AI agent in Unity, plus a simple introduction to Sentis.";
+const description = "Practical AI workflows for Unity: CI/CD, gameplay tests, deployment, asset checks, performance, and Sentis.";
 export const metadata = {
   title, description,
   alternates: { canonical: "/guides/ai-with-unity" },
   ...pageSocialMetadata({ title, description, path: "/guides/ai-with-unity" })
 };
-const cliDocs = "https://docs.unity.com/en-us/unity-cli/use-unity-cli";
-const pipelineDocs = "https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package";
-const cliTutorial = "https://unity.com/resources/a-beginners-guide-to-unity-cli-and-the-pipeline-package";
-const sentisDocs = "https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/get-started.html";
 
 export default function AiWithUnityPage() {
   return <article className={styles.guide}>
     <header className="page-header">
       <h1>{title}</h1>
-      <p>Let AI help you build in the Editor—or use Sentis to run AI inside your game.</p>
+      <p>Put AI to work on the tests, builds, and repetitive jobs you keep putting off.</p>
     </header>
+    <p className={styles.intro}>Pick a task. Open its card for the workflow, a prompt to adapt, and what to check.</p>
 
-    <nav className={styles.paths} aria-label="On this page">
-      <figure>
-        <a href="#setup" className={styles.pathLink}>
-          <img src="/images/ai-guide/rotating-cube.webp" alt="A cube in Unity’s Game view, from Unity’s CLI tutorial" width={640} height={414} decoding="async" />
-          <h2>Build with an AI agent <span aria-hidden="true">→</span></h2>
-          <p>Create objects, write scripts, and fix bugs.</p>
-        </a>
-        <figcaption>Image: <ExternalLink href={cliTutorial}>Unity CLI tutorial</ExternalLink> · still from the demo</figcaption>
-      </figure>
-      <figure>
-        <a href="#sentis" className={styles.pathLink}>
-          <img src="/images/release-guides/6.0-5.webp" alt="Unity’s Sentis demo showing a virtual character alongside a player’s tracked movement" width={1200} height={675} decoding="async" />
-          <h2>Run a model with Sentis <span aria-hidden="true">→</span></h2>
-          <p>Use a trained model on the player’s device.</p>
-        </a>
-        <figcaption>Image: <ExternalLink href="https://unity.com/blog/unity-6-features-announcement">Unity 6 release announcement</ExternalLink></figcaption>
-      </figure>
-    </nav>
-
-    <section id="setup" className={styles.section} aria-labelledby="setup-heading">
-      <h2 id="setup-heading">1. Connect your agent to Unity</h2>
-      <p>You’ll need <strong>Unity 6.0 or later</strong> and a coding agent that can run terminal commands. Save your project before starting.</p>
-      <ol>
-        <li><ExternalLink href={cliDocs}>Install Unity CLI</ExternalLink> for your computer.</li>
-        <li>Open your Unity project. Open a terminal in the same project folder.</li>
-        <li>Run these commands, waiting for Unity to finish compiling after installation:</li>
-      </ol>
-      <pre className={styles.prompt}><code>{`unity auth login
+    <details id="setup" className={styles.setup}>
+      <summary>First time? Connect your coding agent to Unity</summary>
+      <div className={styles.detailBody}>
+        <p>Use Unity 6.0 or later and a coding agent that can run terminal commands. Save your work, then <ExternalLink href="https://docs.unity.com/en-us/unity-cli/use-unity-cli">install Unity CLI</ExternalLink>. Reopen your terminal in the project folder with Unity open.</p>
+        <pre className={styles.prompt}><code>{`unity auth login
 unity pipeline install
-unity pipeline list`}</code></pre>
-      <p>Look for <strong>Pipeline: Installed</strong> and your project’s name. That means the connection is ready. <ExternalLink href={pipelineDocs}>Setup help</ExternalLink>.</p>
-    </section>
+# Wait for Unity to finish compiling, then:
+unity pipeline list
+unity command`}</code></pre>
+        <p>Check for your project and <strong>Pipeline: Installed</strong>. If several Editors are open, use <code>unity command --project-path=&lt;path-to-your-project&gt;</code>. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package">Setup help</ExternalLink>.</p>
+        <p>The agent writes scripts and helps investigate failures. Your CI runner executes the saved tests and build scripts on each run; it needs its own Editor, platform modules, and licensing setup.</p>
+      </div>
+    </details>
 
-    <section id="first-feature" className={styles.section} aria-labelledby="first-feature-heading">
-      <h2 id="first-feature-heading">2. Ask for something small</h2>
-      <p>Open your coding agent in the project folder. Try this:</p>
-      <pre className={styles.prompt}><code>{`Check which Unity project is open using unity command.
-In a new test scene, create a cube that rotates slowly.
-Add a camera so I can see it. Keep my existing scenes unchanged.
-Run it in Play Mode and check the Console for errors.`}</code></pre>
-      <p>Once that works, try a small task from your own game. Name the scene, describe the result you want, and say what should stay unchanged.</p>
-    </section>
-
-    <section id="check" className={styles.section} aria-labelledby="check-heading">
-      <h2 id="check-heading">3. Press Play and check</h2>
-      <ul>
-        <li><strong>Does it work?</strong> Watch the cube rotate.</li>
-        <li><strong>Any errors?</strong> Check Unity’s Console.</li>
-        <li><strong>Did it save?</strong> Stop Play Mode, reopen the scene, and try again.</li>
-      </ul>
-      <p>Review the changed files before keeping them. If something breaks, give the agent the exact error and ask for one focused fix.</p>
-    </section>
-
-    <section id="sentis" className={styles.section} aria-labelledby="sentis-heading">
-      <h2 id="sentis-heading">Want AI inside your game? Use Sentis</h2>
-      <p>Sentis runs a trained model on the player’s CPU or GPU. It can turn input—such as an image—into a result your game can use.</p>
-      <ol>
-        <li><strong>Start with a sample.</strong> Follow the <ExternalLink href={sentisDocs}>Sentis getting-started guide</ExternalLink> and run an example unchanged.</li>
-        <li><strong>Understand the result.</strong> Check what goes into the model and what comes out.</li>
-        <li><strong>Try it on your target device.</strong> Check speed and memory before building a feature around it.</li>
-      </ol>
-      <details className={styles.details}>
-        <summary>Which Sentis package?</summary>
-        <p>The linked docs cover Sentis 2.6: package <code>com.unity.ai.inference</code>, namespace <code>Unity.InferenceEngine</code>. Use examples that match your installed version. Sentis runs models; it does not train them.</p>
-      </details>
-    </section>
-
+    <div className={styles.cards}>
+      {AI_GUIDE_EXAMPLES.map((example, index) => <section className={styles.card} id={example.id} key={example.id} aria-labelledby={`${example.id}-heading`}>
+        <figure>
+          <img src={example.image.src} alt={example.image.alt} width={example.image.width} height={example.image.height} loading={index < 2 ? "eager" : "lazy"} decoding="async" />
+          <figcaption>Image: <ExternalLink href={example.imageSource}>Unity release announcement</ExternalLink></figcaption>
+        </figure>
+        <div className={styles.cardBody}>
+          <p className={styles.category}>{example.category}</p>
+          <h2 id={`${example.id}-heading`}>{example.title}</h2>
+          <p className={styles.summary}>{example.summary}</p>
+          <details className={styles.workflow}>
+            <summary aria-label={`View workflow and prompt: ${example.title}`}>View workflow and prompt</summary>
+            <div className={styles.detailBody}>
+              <p><strong>Give the agent:</strong> {example.needs}</p>
+              <h3>Workflow</h3>
+              <ol>{example.steps.map(step => <li key={step}>{step}</li>)}</ol>
+              <h3>Try this prompt</h3>
+              <pre className={styles.prompt}><code>{example.prompt}</code></pre>
+              <h3>Check the result</h3>
+              <p>{example.checks}</p>
+              {example.id === "sentis" && <p>Sentis runs trained models on the player’s CPU or GPU; it does not train them. The <ExternalLink href="https://docs.unity3d.com/Packages/com.unity.ai.inference@2.6/manual/get-started.html">2.6 docs</ExternalLink> use <code>com.unity.ai.inference</code> and <code>Unity.InferenceEngine</code>. Match examples to your installed version.</p>}
+              <p><ExternalLink href={example.link}>{example.linkText}</ExternalLink></p>
+            </div>
+          </details>
+        </div>
+      </section>)}
+    </div>
     <footer className={styles.footer}>
-      <p>Go further: <ExternalLink href={cliTutorial}>Unity’s full CLI tutorial</ExternalLink> · <a href="/resources?q=Sentis">Sentis resources</a></p>
-      <p>Independent guide · Reviewed October 25, 2026 · Images from Unity</p>
+      <p>These are workflows to adapt to your project. Images show Unity features, not results from these prompts.</p>
+      <p>Keep exploring: <a href="/resources?q=Unity%20CLI">Unity CLI resources</a> · <a href="/resources?q=Sentis">Sentis resources</a></p>
+      <p>Independent guide · Reviewed October 25, 2026</p>
     </footer>
   </article>;
 }

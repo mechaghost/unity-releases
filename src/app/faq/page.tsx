@@ -47,9 +47,9 @@ const SECTIONS: Section[] = [
         id: "ai-guide",
         question: "How do I use AI with Unity?",
         answer: <p>Follow the <a href="/guides/ai-with-unity">AI with Unity guide</a>
-          {" "}to connect a coding agent through Unity CLI, build and check a small feature,
-          or get started with Sentis for running models in your game. It includes setup steps,
-          a short example prompt and official resources.</p>
+          {" "}for practical examples of CI/CD, gameplay tests, deployment, asset checks,
+          performance checks, and Sentis. Each card has a workflow, a prompt to adapt,
+          and checks for the result.</p>
       },
       {
         id: "not-affiliated",

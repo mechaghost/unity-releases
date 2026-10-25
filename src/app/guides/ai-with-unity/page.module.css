@@ -1,24 +1,26 @@
-.guide { max-width: 900px; margin-inline: auto; color: var(--text-primary); }
-.paths { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); margin-block: var(--space-5) var(--space-8); }
-.paths figure { margin: 0; min-width: 0; }
-.pathLink { display: block; color: var(--text-primary); text-decoration: none; }
-.pathLink img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: #101115; border-radius: var(--radius-lg); }
-.pathLink h2 { margin: var(--space-3) 0 var(--space-1); font-size: var(--text-lg); }
-.pathLink h2 span { color: var(--text-link); }
-.pathLink:hover h2 { text-decoration: underline; text-underline-offset: 0.18em; }
-.pathLink p { margin: 0; color: var(--text-secondary); line-height: 1.5; }
-.paths figcaption { margin-top: var(--space-2); font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.5; }
-.section { border-top: 1px solid var(--border-default); padding-block: var(--space-5); scroll-margin-top: 80px; }
-.section h2 { margin: 0 0 var(--space-3); font-size: var(--text-xl); line-height: 1.35; }
-.section p, .section li { line-height: 1.65; }
-.section p { margin: var(--space-3) 0; }
-.section ol, .section ul { padding-left: var(--space-5); }
-.section li + li { margin-top: var(--space-2); }
-.section a, .footer a, .paths figcaption a { color: var(--text-link); text-decoration: underline; text-underline-offset: 0.18em; }
-.section code { overflow-wrap: anywhere; }
+.guide { max-width: 1080px; margin-inline: auto; color: var(--text-primary); }
+.intro { color: var(--text-secondary); line-height: 1.6; margin-block: var(--space-3) var(--space-5); }
+.setup { border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-5); }
+.setup > summary, .workflow > summary { cursor: pointer; color: var(--text-link); font-weight: 600; line-height: 1.5; }
+.setup > summary:focus-visible, .workflow > summary:focus-visible { outline: 2px solid var(--text-link); outline-offset: 5px; border-radius: 2px; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); align-items: start; }
+.card { min-width: 0; border: 1px solid var(--border-default); border-radius: var(--radius-lg); overflow: hidden; scroll-margin-top: 80px; }
+.card figure { margin: 0; }
+.card img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: #101115; }
+.card figcaption { padding: var(--space-2) var(--space-5) 0; font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.5; }
+.cardBody { padding: var(--space-4) var(--space-5) var(--space-5); }
+.category { color: var(--text-secondary); font-size: var(--text-xs); font-weight: 600; margin: 0 0 var(--space-2); }
+.card h2 { margin: 0; font-size: var(--text-xl); line-height: 1.35; }
+.summary { color: var(--text-secondary); line-height: 1.6; margin: var(--space-3) 0 var(--space-4); }
+.workflow { border-top: 1px solid var(--border-default); padding-top: var(--space-3); font-size: var(--text-sm); }
+.detailBody { line-height: 1.65; }
+.detailBody h3 { font-size: var(--text-sm); margin: var(--space-5) 0 var(--space-2); }
+.detailBody p { margin: var(--space-3) 0; }
+.detailBody ol { padding-left: var(--space-5); }
+.detailBody li + li { margin-top: var(--space-3); }
+.guide a { color: var(--text-link); text-decoration: underline; text-underline-offset: 0.18em; }
+.detailBody code { overflow-wrap: anywhere; }
 .prompt { margin-block: var(--space-3); padding: var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); line-height: 1.65; }
 .prompt code { padding: 0; border: 0; background: transparent; font-size: inherit; }
-.details { margin-top: var(--space-4); color: var(--text-secondary); font-size: var(--text-sm); }
-.details summary { cursor: pointer; color: var(--text-primary); padding-block: var(--space-2); }
-.footer { border-top: 1px solid var(--border-default); padding-top: var(--space-3); color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.6; }
-@media (max-width: 640px) { .paths { grid-template-columns: 1fr; } }
+.footer { margin-top: var(--space-6); padding-top: var(--space-3); border-top: 1px solid var(--border-default); color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.6; }
+@media (max-width: 700px) { .cards { grid-template-columns: 1fr; } .cardBody { padding-inline: var(--space-4); } .card figcaption { padding-inline: var(--space-4); } }
