@@ -43,7 +43,7 @@ export default function AiWithUnityPage() {
             <div className={styles.loopSymbol}><img src={`/images/agentic-workflow/${step.image}.webp`} width={256} height={256} alt="" decoding="async" /></div>
             <strong>{index + 1}. {step.title}</strong>
             <span className={styles.loopDescription}>{step.description}</span>
-            {index < workingLoop.length - 1 && <span className={styles.loopArrow}><Icon name="arrow-right" size={20} /></span>}
+            {index < workingLoop.length - 1 && <span className={styles.loopArrow}><Icon name="arrow-right" size={32} strokeWidth={2.5} /></span>}
           </li>)}
         </ol>
         <div className={styles.loopReturn}><span aria-hidden="true">↶</span> Need a change? Refine the task and repeat.</div>
