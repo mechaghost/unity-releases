@@ -42,7 +42,7 @@ describe("sitemap", () => {
         "https://unityreleases.com/packages",
         "https://unityreleases.com/resources",
         "https://unityreleases.com/news",
-        "https://unityreleases.com/guides/ai-with-unity",
+        "https://unityreleases.com/guides/agentic-coding-with-unity",
         "https://unityreleases.com/faq"
       ])
     );

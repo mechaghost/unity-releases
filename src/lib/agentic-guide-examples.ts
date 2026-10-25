@@ -3,7 +3,7 @@ import images from "./release-guide-images.json";
 const releaseSource = "https://unity.com/blog/unity-6-features-announcement";
 const cliSource = "https://unity.com/resources/unity-pipeline-cli-technical-walkthrough";
 
-export const AI_GUIDE_EXAMPLES = [
+export const AGENTIC_GUIDE_EXAMPLES = [
   {
     id: "ci", category: "CI/CD", title: "Test every pull request",
     summary: "Compile, run tests, and build automatically. Keep useful logs when a check fails.",
@@ -99,24 +99,5 @@ Do not reduce enemy count or visual quality to make the numbers pass.`,
     checks: "The comparison uses the same hardware and settings. The slowdown repeats. The fix improves the measured cost without changing the intended scene.",
     evidence: "Mecha Drive’s October 25 recordings and Editor timings caught an optimization that made one road slower. It was rejected. Phone timing was still unverified; the nightly device job is a suggested addition.",
     link: "https://unity.com/blog/engine-platform/performance-benchmarking-in-unity-how-to-get-started", linkText: "Unity: performance benchmarking"
-  },
-  {
-    id: "sentis", category: "In-game AI · Sentis", title: "Use body movement as game input",
-    summary: "Use pose detection to let a player steer by leaning or trigger an action by raising a hand.",
-    image: images["6.0-5"], imageSource: releaseSource,
-    needs: "A supported trained pose model, a camera input, and a target device. Start with Unity’s Blaze detection sample.",
-    steps: [
-      "Run the official sample unchanged. Match the model’s input dimensions, pixel scaling, image orientation, and output layout before connecting it to gameplay.",
-      "Map confident pose points to actions. Add smoothing and a short hold time so a shaky detection does not repeatedly trigger a jump.",
-      "Measure model runtime and memory on the device. Tune how often it runs, release tensors and workers correctly, and fall back to normal controls when tracking is lost."
-    ],
-    prompt: `Adapt the official Sentis pose sample into a movement-control prototype in a separate scene.
-Verify the sample matches our installed package. Show detected points and confidence before mapping a torso lean to steering.
-Trigger an action only after a raised hand is held briefly. Add smoothing, adjustable thresholds, and a cooldown.
-When the person leaves the frame, stop camera-driven movement and retain keyboard controls.
-Measure inference time and memory on the target device. Test repeated camera start/stop cycles for leaks.`,
-    checks: "Low-confidence poses do not trigger actions. Losing the camera returns control cleanly. Frame time and memory stay within the device budget.",
-    evidence: "This example is based on Unity’s official Sentis samples and versioned docs. It has not been implemented or validated in Mecha Drive.",
-    link: "https://github.com/Unity-Technologies/sentis-samples", linkText: "Unity: Sentis samples"
   }
 ] as const;

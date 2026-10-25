@@ -60,7 +60,7 @@ export default async function ResourcesPage({
           <h1>Resources</h1>
         </div>
         <p>Unity tutorials, articles, videos, and reference material.</p>
-        <p>New to AI-assisted development? <a href="/guides/ai-with-unity">Start with the AI with Unity guide</a>.</p>
+        <p>Want to automate Unity development? <a href="/guides/agentic-coding-with-unity">Start with the Agentic Coding with Unity guide</a>.</p>
       </section>
 
       <ResourcesFilter

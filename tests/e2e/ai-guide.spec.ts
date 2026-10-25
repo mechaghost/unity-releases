@@ -1,16 +1,19 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-test("AI guide is discoverable and its workflow cards work on desktop and mobile", async ({ page, request }, testInfo) => {
+test("Agentic coding guide is discoverable and its workflow cards work on desktop and mobile", async ({ page, request }, testInfo) => {
+  const redirect = await request.get("/guides/ai-with-unity", { maxRedirects: 0 });
+  expect(redirect.status()).toBe(308);
+  expect(redirect.headers().location).toBe("/guides/agentic-coding-with-unity");
   await page.goto("/resources");
-  await page.getByRole("link", { name: "Start with the AI with Unity guide", exact: true }).click();
-  await expect(page).toHaveURL(/\/guides\/ai-with-unity$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("How to use AI with Unity");
+  await page.getByRole("link", { name: "Start with the Agentic Coding with Unity guide", exact: true }).click();
+  await expect(page).toHaveURL(/\/guides\/agentic-coding-with-unity$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Agentic Coding with Unity");
   await expect(page.locator('.lnav a[aria-current="page"]')).toHaveCount(1);
-  await expect(page.locator('.lnav a[aria-current="page"]')).toHaveText("AI with Unity");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/guides\/ai-with-unity$/);
-  await expect(page.locator("main")).not.toContainText(/Muse|MCP/);
-  await expect(page.locator("main header")).toContainText("Use a coding agent with Unity CLI and the Pipeline package");
+  await expect(page.locator('.lnav a[aria-current="page"]')).toHaveText("Agentic Coding with Unity");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/guides\/agentic-coding-with-unity$/);
+  await expect(page.locator("main")).not.toContainText(/Muse|MCP|Sentis|InferenceEngine/);
+  await expect(page.locator("main header")).toContainText("Agentic coding means giving a coding agent a task");
   await expect(page.locator("main dl")).toContainText("Unity CLI: the terminal tool");
   await expect(page.locator("main dl")).toContainText("Unity Pipeline: the Editor connection");
   const loop = page.getByRole("figure", { name: "The working loop" });
@@ -20,7 +23,7 @@ test("AI guide is discoverable and its workflow cards work on desktop and mobile
   await expect(page.getByRole("link", { name: "Mecha Drive", exact: true })).toHaveAttribute("href", "https://mechadrive.games");
   await expect(page.locator("main")).toContainText("vibe-coded Unity game");
   const cards = page.locator("main .guide-card");
-  await expect(cards).toHaveCount(6);
+  await expect(cards).toHaveCount(5);
   const wordCount = (await page.locator("main").innerText()).trim().split(/\s+/).length;
   expect(wordCount).toBeLessThan(700);
   for (const card of await cards.all()) {
@@ -41,15 +44,11 @@ test("AI guide is discoverable and its workflow cards work on desktop and mobile
   await expect(page.locator("#setup pre")).toContainText("unity pipeline install");
   await page.locator("#setup > summary").click();
   const images = page.locator("main img");
-  await expect(images).toHaveCount(6);
+  await expect(images).toHaveCount(5);
   for (const img of await images.all()) {
     await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
   }
-  await page.locator("#sentis summary").click();
-  await expect(page.locator("#sentis")).toContainText("com.unity.ai.inference");
-  await expect(page.locator("#sentis")).toContainText("Unity.InferenceEngine");
-  await page.locator("#sentis summary").click();
 
   const internalLinks = await page.locator('main a[href^="/"]').evaluateAll(els => [...new Set(els.map(el => el.getAttribute("href")!))]);
   for (const href of internalLinks) expect((await request.get(href)).status(), href).toBe(200);
@@ -72,6 +71,6 @@ test("AI guide is discoverable and its workflow cards work on desktop and mobile
     for (const summary of await page.locator("main details > summary").all()) await summary.click();
   }
   await page.goto("/faq");
-  await page.getByRole("link", { name: "AI with Unity guide", exact: true }).click();
-  await expect(page).toHaveURL(/\/guides\/ai-with-unity$/);
+  await page.getByRole("link", { name: "Agentic Coding with Unity guide", exact: true }).click();
+  await expect(page).toHaveURL(/\/guides\/agentic-coding-with-unity$/);
 });

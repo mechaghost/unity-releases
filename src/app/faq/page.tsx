@@ -45,10 +45,10 @@ const SECTIONS: Section[] = [
       },
       {
         id: "ai-guide",
-        question: "How do I use AI with Unity?",
-        answer: <p>Follow the <a href="/guides/ai-with-unity">AI with Unity guide</a>
+        question: "How do I use coding agents with Unity?",
+        answer: <p>Follow the <a href="/guides/agentic-coding-with-unity">Agentic Coding with Unity guide</a>
           {" "}for practical examples of CI/CD, gameplay tests, deployment, asset checks,
-          performance checks, and Sentis. Each card has a workflow, a prompt to adapt,
+          and performance checks. Each card has a workflow, a prompt to adapt,
           and checks for the result.</p>
       },
       {

@@ -41,10 +41,10 @@ const NAV: NavSection[] = [
         match: (pathname) => pathname === "/" || pathname === "/whats-new" || pathname.startsWith("/whats-new/")
       },
       {
-        href: "/guides/ai-with-unity",
-        label: "AI with Unity",
+        href: "/guides/agentic-coding-with-unity",
+        label: "Agentic Coding with Unity",
         icon: "sparkles",
-        match: (pathname) => pathname === "/guides/ai-with-unity"
+        match: (pathname) => pathname === "/guides/agentic-coding-with-unity"
       }
     ]
   },

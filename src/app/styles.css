@@ -432,6 +432,12 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   transition: background var(--duration-fast) var(--easing-standard), color var(--duration-fast) var(--easing-standard);
 }
 
+.lnav__item[href="/guides/agentic-coding-with-unity"] {
+  height: auto;
+  min-height: 32px;
+  padding-block: var(--space-2);
+}
+
 .lnav__item:hover {
   background: var(--surface-sunken);
   color: var(--text-primary);

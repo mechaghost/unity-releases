@@ -41,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${origin}/discussions`, lastModified: now, changeFrequency: "daily", priority: 0.6 },
     { url: `${origin}/news`, lastModified: now, changeFrequency: "daily", priority: 0.5 },
     { url: `${origin}/stats`, lastModified: now, changeFrequency: "daily", priority: 0.4 },
-    { url: `${origin}/guides/ai-with-unity`, lastModified: new Date("2026-10-25"), changeFrequency: "monthly", priority: 0.7 },
+    { url: `${origin}/guides/agentic-coding-with-unity`, lastModified: new Date("2026-10-25"), changeFrequency: "monthly", priority: 0.7 },
     { url: `${origin}/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     // Primary-nav pages that were missing from the static list (the per-issue
     // URLs below already made /issues/* crawlable; the index pages weren't).
