@@ -65,3 +65,12 @@ canonical URL, five expandable cards, keyboard use, image loading, Mecha Drive
 link, four-step infographic, 320px overflow, and light/dark accessibility.
 Run typecheck and the sitemap test when changing routes. Verify the sidebar's
 long title remains readable. The overview and closed cards stay under 700 words.
+
+## Workflow icons
+
+The four steps use Lucide's clipboard-list (task brief), square-pen (edit),
+list-checks (test results), and scan-eye (review). SVG shapes are stored in
+WorkflowIcon.tsx, with the upstream ISC license in public/licenses/lucide.txt.
+Source: https://github.com/lucide-icons/lucide/tree/main/icons (October 25, 2026).
+They render inline at 28px using the site's stroke weight and theme colors;
+there is no new package, client JavaScript, or remote image request.
