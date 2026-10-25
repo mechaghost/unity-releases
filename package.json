@@ -32,7 +32,8 @@
     "check:packages": "tsx src/jobs/check-missing-packages.ts",
     "check:invariants": "tsx src/jobs/check-invariants.ts",
     "check:lts": "tsx src/jobs/check-lts-lines.ts",
-    "preview": "node scripts/preview-local.mjs"
+    "preview": "node scripts/preview-local.mjs",
+    "brand:generate": "tsx scripts/generate-brand.ts"
   },
   "dependencies": {
     "@radix-ui/react-hover-card": "^1.1.15",
@@ -56,6 +57,7 @@
     "@types/node": "^22.15.3",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
+    "sharp": "^0.35.5",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^4.1.12"

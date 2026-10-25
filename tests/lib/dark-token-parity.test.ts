@@ -66,6 +66,17 @@ describe("dark theme token parity", () => {
 
   test("dark --text-muted keeps its AA-passing value", () => {
     const toggle = tokensAfter(toggleStart);
-    expect(toggle.get("--text-muted")).toBe("#A19A8E");
+    function luminance(hex: string) {
+      const values = hex.match(/[a-f0-9]{2}/gi)!.map(value => {
+        const channel = parseInt(value, 16) / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+      return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722;
+    }
+    const text = luminance(toggle.get("--text-muted")!);
+    for (const surface of ["--surface-base", "--surface-sunken", "--surface-raised", "--surface-overlay"]) {
+      const background = luminance(toggle.get(surface)!);
+      expect((text + 0.05) / (background + 0.05), surface).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

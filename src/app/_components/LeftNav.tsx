@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "./Icon";
+import { SentinelMark } from "./SentinelMark";
 import { ThemeToggle } from "./ThemeToggle";
 
 type NavItem = {
@@ -165,10 +166,11 @@ export function LeftNav({
   return (
     <nav className="lnav" id="primary-nav" aria-label="Primary">
       <a href="/" className="lnav__brand">
-        <span className="lnav__brand-name">Unity Releases</span>
-        {/* Generation-neutral: naming a single Unity generation here would
-            need a manual edit the day the next one ships. */}
-        <span className="lnav__brand-tagline">Features, releases, and upgrades</span>
+        <span className="brand-lockup">
+          <SentinelMark size={52} />
+          <span className="brand-wordmark">Unity<br />Releases</span>
+        </span>
+        <span className="lnav__brand-tagline">Know what changed.</span>
       </a>
       <div className="lnav__sections">
         {NAV.map((section) => {

@@ -1,4 +1,4 @@
-# Sentinel identity proposal
+# Sentinel identity
 
 Selected direction: **Original refined**, row 01 of [selection-reference.png](selection-reference.png).
 
@@ -12,7 +12,7 @@ Generated with the built-in image generation tool. Original prompts are in [prom
 
 ## Identity
 
-Keep the chosen owl's angular ears, flat crown, pointed chin, slanted eye sockets, vertical pupils and diamond beak. Use one canonical vector master when implementing; generated repetitions have small differences and must not become separate production marks.
+Keep the chosen owl's angular ears, flat crown, pointed chin, slanted eye sockets, vertical pupils and diamond beak. The implementation uses one canonical vector master; generated repetitions in the concept boards have small differences and are not separate production marks.
 
 Always use a black owl with white eye areas, black pupils and a white diamond beak. On blue or dark surfaces, place the black owl on a white rounded-square tile. Never invert the face colors. The wordmark may be white on dark backgrounds. The selection reference is historical; its inverse examples are superseded by this rule.
 
@@ -42,13 +42,29 @@ Use blue for primary actions, links and active selection. Keep fixes, warnings a
 - Use black-on-white tile icons, with cobalt only around the tile, and a quiet sharing card with the owl, name, short brand line and domain.
 - Preserve independent-project disclosure.
 
-## Production handoff
+## Production assets
 
-Reconstruct and approve one SVG master from the selected row before exporting variants. Produce black-on-white, white-tile, horizontal and stacked marks from it; do not produce inverse owl marks. Export and inspect actual 16/32/48px favicons, 180px Apple touch icon, 192/512px app icons and 1200×630 sharing image. Dimensions printed inside the boards are proposed export sizes, not delivered standalone assets.
+The canonical geometry is in `src/lib/sentinel.ts`. `SentinelMark` uses it for the navigation, favicon, Apple icon and sharing card. The tile is always white; fills never follow the theme.
+
+Run `npm run brand:generate` to rebuild the downloadable SVG and 16/32/48/180/192/512px PNGs in `public/brand`. The 1200×630 sharing image is served at `/opengraph-image`; `/icon` and `/apple-icon` provide Next metadata icons. `/manifest.webmanifest` references the 192/512px PNGs.
+
+The navigation provides stacked desktop and compact horizontal mobile wordmarks. Both use locally hosted Inter; version strings use locally hosted JetBrains Mono. Font licenses and source details are in `src/app/fonts`.
 
 Use at least one quarter of the mark height for clearspace; the generated identity board's full-height clearspace label is too generous for navigation. Inspect small-icon eye and beak legibility at actual size.
 
-Implementation should reuse LeftNav, MobileNavToggle, ThemeToggle and existing CSS tokens. Keep explicit dark-theme and OS-preference token blocks in sync. Check contrast, keyboard focus, mobile overflow and desktop/mobile browser rendering before production use.
+The implementation reuses LeftNav, MobileNavToggle, ThemeToggle and existing CSS tokens. Existing routes, data and table/card behavior are retained. The mockups are directional, not literal replacements for live release data or controls.
 
-No application code or deployed site was changed for this design proposal.
+Verification: unit suite, production build, desktop/mobile browser checks, matching owl-face pixels between light/dark themes, mobile drawer focus/Escape, icon endpoints, navigation contrast, and horizontal overflow. See `tests/e2e/sentinel-brand.spec.ts` and `tests/lib/dark-token-parity.test.ts`.
 
+Implemented in the repository. Deployment is separate.
+
+
+## Implemented previews
+
+Actual local production-build captures using the local database:
+
+- [Desktop light](implemented/desktop-light.png) and [desktop dark](implemented/desktop-dark.png).
+- [Mobile light](implemented/mobile-light.png) and [mobile dark](implemented/mobile-dark.png).
+- [Rendered sharing card](implemented/social.png).
+
+Verified on 2026-10-24: 855 unit tests passed (6 skipped), typecheck, production build, and 4 desktop/mobile branding browser tests. Contrast and accessible-name checks passed on home, releases, compare and packages in both themes. These are local browser checks, not production deployment evidence.

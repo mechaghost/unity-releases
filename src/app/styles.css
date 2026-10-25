@@ -3,29 +3,29 @@
    ======================================================================== */
 
 :root {
-  --azure-50:  #EDF7F8;
-  --azure-100: #DCEFF2;
-  --azure-200: #B9DDE4;
-  --azure-300: #8EC7D1;
-  --azure-400: #62AEBB;
-  --azure-500: #347F8E;
-  --azure-600: #2F7180;
-  --azure-700: #285F6C;
-  --azure-800: #214F5A;
-  --azure-900: #193B44;
-  --azure-950: #10282F;
+  --azure-50:  #EEF2FF;
+  --azure-100: #E0E7FF;
+  --azure-200: #C7D2FE;
+  --azure-300: #A8B9FF;
+  --azure-400: #7895FF;
+  --azure-500: #2455F5;
+  --azure-600: #2048D2;
+  --azure-700: #1D3DAF;
+  --azure-800: #243986;
+  --azure-900: #202E60;
+  --azure-950: #161F40;
 
-  --gray-50:  #F7F5F1;
-  --gray-100: #EEEAE3;
-  --gray-200: #E1DCD3;
-  --gray-300: #CEC8BC;
-  --gray-400: #A8A196;
-  --gray-500: #7D786F;
-  --gray-600: #5E5B55;
-  --gray-700: #454641;
-  --gray-800: #2E3434;
-  --gray-900: #20292C;
-  --gray-950: #12191D;
+  --gray-50:  #F7F8FC;
+  --gray-100: #ECEFF5;
+  --gray-200: #DDE2EC;
+  --gray-300: #C7CEDC;
+  --gray-400: #A2ABBD;
+  --gray-500: #6E788C;
+  --gray-600: #596174;
+  --gray-700: #414A5E;
+  --gray-800: #30384A;
+  --gray-900: #111318;
+  --gray-950: #11151E;
 
   --color-blocker: #A45A5A;
   --color-blocker-bg: #F8ECEA;
@@ -43,19 +43,19 @@
   --color-success-bg: #E8F2EA;
   --color-success-fg: #316448;
 
-  --surface-base:    #FFFEFC;
+  --surface-base:    #FFFFFF;
   --surface-raised:  #FFFFFF;
   --surface-overlay: #FFFFFF;
-  --surface-sunken:  #F7F5F1;
+  --surface-sunken:  #F7F8FC;
 
-  --border-subtle:  #ECE7DE;
-  --border-default: #DDD7CC;
-  --border-strong:  #C8C0B4;
+  --border-subtle:  #E9ECF3;
+  --border-default: #D8DEEA;
+  --border-strong:  #B7C1D3;
   --border-focus:   var(--azure-500);
 
   --text-primary:    var(--gray-900);
   --text-secondary:  var(--gray-700);
-  --text-muted:      #746F66;
+  --text-muted:      #596174;
   --text-link:       var(--azure-600);
   --text-on-accent:  #FFFFFF;
 
@@ -65,8 +65,8 @@
   --accent-soft:    var(--azure-50);
   --accent-soft-fg: var(--azure-700);
 
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   --text-2xs: 11px; --text-xs: 12px; --text-sm: 13px; --text-base: 14px; --text-md: 16px;
   --text-lg: 18px; --text-xl: 20px; --text-2xl: 24px;
@@ -105,27 +105,27 @@
      base/card surface clear above it so cards read as elevated. The
      prior values (sunken→base = 3 RGB units) were too tight; cards
      blended into the page and made body copy hard to scan. */
-  --surface-base:    #1A2024;
-  --surface-sunken:  #0F1315;
-  --surface-raised:  #232A2E;
-  --surface-overlay: #2D353A;
+  --surface-base:    #1B2230;
+  --surface-sunken:  #11151E;
+  --surface-raised:  #252E3E;
+  --surface-overlay: #303B50;
 
-  --border-subtle:  #2C3336;
-  --border-default: #3A4347;
-  --border-strong:  #4F595D;
+  --border-subtle:  #2D3749;
+  --border-default: #414D63;
+  --border-strong:  #606E87;
   --border-focus:   var(--azure-300);
 
-  --text-primary:    #ECE8DF;
-  --text-secondary:  #C5BFB4;
+  --text-primary:    #F7F8FC;
+  --text-secondary:  #CDD4E2;
   /* Bumped from #8E887F (≈4.4:1 on --surface-base) to clear WCAG AA
      4.5:1 for normal-size text. Lots of small UI copy uses .muted
      (formula lines, cohort labels, date stamps). */
-  --text-muted:      #A19A8E;
+  --text-muted:      #AAB5C9;
   --text-link:       var(--azure-300);
 
-  --accent-hover:   var(--azure-300);
+  --accent-hover:   var(--azure-600);
   --accent-pressed: var(--azure-600);
-  --accent-soft:    #1D3034;
+  --accent-soft:    #202D50;
   --accent-soft-fg: var(--azure-200);
 
   --shadow-xs: none; --shadow-sm: none; --shadow-md: none;
@@ -145,27 +145,27 @@
     /* Same surface bump as the explicit dark theme above - keep these
        two blocks in lock-step so OS-default and toggle-preference dark
        modes look identical. */
-    --surface-base:    #1A2024;
-    --surface-sunken:  #0F1315;
-    --surface-raised:  #232A2E;
-    --surface-overlay: #2D353A;
+    --surface-base:    #1B2230;
+    --surface-sunken:  #11151E;
+    --surface-raised:  #252E3E;
+    --surface-overlay: #303B50;
 
-    --border-subtle:  #2C3336;
-    --border-default: #3A4347;
-    --border-strong:  #4F595D;
+    --border-subtle:  #2D3749;
+    --border-default: #414D63;
+    --border-strong:  #606E87;
     --border-focus:   var(--azure-300);
 
-    --text-primary:    #ECE8DF;
-    --text-secondary:  #C5BFB4;
+    --text-primary:    #F7F8FC;
+    --text-secondary:  #CDD4E2;
     /* Must match [data-theme="dark"] above (see the lock-step note).
        tests/lib/dark-token-parity.test.ts fails the build if these
        two blocks drift again. */
-    --text-muted:      #A19A8E;
+    --text-muted:      #AAB5C9;
     --text-link:       var(--azure-300);
 
-    --accent-hover:   var(--azure-300);
+    --accent-hover:   var(--azure-600);
     --accent-pressed: var(--azure-600);
-    --accent-soft:    #1D3034;
+    --accent-soft:    #202D50;
     --accent-soft-fg: var(--azure-200);
 
     --shadow-xs: none; --shadow-sm: none; --shadow-md: none;
@@ -356,8 +356,8 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 
 .lnav__brand {
-  min-height: 56px;
-  padding: var(--space-2) var(--space-4);
+  min-height: 112px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -368,11 +368,9 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
   letter-spacing: var(--tracking-snug);
 }
 
-.lnav__brand-name {
-  font-weight: var(--weight-bold);
-  font-size: var(--text-md);
-  line-height: var(--leading-md);
-}
+.brand-lockup { display: flex; align-items: center; gap: 10px; }
+.brand-wordmark { font-weight: 850; font-size: 25px; line-height: 0.98; letter-spacing: -0.045em; }
+.mobile-topbar__brand .brand-wordmark { font-size: 18px; line-height: 1.1; }
 
 .lnav__brand-tagline {
   font-weight: var(--weight-regular);
@@ -383,7 +381,7 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 
 .lnav__brand:hover { text-decoration: none; }
-.lnav__brand:hover .lnav__brand-name { text-decoration: underline; }
+.lnav__brand:hover .brand-wordmark { text-decoration: underline; }
 .lnav__sections {
   flex: 1;
   padding: var(--space-3) var(--space-2);
@@ -441,10 +439,9 @@ h4 { font-size: var(--text-md); line-height: var(--leading-md); font-weight: var
 }
 
 .lnav__item[aria-current="page"] {
-  background: var(--accent-soft);
-  color: var(--text-primary);
-  font-weight: var(--weight-medium);
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--accent);
+  color: #FFFFFF;
+  font-weight: var(--weight-semibold);
 }
 
 .lnav__item-icon {
@@ -5497,14 +5494,14 @@ button.filter-section__head:focus-visible {
 /* Dark variants for the stability-strip cells + legend swatches - the
    light pastels glared on the dark card, and the legend previously
    disagreed with the (already dark-tuned) heatmap cells. */
-[data-theme="dark"] .viz-cell--neutral rect      { fill: #3A4347; }
+[data-theme="dark"] .viz-cell--neutral rect      { fill: #414D63; }
 [data-theme="dark"] .viz-cell--green-soft rect   { fill: #2D4738; }
 [data-theme="dark"] .viz-cell--green-mid rect    { fill: #467C5E; }
 [data-theme="dark"] .viz-cell--green-strong rect { fill: #5DA379; }
 [data-theme="dark"] .viz-cell--red-soft rect     { fill: #4A2F2C; }
 [data-theme="dark"] .viz-cell--red-mid rect      { fill: #8A5450; }
 [data-theme="dark"] .viz-cell--red-strong rect   { fill: #B56B66; }
-[data-theme="dark"] .viz-legend-swatch--neutral  { background: #3A4347; }
+[data-theme="dark"] .viz-legend-swatch--neutral  { background: #414D63; }
 [data-theme="dark"] .viz-legend-swatch--green    { background: #5DA379; }
 [data-theme="dark"] .viz-legend-swatch--red      { background: #B56B66; }
 [data-theme="dark"] .viz-legend-swatch--heat-1   { background: #213029; }
@@ -5512,14 +5509,14 @@ button.filter-section__head:focus-visible {
 [data-theme="dark"] .viz-legend-swatch--heat-3   { background: #467C5E; }
 [data-theme="dark"] .viz-legend-swatch--heat-4   { background: #5DA379; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .viz-cell--neutral rect      { fill: #3A4347; }
+  :root:not([data-theme="light"]) .viz-cell--neutral rect      { fill: #414D63; }
   :root:not([data-theme="light"]) .viz-cell--green-soft rect   { fill: #2D4738; }
   :root:not([data-theme="light"]) .viz-cell--green-mid rect    { fill: #467C5E; }
   :root:not([data-theme="light"]) .viz-cell--green-strong rect { fill: #5DA379; }
   :root:not([data-theme="light"]) .viz-cell--red-soft rect     { fill: #4A2F2C; }
   :root:not([data-theme="light"]) .viz-cell--red-mid rect      { fill: #8A5450; }
   :root:not([data-theme="light"]) .viz-cell--red-strong rect   { fill: #B56B66; }
-  :root:not([data-theme="light"]) .viz-legend-swatch--neutral  { background: #3A4347; }
+  :root:not([data-theme="light"]) .viz-legend-swatch--neutral  { background: #414D63; }
   :root:not([data-theme="light"]) .viz-legend-swatch--green    { background: #5DA379; }
   :root:not([data-theme="light"]) .viz-legend-swatch--red      { background: #B56B66; }
   :root:not([data-theme="light"]) .viz-legend-swatch--heat-1   { background: #213029; }

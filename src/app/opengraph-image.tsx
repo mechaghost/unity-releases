@@ -1,115 +1,28 @@
 import { ImageResponse } from "next/og";
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { SentinelMark } from "./_components/SentinelMark";
+import { SITE_NAME } from "@/lib/site";
 
 export const dynamic = "force-static";
-
-// Derived from SITE_TAGLINE rather than restated, so the card can't drift from
-// the page title the way it did when the tagline was made generation-neutral.
-export const alt = `${SITE_NAME} - ${SITE_TAGLINE}. Diff editor versions, see blockers, breaking changes, and known issues bucketed by impact.`;
+export const alt = `${SITE_NAME} — Know what changed. Independent Unity release guides and version comparisons.`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-/**
- * Default Open Graph / Twitter card image. Dark background, accent
- * stripe, brand title + tagline. Served at `/opengraph-image`.
- */
-export default function OpenGraphImage() {
+export default async function OpenGraphImage() {
+  const inter = new Uint8Array(await readFile(join(process.cwd(), "src/app/fonts/Inter-ExtraBold.ttf"))).buffer;
   return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          background: "#0F1315",
-          color: "#FFFFFF",
-          fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-          display: "flex",
-          flexDirection: "column",
-          padding: 80
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              background: "#347F8E",
-              color: "#FFFFFF",
-              fontSize: 48,
-              fontWeight: 800,
-              letterSpacing: -2,
-              borderRadius: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
-          >
-            U
-          </div>
-          <div
-            style={{
-              fontSize: 32,
-              fontWeight: 600,
-              color: "#A8B0B3",
-              letterSpacing: -0.5
-            }}
-          >
-            {SITE_NAME}
-          </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: 80,
-            fontSize: 76,
-            fontWeight: 800,
-            lineHeight: 1.05,
-            letterSpacing: -2.5,
-            color: "#FFFFFF",
-            display: "flex"
-          }}
-        >
-          {SITE_TAGLINE}
-        </div>
-
-        <div
-          style={{
-            marginTop: 28,
-            fontSize: 30,
-            lineHeight: 1.35,
-            color: "#A8B0B3",
-            maxWidth: 980,
-            display: "flex"
-          }}
-        >
-          Explore what’s new in Unity. Read feature guides, compare Editor
-          versions, and find the tools for your next upgrade.
-        </div>
-
-        <div
-          style={{
-            marginTop: "auto",
-            paddingTop: 40,
-            display: "flex",
-            alignItems: "center",
-            gap: 20,
-            fontSize: 22,
-            color: "#7A8285"
-          }}
-        >
-          <div
-            style={{
-              width: 36,
-              height: 4,
-              background: "#347F8E",
-              borderRadius: 2
-            }}
-          />
-          unityreleases.com - independent project, not affiliated with Unity
-          Technologies
+    <div style={{ width: "100%", height: "100%", background: "#FFFFFF", color: "#111318", display: "flex", flexDirection: "column", padding: "64px 72px", fontFamily: "Inter", borderBottom: "20px solid #2455F5" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+        <SentinelMark size={260} />
+        <div style={{ display: "flex", flexDirection: "column", fontSize: 88, fontWeight: 800, lineHeight: 1, letterSpacing: -4 }}>
+          <span>Unity</span><span>Releases</span>
         </div>
       </div>
-    ),
-    size
+      <div style={{ display: "flex", marginTop: 24, fontSize: 42, color: "#596174", fontWeight: 600 }}>Know what changed.</div>
+      <div style={{ display: "flex", marginTop: 26, fontSize: 26, color: "#2455F5" }}>unityreleases.com</div>
+      <div style={{ display: "flex", marginTop: "auto", fontSize: 17, color: "#596174" }}>Independent project. Not affiliated with Unity Technologies.</div>
+    </div>,
+    { ...size, fonts: [{ name: "Inter", data: inter, weight: 800, style: "normal" }] }
   );
 }

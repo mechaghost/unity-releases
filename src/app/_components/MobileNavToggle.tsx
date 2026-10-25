@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SentinelMark } from "./SentinelMark";
 import { Icon } from "./Icon";
 import { makeInert, trapTabFocus } from "@/lib/focus";
 
@@ -83,7 +84,8 @@ export function MobileNavToggle() {
             <Icon name={open ? "x" : "menu"} size={20} />
           </button>
           <a href="/" className="mobile-topbar__brand">
-            Unity Releases
+            <SentinelMark size={36} />
+            <span className="brand-wordmark">Unity Releases</span>
           </a>
         </div>
       </div>

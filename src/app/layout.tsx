@@ -1,6 +1,8 @@
 import { Suspense, type ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import "./styles.css";
+import localFont from "next/font/local";
+
 import { LeftNav } from "./_components/LeftNav";
 import { MobileNavToggle } from "./_components/MobileNavToggle";
 import { NoFlashScript } from "./_components/NoFlashScript";
@@ -15,6 +17,9 @@ import {
   siteUrl
 } from "@/lib/site";
 import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
+
+const inter = localFont({ src: "./fonts/Inter.ttf", variable: "--font-inter", display: "swap", weight: "100 900" });
+const mono = localFont({ src: "./fonts/JetBrainsMono.ttf", variable: "--font-jetbrains", display: "swap", weight: "100 800", preload: false });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -71,8 +76,8 @@ export const viewport: Viewport = {
   themeColor: [
     // Light matches --surface-base, dark matches --surface-sunken (the
     // page canvas) so mobile browser chrome blends with the page edge.
-    { media: "(prefers-color-scheme: light)", color: "#FFFEFC" },
-    { media: "(prefers-color-scheme: dark)", color: "#0F1315" }
+    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
+    { media: "(prefers-color-scheme: dark)", color: "#11151E" }
   ],
   colorScheme: "light dark",
   width: "device-width",
@@ -94,7 +99,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   }));
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
         <NoFlashScript />
       </head>
