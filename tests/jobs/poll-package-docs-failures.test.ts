@@ -43,3 +43,16 @@ test('same-minor latest redirect remains uncertain without an actual changelog',
  await expect(main()).rejects.toThrow('incomplete for 1 packages');
  expect(mocks.query.mock.calls.some(([sql])=>/INSERT|DELETE/.test(sql))).toBe(false);
 });
+
+test('verified migrated manual is not aligned across all affected minors', async()=>{
+ const { readFileSync } = await import('node:fs');
+ const { probePackage } = await import('../../src/jobs/poll-package-docs');
+ const finalUrl='https://docs.unity.com/en-us/engine/6000.6/manual/packages-list/upm-ui-window/upm-ui';
+ const text=readFileSync('tests/fixtures/package-docs/package-manager-manual-migrated.html','utf8');
+ mocks.fetchText.mockResolvedValue({status:200,finalUrl,text});
+ await expect(probePackage('com.unity.package-manager-ui',['6.6','6.5','6.4','6.3'])).resolves.toEqual({status:'not-aligned'});
+ expect(mocks.fetchText).toHaveBeenCalledTimes(4);
+ expect(mocks.query).not.toHaveBeenCalled();
+ mocks.fetchText.mockResolvedValue({status:200,finalUrl,text:'<h1>Unavailable</h1>'});
+ await expect(probePackage('com.unity.package-manager-ui',['6.6'])).resolves.toEqual({status:'uncertain'});
+});

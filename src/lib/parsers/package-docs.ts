@@ -38,8 +38,21 @@ export function isPackageManagerManualRedirect(html: string, finalUrl: string, p
   if (pkg !== "com.unity.package-manager-ui") return false;
   let destination: URL;
   try { destination = new URL(finalUrl); } catch { return false; }
-  if (destination.href !== "https://docs.unity3d.com/Manual/upm-ui.html") return false;
   const $ = cheerio.load(html);
+  // The migrated manual is a reference page, never a package changelog.
+  // Require its official route AND rendered article identity; a bare 200,
+  // client-only shell, or unrelated Unity page must remain uncertain.
+  const migrated = /^https:\/\/docs\.unity\.com\/en-us\/engine\/(\d+\.\d+)\/manual\/packages-list\/upm-ui-window\/upm-ui$/.exec(destination.href);
+  if (migrated) {
+    const content = $("#page-content-container");
+    return $("title").text().trim() === `Package Manager window reference • Package Manager window • ${migrated[1]} • Unity Editor • Unity Docs`
+      && $('link[rel="alternate"][type="text/markdown"]').attr("href") === `${destination.href}.md`
+      && content.find("h1").text().trim() === "Package Manager window reference"
+      && content.find("h2#advanced-settings").text().trim() === "Advanced settings"
+      && content.find("h2#status-bar").text().trim() === "Status bar"
+      && content.text().length > 500;
+  }
+  if (destination.href !== "https://docs.unity3d.com/Manual/upm-ui.html") return false;
   const canonical = $('link[rel="canonical"]').attr("href") ?? "";
   return /^https:\/\/docs\.unity3d\.com\/\d+\.\d+\/Documentation\/Manual\/upm-ui\.html$/.test(canonical)
     && $("title").text().trim() === "Unity - Manual: Package Manager window reference"
