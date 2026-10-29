@@ -22,6 +22,7 @@ type AdapterInventoryEntry = {
   iosPath: string;
   iosRetired?: boolean;
   androidPath?: string;
+  androidRetired?: boolean;
 };
 
 /**
@@ -177,7 +178,12 @@ export const LEVELPLAY_MEDIATION_ADAPTER_INVENTORY: readonly AdapterInventoryEnt
       key: "vk-ad-network",
       name: "VK Ad Network",
       iosPath: "VK%20Ad%20Network/CHANGELOG.md",
-      androidPath: "VK%20Ad%20Network/CHANGELOG.md"
+      androidPath: "VK%20Ad%20Network/CHANGELOG.md",
+      // Upstream removed both adapters; retain their source and history keys.
+      // https://github.com/ironsource-mobile/levelplay-ios-adapters/commit/72eb40b87bf975229c4eeb65163b709b112cb8cf
+      // https://github.com/ironsource-mobile/levelplay-android-adapters/commit/4c9288c354bf4fc5b0b4bb389fda24ad69c9aa10
+      iosRetired: true,
+      androidRetired: true
     },
     {
       key: "yandex-ads",
@@ -239,7 +245,7 @@ function createMediationAdapter(
           targetKey: `${network.key}-${platform.key}`,
           url: platform.url,
           allowedHosts: ["raw.githubusercontent.com"],
-          ...(platform.key === "ios" && network.iosRetired ? { retired: true } : {})
+          ...(network[`${platform.key}Retired`] ? { retired: true } : {})
         }
       ]
     },
