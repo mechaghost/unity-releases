@@ -19,9 +19,9 @@ The feature defaults off in code. Production enablement follows the steps below.
    not establish current support dates.
 5. Set `ISSUE_REPORT_COLLECTION_ENABLED=true` and `ISSUE_REPORT_MINOR_LINES` to an
    explicit comma-separated list on the cron service. For broad coverage, use the
-   dedicated hourly `cron-issue-reports` service, following the `release` branch and
+   dedicated `cron-issue-reports` service, following the `release` branch and
    using the existing Postgres database. Configure its start command as
-   `npm run ingest:issue-reports`, cron as `35 * * * *`, and restart policy as
+   `npm run ingest:issue-reports`, cron as `*/10 * * * *`, and restart policy as
    `NEVER` directly on Railway. New Railway services no longer read the legacy
    JSON config files used by this repository's older services. Set the same variables on
    the web service for health reporting. Leave search disabled.
@@ -49,10 +49,13 @@ the customer search after deployment.
 
 ## Collection and health
 
-Collection uses one worker, one request per second, 20-second HTTP attempts, one
+Collection uses one worker, one request per ten seconds, 20-second HTTP attempts, one
 transient retry, at most five redirects, and a 90-second total deadline per report.
 HTTP and validated HTML redirects share the rate/hop limits. Responses are capped
-at 2 MiB. The batch ends after eight minutes or 100 reports. Network work happens
+at 2 MiB. The batch ends after eight minutes or 100 reports. It stops starting new
+reports with less than 90 seconds remaining, leaving time for a complete attempt.
+That normal cutoff leaves untouched reports pending and does not fail the run.
+Network work happens
 outside write transactions. A database lock prevents concurrent manual/cron workers.
 
 Due refresh/retry work and pending work are interleaved. Pending issues referenced
@@ -69,8 +72,8 @@ A stale slug or bare resolver 404 is not proof of removal. Only a verified resol
 result with the explicit unavailable page withdraws text from search/display.
 Unavailable reports are checked monthly; successful reports weekly. These targets
 require capacity: two 100-item runs/day allow at most 1,400 items/week before
-new reports, retries, and time limits. The dedicated hourly collector raises that
-ceiling to 16,800 per week without rerunning the other ingestion jobs. Workers
+new reports, retries, and time limits. The dedicated collector now starts every
+ten minutes; actual throughput depends on redirects and the crawl delay. Workers
 share a lock and the request rate limit; overlapping scheduled/manual runs skip.
 
 Trigger and inspect the dedicated service with a current Railway CLI:
@@ -183,3 +186,29 @@ rates and overdue work as collection reaches older reports.
 All 246,476 production note rows now have enriched search vectors. PostgreSQL
 confirmed the new GIN index is valid; it occupies 24 MB. The rebuild resumed on
 Railway after beginning locally, and completed with no missing vectors.
+
+## Backfill pacing update on 2026-11-02
+
+The initial hourly schedule and one-second spacing above describe the original
+rollout. A subsequent check of the tracker's
+[robots.txt](https://issuetracker.unity.com/robots.txt) found `Crawl-delay: 10`.
+Default spacing is now ten seconds, including redirects and retries. The report
+collector runs every ten minutes to reduce idle time. One worker, shared cooldown,
+and report identity checks remain in place. Unpublished quotas may still produce
+429 responses; the collector stops and respects Retry-After.
+
+A one-time seed used the public sitemap to find 1,714 unique exact-slug URL
+matches among 3,063 pending reports. Only unattempted pending rows with no
+canonical URL were eligible; original source URLs were retained. These are URL
+hints, not verified content: the next fetch must still pass the existing issue-ID
+check, and can fall back to the original URL/resolver. The sitemap was saved as
+an `issue_report_sitemap` source snapshot (SHA-256
+`48a081282527c048236d71a866f1413c68c9b1b1cc9d8c71e1e4c325b1c66af4`).
+The seed acquired the collector lock and transaction write lock before updating.
+This reduces redirect requests for the initial backlog; future reports continue
+through the regular discovery flow.
+
+Validation: 1,093 unit tests, all five database contracts, type checking, and the
+production build passed. New tests cover the ten-second spacing and leaving
+pending work untouched when the batch cannot fit another report deadline, plus
+rejecting a URL hint with the wrong issue ID and falling back to the source.

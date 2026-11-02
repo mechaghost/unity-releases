@@ -3,7 +3,7 @@ import { getPool, query } from "../lib/db/client";
 import { recordSourceSnapshot } from "../lib/db/repositories";
 import { scheduledJobMain } from "../lib/ingest/job-health";
 import { sha256 } from "../lib/ingest/hash";
-import { createTrackerFetcher, TrackerFetchError } from "../lib/issue-reports/fetch";
+import { createTrackerFetcher, TrackerFetchError, TRACKER_REPORT_TIMEOUT_MS } from "../lib/issue-reports/fetch";
 import { issueReportCollectionEnabled } from "../lib/issue-reports/flags";
 import { issueReportCoverage, saveIssueReport, withReportWrite } from "../lib/issue-reports/repository";
 import { normalizeIssueId } from "../lib/parsers/issue-report";
@@ -30,6 +30,7 @@ export async function discoverIssueReports(options: CollectionOptions) {
 export async function collectIssueReports(options: CollectionOptions = {}, dependencies: {
   fetchReport?: ReturnType<typeof createTrackerFetcher>;
   budgetMs?: number;
+  minimumRemainingMs?: number;
 } = {}) {
   options = { ...options, issueId: options.issueId ? normalizeIssueId(options.issueId) : undefined,
     minorLines: options.minorLines ?? (process.env.ISSUE_REPORT_MINOR_LINES ?? "").split(",").filter(Boolean) };
@@ -39,7 +40,8 @@ export async function collectIssueReports(options: CollectionOptions = {}, depen
   try { locked = await lock.query<{ locked: boolean }>("SELECT pg_try_advisory_lock(187341, 2) AS locked"); }
   catch (error) { lock.release(error instanceof Error ? error : true); throw error; }
   if (!locked.rows[0].locked) { lock.release(); return { skipped: "already running" }; }
-  const signal = AbortSignal.any([AbortSignal.timeout(dependencies.budgetMs ?? 8 * 60_000), ...(options.signal ? [options.signal] : [])]);
+  const budgetMs = dependencies.budgetMs ?? 8 * 60_000;
+  const signal = AbortSignal.any([AbortSignal.timeout(budgetMs), ...(options.signal ? [options.signal] : [])]);
   const summary = { requested: 0, fetched: 0, unchanged: 0, unavailable: 0, failed: 0, requests: 0, bytes: 0, budgetReached: false, cooldown: false, durationMs: 0 };
   const started = Date.now();
   const fetchReport = dependencies.fetchReport ?? createTrackerFetcher({ signal, onRequest: () => { summary.requests++; } });
@@ -69,7 +71,11 @@ export async function collectIssueReports(options: CollectionOptions = {}, depen
         options.minorLines, limit, !options.all && !options.issueId && !options.version]);
     let consecutiveParserFailures = 0;
     for (const row of due.rows) {
-      if (signal.aborted) { summary.budgetReached = true; break; }
+      // Leave enough time for a whole report, including pacing and redirects.
+      // Ordinary batch completion should not manufacture a timeout/retry row.
+      if (signal.aborted || Date.now()-started >= budgetMs-(dependencies.minimumRemainingMs ?? TRACKER_REPORT_TIMEOUT_MS)) {
+        summary.budgetReached = true; break;
+      }
       summary.requested++;
       try {
         const fetched = await fetchReport(row.issue_id, row.source_url, row.canonical_url);

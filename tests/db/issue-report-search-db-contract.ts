@@ -143,7 +143,7 @@ async function main() {
     assert.deepEqual(called, [report.issueId]);
     // Mid-request budget expiry persists a backoff instead of stranding this row.
     await query("UPDATE issue_reports SET next_attempt_at=now() WHERE issue_id=$1", [report.issueId]);
-    await assert.rejects(collectIssueReports({ issueId: report.issueId }, { budgetMs: 20, fetchReport: async () => {
+    await assert.rejects(collectIssueReports({ issueId: report.issueId }, { budgetMs: 20, minimumRemainingMs: 0, fetchReport: async () => {
       await new Promise(resolve => setTimeout(resolve, 30)); throw new Error("timed out");
     } }), /failed/);
     assert.equal((await query("SELECT next_attempt_at>now() AS delayed FROM issue_reports WHERE issue_id=$1",[report.issueId])).rows[0].delayed,true);

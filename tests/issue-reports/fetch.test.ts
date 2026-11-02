@@ -6,6 +6,31 @@ const html = readFileSync("tests/fixtures/issue-reports/customer.html", "utf8");
 const url = issueIdResolver("UUM-145761");
 const options = { wait: async () => {}, requestIntervalMs: 0 };
 
+test("default spacing honors the tracker crawl delay across redirects", async () => {
+  let now=1_000_000;
+  const clock=vi.spyOn(Date,"now").mockImplementation(()=>now);
+  const times:number[]=[];
+  const request=vi.fn().mockImplementation(async()=>{
+    times.push(now);
+    return times.length===1 ? new Response(null,{status:302,headers:{location:"/issues/23181/example"}}) : new Response(html);
+  });
+  try {
+    const fetchReport=createTrackerFetcher({fetch:request,wait:async ms=>{now+=ms;}});
+    await fetchReport("UUM-145761",url);
+    await fetchReport("UUM-145761",url);
+    expect(times[1]-times[0]).toBeGreaterThanOrEqual(10_000);
+    expect(times[2]-times[1]).toBeGreaterThanOrEqual(10_000);
+  } finally { clock.mockRestore(); }
+});
+test("an unverified URL hint must match the issue ID or fall back to the source", async()=>{
+  const fetcher=vi.fn().mockResolvedValueOnce(new Response(html.replaceAll("UUM-145761","UUM-99999")))
+    .mockResolvedValueOnce(new Response(html));
+  const result=await createTrackerFetcher({...options,fetch:fetcher})("UUM-145761",url,"https://issuetracker.unity.com/issues/12/wrong-hint");
+  expect(result.report?.issueId).toBe("UUM-145761");
+  expect(result.url).toBe(url);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
 test("follows HTTP plus HTML redirects and verifies the report identity", async () => {
   const fetcher = vi.fn().mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: "/issues/23181" } }))
     .mockResolvedValueOnce(new Response('<meta http-equiv="refresh" content="1;url=/issues/23181/example">'))

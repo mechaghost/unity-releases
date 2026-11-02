@@ -2,6 +2,10 @@ import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_USER_AGENT } from "../ingest/fetch";
 import { parseIssueReport, trackerHtmlRedirect, trackerPageUnavailable, validatedTrackerUrl, issueIdResolver } from "../parsers/issue-report";
 
+export const TRACKER_REPORT_TIMEOUT_MS = 90_000;
+// https://issuetracker.unity.com/robots.txt: Crawl-delay: 10
+const TRACKER_REQUEST_INTERVAL_MS = 10_000;
+
 export class TrackerFetchError extends Error {
   constructor(message: string, public readonly retryAt?: Date, public readonly parserFailure = false) { super(message); }
 }
@@ -25,7 +29,7 @@ export function createTrackerFetcher(options: TrackerFetchOptions = {}) {
       let text = "";
       for (let attempt = 0; attempt <= 1; attempt++) {
         activeSignal?.throwIfAborted();
-        await wait(Math.max(0, lastRequest + (options.requestIntervalMs ?? 1000) - Date.now()), activeSignal);
+        await wait(Math.max(0, lastRequest + (options.requestIntervalMs ?? TRACKER_REQUEST_INTERVAL_MS) - Date.now()), activeSignal);
         lastRequest = Date.now();
         options.onRequest?.();
         try {
@@ -81,7 +85,7 @@ export function createTrackerFetcher(options: TrackerFetchOptions = {}) {
     throw new TrackerFetchError("Too many tracker redirects");
   }
   return async (id: string, sourceUrl: string, canonicalUrl?: string | null) => {
-    activeSignal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(90_000)]) : AbortSignal.timeout(90_000);
+    activeSignal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(TRACKER_REPORT_TIMEOUT_MS)]) : AbortSignal.timeout(TRACKER_REPORT_TIMEOUT_MS);
     const resolver = issueIdResolver(id);
     const candidates = [...new Set([canonicalUrl, sourceUrl, resolver].filter((url): url is string => Boolean(url)))];
     let lastError: unknown;
