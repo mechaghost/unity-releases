@@ -76,3 +76,12 @@ describe("release note search SQL", () => {
     expect(query.values).toEqual(["WebGL", ["6000.3.14f1", "6000.3.13f1"], 500]);
   });
 });
+
+
+test("uses explicit columns so schema additions cannot leak into the API", () => {
+  for (const query of [buildReleaseNoteSearchQuery({}), buildReleaseNoteWhereForVersions(["6000.3.23f1"], {}, 10)]) {
+    expect(query.text).not.toMatch(/SELECT \*/);
+    expect(query.text).toContain("normalized_sha256, search_vector, created_at, updated_at");
+    expect(query.text).toContain("source_order ASC, id ASC");
+  }
+});
