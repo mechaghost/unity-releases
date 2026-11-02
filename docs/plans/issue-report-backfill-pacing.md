@@ -7,7 +7,9 @@ many legacy URLs add redirect requests that the public sitemap can avoid.
 Plan:
 
 1. Make the default HTTP spacing ten seconds, including redirects/retries. Verify
-   with a fake-clock test. Keep one worker and shared Retry-After cooldown.
+   with a fake-clock test. Keep one worker and shared Retry-After cooldown. Prefer
+   cached URLs, then the stable issue-ID resolver, then legacy source URLs. A
+   resolver unavailable response must not hide a still-working source page.
 2. Stop admitting new reports when less than the 90-second per-report deadline
    remains in the eight-minute batch. Pending work must remain pending, rather
    than turn routine batch completion into a fetch failure. Test this and retain

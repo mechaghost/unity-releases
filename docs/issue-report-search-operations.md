@@ -208,7 +208,12 @@ The seed acquired the collector lock and transaction write lock before updating.
 This reduces redirect requests for the initial backlog; future reports continue
 through the regular discovery flow.
 
-Validation: 1,093 unit tests, all five database contracts, type checking, and the
+For URLs without a working hint, collection tries Unity's stable issue-ID lookup
+before the legacy source link, avoiding extra legacy-host redirects. The source
+link remains a fallback; a resolver unavailable response does not hide a source
+page that still passes the issue-ID check.
+
+Validation: 1,094 unit tests, all five database contracts, type checking, and the
 production build passed. New tests cover the ten-second spacing and leaving
 pending work untouched when the batch cannot fit another report deadline, plus
 rejecting a URL hint with the wrong issue ID and falling back to the source.

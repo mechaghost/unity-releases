@@ -87,13 +87,15 @@ export function createTrackerFetcher(options: TrackerFetchOptions = {}) {
   return async (id: string, sourceUrl: string, canonicalUrl?: string | null) => {
     activeSignal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(TRACKER_REPORT_TIMEOUT_MS)]) : AbortSignal.timeout(TRACKER_REPORT_TIMEOUT_MS);
     const resolver = issueIdResolver(id);
-    const candidates = [...new Set([canonicalUrl, sourceUrl, resolver].filter((url): url is string => Boolean(url)))];
+    // Cached/sitemap URLs avoid redirects; the stable ID avoids legacy-host hops.
+    const candidates = [...new Set([canonicalUrl, resolver, sourceUrl].filter((url): url is string => Boolean(url)))];
     let lastError: unknown;
+    let unavailable: Awaited<ReturnType<typeof page>> | undefined;
     for (const candidate of candidates) {
       try {
         const result = await page(candidate);
         if (result.unavailable) {
-          if (candidate === resolver) return { ...result, report: null };
+          if (candidate === resolver) unavailable = result;
           continue; // A broken slug is not evidence that an issue was removed.
         }
         try { return { ...result, report: parseIssueReport(result.text, id) }; }
@@ -103,6 +105,8 @@ export function createTrackerFetcher(options: TrackerFetchOptions = {}) {
         lastError = error;
       }
     }
+    // The resolver can be stale while an original source page still works.
+    if (unavailable) return { ...unavailable, report: null };
     throw lastError ?? new TrackerFetchError("Unable to resolve tracker issue", undefined, true);
   };
 }

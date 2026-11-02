@@ -45,10 +45,20 @@ test("does not follow redirects off the tracker host", async () => {
   await expect(createTrackerFetcher({ ...options, fetch: fetcher })("UUM-145761", url)).rejects.toThrow(/Unsupported/);
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
-test("a stale slug 404 falls back to the stable issue ID", async () => {
+test("tries the stable issue ID before a legacy slug and retains the source fallback", async () => {
   const fetcher = vi.fn().mockResolvedValueOnce(new Response("missing", { status: 404 })).mockResolvedValueOnce(new Response(html));
   expect((await createTrackerFetcher({ ...options, fetch: fetcher })("UUM-145761", "https://issuetracker.unity3d.com/issues/stale")).report).not.toBeNull();
-  expect(fetcher.mock.calls[1][0]).toBe(url);
+  expect(fetcher.mock.calls[0][0]).toBe(url);
+  expect(fetcher.mock.calls[1][0]).toBe("https://issuetracker.unity3d.com/issues/stale");
+});
+test("a missing resolver does not withdraw a report that still has a valid source page", async()=>{
+  const fetcher=vi.fn().mockResolvedValueOnce(new Response(null,{status:302,headers:{location:"/not-found"}}))
+    .mockResolvedValueOnce(new Response("<h1>Page not found</h1>"))
+    .mockResolvedValueOnce(new Response(html));
+  const result=await createTrackerFetcher({...options,fetch:fetcher})("UUM-145761","https://issuetracker.unity3d.com/issues/source");
+  expect(fetcher.mock.calls[0][0]).toBe(url);
+  expect(result.report?.issueId).toBe("UUM-145761");
+  expect(fetcher).toHaveBeenCalledTimes(3);
 });
 test("withdraws only a stable-identity unavailable result", async () => {
   const fetcher = vi.fn().mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: "/not-found" } }))
