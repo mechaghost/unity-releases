@@ -115,7 +115,7 @@ browser and contract database setup simultaneously, because each resets that sch
 
 ## Local verification on 2026-11-02
 
-The full unit suite passed (1,088 tests; six existing skips), as did all five
+The full unit suite passed after merging current main (1,090 tests; six existing skips), as did all five
 Postgres contract programs, typecheck, and the production build. The existing
 browser suite passed 243 checks with nine expected skips while report search was
 off. Six additional desktop/mobile checks passed with report search on, covering

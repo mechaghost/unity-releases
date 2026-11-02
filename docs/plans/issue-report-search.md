@@ -336,7 +336,7 @@ negated-phrase/OR candidate-selection tests; those are now included.
 
 ## Implementation verification
 
-- Full unit suite: 1,088 passed, six existing skips.
+- Full unit suite after merging current main: 1,090 passed, six existing skips.
 - All five database contract programs passed. New cases cover the customer queries,
   16 phrase-boundary cases, multiple reports, stable counts/pagination, NULL fallback,
   concurrent import/refresh, withdrawal, scoped backfill, cooldown, deadline retries,
