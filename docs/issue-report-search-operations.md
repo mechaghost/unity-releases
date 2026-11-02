@@ -73,6 +73,15 @@ new reports, retries, and time limits. The dedicated hourly collector raises tha
 ceiling to 16,800 per week without rerunning the other ingestion jobs. Workers
 share a lock and the request rate limit; overlapping scheduled/manual runs skip.
 
+Trigger and inspect the dedicated service with a current Railway CLI:
+
+```sh
+railway cron run --service cron-issue-reports --yes
+railway cron list --service cron-issue-reports --limit 5
+```
+
+Redeploying a cron service prepares its build; it does not run the collection job.
+
 `/api/health` includes active report coverage when collection is enabled and reports
 stale when attempted work is more than 48 hours overdue. Logs and the singleton
 collector-state row retain requested/fetched/unchanged/unavailable/failed counts,
@@ -141,3 +150,36 @@ measured 62.68 ms p95 (3.75 ms within a 20-version range). The enriched GIN inde
 was about 6.6 MiB. These results establish sample
 behavior; full production latency and sustainable collection capacity remain
 rollout checks.
+
+## Production rollout on 2026-11-02
+
+The compatibility release (`e22d589`) was deployed and checked before the schema
+was expanded. The full implementation (`177c726`) then deployed successfully.
+`npm run db:migrate` was also run explicitly against production and completed.
+
+The customer report UUM-145761 and all 37 reports linked from 6000.3.23f1 were
+fetched successfully. The release batch fetched the remaining 36 reports in
+140 seconds, using 117 requests and about 12.6 MB of source HTML, with no failures.
+
+The dedicated `cron-issue-reports` service follows `release`, runs at minute 35
+each hour, and uses `ISSUE_REPORT_MINOR_LINES=6000.3,6000.6`. The initial queue has
+3,301 distinct report IDs. The selected lines follow Unity's current
+[LTS support page](https://unity.com/releases/unity-6/support) and
+[6.6 release announcement](https://discussions.unity.com/t/unity-6-6-is-now-available/1735357).
+The customer release is fully backfilled; wider report collection continues in
+bounded batches. Older release lines are not all backfilled.
+
+The service configuration is stored directly on Railway because new services
+cannot opt into legacy JSON config files. The existing services retain their
+current configuration. A first manual collector run was stopped by a pending
+collector redeployment; it was retriggered after that deployment settled.
+That full run fetched 100 reports in 385 seconds using 328 requests and about
+35.4 MB, with no failures, cooldown, or time-budget exhaustion. Railway recorded
+the run as `EXITED`. It left 138 reports available and 3,163 pending. This measured
+batch fits within the eight-minute budget. At this observed rate, the hourly
+schedule can cover the initial queue's weekly refresh. Continue monitoring retry
+rates and overdue work as collection reaches older reports.
+
+All 246,476 production note rows now have enriched search vectors. PostgreSQL
+confirmed the new GIN index is valid; it occupies 24 MB. The rebuild resumed on
+Railway after beginning locally, and completed with no missing vectors.
