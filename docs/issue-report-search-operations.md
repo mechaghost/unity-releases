@@ -1,7 +1,6 @@
 # Linked bug report search
 
-The feature is implemented but off by default. No production migration, collection,
-or release is part of the implementation task.
+The feature defaults off in code. Production enablement follows the steps below.
 
 ## Enable safely
 
@@ -19,7 +18,10 @@ or release is part of the implementation task.
    lines from current Unity support information; existing stream labels alone do
    not establish current support dates.
 5. Set `ISSUE_REPORT_COLLECTION_ENABLED=true` and `ISSUE_REPORT_MINOR_LINES` to an
-   explicit comma-separated list on the cron service. Set the same variables on
+   explicit comma-separated list on the cron service. For broad coverage, use the
+   dedicated hourly `cron-issue-reports` service with
+   `config/railway/cron-issue-reports.json`, following the `release` branch and
+   using the existing Postgres database. Set the same variables on
    the web service for health reporting. Leave search disabled.
 6. Seed the customer example with `npm run ingest:issue-reports -- --issue UUM-145761`.
    Use `--version 6000.3.23f1` for a bounded release backfill. Run again to resume
@@ -65,7 +67,9 @@ A stale slug or bare resolver 404 is not proof of removal. Only a verified resol
 result with the explicit unavailable page withdraws text from search/display.
 Unavailable reports are checked monthly; successful reports weekly. These targets
 require capacity: two 100-item runs/day allow at most 1,400 items/week before
-new reports, retries, and time limits.
+new reports, retries, and time limits. The dedicated hourly collector raises that
+ceiling to 16,800 per week without rerunning the other ingestion jobs. Workers
+share a lock and the request rate limit; overlapping scheduled/manual runs skip.
 
 `/api/health` includes active report coverage when collection is enabled and reports
 stale when attempted work is more than 48 hours overdue. Logs and the singleton
