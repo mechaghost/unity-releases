@@ -97,6 +97,13 @@ export type SqlQuery = {
   values: SqlValue[];
 };
 
+// Keep the API contract explicit before adding internal search/cache columns.
+const RELEASE_NOTE_COLUMNS = `id, unity_release_id, version, major_line, minor_line,
+  stream, release_date, section, area, platforms, impact_kind, risk_level,
+  risk_reasons, body, issue_ids, issue_text, issue_links_json, package_names,
+  source_url, source_anchor, source_order, source_snapshot_id, ingestion_run_id,
+  parser_version, normalized_sha256, search_vector, created_at, updated_at`;
+
 export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): SqlQuery {
   const { where, values, add } = buildReleaseNoteWhere(filters);
 
@@ -107,7 +114,7 @@ export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): 
 
   return {
     text: `
-      SELECT *, COUNT(*) OVER() AS total_count
+      SELECT ${RELEASE_NOTE_COLUMNS}, COUNT(*) OVER() AS total_count
       FROM release_note_items
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY ${order}, id ASC
@@ -171,14 +178,15 @@ export function buildReleaseNoteWhereForVersions(
   // from the cheap `diffRangeCounts` aggregate (no user-narrowed
   // filters), the window does ~10× the work for a number we don't need.
   // Callers explicitly opt in via `includeTotalCount: true`.
-  const projection = options.includeTotalCount ? "*, COUNT(*) OVER() AS total_count" : "*";
+  const projection = options.includeTotalCount
+    ? `${RELEASE_NOTE_COLUMNS}, COUNT(*) OVER() AS total_count` : RELEASE_NOTE_COLUMNS;
 
   return {
     text: `
       SELECT ${projection}
       FROM release_note_items
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY release_date DESC NULLS LAST, source_order ASC
+      ORDER BY release_date DESC NULLS LAST, source_order ASC, id ASC
       LIMIT ${limitParam}
       ${offsetClause}
     `.trim(),
