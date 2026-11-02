@@ -1,3 +1,5 @@
+import { issueReportCollectionEnabled } from "@/lib/issue-reports/flags";
+import { issueReportCoverage } from "@/lib/issue-reports/repository";
 import { listIngestionFreshness } from "@/lib/db/repositories";
 
 export const dynamic = "force-dynamic";
@@ -5,8 +7,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   let freshness: Awaited<ReturnType<typeof listIngestionFreshness>> = [];
   let dbError: string | null = null;
+  let issueReports: Awaited<ReturnType<typeof issueReportCoverage>> | undefined;
   try {
     freshness = await listIngestionFreshness();
+    if (issueReportCollectionEnabled()) issueReports = await issueReportCoverage();
   } catch (err) {
     dbError = err instanceof Error ? err.message : "Unknown error";
   }
@@ -14,7 +18,7 @@ export async function GET() {
   const stale = freshness.filter((f) => f.isStale);
   const overall = dbError
     ? "error"
-    : stale.length > 0
+    : stale.length > 0 || issueReports?.overdue
       ? "stale"
       : freshness.length === 0
         ? "empty"
@@ -22,6 +26,7 @@ export async function GET() {
 
   return Response.json({
     status: overall,
+    ...(issueReports ? { issueReports } : {}),
     checkedAt: new Date().toISOString(),
     databaseConfigured: Boolean(process.env.DATABASE_URL),
     dbError,

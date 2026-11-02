@@ -1,6 +1,7 @@
+import { lockIssueReportWrites } from "../lib/issue-reports/locks";
 import { pathToFileURL } from "node:url";
 import type { PoolClient } from "pg";
-import { getPool } from "../lib/db/client";
+import { getPool, query } from "../lib/db/client";
 import {
   upsertReleaseBundle,
   withIngestionTransaction
@@ -242,142 +243,114 @@ async function advanceParserProvenance(
 }
 
 export async function runCoreProjectionRefresh() {
-  return withIngestionTransaction(
-    "data_integrity",
-    "refresh-core-projections",
-    async (client, runId) => {
-      const releases = await client.query<StoredRelease>(
-        `
-          SELECT
-            release.id,
-            release.version,
-            release.parser_version,
-            release.normalized_sha256,
-            release.raw_metadata_json,
-            release.source_snapshot_id,
-            snapshot.content_text
-          FROM unity_releases release
-          JOIN source_snapshots snapshot
-            ON snapshot.id = release.source_snapshot_id
-          ORDER BY release.id
-        `
-      );
-      const releaseCount = await client.query<{ count: string }>(
-        "SELECT COUNT(*)::text AS count FROM unity_releases"
-      );
-      const totalReleases = Number(releaseCount.rows[0].count);
-      if ((releases.rowCount ?? 0) !== totalReleases) {
-        throw new Error(
-          `Cannot refresh core projections: ${totalReleases - (releases.rowCount ?? 0)} release(s) have no readable source snapshot`
-        );
-      }
-      const summary = {
-        scanned: releases.rowCount ?? 0,
-        rebuilt: 0,
-        packageChangesRebuilt: 0,
-        releaseHashesRepaired: 0,
-        provenanceAdvanced: 0,
-        alreadyCurrent: 0
-      };
+  const releases = await query<{ id: number }>("SELECT id FROM unity_releases ORDER BY id");
+  const summary = { scanned: releases.rows.length, rebuilt: 0, packageChangesRebuilt: 0,
+    releaseHashesRepaired: 0, provenanceAdvanced: 0, alreadyCurrent: 0 };
+  for (const entry of releases.rows) {
+    await withIngestionTransaction("data_integrity", "refresh-core-projections", async (client, runId) => {
+      // Match the normal import lock order before touching any release row.
+      await lockIssueReportWrites(client);
+      const storedRelease = await client.query<StoredRelease>(`
+        SELECT release.id, release.version, release.parser_version, release.normalized_sha256,
+          release.raw_metadata_json, release.source_snapshot_id, snapshot.content_text
+        FROM unity_releases release JOIN source_snapshots snapshot ON snapshot.id=release.source_snapshot_id
+        WHERE release.id=$1`, [entry.id]);
+      const release = storedRelease.rows[0];
+      if (!release) throw new Error(`Cannot refresh release ${entry.id}: no readable source snapshot`);
+      const parserVersion = parserVersionForRelease(release.version);
+      const bundle = normalizeReleaseForStorage({
+        metadata: canonicalReleaseMetadata(release.raw_metadata_json),
+        releaseNotesMarkdown: release.content_text,
+        sourceSnapshotId: Number(release.source_snapshot_id),
+        ingestionRunId: runId,
+        parserVersion
+      });
+      const stored = await storedProjection(client, Number(release.id));
+      const parsedPackageChanges = bundle.packageChanges
+        .map((change) => ({
+          packageName: change.packageName,
+          fromVersion: change.fromVersion,
+          toVersion: change.toVersion,
+          changeKind: change.changeKind
+        }))
+        .sort(comparePackageChanges);
+      const drift = compareReleaseProjection({
+        parsedItemHashes: bundle.noteItems.map(
+          (item) => item.normalizedSha256
+        ),
+        storedItemHashes: stored.itemHashes,
+        parsedSections: bundle.sections.map((section) => ({
+          section: section.section,
+          body: section.body,
+          parserConfidence: section.parserConfidence,
+          sourceOrder: section.sourceOrder
+        })),
+        storedSections: stored.sections,
+        parsedPackageChanges,
+        storedPackageChanges: stored.packageChanges
+      });
 
-      for (const release of releases.rows) {
-        const parserVersion = parserVersionForRelease(release.version);
-        const bundle = normalizeReleaseForStorage({
-          metadata: canonicalReleaseMetadata(release.raw_metadata_json),
-          releaseNotesMarkdown: release.content_text,
-          sourceSnapshotId: Number(release.source_snapshot_id),
-          ingestionRunId: runId,
-          parserVersion
-        });
-        const stored = await storedProjection(client, Number(release.id));
-        const parsedPackageChanges = bundle.packageChanges
-          .map((change) => ({
-            packageName: change.packageName,
-            fromVersion: change.fromVersion,
-            toVersion: change.toVersion,
-            changeKind: change.changeKind
-          }))
-          .sort(comparePackageChanges);
-        const drift = compareReleaseProjection({
-          parsedItemHashes: bundle.noteItems.map(
-            (item) => item.normalizedSha256
-          ),
-          storedItemHashes: stored.itemHashes,
-          parsedSections: bundle.sections.map((section) => ({
-            section: section.section,
-            body: section.body,
-            parserConfidence: section.parserConfidence,
-            sourceOrder: section.sourceOrder
-          })),
-          storedSections: stored.sections,
-          parsedPackageChanges,
-          storedPackageChanges: stored.packageChanges
-        });
-
-        if (drift.notesOrSections) {
-          // Force the repository upsert down its rebuild path even if a
-          // current-version row was partially modified outside this job.
-          if (release.parser_version === parserVersion) {
-            await client.query(
-              `
-                UPDATE unity_releases
-                SET parser_version = parser_version || ':repair-pending'
-                WHERE id = $1
-              `,
-              [release.id]
-            );
-          }
-          await upsertReleaseBundle(client, bundle);
-          summary.rebuilt += 1;
-          continue;
-        }
-
-        const releaseHashDrift =
-          release.normalized_sha256 !==
-          bundle.release.normalizedSha256;
-        if (releaseHashDrift) {
+      if (drift.notesOrSections) {
+        // Force the repository upsert down its rebuild path even if a
+        // current-version row was partially modified outside this job.
+        if (release.parser_version === parserVersion) {
           await client.query(
             `
               UPDATE unity_releases
-              SET normalized_sha256 = $2,
-                  updated_at = now()
+              SET parser_version = parser_version || ':repair-pending'
               WHERE id = $1
             `,
-            [release.id, bundle.release.normalizedSha256]
+            [release.id]
           );
-          summary.releaseHashesRepaired += 1;
         }
-
-        if (drift.packageChanges) {
-          await replacePackageChanges(
-            client,
-            Number(release.id),
-            bundle.packageChanges,
-            runId
-          );
-          summary.packageChangesRebuilt += 1;
-        }
-
-        if (
-          release.parser_version !== parserVersion ||
-          drift.packageChanges
-        ) {
-          await advanceParserProvenance(
-            client,
-            release,
-            parserVersion,
-            runId
-          );
-          summary.provenanceAdvanced += 1;
-        } else if (!releaseHashDrift) {
-          summary.alreadyCurrent += 1;
-        }
+        await upsertReleaseBundle(client, bundle);
+        summary.rebuilt += 1;
+        return;
       }
 
-      return summary;
-    },
-    REPAIR_RUN_VERSION
-  );
+      const releaseHashDrift =
+        release.normalized_sha256 !==
+        bundle.release.normalizedSha256;
+      if (releaseHashDrift) {
+        await client.query(
+          `
+            UPDATE unity_releases
+            SET normalized_sha256 = $2,
+                updated_at = now()
+            WHERE id = $1
+          `,
+          [release.id, bundle.release.normalizedSha256]
+        );
+        summary.releaseHashesRepaired += 1;
+      }
+
+      if (drift.packageChanges) {
+        await replacePackageChanges(
+          client,
+          Number(release.id),
+          bundle.packageChanges,
+          runId
+        );
+        summary.packageChangesRebuilt += 1;
+      }
+
+      if (
+        release.parser_version !== parserVersion ||
+        drift.packageChanges
+      ) {
+        await advanceParserProvenance(
+          client,
+          release,
+          parserVersion,
+          runId
+        );
+        summary.provenanceAdvanced += 1;
+      } else if (!releaseHashDrift) {
+        summary.alreadyCurrent += 1;
+      }
+    }, REPAIR_RUN_VERSION);
+  }
+  return summary;
 }
 
 const isDirectRun =

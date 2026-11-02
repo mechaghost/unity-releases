@@ -1,3 +1,5 @@
+import { LinkedIssueReports } from "./LinkedIssueReports";
+import type { IssueReportContext } from "@/lib/issue-reports/context";
 import { cache, Fragment } from "react";
 import { query } from "@/lib/db/client";
 import {
@@ -29,6 +31,7 @@ const indexedVersions = cache(async () => {
  * truncation rules live in one place.
  */
 export type NoteRowData = {
+  issueReports?: IssueReportContext[];
   id: number;
   version?: string;
   section: string;
@@ -165,6 +168,7 @@ export async function NoteRow({
             )
           )}
         </div>
+        <LinkedIssueReports reports={row.issueReports} />
         <div className="row__pills">
           {backportVersions ? (
             <span

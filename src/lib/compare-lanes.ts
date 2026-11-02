@@ -1,3 +1,4 @@
+import type { IssueReportContext } from "./issue-reports/context";
 /**
  * Lane configuration shared between the on-screen `/compare` view and
  * the LLM-facing `/compare.md` export. Centralising it here keeps the
@@ -12,6 +13,7 @@ import type { ReleaseNoteSearchFilters } from "@/lib/search";
 export type LaneMode = "by-release" | "by-issue" | "by-package";
 
 export type ReleaseNoteRow = {
+  issueReports?: IssueReportContext[];
   id: number;
   version: string;
   section: string;

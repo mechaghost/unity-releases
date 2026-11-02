@@ -47,7 +47,8 @@ describe("release ingestion integrity", () => {
   test("valid bundles still enter the upsert", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 1 }] });
     await upsertReleaseBundle({ query } as unknown as PoolClient, bundle());
-    expect(query.mock.calls[0][0]).toContain("INSERT INTO unity_releases");
+    expect(query.mock.calls[0][0]).toContain("pg_advisory_xact_lock");
+    expect(query.mock.calls[1][0]).toContain("INSERT INTO unity_releases");
   });
 
   test("an incomplete current-parser row is repaired even with a matching stream", () => {

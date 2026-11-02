@@ -1015,3 +1015,100 @@ CREATE INDEX IF NOT EXISTS core_job_runs_job_started_idx ON core_job_runs (job_n
 -- Additive migration also upgrades databases where resources already exists.
 ALTER TABLE resources ADD COLUMN IF NOT EXISTS unavailable_at TIMESTAMPTZ;
 ALTER TABLE resources ADD COLUMN IF NOT EXISTS availability_checked_at TIMESTAMPTZ;
+
+-- Public tracker text is independent of release-note rows, which imports replace.
+CREATE TABLE IF NOT EXISTS issue_reports (
+  issue_id TEXT PRIMARY KEY,
+  source_url TEXT NOT NULL,
+  canonical_url TEXT,
+  title TEXT,
+  description TEXT,
+  content_sha256 TEXT,
+  parser_version TEXT,
+  source_snapshot_id BIGINT REFERENCES source_snapshots(id),
+  content_available BOOLEAN NOT NULL DEFAULT false,
+  description_truncated BOOLEAN NOT NULL DEFAULT false,
+  last_outcome TEXT NOT NULL DEFAULT 'pending',
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_attempt_at TIMESTAMPTZ,
+  last_success_at TIMESTAMPTZ,
+  next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  failure_count INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_issue_reports_due ON issue_reports (next_attempt_at, issue_id);
+CREATE TABLE IF NOT EXISTS issue_report_collector_state (
+  singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),
+  cooldown_until TIMESTAMPTZ,
+  last_summary JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+INSERT INTO issue_report_collector_state (singleton) VALUES (true) ON CONFLICT DO NOTHING;
+
+ALTER TABLE release_note_items ADD COLUMN IF NOT EXISTS enriched_search_vector TSVECTOR;
+ALTER TABLE release_note_items ADD COLUMN IF NOT EXISTS enriched_field_vectors TSVECTOR[];
+ALTER TABLE release_note_items ADD COLUMN IF NOT EXISTS enriched_search_version INTEGER;
+-- The enriched GIN index is built by repair:issue-report-search, outside this
+-- schema batch, with its own maintenance connection and timeout.
+
+-- Phrase windows keep source boundaries and avoid PostgreSQL's 256-position
+-- per-lexeme limit. A supported phrase spans at most 128 positions, so 256-wide
+-- windows at stride 128 always contain it in full. Empty lexeme arrays are
+-- stopwords and still consume a position; parser separators (NULL) do not.
+CREATE OR REPLACE FUNCTION issue_report_field_windows(body TEXT, weight "char")
+RETURNS TSVECTOR[] LANGUAGE sql IMMUTABLE AS $$
+  WITH tokens AS (
+    SELECT row_number() OVER (ORDER BY ordinal)::int AS pos, lexemes
+    FROM ts_debug('english', coalesce(body, '')) WITH ORDINALITY AS parsed(alias, description, token, dictionaries, dictionary, lexemes, ordinal)
+    WHERE lexemes IS NOT NULL
+  ), entries AS (
+    SELECT pos, lexeme FROM tokens CROSS JOIN LATERAL unnest(lexemes) AS words(lexeme)
+    WHERE octet_length(lexeme) <= 2047
+  ), windows AS (
+    SELECT start, setweight(string_agg(array_to_tsvector(ARRAY[lexeme])::text || ':' ||
+      (pos-start)::text, ' ' ORDER BY pos, lexeme)::tsvector, weight) AS vector
+    FROM entries CROSS JOIN LATERAL (VALUES
+      (((pos-1)/128)*128), (((pos-1)/128)*128-128)
+    ) AS ranges(start) WHERE start >= 0 GROUP BY start
+  ) SELECT coalesce(array_agg(vector ORDER BY start), ARRAY[]::tsvector[]) FROM windows
+$$;
+
+CREATE OR REPLACE FUNCTION issue_report_note_fields(note release_note_items)
+RETURNS TSVECTOR[] LANGUAGE sql STABLE AS $$
+  SELECT coalesce(array_agg(vector ORDER BY source_order, ordinal), ARRAY[]::tsvector[])
+  FROM (
+    SELECT source_order, body, weight FROM (VALUES
+      ('0', note.version, 'A'::"char"), ('1', note.section, 'A'::"char"),
+      ('2', note.area, 'A'::"char"), ('3', array_to_string(note.issue_ids, ' '), 'A'::"char"),
+      ('4', array_to_string(note.package_names, ' '), 'A'::"char"), ('5', note.body, 'B'::"char")
+    ) AS original(source_order, body, weight)
+    UNION ALL
+    SELECT '6-' || r.issue_id || '-' || fields.ordinal, fields.body, fields.weight
+    FROM issue_reports r
+    CROSS JOIN LATERAL (VALUES (1, r.title, 'B'::"char"), (2, r.description, 'C'::"char")) AS fields(ordinal, body, weight)
+    WHERE r.issue_id = ANY(note.issue_ids) AND r.content_available
+  ) AS sources
+  CROSS JOIN LATERAL unnest(issue_report_field_windows(body, weight)) WITH ORDINALITY AS windows(vector, ordinal)
+$$;
+
+CREATE OR REPLACE FUNCTION combine_issue_report_vectors(fields TSVECTOR[])
+RETURNS TSVECTOR LANGUAGE plpgsql IMMUTABLE AS $$
+DECLARE result TSVECTOR := ''::tsvector; field TSVECTOR;
+BEGIN
+  FOREACH field IN ARRAY fields LOOP result := result || field; END LOOP;
+  RETURN result;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION update_enriched_note_search()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.enriched_field_vectors := issue_report_note_fields(NEW);
+  NEW.enriched_search_vector := combine_issue_report_vectors(NEW.enriched_field_vectors);
+  NEW.enriched_search_version := 1;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_enriched_note_search ON release_note_items;
+CREATE TRIGGER trg_enriched_note_search
+BEFORE INSERT OR UPDATE OF version, section, area, body, issue_ids, package_names ON release_note_items
+FOR EACH ROW EXECUTE FUNCTION update_enriched_note_search();

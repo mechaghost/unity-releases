@@ -1,3 +1,5 @@
+import { attachIssueReports, prepareReportSearch } from "../issue-reports/repository";
+import { lockIssueReportWrites } from "../issue-reports/locks";
 import { evaluateJobFreshness } from "../ingest/job-health";
 import { assertReleaseBundleComplete } from "../ingest/release-integrity";
 import type { PoolClient } from "pg";
@@ -53,9 +55,9 @@ function contentEventWhere(productUpdates: ProductUpdateFeedMode) {
 }
 
 export async function searchReleaseNotes(filters: ReleaseNoteSearchFilters) {
-  const built = buildReleaseNoteSearchQuery(filters);
+  const built = buildReleaseNoteSearchQuery(await prepareReportSearch(filters));
   const result = await query(built.text, built.values);
-  return result.rows;
+  return attachIssueReports(result.rows, filters.q);
 }
 
 /** Complete history for issue status and scope; display pagination happens later. */
@@ -440,9 +442,9 @@ export async function searchReleaseNotesInRange(
   options: { includeTotalCount?: boolean } = {}
 ) {
   if (versions.length === 0) return [];
-  const built = buildReleaseNoteWhereForVersions(versions, filters, limit, offset, options);
+  const built = buildReleaseNoteWhereForVersions(versions, await prepareReportSearch(filters), limit, offset, options);
   const result = await query(built.text, built.values);
-  return result.rows;
+  return attachIssueReports(result.rows, filters.q);
 }
 
 export type ReleaseRangeFacets = {
@@ -1287,6 +1289,7 @@ type PackageBundle = ReturnType<typeof normalizePackageForStorage>;
 
 export async function upsertReleaseBundle(client: PoolClient, bundle: ReleaseBundle) {
   assertReleaseBundleComplete(bundle);
+  await lockIssueReportWrites(client);
   const releaseResult = await client.query<{ id: number }>(
     `
       INSERT INTO unity_releases (

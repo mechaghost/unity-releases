@@ -1,5 +1,9 @@
+import { issueReportSearchEnabled } from "./issue-reports/flags";
+import { candidateQuery, compileFieldMatch, serializeQuery, type QueryNode } from "./issue-reports/query";
 export type ReleaseNoteSearchFilters = {
   q?: string;
+  /** Internal: prepared from PostgreSQL, never accepted from API parameters. */
+  reportQuery?: QueryNode | null;
   version?: string;
   minorLine?: string;
   stream?: string;
@@ -130,7 +134,7 @@ function releaseNoteOrder(filters: ReleaseNoteSearchFilters): string {
   // Default behavior (no order param) sorts by release_date DESC so
   // version lanes always read newest-first, even during a text query.
   if (filters.order === "rank" && filters.q?.trim()) {
-    return `ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC, release_date DESC NULLS LAST, source_order ASC`;
+    return `ts_rank(${issueReportSearchEnabled() ? 'coalesce(enriched_search_vector, search_vector)' : 'search_vector'}, websearch_to_tsquery('english', $1)) DESC, release_date DESC NULLS LAST, source_order ASC`;
   }
 
   switch (filters.order) {
@@ -204,7 +208,28 @@ function buildReleaseNoteWhere(filters: ReleaseNoteSearchFilters) {
 
   if (filters.q?.trim()) {
     const param = add(filters.q.trim());
-    where.push(`search_vector @@ websearch_to_tsquery('english', ${param})`);
+    const plainQuery = `websearch_to_tsquery('english', ${param})`;
+    if (!issueReportSearchEnabled()) {
+      where.push(`search_vector @@ ${plainQuery}`);
+    } else if (filters.reportQuery !== undefined) {
+      where.push(`${param}::text IS NOT NULL`); // Keep $1 typed for the optional rank expression.
+      if (filters.reportQuery === null) where.push("FALSE");
+      else {
+        const candidate = candidateQuery(filters.reportQuery);
+        if (candidate) {
+          const candidateParam = `${add(serializeQuery(candidate))}::tsquery`;
+          where.push(`(enriched_search_vector @@ ${candidateParam} OR
+            (enriched_search_vector IS NULL AND search_vector @@ ${candidateParam}))`);
+        }
+        where.push(compileFieldMatch(filters.reportQuery, add,
+          "coalesce(enriched_search_vector, search_vector)",
+          "coalesce(enriched_field_vectors, ARRAY[search_vector])"));
+      }
+    } else {
+      if (filters.q.includes('"')) throw new Error("Quoted report search must be prepared first");
+      where.push(`(enriched_search_vector @@ ${plainQuery} OR
+        (enriched_search_vector IS NULL AND search_vector @@ ${plainQuery}))`);
+    }
   }
 
   addEquals(where, add, "version", filters.version);

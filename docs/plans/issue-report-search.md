@@ -1,6 +1,7 @@
 # Search linked Unity bug reports
 
-Status: implementation plan; no application or production changes made.
+Status: implemented and tested locally; production rollout is pending.
+Operations: [collection, flags, backfill, and rollback](../issue-report-search-operations.md).
 Date: 2026-11-02.
 
 ## Goal and acceptance example
@@ -106,19 +107,16 @@ index on rerun. Keep this operation outside the normal schema batch. Test interr
 index creation and reruns rather than relying on `IF NOT EXISTS`.
 
 Refresh affected vectors when report content changes or is withdrawn. New and
-re-imported note rows must build from the current report cache. Serialize report
-writes and release re-imports for their shared issue IDs using transaction-scoped
-advisory locks acquired in sorted order before changing report/note rows. For
-release re-import, acquire a per-release lock first, read old membership, then lock
-the union of old and incoming issue IDs before any note/report writes. Report
-workers and repair jobs take issue locks before row locks and never request release
-locks afterward. Audit all writers, including `refresh-core-projections.ts`,
-`reclassify-notes.ts`, normal import, and vector repair; document the shared lock
-namespace/order in one helper. A repair that touches several issues takes the full
-sorted set for that batch. Fresh reads after waiting must see the committed report
-state. Keep network work outside those transactions. Test overlapping imports and
-refreshes with real database connections; retain a bounded repair command to rebuild vectors
-from current source records if a job was interrupted or the indexing logic changes.
+re-imported note rows build from the current report cache. Implementation uses
+one short transaction advisory lock for report-aware writes, instead of the
+original per-issue lock proposal. This avoids cross-issue lock-order problems
+when a note references several reports. All network work finishes before the
+lock is acquired; imports and projection repair commit per release. Metadata-only
+reclassification/provenance updates do not rebuild vectors. The database tests
+cover concurrent import/refresh and unchanged note classifications/hashes.
+
+A resumable repair command rebuilds missing/outdated vectors in batches of 100.
+The collector and index maintenance use separate session locks to prevent overlap.
 
 ## 2. Fetch only referenced public reports
 
@@ -138,9 +136,11 @@ before implementing it. Never treat a search-results page as the issue itself.
 Require the returned issue ID to agree with the requested ID, or leave it
 unresolved. Never attach a guessed or nearby search result.
 
-Start with one concurrent request, at least one second between requests, 20-second
-attempt timeout, one retry for transient failures, a 2 MiB decoded response limit,
-and an eight-minute/100-issue budget per run. Count retry and redirect requests
+Use one concurrent request, at least one second between requests, 20-second
+attempt timeout, one retry for transient failures, a 90-second total per-report
+deadline, a 2 MiB decoded response limit, and an eight-minute/100-issue batch.
+Titles are capped at 2,048 characters and descriptions at 16,000; API/UI context
+discloses shortened descriptions and retains the full report link. Count retry and redirect requests
 against the rate budget. Honor Retry-After; persist a host-wide cooldown when the
 server asks for a pause. Stop the batch on throttling or a repeated parser failure
 that suggests the site changed. Do not use browser automation or paid scraping
@@ -158,9 +158,12 @@ separate from public API responses.
 ## 3. Queue, refresh, and job health
 
 Select distinct referenced issue IDs, never fetch once per release mention.
-Separate genuinely new references from historical backfill. Reserve at least half
-of each run for due retries/refreshes, oldest-due first; unused capacity can serve
-new references and backfill. Backfill cannot starve refreshes. Weekly refresh is a
+Interleave due retries/refreshes with pending reports so slow work cannot consume
+the entire batch before the other group receives an attempt. Within pending work,
+references from releases in the last 14 days precede historical backfill. Normal
+cron keeps refreshing previously attempted reports even after a line leaves the
+configured scope; manual version/issue selection remains strict. Health uses this
+same active scope. Backfill cannot starve refreshes. Weekly refresh is a
 target, conditional on measured capacity; inventory the eligible report count and
 expected retry load before setting the production cadence. Retry transient failures
 with bounded exponential delays (up to 24 hours), and unavailable reports monthly. Include explicit IDs and version
@@ -198,15 +201,17 @@ facets, counts, stable pagination, and notes without issue IDs. Index each note
 once even if several reports or versions reference an issue. Do not create a
 quoted-phrase match by placing separate fields next to each other: the note, each
 report title, and each report description are distinct phrase boundaries. Before
-finalizing the vector format, prove a boundary strategy in real Postgres tests for
-short and stopword-containing phrases, large descriptions, and multiple reports.
-Ordinary AND terms may span fields; quoted phrases must occur within a field.
-If positional gaps alone cannot satisfy accepted query sizes without position
-saturation, use source-aware phrase verification before counting/pagination. This
-is a required design/test gate, not a claim that plain vector concatenation works.
-Include negated quoted phrases and mixed OR expressions: a false cross-field
-phrase must not discard a row during candidate selection before final verification.
-The candidate query must be broad enough to preserve every valid final match.
+indexing, each source field is split into overlapping 256-position windows with
+128-position overlap. Stopword gaps and compound words retain PostgreSQL's parser
+positions. This avoids the 16,383 total-position and 256 per-lexeme-position limits.
+Quoted phrases spanning more than 128 positions return an API 400. Ordinary AND
+terms may span fields; quoted phrases must occur within one field.
+
+PostgreSQL normalizes quoted queries; a small parser preserves its canonical
+AND/OR/NOT expression. Candidate selection drops negative restrictions and relaxes
+phrases to their terms, then the full expression verifies phrases against source
+windows before counting/pagination. Tests cover negated phrases, mixed OR,
+stopword gaps, repeated words, compounds, and fields longer than 17,000 positions.
 
 Keep newest-first and all existing sorts. `order=rank` uses the enriched vector
 weights and stable tie breakers. Weighting is a preference, not a guarantee that
@@ -301,21 +306,20 @@ valid release notes or modify status/risk calculations.
 
 ## Implementation checklist
 
-- [ ] Inventory and parser fixtures; establish failure/identity rules.
-- [ ] Add report storage, additive vectors, repair job, and concurrent-write tests.
-- [ ] Add bounded collector, durable retries/cooldown, supervision, and health.
-- [ ] Update shared search predicates/ranking and additive API context.
-- [ ] Update shared UI, copy/export context, and search documentation.
-- [ ] Pass functional, concurrency, performance, and browser acceptance checks.
-- [ ] Commit verified implementation on main; deploy only when requested.
+- [x] Local inventory and parser fixtures; establish failure/identity rules.
+- [x] Add report storage, additive vectors, repair job, and concurrent-write tests.
+- [x] Add bounded collector, durable retries/cooldown, supervision, and health.
+- [x] Update shared search predicates/ranking and additive API context.
+- [x] Update shared UI, copy/export context, and search documentation.
+- [x] Pass functional, concurrency, performance, and browser acceptance checks.
+- [x] Commit verified implementation on main; deployment remains separate.
 - [ ] Backfill and enable following the measured rollout gates.
 
 ## Plan review
 
 Three independent reviewers inspected this plan against the current code. Their
-findings were incorporated; implementation tests have not run because this task
-only produces a plan. All three reviewers rechecked the revised plan and found no
-remaining blocker to committing it. The search reviewer also requested explicit
+findings were incorporated before implementation. All three reviewers rechecked
+the revised plan and found no remaining blocker to starting implementation. The search reviewer also requested explicit
 negated-phrase/OR candidate-selection tests; those are now included.
 
 | Review | Accepted finding | Plan change |
@@ -330,7 +334,38 @@ negated-phrase/OR candidate-selection tests; those are now included.
 | Search | Range pagination has no final tie breaker. | Add `id ASC` and tied-row tests. |
 | Search | Concatenated fields can invent phrase matches. | Require field-boundary verification before settling the index format. |
 
-Implementation decisions still requiring measured evidence: tracker parsing and
-identity routes, initial supported-line selection, safe phrase-boundary handling,
-index-build timeout/batch sizes, and sustainable refresh cadence. Each is assigned
-to an implementation acceptance gate above; none is established by this review.
+## Implementation verification
+
+- Full unit suite: 1,088 passed, six existing skips.
+- All five database contract programs passed. New cases cover the customer queries,
+  16 phrase-boundary cases, multiple reports, stable counts/pagination, NULL fallback,
+  concurrent import/refresh, withdrawal, scoped backfill, cooldown, deadline retries,
+  collector overlap, queue fairness, retired-line refresh, and invalid-index recovery.
+- Full feature-off browser regression: 243 passed, nine expected skips.
+- Six feature-on Playwright acceptance checks passed across desktop/mobile Chromium. Inspected
+  screenshots of the explorer and compare; all compare lane types and markdown
+  exports retained report context. The first compare check failed because it did
+  not open collapsed lanes; corrected the test to exercise the normal UI controls.
+- TypeScript checking and `npm run build` passed. The live-source smoke followed
+  three requests to Unity, verified the actual UUM-145761 canonical report, and
+  searched it successfully in the local test schema.
+- Local benchmark: 30,529 real note rows sampled from the 244,117-row local corpus,
+  with synthetic 3KB descriptions for 500 issue IDs. Enriched p95 query times were
+  0.57–15.54 ms. The customer query increased from 2.09 to 5.90 ms and quoted
+  `"file descriptor"` from 1.50 to 10.26 ms because more rows matched and phrases
+  need per-field verification. The checked execution plan used GIN bitmap indexes.
+  A separate exclusion-only query (`-"file descriptor"`) scanned the sample and
+  measured 62.68 ms p95 (3.75 ms when restricted to a 20-version range).
+  The enriched index was 6,792 kB; total sampled note storage was 112 MB. Copying
+  and building vectors took 26.6 seconds; the synthetic enrichment update took
+  5.9 seconds. These are local sample measurements, not full-production guarantees.
+
+Implementation review found and fixed collector scope leaks, ambiguous 404
+withdrawal, missing deadline backoff, queue starvation, stale health scope, report
+misattribution between same-body notes, and two import/repair lock-order issues.
+The implementation uses the reviewed global short-write lock and source-field
+windows described above. No report context changes release facts or scores.
+
+Still required at rollout: choose current supported lines, migrate production,
+backfill/measure actual report coverage and refresh capacity, build the production
+index, and verify the enabled feature live. Both flags remain off by default.

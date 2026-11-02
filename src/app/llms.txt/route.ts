@@ -1,3 +1,4 @@
+import { issueReportSearchEnabled } from "@/lib/issue-reports/flags";
 import { NextResponse } from "next/server";
 import { siteUrl } from "@/lib/site";
 import { getTrackedVersionLines } from "@/lib/db/repositories";
@@ -89,6 +90,9 @@ These routes are deliberately separate from Editor release and upgrade data:
 
 `
     : "";
+  const reportSearchHelp = issueReportSearchEnabled()
+    ? "Release-note search also includes cached public Issue Tracker titles and descriptions where available. GET /api/release-notes?q=linux+file+descriptors&version=6000.3.23f1 returns release notes with issueReports source context. Coverage may be partial. Report content reflects its retrieval date, not the release date. Quoted phrases are limited to 128 word positions."
+    : "";
   const body = `# Unity Releases
 
 > Independent release-first intelligence hub for Unity editor releases.
@@ -98,7 +102,7 @@ These routes are deliberately separate from Editor release and upgrade data:
 > ingested from Unity's public editor release pages, package registry,
 > and blog.
 
-## What this site is for
+${reportSearchHelp ? reportSearchHelp + "\n\n" : ""}## What this site is for
 
 A Unity developer (or an LLM helping one) deciding whether and when to
 upgrade. Unity 6 and newer (\`6000.x\` and up) is the primary focus; the

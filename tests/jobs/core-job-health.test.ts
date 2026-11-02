@@ -42,3 +42,12 @@ test("an interrupted running batch cannot look healthy indefinitely", () => {
   const rows = evaluateJobFreshness([{job_name:"poll-news",last_success:"2026-10-24T00:00:00Z",last_run:"2026-10-24T01:00:00Z",latest_status:"running",last_completed_status:"success"}], now);
   expect(rows.find(row=>row.jobName==="poll-news")?.status).toBe("failed");
 });
+
+
+test("report collection contributes to health only when enabled", () => {
+  vi.stubEnv("ISSUE_REPORT_COLLECTION_ENABLED", "false");
+  expect(evaluateJobFreshness([]).some(row => row.jobName === "poll-issue-reports")).toBe(false);
+  vi.stubEnv("ISSUE_REPORT_COLLECTION_ENABLED", "true");
+  expect(evaluateJobFreshness([]).find(row => row.jobName === "poll-issue-reports")).toMatchObject({ status: "never", isStale: true });
+  vi.unstubAllEnvs();
+});

@@ -24,7 +24,6 @@ import {
   upsertReleaseBundle,
   withIngestionTransaction
 } from "../lib/db/repositories";
-import type { PoolClient } from "pg";
 
 const LEGACY_MAJORS: readonly number[] = [2019, 2020, 2021, 2022];
 const SITEMAP_URL = (year: number) => `https://unity.com/releases/sitemap/${year}.xml`;
@@ -40,65 +39,45 @@ const PARSER_VERSION =
 type SitemapEntry = { url: string; version: string; lastmod: string | null };
 
 export async function main() {
-  await withIngestionTransaction("editor_release", "poll-legacy-lts", async (client, runId) => {
-    const allEntries: SitemapEntry[] = [];
-
-    for (const year of LEGACY_MAJORS) {
-      const sm = await fetchText(SITEMAP_URL(year));
-      if (sm.status !== 200) throw new Error(`Legacy sitemap HTTP ${sm.status}: ${year}`);
-      if (parseSitemap(sm.text).length === 0) throw new Error(`Empty legacy sitemap: ${year}`);
+  const allEntries: SitemapEntry[] = [];
+  for (const year of LEGACY_MAJORS) {
+    const sm = await fetchText(SITEMAP_URL(year));
+    if (sm.status !== 200) throw new Error(`Legacy sitemap HTTP ${sm.status}: ${year}`);
+    const entries = parseSitemap(sm.text);
+    if (!entries.length) throw new Error(`Empty legacy sitemap: ${year}`);
+    await withIngestionTransaction("editor_release", "poll-legacy-lts-sitemap", async client => {
       await recordSourceSnapshot(client, `legacy_lts_sitemap_${year}`, sm);
-      for (const entry of parseSitemap(sm.text)) {
-        const parsed = safeParseVersion(entry.version);
-        if (!parsed) continue;
-        if (!isLtsMinorLine(parsed.major, parsed.minor)) continue;
-        // Drop pre-releases — sitemap may include the rare beta still
-        // lurking under a legacy major; we want LTS finals only.
-        if (parsed.isPrerelease) continue;
-        allEntries.push(entry);
-      }
-    }
-
-    const todo = allEntries.slice(0, MAX_PER_RUN);
-    const stats = { considered: allEntries.length, fetched: 0, ingested: 0, errors: 0 };
-
-    await runWithConcurrency(todo, CONCURRENCY, async (entry) => {
-      try {
-        const page = await fetchHtmlWithRetry(entry.url, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
-        stats.fetched += 1;
-        const sourceSnapshotId = await recordSourceSnapshot(client, "editor_release_page", page);
-        const metadata = extractReleasePageMetadata(page.text, page.finalUrl);
-
-        let notesSnapshotId = sourceSnapshotId;
-        let releaseNotesMarkdown = page.text;
-        if (metadata.releaseNotesUrl) {
-          const notes = await fetchHtmlWithRetry(metadata.releaseNotesUrl, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
-          notesSnapshotId = await recordSourceSnapshot(client, "editor_release_notes", notes);
-          releaseNotesMarkdown = notes.text;
-        }
-
-        const bundle = normalizeReleaseForStorage({
-          metadata,
-          releaseNotesMarkdown,
-          sourceSnapshotId: notesSnapshotId,
-          ingestionRunId: runId,
-          parserVersion: PARSER_VERSION
-        });
-        await upsertReleaseBundle(client as PoolClient, bundle);
-        stats.ingested += 1;
-      } catch (err) {
-        stats.errors += 1;
-        console.error(JSON.stringify({
-          url: entry.url,
-          version: entry.version,
-          error: err instanceof Error ? err.message : String(err)
+    }, PARSER_VERSION);
+    allEntries.push(...entries.filter(entry => {
+      const parsed = safeParseVersion(entry.version);
+      return parsed && isLtsMinorLine(parsed.major, parsed.minor) && !parsed.isPrerelease;
+    }));
+  }
+  const stats = { considered: allEntries.length, fetched: 0, ingested: 0, errors: 0 };
+  await runWithConcurrency(allEntries.slice(0, MAX_PER_RUN), CONCURRENCY, async entry => {
+    try {
+      // Finish network work before opening the per-release write transaction.
+      const page = await fetchHtmlWithRetry(entry.url, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
+      stats.fetched++;
+      const metadata = extractReleasePageMetadata(page.text, page.finalUrl);
+      const notes = metadata.releaseNotesUrl
+        ? await fetchHtmlWithRetry(metadata.releaseNotesUrl, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES }) : null;
+      await withIngestionTransaction("editor_release", "poll-legacy-lts", async (client, runId) => {
+        const pageId = await recordSourceSnapshot(client, "editor_release_page", page);
+        const notesId = notes ? await recordSourceSnapshot(client, "editor_release_notes", notes) : pageId;
+        await upsertReleaseBundle(client, normalizeReleaseForStorage({
+          metadata, releaseNotesMarkdown: notes?.text ?? page.text,
+          sourceSnapshotId: notesId, ingestionRunId: runId, parserVersion: PARSER_VERSION
         }));
-      }
-    });
-
-    console.log(JSON.stringify({ majors: LEGACY_MAJORS, ...stats }));
-    if (stats.errors > 0) throw new Error(`Legacy ingestion failed for ${stats.errors} releases`);
-  }, PARSER_VERSION);
+      }, PARSER_VERSION);
+      stats.ingested++;
+    } catch (error) {
+      stats.errors++;
+      console.error(JSON.stringify({ url: entry.url, version: entry.version, error: error instanceof Error ? error.message : String(error) }));
+    }
+  });
+  console.log(JSON.stringify({ majors: LEGACY_MAJORS, ...stats }));
+  if (stats.errors) throw new Error(`Legacy ingestion failed for ${stats.errors} releases`);
 }
 
 function parseSitemap(xml: string): SitemapEntry[] {

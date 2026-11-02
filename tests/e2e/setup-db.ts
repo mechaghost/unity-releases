@@ -1,3 +1,4 @@
+import { seedIssueReportFixture } from "./issue-report-fixture";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,6 +22,7 @@ export async function setupE2eDatabase() {
     await client.query(schema);
     await client.query(fixture);
     await client.query(historyFixture);
+    if (process.env.ISSUE_REPORT_SEARCH_ENABLED === "true") await seedIssueReportFixture(client);
     console.log(`E2E database fixture ready in schema ${E2E_SCHEMA}`);
   } finally {
     await client.end();

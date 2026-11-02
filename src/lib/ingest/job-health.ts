@@ -1,3 +1,4 @@
+import { issueReportCollectionEnabled } from "../issue-reports/flags";
 import { getPool, query } from "../db/client";
 
 /** Whole scheduled jobs, not successful items within a partly failed batch. */
@@ -18,7 +19,8 @@ export type JobHealthRow = {
 };
 
 export function evaluateJobFreshness(rows: JobHealthRow[], now = Date.now()) {
-  return CORE_JOBS.map(job => {
+  const jobs = [...CORE_JOBS, ...(issueReportCollectionEnabled() ? [{ jobName: "poll-issue-reports", sourceType: "issue_report" }] : [])];
+  return jobs.map(job => {
     const row = rows.find(r => r.job_name === job.jobName);
     const hours = row?.last_success ? (now - new Date(row.last_success).getTime()) / 3_600_000 : Infinity;
     const recentStatus = row?.latest_status === "running" ? row.last_completed_status : row?.latest_status;

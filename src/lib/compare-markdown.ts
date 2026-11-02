@@ -1,8 +1,10 @@
+import { groupIssueReports, issueReportsMarkdown, type IssueReportContext } from "./issue-reports/context";
 import { cleanReleaseNoteText, normalizeIssueLinks } from "./release-notes/format";
-import { dedupeByIssue } from "./diff-grouping";
+import { dedupeByIssue, issueGroupKey } from "./diff-grouping";
 import { issueStatusSuffix, type IssueStatus } from "./issue-status";
 
 export type CompareMarkdownRow = {
+  issueReports?: IssueReportContext[];
   version: string;
   body: string;
   issue_ids: string[];
@@ -82,9 +84,10 @@ function appendLaneBullets(
 ): number {
   if (lane.mode === "by-issue") {
     const deduped = dedupeByIssue(lane.rows.map(toDedupeRow));
+    const reportGroups = groupIssueReports(lane.rows, row => [issueGroupKey(row)]);
     const slice = deduped.slice(0, cap);
     for (const item of slice) {
-      lines.push(formatIssueBullet(item, statuses));
+      lines.push(formatIssueBullet(item, statuses) + issueReportsMarkdown(reportGroups.get(item.key)));
     }
     // No cap hit → every source row is represented by some unique issue.
     if (slice.length === deduped.length) return lane.rows.length;
@@ -93,6 +96,7 @@ function appendLaneBullets(
   }
   if (lane.mode === "by-package") {
     const seen = new Set<string>();
+    const reportGroups = groupIssueReports(lane.rows, row => row.package_names ?? []);
     let cappedOut = false;
     let consumedRows = 0;
     for (const row of lane.rows) {
@@ -105,7 +109,7 @@ function appendLaneBullets(
         }
         seen.add(pkg);
         lines.push(
-          `- \`${pkg}\` updated in ${row.version}${dateSuffix(row.release_date)}`
+          `- \`${pkg}\` updated in ${row.version}${dateSuffix(row.release_date)}` + issueReportsMarkdown(reportGroups.get(pkg))
         );
         usedThisRow = true;
       }
@@ -132,7 +136,8 @@ function toDedupeRow(row: CompareMarkdownRow) {
     body: row.body,
     issue_ids: row.issue_ids,
     issue_links_json: row.issue_links_json,
-    release_date: row.release_date
+    release_date: row.release_date,
+    issueReports: row.issueReports
   };
 }
 
@@ -155,7 +160,7 @@ function formatReleaseBullet(
 ): string {
   const text = cleanReleaseNoteText(row.body ?? "");
   const id = (row.issue_ids ?? [])[0];
-  return `- **${row.version}**${dateSuffix(row.release_date)} ${text}${issueSuffix(id, statuses, row.issue_links_json)}`;
+  return `- **${row.version}**${dateSuffix(row.release_date)} ${text}${issueSuffix(id, statuses, row.issue_links_json)}` + issueReportsMarkdown(row.issueReports);
 }
 
 /**

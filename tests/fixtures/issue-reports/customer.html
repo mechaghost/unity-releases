@@ -1,0 +1,25 @@
+<h1>Linux Editor intermittently aborts with a `ToFileDescriptor` assertion (`fd &lt; sysconf(_SC_OPEN_MAX)`) during a `NamedPipeServerStream` async accept while compiling scripts in batchmode</h1><div class="issue-description"><p>On Linux/Docker CI build, the editor sometimes crashes when building and during test runs. The crash happens when ToFileDescriptor is called inside pal_utilities.h:160 with the message 'Assertion `fd &lt; sysconf(_SC_OPEN_MAX) &amp;&amp; "Requested file descriptor exceeds maximum number of files allowed to be open at a time."' failed.'` Logging open fds shows this is <b>{</b>}not{<b>}</b> exceeding the maximum.</p>
+
+<p>Steps to reproduce:<br>
+NOTE - This is rare race. See loop script from this investigation (repro_loop2.sh).</p>
+
+<p>1. On Linux, create a docker container, and pull this game ci-image: `unityci/editor:ubuntu-6000.0.65f1-android-3.2.2` <br>
+2. Run the container with fd limit set to 524288<br>
+3. Create minimal project that compiles scripts when opened<br>
+4. Ensure editor has an activated license<br>
+5. Launch the editor in a loop using `Unity -batchmode -nographics -projectPath &lt;proj&gt; -logFile &lt;run.log&gt; -quit`. Library/Bee and Library/ScriptAssemblies must be deleted before each launch to ensure scripts are compiled. <br>
+6. (Unsure if needed to repro but will increase chances) Run two parallel instances of the editor with duplicate projects<br>
+7. Wait until crash reproduces (this took about 3 days for me). You can grep each run log for the assertion.</p>
+
+<p>Expected behavior:<br>
+Editor compiles scripts successfully and building/testing completes without crashing.</p>
+
+<p>Actual behavior:<br>
+Editor crashes while compiling scripts. See run_5328.log:231. The message wording makes it sound like fd exhaustion, but when logging the number of open fds this stayed low, so the process is not out of descriptors.</p>
+
+<p>Notes:</p>
+<ul class="alternate" type="square">
+	<li>Customer reports crash did not happen on 2022.3.62f2</li>
+	<li>Ticket was confirmed without CQA reproduction</li>
+</ul>
+</div><aside>Ignore this navigation phrase: unrelated-cookie-noise</aside><script>self.__next_f.push([1,"1:{\"issueExternalKey\": \"UUM-145761\", \"showJiraKey\": true}\n"])</script>

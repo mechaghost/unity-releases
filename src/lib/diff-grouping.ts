@@ -122,11 +122,15 @@ export type DedupedIssue<T extends DedupableByIssue> = {
  * Result is sorted with the most-recently-last-seen item first; ties
  * break by mention count (more frequent first).
  */
+export function issueGroupKey(row: Pick<DedupableByIssue, "body" | "issue_ids">): string {
+  const id = row.issue_ids?.[0];
+  return id ? `id:${id}` : `body:${shortHash(row.body ?? "")}`;
+}
+
 export function dedupeByIssue<T extends DedupableByIssue>(rows: T[]): DedupedIssue<T>[] {
   const map = new Map<string, DedupedIssue<T>>();
   for (const row of rows) {
-    const id = (row.issue_ids ?? [])[0];
-    const key = id ? `id:${id}` : `body:${shortHash(row.body ?? "")}`;
+    const key = issueGroupKey(row);
     const rowTime = toTime(row.release_date);
     const existing = map.get(key);
     if (!existing) {

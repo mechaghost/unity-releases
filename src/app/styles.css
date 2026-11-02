@@ -7378,3 +7378,9 @@ button.filter-section__head:focus-visible {
 }
 
 .guide-card-support { display: flex; flex-direction: column; gap: 2px; margin-top: var(--space-2); color: var(--text-muted); font-size: var(--text-xs); line-height: 1.5; font-weight: 400; }
+
+
+.linked-issue-reports { margin: 0.6rem 0; font-size: 0.85rem; line-height: 1.5; overflow-wrap: anywhere; }
+.linked-issue-report { margin-top: 0.4rem; padding-left: 0.75rem; border-left: 2px solid var(--border-default); }
+.linked-issue-report p { margin: 0.25rem 0; }
+.linked-issue-reports summary { cursor: pointer; margin-top: 0.4rem; }

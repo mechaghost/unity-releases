@@ -1,3 +1,4 @@
+import type { IssueReportContext } from "@/lib/issue-reports/context";
 import { filtersFromSearchParams } from "@/lib/api";
 import {
   getIssueStatuses,
@@ -30,6 +31,7 @@ export const metadata = {
 };
 
 type ReleaseNoteRow = {
+  issueReports?: IssueReportContext[];
   id?: number;
   version: string;
   /** release_note_items.release_date. node-pg returns timestamp
@@ -63,7 +65,8 @@ function toNoteRowData(row: ReleaseNoteRow): NoteRowData {
     platforms: row.platforms ?? [],
     package_names: row.package_names ?? [],
     issue_ids: row.issue_ids ?? [],
-    issue_links_json: row.issue_links_json ?? null
+    issue_links_json: row.issue_links_json ?? null,
+    issueReports: row.issueReports
   };
 }
 

@@ -1,3 +1,6 @@
+import { issueGroupKey } from "@/lib/diff-grouping";
+import { LinkedIssueReports } from "../_components/LinkedIssueReports";
+import { groupIssueReports, type IssueReportContext } from "@/lib/issue-reports/context";
 import { cookies } from "next/headers";
 import {
   diffRangeCounts,
@@ -795,6 +798,7 @@ function ByIssueLaneBody({
   buildPageUrl: (nextPage: number) => string;
 }) {
   const deduped = dedupeByIssue(rows);
+  const reportGroups = groupIssueReports(rows, row => [issueGroupKey(row)]);
   const start = (page - 1) * ROWS_PER_LANE;
   const visible = deduped.slice(start, start + ROWS_PER_LANE);
   return (
@@ -803,6 +807,7 @@ function ByIssueLaneBody({
         <DedupedIssueRow
           key={item.key}
           item={item}
+          reports={reportGroups.get(item.key) ?? []}
           streamByVersion={streamByVersion}
           issueStatuses={issueStatuses}
         />
@@ -820,10 +825,12 @@ function ByIssueLaneBody({
 
 function DedupedIssueRow({
   item,
+  reports,
   streamByVersion,
   issueStatuses
 }: {
   item: DedupedIssue<ReleaseNoteRow>;
+  reports: IssueReportContext[];
   streamByVersion: Map<string, string | null>;
   issueStatuses: Map<string, IssueStatus>;
 }) {
@@ -845,6 +852,7 @@ function DedupedIssueRow({
         <div className="row__title row__title--wrap" title={cleanedBody}>
           {cleanedBody}
         </div>
+        <LinkedIssueReports reports={reports} />
         <div className="row__pills">
           <ImpactPill kind={item.primary.impact_kind} />
           <RiskBadge level={item.primary.risk_level} />
@@ -909,6 +917,7 @@ function ByPackageLaneBody({
   buildPageUrl: (nextPage: number) => string;
 }) {
   const aggregated = aggregateByPackage(rows);
+  const reportGroups = groupIssueReports(rows, row => row.package_names);
   const start = (page - 1) * ROWS_PER_LANE;
   const visible = aggregated.slice(start, start + ROWS_PER_LANE);
   return (
@@ -931,6 +940,7 @@ function ByPackageLaneBody({
                   {item.packageName}
                 </a>
               </div>
+              <LinkedIssueReports reports={reportGroups.get(item.packageName)} />
               {boundary ? (
                 <div className="row__seen-in">
                   {semverChanged ? (

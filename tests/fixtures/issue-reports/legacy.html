@@ -1,0 +1,34 @@
+<h1>Crash on UNITY_FT_Load_Glyph when generating multi-threaded Font Atlas in TMPro Font Asset Creator</h1><div class="issue-description"><p>Steps to reproduce:<br>
+1. Open the “user’s attached project”<br>
+2. Open “Window/TextMeshPro/Font Asset Creator”<br>
+3. Set Source font to “GmarketSansTTFMedium”<br>
+4. Set Sampling Point Size to Auto Sizing<br>
+5. Set Padding to 7%<br>
+6. Set Packing method to Fast<br>
+7. Set Atlas resolution to 2048x2048<br>
+8. Set Character Set to Characters from File<br>
+9. Set Character File to “Characters_ko_Content”<br>
+10. Generate Font Atlas<br>
+11. Observe the crash or an Assertion failed error with generated corrupted glyphs or dots</p>
+
+<p>Reproducible with versions: 2023.1.0a5 (freeze), 6000.0.61f1 (Assertion failed error), 6000.2.10f1, 6000.3.0b8, 6000.4.0a4</p>
+
+<p>Reproducible on: macOS 15.7.1 (M1 Max)<br>
+Not reproducible on: no other environment tested</p>
+
+<p>First few lines of StackTraces:<br>
+#0 0x00000107ab01c0 in cf2_builder_lineTo <br>
+#1 0x00000107ab98d4 in cf2_glyphpath_pushPrevElem <br>
+#2 0x00000107ab8640 in cf2_glyphpath_curveTo <br>
+#3 0x00000107ab1ec4 in cf2_interpT2CharString <br>
+#4 0x00000107aacc44 in cf2_decoder_parse_charstrings <br>
+#5 0x00000107aa3b68 in cff_glyph_load <br>
+#6 0x00000107a89518 in UNITY_FT_Load_Glyph</p>
+
+<p>#1 0x00000104629e1c in DynamicHeapAllocator::Deallocate(void*) <br>
+#2 0x00000104621244 in DualThreadAllocator&lt;DynamicHeapAllocator&gt;::TryDeallocate(void*) <br>
+#3 0x00000104633400 in MemoryManager::TryDeallocateWithLabel(void*, MemLabelId, char const*, int) <br>
+#4 0x0000010462dca0 in free_alloc_internal(void*, MemLabelId const&amp;, char const*, int) <br>
+#5 0x00000106dd00b8 in UNITY_FT_Stream_ReleaseFrame debugger-agent: Unable to listen on 44 <br>
+#6 0x00000106de3c18 in cff_glyph_load <br>
+#7 0x00000106dc9574 in UNITY_FT_Load_Glyph</p></div><aside>Ignore this navigation phrase: unrelated-cookie-noise</aside><script>self.__next_f.push([1,"1:{\"issueExternalKey\": \"UUM-125366\", \"showJiraKey\": true}\n"])</script>

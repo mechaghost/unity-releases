@@ -57,6 +57,10 @@ releases are skipped; incomplete rows are repaired without `FORCE_BACKFILL`
 or a parser-version bump. Failed responses and incomplete modern release
 bundles are rejected before replacing stored data.
 
+Linked bug report search is available behind separate collection/search flags. See
+[`docs/issue-report-search-operations.md`](docs/issue-report-search-operations.md)
+for the compatibility rollout, backfill commands, coverage, limits, and rollback.
+
 Optional Product Updates has separate jobs and is disabled by default. See
 [`docs/product-updates-operations.md`](docs/product-updates-operations.md) for
 feature flags, source allowlists, dry runs, snapshot replay, health, and
