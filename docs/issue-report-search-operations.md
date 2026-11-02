@@ -19,9 +19,11 @@ The feature defaults off in code. Production enablement follows the steps below.
    not establish current support dates.
 5. Set `ISSUE_REPORT_COLLECTION_ENABLED=true` and `ISSUE_REPORT_MINOR_LINES` to an
    explicit comma-separated list on the cron service. For broad coverage, use the
-   dedicated hourly `cron-issue-reports` service with
-   `config/railway/cron-issue-reports.json`, following the `release` branch and
-   using the existing Postgres database. Set the same variables on
+   dedicated hourly `cron-issue-reports` service, following the `release` branch and
+   using the existing Postgres database. Configure its start command as
+   `npm run ingest:issue-reports`, cron as `35 * * * *`, and restart policy as
+   `NEVER` directly on Railway. New Railway services no longer read the legacy
+   JSON config files used by this repository's older services. Set the same variables on
    the web service for health reporting. Leave search disabled.
 6. Seed the customer example with `npm run ingest:issue-reports -- --issue UUM-145761`.
    Use `--version 6000.3.23f1` for a bounded release backfill. Run again to resume
