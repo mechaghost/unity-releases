@@ -132,14 +132,14 @@ describe("Product Updates runner lifecycle", () => {
     restoreScheduling();
   });
 
-  test("a retired Tencent target skips safely even when forced and never fetches or acquires a publication lease", async () => {
-    const tencent = levelPlayMediationAdapterSources.find(a => a.manifest.sourceKey === "levelplay-adapter-tencent-ios")!;
-    mocks.getTarget.mockResolvedValue({ ...target, sourceKey: tencent.manifest.sourceKey,
-      targetKey: "tencent-ios", status: "manually-retired", lastValidatedRecordCount: 18 });
+  test.each(["tencent-ios", "vk-ad-network-ios", "vk-ad-network-android"])("retired %s skips safely even when forced and never fetches or acquires a publication lease", async (targetKey) => {
+    const retired = levelPlayMediationAdapterSources.find(a => a.manifest.sourceKey === `levelplay-adapter-${targetKey}`)!;
+    mocks.getTarget.mockResolvedValue({ ...target, sourceKey: retired.manifest.sourceKey,
+      targetKey, status: "manually-retired", lastValidatedRecordCount: 18 });
     const fetchImpl = vi.fn<typeof fetch>();
-    const results = await runProductUpdateAdapter(tencent, { force: true, fetchImpl });
+    const results = await runProductUpdateAdapter(retired, { force: true, fetchImpl });
     expect(results[0].status).toBe("skipped-retired");
-    expect(mocks.register).toHaveBeenCalledWith(tencent);
+    expect(mocks.register).toHaveBeenCalledWith(retired);
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(mocks.acquire).not.toHaveBeenCalled();
     expect(mocks.createRun).not.toHaveBeenCalled();

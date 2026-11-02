@@ -122,14 +122,25 @@ describe("Monetization Product Update adapters", () => {
     }
   });
 
-  test("retires only the unsupported Tencent iOS target while retaining its source and history keys", () => {
+  test("retires only the removed Tencent and VK targets while retaining their source and history keys", () => {
     const retired = levelPlayMediationAdapterSources.filter(a => a.manifest.targets.some(t => t.retired));
-    expect(retired.map(a => a.manifest.sourceKey)).toEqual(["levelplay-adapter-tencent-ios"]);
+    expect(retired.map(a => a.manifest.sourceKey)).toEqual([
+      "levelplay-adapter-tencent-ios",
+      "levelplay-adapter-vk-ad-network-ios",
+      "levelplay-adapter-vk-ad-network-android"
+    ]);
     expect(retired[0].manifest.targets[0]).toMatchObject({
       targetKey: "tencent-ios", retired: true,
       url: "https://raw.githubusercontent.com/ironsource-mobile/levelplay-ios-adapters/master/Adapters/Tencent/CHANGELOG.md"
     });
-    expect(levelPlayMediationAdapterSources.filter(a => !a.manifest.targets[0].retired)).toHaveLength(50);
+    for (const platform of ["ios", "android"]) {
+      const vk = retired.find(a => a.manifest.sourceKey === `levelplay-adapter-vk-ad-network-${platform}`)!;
+      expect(vk.manifest.targets[0]).toMatchObject({
+        targetKey: `vk-ad-network-${platform}`, retired: true,
+        url: `https://raw.githubusercontent.com/ironsource-mobile/levelplay-${platform}-adapters/master/Adapters/VK%20Ad%20Network/CHANGELOG.md`
+      });
+    }
+    expect(levelPlayMediationAdapterSources.filter(a => !a.manifest.targets[0].retired)).toHaveLength(48);
   });
 
   test("replays a representative fixture for every mediation page", () => {
