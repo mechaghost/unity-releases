@@ -70,7 +70,7 @@ test("retries a transient status, but stops on Retry-After", async () => {
   await createTrackerFetcher({ ...options, fetch: fetcher })("UUM-145761", url);
   expect(fetcher).toHaveBeenCalledTimes(2);
   const limited = vi.fn().mockResolvedValue(new Response("limited", { status: 429, headers: { "retry-after": "3600" } }));
-  await expect(createTrackerFetcher({ ...options, fetch: limited })("UUM-145761", url)).rejects.toMatchObject({ retryAt: expect.any(Date) });
+  await expect(createTrackerFetcher({ ...options, fetch: limited })("UUM-145761", url)).rejects.toMatchObject({ retryAt: expect.any(Date), httpStatus: 429 });
   expect(limited).toHaveBeenCalledTimes(1);
 });
 test("rejects oversized responses, redirect loops, mismatches and cancellation", async () => {
@@ -88,5 +88,5 @@ test("rejects oversized responses, redirect loops, mismatches and cancellation",
 
 test("an ambiguous resolver 404 cannot withdraw cached report content", async () => {
   const fetcher = vi.fn().mockResolvedValue(new Response("Generic route error", { status: 404 }));
-  await expect(createTrackerFetcher({ ...options, fetch: fetcher })("UUM-145761", url)).rejects.toThrow(/identity/);
+  await expect(createTrackerFetcher({ ...options, fetch: fetcher })("UUM-145761", url)).rejects.toMatchObject({ message: expect.stringMatching(/identity/), parserFailure: true, httpStatus: 404 });
 });

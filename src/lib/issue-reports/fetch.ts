@@ -7,7 +7,8 @@ export const TRACKER_REPORT_TIMEOUT_MS = 90_000;
 const TRACKER_REQUEST_INTERVAL_MS = 10_000;
 
 export class TrackerFetchError extends Error {
-  constructor(message: string, public readonly retryAt?: Date, public readonly parserFailure = false) { super(message); }
+  constructor(message: string, public readonly retryAt?: Date, public readonly parserFailure = false,
+    public readonly httpStatus?: number) { super(message); }
 }
 export type TrackerFetchOptions = {
   signal?: AbortSignal;
@@ -40,7 +41,7 @@ export function createTrackerFetcher(options: TrackerFetchOptions = {}) {
             const value = response.headers.get("retry-after") ?? "60";
             const at = /^\d+$/.test(value) ? Date.now() + Number(value) * 1000 : Date.parse(value);
             await response.body?.cancel();
-            throw new TrackerFetchError("Tracker requested a cooldown", new Date(Math.max(Date.now() + 60_000, Number.isFinite(at) ? at : 0)));
+            throw new TrackerFetchError("Tracker requested a cooldown", new Date(Math.max(Date.now() + 60_000, Number.isFinite(at) ? at : 0)), false, response.status);
           }
           if ((response.status >= 500 || response.status === 408) && attempt === 0) {
             await response.body?.cancel();
@@ -77,7 +78,7 @@ export function createTrackerFetcher(options: TrackerFetchOptions = {}) {
         continue;
       }
       if (response.status === 404 || response.status === 410) return { url, text, unavailable: trackerPageUnavailable(text, url), status: response.status };
-      if (response.status !== 200) throw new TrackerFetchError(`Tracker HTTP ${response.status}`);
+      if (response.status !== 200) throw new TrackerFetchError(`Tracker HTTP ${response.status}`, undefined, false, response.status);
       const redirect = trackerHtmlRedirect(text, url);
       if (redirect) { url = redirect; continue; }
       return { url, text, unavailable: trackerPageUnavailable(text, url), status: response.status };
@@ -99,7 +100,7 @@ export function createTrackerFetcher(options: TrackerFetchOptions = {}) {
           continue; // A broken slug is not evidence that an issue was removed.
         }
         try { return { ...result, report: parseIssueReport(result.text, id) }; }
-        catch (error) { lastError = new TrackerFetchError((error as Error).message, undefined, true); }
+        catch (error) { lastError = new TrackerFetchError((error as Error).message, undefined, true, result.status); }
       } catch (error) {
         if (error instanceof TrackerFetchError && error.retryAt || activeSignal?.aborted) throw error;
         lastError = error;

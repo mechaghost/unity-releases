@@ -9,6 +9,22 @@ import { issueReportCoverage, saveIssueReport, withReportWrite } from "../lib/is
 import { normalizeIssueId } from "../lib/parsers/issue-report";
 
 export type CollectionOptions = { issueId?: string; version?: string; minorLines?: string[]; all?: boolean; limit?: number; signal?: AbortSignal };
+
+function failureDiagnostic(issueId: string, error: unknown) {
+  // Never log arbitrary error messages, URLs, headers, or source payloads.
+  let publicIssueId: string | undefined;
+  try { publicIssueId = normalizeIssueId(issueId); } catch { /* Omit invalid identifiers. */ }
+  const tracker = error instanceof TrackerFetchError ? error : undefined;
+  const httpStatus = tracker?.httpStatus;
+  const errorClass = tracker?.retryAt ? "cooldown" : tracker?.parserFailure ? "parser"
+    : tracker ? "tracker" : error instanceof Error && error.name === "TimeoutError" ? "timeout"
+    : error instanceof Error && error.name === "AbortError" ? "aborted"
+    : error instanceof TypeError ? "network-or-type-error" : "unexpected";
+  return { event: "issue_report_failed", issueId: publicIssueId, errorClass,
+    ...(typeof httpStatus === "number" && Number.isInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599 ? { httpStatus } : {}),
+    retry: tracker?.retryAt ? "shared-cooldown" : "exponential-backoff" };
+}
+
 export async function discoverIssueReports(options: CollectionOptions) {
   const lines = options.minorLines ?? (process.env.ISSUE_REPORT_MINOR_LINES ?? "").split(",").filter(Boolean);
   if (!options.issueId && !options.version && !options.all && !lines.length) {
@@ -100,6 +116,7 @@ export async function collectIssueReports(options: CollectionOptions = {}, depen
           failure_count=failure_count+1, last_error=$2,
           next_attempt_at=coalesce($3::timestamptz, now() + least(86400, 300 * power(2, least(failure_count, 9))) * interval '1 second')
           WHERE issue_id=$1`, [row.issue_id, (error as Error).message.slice(0, 1000), retryAt ?? null]);
+        console.error(JSON.stringify(failureDiagnostic(row.issue_id, error)));
         if (retryAt) {
           await query("UPDATE issue_report_collector_state SET cooldown_until=$1 WHERE singleton", [retryAt]);
           summary.cooldown = true;
