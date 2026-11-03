@@ -3,8 +3,37 @@ import { expect, test, vi } from "vitest";
 import { createTrackerFetcher, TrackerFetchError } from "../../src/lib/issue-reports/fetch";
 import { issueIdResolver } from "../../src/lib/parsers/issue-report";
 const html = readFileSync("tests/fixtures/issue-reports/customer.html", "utf8");
+const streamedMissing = readFileSync("tests/fixtures/issue-reports/streamed-not-found.html", "utf8");
 const url = issueIdResolver("UUM-145761");
 const options = { wait: async () => {}, requestIntervalMs: 0 };
+
+test("confirms a streamed 404 at its destination before classifying a resolver unavailable", async () => {
+  const id = "UUM-151146", resolver = issueIdResolver(id);
+  const fetcher = vi.fn().mockResolvedValueOnce(new Response(null, { status: 301, headers: { location: "/issues/24434" } }))
+    .mockResolvedValueOnce(new Response(streamedMissing))
+    .mockResolvedValueOnce(new Response("<h1>Page not found</h1>"));
+  const result = await createTrackerFetcher({ ...options, fetch: fetcher })(id, resolver);
+  expect(result.report).toBeNull();
+  expect(result.url).toBe("https://issuetracker.unity.com/not-found");
+  expect(fetcher.mock.calls.map(([url]) => url)).toEqual([resolver, "https://issuetracker.unity.com/issues/24434", result.url]);
+});
+
+test("a streamed missing resolver still falls back to a valid original report", async () => {
+  const fetcher = vi.fn().mockResolvedValueOnce(new Response(streamedMissing))
+    .mockResolvedValueOnce(new Response("<h1>Page not found</h1>"))
+    .mockResolvedValueOnce(new Response(html));
+  const source = "https://issuetracker.unity3d.com/issues/source";
+  const result = await createTrackerFetcher({ ...options, fetch: fetcher })("UUM-145761", source);
+  expect(result.report?.issueId).toBe("UUM-145761");
+  expect(result.url).toBe(source);
+});
+
+test("a streamed redirect cannot turn protection HTML into an unavailable report", async () => {
+  const fetcher = vi.fn().mockResolvedValueOnce(new Response(streamedMissing))
+    .mockResolvedValueOnce(new Response("<h1>Verify you are human</h1>"));
+  await expect(createTrackerFetcher({ ...options, fetch: fetcher })("UUM-145761", url)).rejects.toMatchObject({ parserFailure: true, httpStatus: 200 });
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
 
 test("default spacing honors the tracker crawl delay across redirects", async () => {
   let now=1_000_000;

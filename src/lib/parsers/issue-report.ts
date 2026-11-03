@@ -22,7 +22,23 @@ export function trackerHtmlRedirect(html: string, baseUrl: string): string | nul
   const $ = load(html);
   const content = $('meta[http-equiv="refresh"]').attr("content");
   const match = content?.match(/^\s*\d+(?:\.\d+)?\s*;\s*url\s*=\s*["']?([^"']+)["']?\s*$/i);
-  return match ? validatedTrackerUrl(new URL(match[1].trim(), baseUrl).href) : null;
+  if (match) return validatedTrackerUrl(new URL(match[1].trim(), baseUrl).href);
+  // Streamed tracker 404s can retain HTTP 200 and redirect through Flight.
+  // Follow only the observed not-found error shell; the destination must still
+  // pass trackerPageUnavailable, and the fetcher must still try source fallbacks.
+  if (!$('template[data-dgst="NEXT_HTTP_ERROR_FALLBACK;404"]').length
+    || $("h1, .issue-description").length) return null;
+  const rows = parseFlightRows(extractFlightStream(html));
+  if (findFlightObject(rows, node => typeof node.issueExternalKey === "string")) return null;
+  for (const row of rows.values()) {
+    if (!row.body.startsWith("E{")) continue;
+    try {
+      if (JSON.parse(row.body.slice(1)).digest === "NEXT_REDIRECT;replace;/not-found;307;") {
+        return validatedTrackerUrl(new URL("/not-found", baseUrl).href);
+      }
+    } catch { /* Ignore malformed Flight error rows. */ }
+  }
+  return null;
 }
 
 export function trackerPageUnavailable(html: string, url: string): boolean {

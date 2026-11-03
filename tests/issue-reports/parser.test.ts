@@ -2,8 +2,23 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { normalizeIssueId, parseIssueReport, trackerHtmlRedirect, trackerPageUnavailable, validatedTrackerUrl } from "../../src/lib/parsers/issue-report";
 const customer = readFileSync("tests/fixtures/issue-reports/customer.html", "utf8");
+const streamedMissing = readFileSync("tests/fixtures/issue-reports/streamed-not-found.html", "utf8");
 
 describe("tracker report parsing", () => {
+  test("follows only a corroborated streamed not-found shell, without declaring it unavailable", () => {
+    const url = "https://issuetracker.unity.com/issues/24434";
+    expect(trackerHtmlRedirect(streamedMissing, url)).toBe("https://issuetracker.unity.com/not-found");
+    expect(trackerPageUnavailable(streamedMissing, url)).toBe(false);
+    expect(() => parseIssueReport(streamedMissing, "UUM-151146")).toThrow(/identity/);
+    for (const html of [
+      streamedMissing.replace('data-dgst="NEXT_HTTP_ERROR_FALLBACK;404"', 'data-dgst="other"'),
+      streamedMissing.replace("NEXT_REDIRECT;replace;/not-found;307;", "NEXT_REDIRECT;replace;https://example.com/;307;"),
+      streamedMissing.replace("4:E{", "4:E{broken"),
+      streamedMissing + "<h1>Verify you are human</h1>",
+      streamedMissing + customer,
+      streamedMissing + customer.replace(/<h1>[\s\S]*?<\/h1>/, "").replace(/<div class="issue-description">[\s\S]*?<\/div>/, "")
+    ]) expect(trackerHtmlRedirect(html, url)).toBeNull();
+  });
   test("extracts the customer's identity, title and description without navigation", () => {
     const report = parseIssueReport(customer, "UUM-145761");
     expect(report.title).toContain("fd < sysconf(_SC_OPEN_MAX)");
