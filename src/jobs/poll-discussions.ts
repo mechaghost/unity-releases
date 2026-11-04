@@ -12,6 +12,7 @@ import {
   type ParsedDiscourseTopic
 } from "../lib/parsers/discourse";
 import { getPool } from "../lib/db/client";
+import { readCheckpoint, writeCheckpoint } from "../lib/ingest/checkpoints";
 import {
   createIngestionRun,
   finishIngestionRun,
@@ -160,6 +161,8 @@ type RunSummary = {
   rosterUpserted: number;
   rosterMarkedInactive: number;
   activeUsers: number;
+  usersNotDue: number;
+  rosterCached: boolean;
   usersProcessed: number;
   usersSkippedBudget: number;
   usersWithChanges: number;
@@ -182,6 +185,8 @@ function emptySummary(): RunSummary {
     rosterUpserted: 0,
     rosterMarkedInactive: 0,
     activeUsers: 0,
+    usersNotDue: 0,
+    rosterCached: false,
     usersProcessed: 0,
     usersSkippedBudget: 0,
     usersWithChanges: 0,
@@ -210,7 +215,15 @@ export async function pollDiscussions(budget = new RequestBudget(MAX_REQUESTS_PE
   try {
     await stepSiteAndCategories(runId, budget, summary);
 
-    const roster = await stepRoster(runId, budget, summary);
+    const cached = await readCheckpoint<ParsedDiscourseStaffMember[]>("discourse:roster:v1");
+    const cacheTime = Date.parse(cached?.checkedAt ?? "");
+    const validCache = cached && cacheTime <= Date.now() && Date.now() - cacheTime < 23 * 60 * 60_000
+      && Array.isArray(cached.value) && cached.value.length > 0
+      && cached.value.every(u => Number.isInteger(u.discourseUserId) && typeof u.username === "string")
+      && new Set(cached.value.map(u => u.discourseUserId)).size === cached.value.length;
+    const roster = validCache ? cached.value : await stepRoster(runId, budget, summary);
+    summary.rosterCached = Boolean(validCache);
+    if (validCache) summary.rosterTotal = roster.length;
 
     // Active filter: skip ex-employees who haven't posted in
     // ACTIVE_WINDOW_DAYS. Avoids wasting the per-day request budget
@@ -222,20 +235,15 @@ export async function pollDiscussions(budget = new RequestBudget(MAX_REQUESTS_PE
         (u) =>
           u.lastPostedAt !== null &&
           new Date(u.lastPostedAt).getTime() >= cutoff
-      )
-      // Oldest completed activity poll first. Never-polled users lead;
-      // a stable id breaks ties, so roster ordering cannot reset progress.
-      .sort((a, b) => {
-        const aTs = Date.parse(pollTimes.get(a.discourseUserId) ?? "") || 0;
-        const bTs = Date.parse(pollTimes.get(b.discourseUserId) ?? "") || 0;
-        return aTs - bTs || a.discourseUserId - b.discourseUserId;
-      });
-    summary.activeUsers = active.length;
+      );
+    const due = dueDiscourseUsers(active, pollTimes);
+    summary.activeUsers = due.length;
+    summary.usersNotDue = active.length - due.length;
 
     const freshness = await getDiscoursePostFreshness();
     const topicCache = new Map<number, ParsedDiscourseTopic>();
 
-    for (const user of active.slice(0, MAX_USERS_PER_RUN)) {
+    for (const user of due.slice(0, MAX_USERS_PER_RUN)) {
       if (budget.exhausted || budget.throttled) {
         break;
       }
@@ -254,7 +262,7 @@ export async function pollDiscussions(budget = new RequestBudget(MAX_REQUESTS_PE
       }
     }
 
-    summary.usersSkippedBudget = active.length - summary.usersProcessed - summary.usersFetchErrors;
+    summary.usersSkippedBudget = due.length - summary.usersProcessed - summary.usersFetchErrors;
     if (budget.incomplete || summary.usersSkippedBudget > 0 || summary.usersFetchErrors > 0) {
       throw new Error(
         `Discussions incomplete: ${summary.usersProcessed}/${summary.activeUsers} users completed, ` +
@@ -274,6 +282,17 @@ export async function pollDiscussions(budget = new RequestBudget(MAX_REQUESTS_PE
     summary.rateLimitedEarly = budget.throttled;
     logEvent("discussions_run_summary", { runId, requestsSpent: budget.spent, ...summary });
   }
+}
+
+export function dueDiscourseUsers(users: ParsedDiscourseStaffMember[], pollTimes: Map<number, string>, now = Date.now()) {
+  const nextDue = (user: ParsedDiscourseStaffMember) => {
+    const last = Date.parse(pollTimes.get(user.discourseUserId) ?? "");
+    if (!Number.isFinite(last)) return 0;
+    const recent = Date.parse(user.lastPostedAt ?? "") >= now - 30 * 86_400_000;
+    // One hour of tolerance prevents a 12h cron missing a target by seconds.
+    return last + (recent ? 12 : 168) * 3_600_000 - 3_600_000;
+  };
+  return users.filter(u => nextDue(u) <= now).sort((a, b) => nextDue(a) - nextDue(b) || a.discourseUserId - b.discourseUserId);
 }
 
 async function createDiscourseIngestionRun(): Promise<number> {
@@ -394,7 +413,7 @@ async function stepRoster(
     if (parsed.total > 0 && offset >= parsed.total) break;
   }
 
-  if (summary.rosterTotal <= 0 || roster.length < summary.rosterTotal) {
+  if (summary.rosterTotal <= 0 || roster.length !== summary.rosterTotal || new Set(allUserIds).size !== roster.length) {
     throw new Error(`Discussions roster incomplete: ${roster.length}/${summary.rosterTotal} members`);
   }
 
@@ -402,9 +421,11 @@ async function stepRoster(
   // walk (e.g. budget exhausted) would falsely deactivate every user
   // we didn't get to.
   if (allUserIds.length > 0 && summary.rosterTotal > 0 && roster.length >= summary.rosterTotal) {
-    summary.rosterMarkedInactive = await inTx(async (client) =>
-      markMissingDiscourseStaffUsersInactive(client, allUserIds)
-    );
+    summary.rosterMarkedInactive = await inTx(async (client) => {
+      const count = await markMissingDiscourseStaffUsersInactive(client, allUserIds);
+      await writeCheckpoint(client, "discourse:roster:v1", roster);
+      return count;
+    });
   }
 
   return roster;

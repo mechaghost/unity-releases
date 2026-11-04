@@ -55,6 +55,7 @@ export async function GET() {
   });
   return Response.json({
     configured: true,
+    checkedAt: new Date().toISOString(),
     ingestionEnabled: process.env.PRODUCT_UPDATE_INGEST_ENABLED === "true",
     status:
       evaluatedSources.length === 0 ||

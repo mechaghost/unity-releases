@@ -1,7 +1,7 @@
 # Cron recovery
 
-The core cron still runs twice a day, and product update groups keep their
-existing schedules. A failed job does not stop the next core job. The overall
+The core cron runs twice a day. Product update families share a six-hour worker
+while targets retain their own due dates. A failed job does not stop the next core job. The overall
 run exits nonzero if any job fails.
 
 - Each core child has 30 minutes; the historical backfill has 60 minutes.
@@ -23,6 +23,10 @@ run exits nonzero if any job fails.
 - A core job still marked running after two hours is reported as failed by
   health checks, even if an earlier run succeeded. The health check does not
   rewrite historical records.
+- Issue collection runs separately every 30 minutes, with a 15-minute running
+  limit and two-hour freshness limit. Lock/cooldown skips cannot hide older runs.
+
+See [cron operations](cron-operations.md) for current schedules and monitoring.
 
 No entire job or database write is retried automatically. Existing transactions,
 source-specific validation and last-good-data rules remain responsible for data

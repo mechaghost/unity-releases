@@ -19,6 +19,8 @@ import { normalizeReleaseForStorage } from "../lib/ingest/releases";
 import { extractReleasePageMetadata } from "../lib/parsers/release-page";
 import { isLtsMinorLine, parseUnityVersion } from "../lib/parsers/version";
 import { LEGACY_LTS_PARSER_VERSION } from "../lib/ingest/parser-versions";
+import { readCheckpoint, writeCheckpoint, legacyCheckIsFresh, type LegacyCheck } from "../lib/ingest/checkpoints";
+import { query } from "../lib/db/client";
 import {
   recordSourceSnapshot,
   upsertReleaseBundle,
@@ -53,8 +55,21 @@ export async function main() {
       return parsed && isLtsMinorLine(parsed.major, parsed.minor) && !parsed.isPrerelease;
     }));
   }
-  const stats = { considered: allEntries.length, fetched: 0, ingested: 0, errors: 0 };
-  await runWithConcurrency(allEntries.slice(0, MAX_PER_RUN), CONCURRENCY, async entry => {
+  const uniqueEntries = [...new Map(allEntries.map(entry => [entry.version, entry])).values()];
+  const stats = { considered: uniqueEntries.length, fetched: 0, ingested: 0, skipped: 0, errors: 0 };
+  // Check completeness too: a repaired/deleted release must never hide behind a cache.
+  const stored = await query<{ version: string; complete: boolean }>(`SELECT r.version,
+    (r.parser_version=$1 AND r.release_date IS NOT NULL AND r.changeset IS NOT NULL
+      AND EXISTS (SELECT 1 FROM release_note_items n WHERE n.unity_release_id=r.id)) AS complete
+    FROM unity_releases r WHERE r.version=ANY($2::text[])`, [PARSER_VERSION, uniqueEntries.map(e => e.version)]);
+  const complete = new Set(stored.rows.filter(r => r.complete).map(r => r.version));
+  const due: SitemapEntry[] = [];
+  for (const entry of uniqueEntries) {
+    const check = await readCheckpoint<LegacyCheck>(`legacy:${entry.version}`);
+    if (complete.has(entry.version) && legacyCheckIsFresh(check, entry.lastmod, PARSER_VERSION)) stats.skipped++;
+    else due.push(entry);
+  }
+  await runWithConcurrency(due.slice(0, MAX_PER_RUN), CONCURRENCY, async entry => {
     try {
       // Finish network work before opening the per-release write transaction.
       const page = await fetchHtmlWithRetry(entry.url, { timeoutMs: REQUEST_TIMEOUT_MS, retries: MAX_RETRIES });
@@ -69,6 +84,7 @@ export async function main() {
           metadata, releaseNotesMarkdown: notes?.text ?? page.text,
           sourceSnapshotId: notesId, ingestionRunId: runId, parserVersion: PARSER_VERSION
         }));
+        await writeCheckpoint(client, `legacy:${entry.version}`, { lastmod: entry.lastmod, parserVersion: PARSER_VERSION, complete: true });
       }, PARSER_VERSION);
       stats.ingested++;
     } catch (error) {
@@ -78,6 +94,7 @@ export async function main() {
   });
   console.log(JSON.stringify({ majors: LEGACY_MAJORS, ...stats }));
   if (stats.errors) throw new Error(`Legacy ingestion failed for ${stats.errors} releases`);
+  if (due.length > MAX_PER_RUN) throw new Error(`Legacy ingestion incomplete: ${due.length - MAX_PER_RUN} releases remain due`);
 }
 
 function parseSitemap(xml: string): SitemapEntry[] {

@@ -89,14 +89,16 @@ you want production to update.
 
 | Service | Config file | Cron schedule | What it does |
 |---|---|---|---|
-| Web (default) | `railway.json` | — (long-running) | `npm run start`, healthcheck `/api/health` |
-| `cron-editor` | `config/railway/cron-editor.json` | `0 */12 * * *` (every 12h) | `npm run ingest:editor` |
-| `cron-packages` | `config/railway/cron-packages.json` | `0 */12 * * *` (every 12h) | `npm run ingest:packages` |
-| `cron-news` | `config/railway/cron-news.json` | `0 5 * * *` (daily 5am UTC) | `npm run ingest:news` |
-| `cron-updates-editor-tooling` | `config/railway/cron-updates-editor-tooling.json` | `15 */6 * * *` | `npm run ingest:product-updates -- editor-tooling` |
-| `cron-updates-platform-services` | `config/railway/cron-updates-platform-services.json` | `30 4 * * *` | `npm run ingest:product-updates -- platform-services` |
-| `cron-updates-monetization` | `config/railway/cron-updates-monetization.json` | `45 4 * * *` | `npm run ingest:product-updates -- monetization` |
-| `cron-updates-industry-enterprise` | `config/railway/cron-updates-industry-enterprise.json` | `0 5 * * 1` | `npm run ingest:product-updates -- industry-enterprise` |
+| Web (default) | `railway.json` | — (long-running) | Migrate schema, then start web server |
+| `cron-all` | `config/railway/cron-all.json` | `0 0,12 * * *` | Core collection and data checks |
+| `cron-updates-editor-tooling` (combined worker) | `config/railway/cron-updates.json` | `15 */6 * * *` | All product families; targets keep their 12h/daily/weekly cadence |
+| `cron-issue-reports` | `config/railway/cron-issue-reports.json` | `5,35 * * * *` | Due issue reports, eight-minute budget |
+
+The combined product worker reuses the existing service ID. Its allowlist is the
+union of the four old workers (71 source keys at migration). The three replaced
+services use `cron-retired.json` and have their repository sources disconnected.
+Old family configs remain for rollback; do not enable them alongside the combined
+worker. The issue collector retains its shared lock and ten-second request spacing.
 
 Each cron config sets `deploy.cronSchedule` + `deploy.startCommand` and
 uses `restartPolicyType: NEVER` so a failed run doesn't loop. Core jobs
@@ -115,11 +117,13 @@ For each cron service in the dashboard:
    - `DATABASE_URL = ${{Postgres.DATABASE_URL}}`
    - `INGESTION_USER_AGENT = unity-releases/0.1 (+you@example.com)`
 
-Trigger the first run manually via **Deploy** to validate; subsequent
-runs fire on schedule. Logs are per-service.
+After deploying the build, trigger a validation run with
+`railway cron run --service <name> --yes` (CLI 5+). Deploying a cron service does
+not execute it. Check `railway cron list --service <name> --json` for completion.
 
-`Backfill` and `Migrate` aren't cron — leave them as one-off services
-or run them via `railway run --service <web> npm run ingest:backfill`.
+Core includes an incremental historical backfill. Migrations run at web startup.
+See [cron operations](docs/cron-operations.md) for monitoring, crawl checkpoints,
+freshness thresholds, and rollback.
 
 ### Seeding prod from your local DB
 
@@ -182,19 +186,23 @@ unit tests, type checking, database contracts, and desktop/mobile browser regres
 Database tests use disposable schemas; never point the browser fixture setup at a production database.
 The browser suite builds production code before testing it.
 
-A daily GitHub Actions check (`site-links.yml`, 09:30 UTC) crawls public internal
-links and health endpoints, then checks a rotating sample of external links.
+A separate `site-health.yml` checks ingestion health every 30 minutes and opens
+one incident issue on failure, closing it after recovery. Scheduling is best-effort.
+A daily Actions check (`site-links.yml`, 09:30 UTC) resumes a bounded internal
+crawl and checks a rotating sample of external links.
 Run it manually with:
 
 ```bash
-npx tsx scripts/check-site-links.ts --site https://unityreleases.com --output .artifacts/link-check.json
+npx tsx scripts/check-site-links.ts --site https://unityreleases.com --max-pages 2000 --budget-seconds 1200 --resume .artifacts/link-cursor.json --output .artifacts/link-check.json
 ```
 
 It detects HTTP errors, Unity's HTTP-200 not-found pages, missing internal anchors,
 and unhealthy ingestion payloads. It also follows package-history pages using the
 same link parser as the dialog. It stops checking a host after 403/429, bounds
 requests and response sizes, and never calls the analytics write endpoint.
-Failures return exit code 1; hitting the internal crawl limit returns exit code 2. Blocked URLs, request limits, and unsampled external
+Failures return exit code 1; an incomplete one-shot crawl returns exit code 2.
+With `--resume`, a saved partial slice can pass while reporting unchecked pages.
+Blocked URLs, request limits, and unsampled external
 links remain explicitly unverified in the JSON artifact. Use `--require-complete`
 to return exit code 2 when there are no confirmed failures but verification is
 incomplete. Set `--max-pages`, `--external-limit`, and `--sample-index` to control
@@ -213,6 +221,8 @@ without success are unhealthy for the 12-hour schedule. `/api/health` returns
 HTTP 200 while the database works, even if ingestion is stale, so an upstream
 outage does not block a healthy web process. `npm run health:ingest` returns a
 nonzero exit code for failed, never-run, stale, or unavailable ingestion.
+The issue collector is tracked separately at a 30-minute cadence, with two-hour
+staleness and a 15-minute running limit. Overlap/cooldown skips do not refresh health.
 
 The additive audit migration creates `core_job_runs` and resource availability
 fields. Run `npm run db:migrate` before running the new jobs/web code. Existing

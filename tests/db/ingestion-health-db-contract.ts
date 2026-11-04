@@ -56,10 +56,27 @@ try {
   assert.equal(health.find(row=>row.jobName==='poll-legacy-lts')?.status,'ok');
   assert.equal(health.find(row=>row.jobName==='poll-package-docs')?.status,'never');
   const {runScheduledJob} = await import("../../src/lib/ingest/job-health");
+  const {readCheckpoint,writeCheckpoint} = await import("../../src/lib/ingest/checkpoints");
+  await client.query("BEGIN");
+  await writeCheckpoint(client,"contract:rollback",{ lastmod: "2026-11-04", parserVersion: "v1" });
+  await client.query("ROLLBACK");
+  assert.equal(await readCheckpoint("contract:rollback"),null,"failed writes cannot advance successful checkpoints");
+  await writeCheckpoint(client,"contract:commit",{ complete: true });
+  assert.deepEqual((await readCheckpoint("contract:commit"))?.value,{complete:true});
   await assert.rejects(runScheduledJob("poll-packages",async()=>{throw new Error("registry failed");}), /registry failed/);
   assert.equal((await listIngestionFreshness()).find(row=>row.jobName==='poll-packages')?.status,'failed');
   await runScheduledJob("poll-packages",async()=>{});
   assert.equal((await listIngestionFreshness()).find(row=>row.jobName==='poll-packages')?.status,'ok');
+  await runScheduledJob("poll-issue-reports",async()=>{throw new Error("failed collector");}).catch(()=>undefined);
+  await runScheduledJob("poll-issue-reports",async()=>({ skipped: "already running" }));
+  process.env.ISSUE_REPORT_COLLECTION_ENABLED="true";
+  assert.equal((await listIngestionFreshness()).find(row=>row.jobName==='poll-issue-reports')?.status,'failed','overlap skip must not hide failed collection');
+  await client.query("DELETE FROM core_job_runs WHERE job_name='poll-issue-reports'");
+  await client.query(`INSERT INTO core_job_runs(job_name,status,started_at,finished_at) VALUES
+    ('poll-issue-reports','success',now()-interval '50 minutes',now()-interval '45 minutes'),
+    ('poll-issue-reports','running',now()-interval '36 minutes',null),
+    ('poll-issue-reports','skipped',now()-interval '1 minute',now()-interval '1 minute')`);
+  assert.equal((await listIngestionFreshness()).find(row=>row.jobName==='poll-issue-reports')?.status,'failed','overlap skip must not hide a hung collector');
   await client.query("INSERT INTO resources(slug,url,title) SELECT 'queue-'||n,'https://unity.com/resources/queue-'||n,'Queue' FROM generate_series(1,101) n");
   const firstQueue = await listResourceRechecks(100);
   assert.equal(firstQueue.length,100);

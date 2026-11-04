@@ -21,7 +21,7 @@ The feature defaults off in code. Production enablement follows the steps below.
    explicit comma-separated list on the cron service. For broad coverage, use the
    dedicated `cron-issue-reports` service, following the `release` branch and
    using the existing Postgres database. Configure its start command as
-   `npm run ingest:issue-reports`, cron as `*/10 * * * *`, and restart policy as
+   `npm run ingest:issue-reports`, cron as `5,35 * * * *`, and restart policy as
    `NEVER` directly on Railway. New Railway services no longer read the legacy
    JSON config files used by this repository's older services. Set the same variables on
    the web service for health reporting. Leave search disabled.
@@ -188,6 +188,10 @@ confirmed the new GIN index is valid; it occupies 24 MB. The rebuild resumed on
 Railway after beginning locally, and completed with no missing vectors.
 
 ## Backfill pacing update on 2026-11-02
+
+The ten-minute backfill schedule described below was reduced to every 30 minutes
+on November 4 after the initial queue cleared. Ten-second request spacing and
+the eight-minute batch budget remain unchanged. See [cron operations](cron-operations.md).
 
 The initial hourly schedule and one-second spacing above describe the original
 rollout. A subsequent check of the tracker's

@@ -1012,6 +1012,17 @@ CREATE TABLE IF NOT EXISTS core_job_runs (
 );
 CREATE INDEX IF NOT EXISTS core_job_runs_job_started_idx ON core_job_runs (job_name, started_at DESC);
 
+ALTER TABLE core_job_runs DROP CONSTRAINT IF EXISTS core_job_runs_status_check;
+ALTER TABLE core_job_runs ADD CONSTRAINT core_job_runs_status_check
+  CHECK (status IN ('running', 'success', 'failed', 'skipped'));
+
+-- Successful source checks only. Writes share the source content transaction.
+CREATE TABLE IF NOT EXISTS ingestion_checkpoints (
+  key TEXT PRIMARY KEY,
+  value_json JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Additive migration also upgrades databases where resources already exists.
 ALTER TABLE resources ADD COLUMN IF NOT EXISTS unavailable_at TIMESTAMPTZ;
 ALTER TABLE resources ADD COLUMN IF NOT EXISTS availability_checked_at TIMESTAMPTZ;

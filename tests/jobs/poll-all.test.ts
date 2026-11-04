@@ -57,7 +57,6 @@ describe("JOB_ORDER", () => {
       "editor",
       "github",
       "invariants",
-      "issue-reports",
       "legacy-lts",
       "news",
       "package-docs",

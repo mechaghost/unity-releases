@@ -20,6 +20,8 @@ vi.mock("../../src/lib/product-updates/sources", () => ({
 import { runProductUpdateJob } from "../../src/jobs/poll-product-update";
 import {
   runProductUpdateGroup,
+  runAllProductUpdateGroups,
+  sourceOutcome,
   runSourceProcess
 } from "../../src/jobs/poll-product-update-group";
 
@@ -35,6 +37,41 @@ beforeEach(() => {
 
 afterEach(() => {
   process.exitCode = undefined;
+  vi.unstubAllEnvs();
+});
+
+test("combined worker continues after failed family and stops on cancellation", async () => {
+  vi.stubEnv("PRODUCT_UPDATE_INGEST_ENABLED", "true");
+  vi.stubEnv("PRODUCT_UPDATE_SOURCES", "unity-hub");
+  mocks.adaptersForFamily.mockReturnValue([hub]);
+  const runGroup = vi.fn().mockRejectedValueOnce(new Error("family failed")).mockResolvedValue([{ sourceKey: 'unity-hub', ok: true, status: 'nothing-due' }]);
+  expect(await runAllProductUpdateGroups({ runGroup })).toHaveLength(4);
+  expect(process.exitCode).toBe(1);
+  const controller = new AbortController();
+  runGroup.mockReset().mockImplementation(async () => { controller.abort(); return []; });
+  expect(await runAllProductUpdateGroups({ runGroup, signal: controller.signal })).toHaveLength(1);
+});
+
+test("combined worker cannot silently run with ingestion disabled", async () => {
+  vi.stubEnv("PRODUCT_UPDATE_INGEST_ENABLED", "false");
+  await expect(runAllProductUpdateGroups()).rejects.toThrow(/requires enabled/);
+});
+
+test.each([
+  ["skipped-not-due", "nothing-due"], ["skipped-disabled", "skipped-disabled"],
+  ["skipped-retired", "retired"], ["skipped-overlap", "skipped-overlap"],
+  ["skipped-circuit-open", "skipped-circuit-open"], ["not-modified", "success"], ["not-configured", "failed"]
+])("source outcome reports %s honestly", (status, expected) => {
+  expect(sourceOutcome({ ok: true, output: { results: [{ status }] } })).toBe(expected);
+});
+
+test("zero exit with missing product schema still fails the family", async () => {
+  mocks.adaptersForFamily.mockReturnValue([hub]);
+  const summary = await runProductUpdateGroup(['editor-tooling', '--force'], { runSource: async () => ({
+    ok: true, exitCode: 0, signal: null, timedOut: false, durationMs: 1, output: { results: [{ status: 'not-configured' }] }
+  }) });
+  expect(summary[0]).toMatchObject({ ok: false, status: 'failed' });
+  expect(process.exitCode).toBe(1);
 });
 
 describe("Product Updates jobs", () => {

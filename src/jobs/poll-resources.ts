@@ -8,7 +8,6 @@ import {
   parseResourcesIndex,
   parseResourcesSitemap,
   mergeResourceEntries,
-  SITEMAP_URL,
   CONTENT_SITEMAP_URL,
   RESOURCES_INDEX_URL,
   RESOURCE_PARSER_VERSION,
@@ -62,7 +61,7 @@ export async function pollResources() {
   const { todo, sitemapEntries } = await withIngestionTransaction("resources", "poll-resources-discovery", async (client) => {
     const discovered: (SitemapEntry & { sourceSnapshotId: number })[] = [];
     const failures: string[] = [];
-    for (const url of [SITEMAP_URL, CONTENT_SITEMAP_URL, RESOURCES_INDEX_URL]) {
+    for (const url of [CONTENT_SITEMAP_URL, RESOURCES_INDEX_URL]) {
       // Catch discovery failures only. Persistence failures must abort the transaction.
       let source: FetchedSource;
       let parsed: SitemapEntry[];

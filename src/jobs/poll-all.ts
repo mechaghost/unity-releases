@@ -22,8 +22,7 @@ export type JobName =
   | "github"
   | "backfill"
   | "discussions"
-  | "invariants"
-  | "issue-reports";
+  | "invariants";
 
 export type JobDefinition = {
   name: JobName;
@@ -65,7 +64,6 @@ export const JOB_ORDER: JobDefinition[] = [
   { name: "resources", npmScript: "ingest:resources" },
   { name: "github", npmScript: "ingest:github" },
   { name: "backfill", npmScript: "ingest:backfill" },
-  { name: "issue-reports", npmScript: "ingest:issue-reports" },
   { name: "discussions", npmScript: "ingest:discussions" },
   // Last: assert the data every job above just wrote. A breach exits
   // non-zero so Railway flags the run - the alarm that was missing while

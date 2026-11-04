@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { auditSite, classifyLink, type AuditResponse } from '../../src/lib/link-audit';
+import { auditSite, classifyLink, type AuditResponse, type AuditCheckpoint } from '../../src/lib/link-audit';
 const origin = 'https://site.test';
 const html = (body: string, status = 200, finalUrl = origin): AuditResponse => ({ body, status, finalUrl, contentType: 'text/html' });
 describe('link audit', () => {
@@ -103,4 +103,48 @@ for (const status of [403, 429]) it(`does not pass blocked internal pages (${sta
   const report = await auditSite({ origin, seeds: ['/'], delayMs: 0, fetchPage: async url => html('', status, url) });
   expect(report.internalComplete).toBe(false);
   expect(auditExitCode(report)).toBe(2);
+});
+
+it('resumes later pages, retains failures, and checks external links before the crawl finishes', async () => {
+  let saved: AuditCheckpoint | undefined;
+  const calls: string[] = [];
+  const fetchPage = async (url: string) => {
+    calls.push(url);
+    return html(url === origin + '/' ? '<a href="/a">a</a><a href="/b">b</a><a href="https://unity.com/doc">doc</a>' : '', url.endsWith('/b') ? 500 : 200, url);
+  };
+  const onCheckpoint = async (s: AuditCheckpoint) => { saved = structuredClone(s); };
+  const first = await auditSite({ origin, seeds: ['/'], maxPages: 1, delayMs: 0, fetchPage, onCheckpoint });
+  expect(first.internalComplete).toBe(false);
+  expect(calls).toEqual([origin + '/', 'https://unity.com/doc']);
+  const second = await auditSite({ origin, maxPages: 2, delayMs: 0, fetchPage, onCheckpoint, resume: saved });
+  expect(calls).toEqual([origin + '/', 'https://unity.com/doc', origin + '/a', origin + '/b']);
+  expect(second).toMatchObject({ crawlComplete: true, broken: 1 });
+  expect(saved?.results.filter(r => r.result === 'unverified')).toHaveLength(0);
+});
+
+it('stops at a time budget, checkpoints, and preserves cancellation as incomplete', async () => {
+  let clock = 0;
+  let saved: AuditCheckpoint | undefined;
+  const controller = new AbortController();
+  const first = await auditSite({ origin, seeds: ['/', '/later'], budgetMs: 100, now: () => clock, delayMs: 0,
+    fetchPage: async url => { clock += 100; return html('', 200, url); }, onCheckpoint: async s => { saved = structuredClone(s); } });
+  expect(first).toMatchObject({ requestsThisRun: 1, crawlComplete: false });
+  expect(saved?.index).toBe(1);
+  controller.abort();
+  const stopped = await auditSite({ origin, resume: saved, signal: controller.signal });
+  expect(stopped).toMatchObject({ interrupted: true, requestsThisRun: 0, crawlComplete: false });
+});
+
+it('rotates external samples across completed multi-day crawls', async () => {
+  let saved: AuditCheckpoint | undefined;
+  const externalCalls = new Set<string>();
+  for (let day = 0; day < 4; day++) {
+    await auditSite({ origin, seeds: ['/'], maxPages: 1, externalLimit: 2, sampleIndex: day, delayMs: 0,
+      resume: saved, onCheckpoint: async s => { saved = structuredClone(s); },
+      fetchPage: async url => {
+        if (url.startsWith('https://unity.com')) externalCalls.add(url);
+        return html(url === origin + '/' ? '<a href="/later">later</a>' + ['a','b','c','d'].map(x => `<a href="https://unity.com/${x}">${x}</a>`).join('') : '', 200, url);
+      } });
+  }
+  expect([...externalCalls].sort()).toEqual(['a','b','c','d'].map(x => 'https://unity.com/' + x));
 });

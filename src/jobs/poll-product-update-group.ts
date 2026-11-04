@@ -17,7 +17,7 @@ type SourceProcessResult = {
 type GroupSummaryEntry = {
   sourceKey: string;
   ok: boolean;
-  status: "success" | "failed" | "skipped-disabled" | "skipped-budget" | "cancelled";
+  status: "success" | "failed" | "skipped-disabled" | "skipped-budget" | "cancelled" | "nothing-due" | "retired" | "skipped-overlap" | "skipped-circuit-open";
   exitCode?: number | null;
   timedOut?: boolean;
   durationMs?: number;
@@ -128,10 +128,11 @@ export async function runProductUpdateGroup(
           flags,
           Math.min(sourceDeadlineMs, remainingMs)
         );
+        const status = sourceOutcome(processResult);
         summary[index] = {
           sourceKey,
-          ok: processResult.ok,
-          status: processResult.ok ? "success" : "failed",
+          ok: processResult.ok && status !== "failed",
+          status,
           exitCode: processResult.exitCode,
           timedOut: processResult.timedOut,
           durationMs: processResult.durationMs,
@@ -178,6 +179,50 @@ export async function runProductUpdateGroup(
     })
   );
   if (summary.some((source) => !source.ok)) process.exitCode = 1;
+  return summary;
+}
+
+export function sourceOutcome(result: Pick<SourceProcessResult, "ok" | "output">): GroupSummaryEntry["status"] {
+  if (!result.ok) return "failed";
+  const output = result.output as { results?: { status: string }[] } | undefined;
+  const statuses = output?.results?.map(row => row.status) ?? [];
+  if (!statuses.length) return "success";
+  if (statuses.some(s => s === "not-configured" || s === "failed" || s === "quarantined")) return "failed";
+  if (statuses.every(s => s === "skipped-disabled")) return "skipped-disabled";
+  if (statuses.every(s => s === "skipped-retired")) return "retired";
+  if (statuses.every(s => s === "skipped-not-due" || s === "skipped-retired")) return "nothing-due";
+  if (statuses.every(s => s === "skipped-overlap" || s === "skipped-not-due" || s === "skipped-retired")) return "skipped-overlap";
+  if (statuses.some(s => s === "skipped-circuit-open")) return "skipped-circuit-open";
+  return "success";
+}
+
+/** Each family gets its own deadline; a failed family cannot starve later ones. */
+export async function runAllProductUpdateGroups(options: {
+  signal?: AbortSignal;
+  runGroup?: typeof runProductUpdateGroup;
+} = {}) {
+  if (process.env.PRODUCT_UPDATE_INGEST_ENABLED !== "true" || !process.env.PRODUCT_UPDATE_SOURCES?.trim()) {
+    throw new Error("Combined product worker requires enabled ingestion and an explicit source allowlist");
+  }
+  const known = new Set(PRODUCT_UPDATE_FAMILIES.flatMap(family => productUpdateAdaptersForFamily(family).map(a => a.manifest.sourceKey)));
+  const configured = process.env.PRODUCT_UPDATE_SOURCES.split(',').map(s => s.trim()).filter(Boolean);
+  const unknown = configured.filter(key => !known.has(key));
+  if (unknown.length) throw new Error(`Unknown product source keys: ${unknown.join(', ')}`);
+  const summary: { family: string; ok: boolean; sources?: GroupSummaryEntry[]; error?: string }[] = [];
+  for (const family of PRODUCT_UPDATE_FAMILIES) {
+    if (options.signal?.aborted) break;
+    try {
+      const sources = await (options.runGroup ?? runProductUpdateGroup)([family], { signal: options.signal });
+      summary.push({ family, ok: sources.every(s => s.ok), sources });
+    } catch (error) {
+      summary.push({ family, ok: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  if (!summary.some(s => s.sources?.some(source => source.status !== "skipped-disabled")) && !options.signal?.aborted) {
+    throw new Error("Combined product worker did not enable any sources");
+  }
+  if (summary.some(s => !s.ok) || options.signal?.aborted) process.exitCode = 1;
+  console.log(JSON.stringify({ event: "product_update_all_complete", cancelled: Boolean(options.signal?.aborted), summary }));
   return summary;
 }
 
@@ -244,7 +289,8 @@ function boundedInteger(
 async function main() {
   const shutdown = cronShutdown();
   try {
-    await runProductUpdateGroup(process.argv.slice(2), { signal: shutdown.signal });
+    if (process.argv[2] === "all") await runAllProductUpdateGroups({ signal: shutdown.signal });
+    else await runProductUpdateGroup(process.argv.slice(2), { signal: shutdown.signal });
   } finally {
     shutdown.dispose();
     await getPool().end().catch(() => undefined);

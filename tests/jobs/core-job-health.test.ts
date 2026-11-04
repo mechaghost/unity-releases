@@ -51,3 +51,22 @@ test("report collection contributes to health only when enabled", () => {
   expect(evaluateJobFreshness([]).find(row => row.jobName === "poll-issue-reports")).toMatchObject({ status: "never", isStale: true });
   vi.unstubAllEnvs();
 });
+
+test("issue collector expires on its own cadence and running budget", () => {
+  vi.stubEnv("ISSUE_REPORT_COLLECTION_ENABLED", "true");
+  try {
+    const now = Date.parse("2026-11-04T12:00:00Z");
+    const row = { job_name: "poll-issue-reports", last_success: new Date(now - 2 * 3_600_000).toISOString(), last_run: new Date(now - 2 * 3_600_000).toISOString(), latest_status: "success" };
+    const check = (r = row, at = now) => evaluateJobFreshness([r], at).find(r => r.jobName === row.job_name);
+    expect(check()).toMatchObject({ status: "ok", cadenceHours: 0.5 });
+    expect(check(row, now + 1)?.status).toBe("stale");
+    expect(check({ ...row, latest_status: "running", last_run: new Date(now - 16 * 60_000).toISOString() })?.status).toBe("failed");
+    expect(check({ ...row, latest_status: "skipped" }, now + 1)?.status).toBe("stale");
+  } finally { vi.unstubAllEnvs(); }
+});
+
+test("overlap and cooldown skips cannot advance successful collection time", async () => {
+  await runScheduledJob("poll-issue-reports", async () => ({ skipped: "already running" }));
+  expect(mocks.query.mock.calls[1][0]).toContain("status='skipped'");
+  expect(mocks.query.mock.calls.some(([sql]) => sql.includes("status='success'"))).toBe(false);
+});

@@ -1,5 +1,11 @@
 import { expect, test, vi } from "vitest";
 const state = vi.hoisted(() => ({ inTransaction: false, writes: 0 }));
+vi.mock("../../src/lib/db/client", () => ({ query: async () => ({ rows: [] }) }));
+vi.mock("../../src/lib/ingest/checkpoints", async importOriginal => ({
+  ...await importOriginal<typeof import("../../src/lib/ingest/checkpoints")>(),
+  readCheckpoint: async () => null,
+  writeCheckpoint: async () => { expect(state.inTransaction).toBe(true); }
+}));
 vi.mock("../../src/lib/ingest/fetch", () => ({ fetchText: vi.fn(async () => ({ status: 200, text: '<url><loc>https://unity.com/releases/editor/whats-new/2022.3.1f1</loc></url>' })) }));
 vi.mock("../../src/lib/ingest/runner", () => ({
   fetchHtmlWithRetry: vi.fn(async () => { expect(state.inTransaction).toBe(false); return { text: "notes", finalUrl: "https://unity.com/page", status: 200 }; }),
@@ -17,5 +23,5 @@ vi.mock("../../src/lib/db/repositories", () => ({
 }));
 import { main } from "../../src/jobs/poll-legacy-lts";
 test("legacy imports finish network requests before each release write transaction", async () => {
-  await main(); expect(state.writes).toBe(4); expect(state.inTransaction).toBe(false);
+  await main(); expect(state.writes).toBe(1); expect(state.inTransaction).toBe(false);
 });

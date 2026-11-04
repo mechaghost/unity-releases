@@ -11,7 +11,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,12 +19,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - uses: actions/cache/restore@v4
+        with:
+          path: .artifacts/link-cursor.json
+          key: link-cursor-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: link-cursor-v1-
       - name: Check internal links, health, and rotating external sample
-        run: npx tsx scripts/check-site-links.ts --site https://unityreleases.com --max-pages 12000 --external-limit 250 --output .artifacts/link-check.json
+        run: npx tsx scripts/check-site-links.ts --site https://unityreleases.com --max-pages 2000 --budget-seconds 1200 --external-limit 250 --resume .artifacts/link-cursor.json --output .artifacts/link-check.json
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .artifacts/link-cursor.json
+          key: link-cursor-v1-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: live-link-evidence
           path: .artifacts/link-check.json
           if-no-files-found: warn
+          include-hidden-files: true
           retention-days: 14

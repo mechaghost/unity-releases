@@ -10,6 +10,16 @@ export type AuditOptions = {
   origin: string; seeds?: string[]; maxPages?: number; externalLimit?: number;
   sampleIndex?: number; delayMs?: number; fetchPage?: (url: string) => Promise<AuditResponse>;
   onProgress?: (checked: number) => void;
+  budgetMs?: number; now?: () => number; signal?: AbortSignal;
+  resume?: AuditCheckpoint;
+  onCheckpoint?: (state: AuditCheckpoint) => Promise<void>;
+};
+export type AuditCheckpoint = {
+  version: 1; origin: string; startedAt: string; sampleIndex: number;
+  queue: string[]; index: number; external: string[]; externalChecked: string[];
+  references: [string, string[]][]; ids: [string, string[]][];
+  fragments: [string, { target: string; hash: string; reference: string }][];
+  results: AuditResult[]; blockedHosts: string[]; complete: boolean;
 };
 const EXTERNAL_DOMAINS = ['unity.com', 'unity3d.com', 'github.com', 'githubusercontent.com', 'storage.googleapis.com', 'developer.android.com', 'learn.microsoft.com', 'developer.apple.com', 'khronos.org'];
 
@@ -40,11 +50,11 @@ function allowedExternal(url: string) {
 }
 
 /** GET-only, bounded checks. Never retries a blocked host in the same run. */
-export async function fetchAuditPage(url: string, fetchImpl: typeof fetch = fetch): Promise<AuditResponse> {
+export async function fetchAuditPage(url: string, fetchImpl: typeof fetch = fetch, outerSignal?: AbortSignal): Promise<AuditResponse> {
   let current = url;
   let response: Response | undefined;
   const initialOrigin = new URL(url).origin;
-  const signal = AbortSignal.timeout(20_000);
+  const signal = AbortSignal.any([AbortSignal.timeout(20_000), ...(outerSignal ? [outerSignal] : [])]);
   for (let hop = 0; hop <= 8; hop++) {
     response = await fetchImpl(current, {
       signal, redirect: 'manual',
@@ -88,14 +98,34 @@ export async function auditSite(options: AuditOptions) {
   const origin = new URL(options.origin).origin;
   const maxPages = options.maxPages ?? 5000;
   const externalLimit = options.externalLimit ?? 250;
-  const fetchPage = options.fetchPage ?? fetchAuditPage;
+  const fetchPage = options.fetchPage ?? (url => fetchAuditPage(url, fetch, options.signal));
   const delay = options.delayMs ?? 150;
-  const queue: string[] = [], internal = new Set<string>(), external = new Set<string>();
-  const references = new Map<string, Set<string>>();
-  const results: AuditResult[] = [];
-  const ids = new Map<string, Set<string>>();
-  const fragments = new Map<string, { target: string; hash: string; reference: string }>();
-  const blockedHosts = new Set<string>();
+  const now = options.now ?? Date.now;
+  const start = now();
+  const budgetMs = options.budgetMs ?? Infinity;
+  const resume = options.resume?.complete ? undefined : options.resume;
+  if (options.resume && (options.resume.version !== 1 || options.resume.origin !== origin)) throw new Error('Invalid audit checkpoint origin or version');
+  const queue: string[] = [...(resume?.queue ?? [])], internal = new Set(queue), external = new Set(resume?.external ?? []);
+  const references = new Map<string, Set<string>>((resume?.references ?? []).map(([url, refs]) => [url, new Set(refs)]));
+  const results: AuditResult[] = [...(resume?.results ?? [])];
+  const ids = new Map<string, Set<string>>((resume?.ids ?? []).map(([url, values]) => [url, new Set(values)]));
+  const fragments = new Map<string, { target: string; hash: string; reference: string }>(resume?.fragments ?? []);
+  const blockedHosts = new Set<string>(); // retry blocked hosts on the next slice
+  const externalChecked = new Set(resume?.externalChecked ?? []);
+  // Advance once per completed crawl, independent of how many days it took.
+  const sampleIndex = resume?.sampleIndex ?? (options.resume?.complete ? options.resume.sampleIndex + 1 : options.sampleIndex ?? 0);
+  let index = resume?.index ?? 0;
+  const initialIndex = index;
+  const startedAt = resume?.startedAt ?? new Date().toISOString();
+  let requestsThisRun = 0;
+  const outOfTime = () => Boolean(options.signal?.aborted) || now() - start >= budgetMs;
+  async function checkpoint(complete = false) {
+    await options.onCheckpoint?.({ version: 1, origin, startedAt, sampleIndex,
+      queue, index, external: [...external], externalChecked: [...externalChecked],
+      references: [...references].map(([url, refs]) => [url, [...refs]]),
+      ids: [...ids].map(([url, values]) => [url, [...values]]), fragments: [...fragments],
+      results, blockedHosts: [...blockedHosts], complete });
+  }
   function add(href: string, reference: string) {
     const url = normalizedUrl(href, reference);
     if (!url) return;
@@ -112,10 +142,12 @@ export async function auditSite(options: AuditOptions) {
       if (!internal.has(url)) { internal.add(url); queue.push(url); }
     } else external.add(url);
   }
-  for (const seed of options.seeds ?? ['/', '/sitemap.xml', '/api/health', '/api/updates/health', '/api/packages']) add(seed, origin + '/');
+  if (!resume) for (const seed of options.seeds ?? ['/', '/sitemap.xml', '/api/health', '/api/updates/health', '/api/packages']) add(seed, origin + '/');
   async function request(url: string): Promise<AuditResponse | null> {
     const refs = [...(references.get(url) ?? [])];
     try {
+      // Checkpoint files are input too: do not let a modified cache bypass URL policy.
+      if (!normalizedUrl(url, origin) || (new URL(url).origin !== origin && !allowedExternal(url))) throw new Error('URL outside audit policy');
       if (delay) await new Promise(resolve => setTimeout(resolve, delay));
       const response = await fetchPage(url);
       let result = classifyLink(response);
@@ -134,15 +166,22 @@ export async function auditSite(options: AuditOptions) {
       options.onProgress?.(results.length);
       return result === 'reachable' ? response : null;
     } catch (error) {
+      if (options.signal?.aborted) return null;
       results.push({ url, result: new URL(url).origin === origin ? 'broken' : 'unverified', reason: error instanceof Error ? error.message : String(error), references: refs });
       return null;
     }
   }
-  let index = 0;
-  while (index < queue.length && index < maxPages) {
+  await checkpoint();
+  while (index < queue.length && index - initialIndex < maxPages && !outOfTime()
+    && now() - start < budgetMs * 0.8) {
     const url = queue[index++];
     const response = await request(url);
-    if (!response) continue;
+    requestsThisRun++;
+    if (!response) {
+      if (options.signal?.aborted) { index--; break; }
+      if (requestsThisRun % 100 === 0) await checkpoint();
+      continue;
+    }
     if (new URL(url).pathname === '/api/packages' || /\/api\/packages\/[^/]+\/versions$/.test(new URL(url).pathname)) {
       try {
         const data = JSON.parse(response.body);
@@ -173,26 +212,38 @@ export async function auditSite(options: AuditOptions) {
       const $ = load(response.body, { xml: true });
       $('loc').each((_, el) => add($(el).text(), response.finalUrl));
     }
-  }
-  for (const url of queue.slice(index)) results.push({ url, result: 'unverified', reason: 'Internal page limit reached', references: [...(references.get(url) ?? [])] });
-  for (const [url, fragment] of fragments) {
-    const targets = ids.get(fragment.target);
-    if (targets && !targets.has(fragment.hash)) results.push({ url, result: 'broken', reason: 'Missing fragment target', references: [fragment.reference] });
+    if (requestsThisRun % 100 === 0) await checkpoint();
   }
   const ordered = [...external].sort();
-  const start = ordered.length ? (((options.sampleIndex ?? 0) % ordered.length) * externalLimit) % ordered.length : 0;
-  const selected = new Set(Array.from({ length: Math.min(externalLimit, ordered.length) }, (_, n) => ordered[(start + n) % ordered.length]));
+  const sampleStart = ordered.length ? ((sampleIndex % ordered.length) * externalLimit) % ordered.length : 0;
+  const selected = new Set(Array.from({ length: Math.min(externalLimit, ordered.length) }, (_, n) => ordered[(sampleStart + n) % ordered.length]));
   for (const url of ordered) {
-    let reason: string | undefined;
-    if (!allowedExternal(url)) reason = 'External host is outside the audit allowlist';
-    else if (blockedHosts.has(new URL(url).hostname)) reason = 'Host blocked or rate-limited earlier in this run';
-    else if (!selected.has(url)) reason = 'Outside this run’s rotating external sample';
-    if (reason) results.push({ url, result: 'unverified', reason, references: [...(references.get(url) ?? [])] });
-    else await request(url);
+    if (outOfTime()) break;
+    if (externalChecked.has(url) || !allowedExternal(url) || !selected.has(url) || blockedHosts.has(new URL(url).hostname)) continue;
+    await request(url);
+    externalChecked.add(url);
+    requestsThisRun++;
+    if (requestsThisRun % 100 === 0) await checkpoint();
   }
-  const broken = results.filter(r => r.result === 'broken').length;
-  const unverified = results.filter(r => r.result === 'unverified' || r.result === 'blocked').length;
-  return { checkedAt: new Date().toISOString(), origin, broken, unverified, internalComplete: index === queue.length && !results.some(r => new URL(r.url).origin === origin && r.result === 'blocked'), complete: unverified === 0, results };
+  const pendingExternal = [...selected].some(url => allowedExternal(url) && !externalChecked.has(url) && !blockedHosts.has(new URL(url).hostname));
+  const crawlComplete = index === queue.length && !pendingExternal;
+  await checkpoint(crawlComplete);
+  // Synthetic coverage entries belong in the report, never the resumable work state.
+  const reportResults = [...results];
+  for (const url of queue.slice(index)) reportResults.push({ url, result: 'unverified', reason: 'Internal crawl paused; queued for next run', references: [...(references.get(url) ?? [])] });
+  for (const [url, fragment] of fragments) {
+    const targets = ids.get(fragment.target);
+    if (targets && !targets.has(fragment.hash)) reportResults.push({ url, result: 'broken', reason: 'Missing fragment target', references: [fragment.reference] });
+  }
+  for (const url of ordered.filter(url => !externalChecked.has(url))) reportResults.push({ url, result: 'unverified',
+    reason: !allowedExternal(url) ? 'External host is outside the audit allowlist' : blockedHosts.has(new URL(url).hostname)
+      ? 'Host blocked or rate-limited earlier in this run' : selected.has(url) ? 'External sample paused; queued for next run' : 'Outside this run’s rotating external sample', references: [...(references.get(url) ?? [])] });
+  const broken = reportResults.filter(r => r.result === 'broken').length;
+  const unverified = reportResults.filter(r => r.result === 'unverified' || r.result === 'blocked').length;
+  const blockedInternal = results.some(r => new URL(r.url).origin === origin && r.result === 'blocked');
+  return { checkedAt: new Date().toISOString(), startedAt, origin, broken, unverified, requestsThisRun,
+    interrupted: Boolean(options.signal?.aborted), crawlComplete, blockedInternal,
+    internalComplete: index === queue.length && !blockedInternal, complete: unverified === 0, results: reportResults };
 }
 
 export function auditExitCode(report: { broken: number; internalComplete: boolean; complete: boolean }, requireComplete = false) {

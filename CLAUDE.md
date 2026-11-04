@@ -87,7 +87,10 @@ the staff roster must not overwrite it. The collector polls oldest checkpoints
 first (null first, user ID tie-breaker) so throttled runs rotate coverage across
 process restarts. Existing pre-fix values were roster observation times; they
 serve only as the initial ordering until each user completes an activity poll.
-A 429 still stops requests until the next scheduled cron. Partial coverage,
+A complete roster is cached for 23 hours. Within the existing one-year active
+scope, recent posters (30 days) are due every 12 hours and others weekly, with
+one hour of tolerance. Only due users participate in oldest-due ordering;
+not-due skips do not constitute partial coverage. A 429 still stops requests until the next scheduled cron. Partial coverage,
 short roster walks, and user fetch errors finalize the ingestion run as failed
 and exit nonzero; already committed data remains available. `usersProcessed`
 counts completed/checkpointed users, excluding the user interrupted by a 429.

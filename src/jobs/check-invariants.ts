@@ -1,4 +1,4 @@
-import { query } from "../lib/db/client";
+import { query, getPool } from "../lib/db/client";
 import { INVARIANTS, type Invariant } from "../lib/invariants";
 
 /**
@@ -111,5 +111,5 @@ if (isDirectRun) {
   main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
-  });
+  }).finally(async () => { if (process.env.DATABASE_URL) await getPool().end(); });
 }

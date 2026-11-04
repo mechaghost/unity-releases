@@ -146,9 +146,9 @@ export async function listIngestionFreshness(): Promise<IngestionFreshness[]> {
     job_name: string; last_success: string | null; last_run: string | null; latest_status: string | null; last_completed_status: string | null;
   }>(`SELECT job_name,
     MAX(finished_at) FILTER (WHERE status = 'success')::text AS last_success,
-    MAX(started_at)::text AS last_run,
-    (array_agg(status ORDER BY started_at DESC, id DESC))[1] AS latest_status,
-    (array_agg(status ORDER BY started_at DESC, id DESC) FILTER (WHERE status <> 'running'))[1] AS last_completed_status
+    MAX(started_at) FILTER (WHERE status <> 'skipped')::text AS last_run,
+    (array_agg(status ORDER BY started_at DESC, id DESC) FILTER (WHERE status <> 'skipped'))[1] AS latest_status,
+    (array_agg(status ORDER BY started_at DESC, id DESC) FILTER (WHERE status IN ('success','failed')))[1] AS last_completed_status
     FROM core_job_runs GROUP BY job_name`);
   return evaluateJobFreshness(result.rows);
 }

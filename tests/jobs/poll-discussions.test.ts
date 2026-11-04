@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   upsertDiscoursePost: vi.fn(), insertDiscoursePostRevisionIfChanged: vi.fn(),
   tombstoneDiscoursePost: vi.fn()
 }));
+const checkpoints = vi.hoisted(() => ({ readCheckpoint: vi.fn(), writeCheckpoint: vi.fn() }));
+vi.mock("../../src/lib/ingest/checkpoints", () => checkpoints);
 
 vi.mock("../../src/lib/ingest/fetch", () => ({
   fetchText: mocks.fetchText,
@@ -22,7 +24,8 @@ vi.mock("../../src/lib/db/client", () => ({
 }));
 vi.mock("../../src/lib/db/repositories", () => mocks);
 
-import { pollDiscussions, RequestBudget } from "../../src/jobs/poll-discussions";
+import { pollDiscussions, RequestBudget, dueDiscourseUsers } from "../../src/jobs/poll-discussions";
+import type { ParsedDiscourseStaffMember } from "../../src/lib/parsers/discourse";
 
 function fakeSource(status: number, text = "{}") {
   return {
@@ -37,6 +40,8 @@ function fakeSource(status: number, text = "{}") {
 }
 
 beforeEach(() => {
+  checkpoints.readCheckpoint.mockReset().mockResolvedValue(null);
+  checkpoints.writeCheckpoint.mockReset().mockResolvedValue(undefined);
   mocks.fetchText.mockReset();
   // The fetch path calls sleep() between successful requests. Stub
   // setTimeout-via-Promise out so the test suite doesn't actually
@@ -183,10 +188,10 @@ describe("discussion coverage", () => {
     rateLimitUser = null;
     await pollDiscussions();
     expect(activityOrder()).toEqual([
-      expect.stringContaining("/staff2/"), expect.stringContaining("/staff3/"), expect.stringContaining("/staff1/")
+      expect.stringContaining("/staff2/"), expect.stringContaining("/staff3/")
     ]);
     expect(summary()?.[2]).toBe("success");
-    expect(summary()?.[3]).toMatchObject({ sourceCount: 3 });
+    expect(summary()?.[3]).toMatchObject({ sourceCount: 2 });
   });
 
   test("429 on the final user still fails and does not checkpoint that user", async () => {
@@ -257,8 +262,8 @@ describe("discussion coverage", () => {
     await expect(pollDiscussions()).rejects.toThrow("600/601 users completed, 1 deferred");
     expect(times.size).toBe(600);
     mocks.fetchText.mockClear();
-    await expect(pollDiscussions()).rejects.toThrow("600/601 users completed, 1 deferred");
-    expect(activityOrder()[0]).toContain("/staff601/");
+    await pollDiscussions();
+    expect(activityOrder()).toEqual([expect.stringContaining("/staff601/")]);
   });
 
   test("checkpoint failure keeps the run unhealthy", async () => {
@@ -275,5 +280,33 @@ describe("discussion coverage", () => {
     expect(mocks.markMissingDiscourseStaffUsersInactive).not.toHaveBeenCalled();
     expect(times.size).toBe(0);
     expect(summary()?.[2]).toBe("failed");
+    expect(checkpoints.writeCheckpoint).not.toHaveBeenCalled();
   });
+
+  test("a complete cached roster avoids the next roster crawl", async () => {
+    await pollDiscussions();
+    const roster = checkpoints.writeCheckpoint.mock.calls[0][2];
+    checkpoints.readCheckpoint.mockResolvedValue({ value: roster, checkedAt: new Date().toISOString() });
+    mocks.fetchText.mockClear();
+    await pollDiscussions();
+    expect(mocks.fetchText.mock.calls.some(([url]) => url.includes('/members.json'))).toBe(false);
+    expect(activityOrder()).toHaveLength(0);
+  });
+
+  test("duplicate or expired roster must be refreshed; failed refresh preserves cache", async () => {
+    await pollDiscussions();
+    const roster = checkpoints.writeCheckpoint.mock.calls[0][2];
+    checkpoints.readCheckpoint.mockResolvedValue({ value: roster, checkedAt: '2020-01-01' });
+    checkpoints.writeCheckpoint.mockClear();
+    rosterBody = JSON.stringify({ members: [members[0], members[0]], meta: { total: 2 } });
+    await expect(pollDiscussions()).rejects.toThrow(/roster incomplete/);
+    expect(checkpoints.writeCheckpoint).not.toHaveBeenCalled();
+  });
+});
+
+test("recent users run twice daily, older users weekly, with oldest due first", () => {
+  const now = Date.parse('2026-11-04T12:00:00Z');
+  const users = [1, 2, 3, 4].map(id => ({ discourseUserId: id, lastPostedAt: new Date(now - (id === 1 ? 1 : 60) * 86400000).toISOString() } as ParsedDiscourseStaffMember));
+  const times = new Map([[1, new Date(now - 12 * 3600000).toISOString()], [2, new Date(now - 2 * 86400000).toISOString()], [3, new Date(now - 8 * 86400000).toISOString()]]);
+  expect(dueDiscourseUsers(users, times, now).map(u => u.discourseUserId)).toEqual([4, 3, 1]);
 });
