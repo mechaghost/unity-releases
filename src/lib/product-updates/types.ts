@@ -86,6 +86,10 @@ export type NormalizedProductUpdateObservation = {
 export type ProductUpdateAdapter = {
   manifest: ProductUpdateAdapterManifest;
   parse(snapshot: ProductUpdateSnapshot): NormalizedProductUpdateObservation[];
+  /** Optional collection of a complete, replayable multi-document snapshot. */
+  fetch?: typeof import("./fetcher").fetchProductUpdateTarget;
+  /** Parse stored evidence directly when it contains multiple raw documents. */
+  parseRawSnapshot?(snapshot: ProductUpdateSnapshot): NormalizedProductUpdateObservation[];
 };
 
 export type ProductUpdateTargetState = {

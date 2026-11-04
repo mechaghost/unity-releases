@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { ProductUpdateAdapter } from "../../src/lib/product-updates/types";
 
@@ -7,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   getTarget: vi.fn(),
   acquire: vi.fn(),
   createRun: vi.fn(),
+  record: vi.fn(),
+  publish: vi.fn(),
+  load: vi.fn(),
+  fail: vi.fn(),
   release: vi.fn()
 }));
 
@@ -17,16 +22,17 @@ vi.mock("../../src/lib/product-updates/repositories", () => ({
   tryAcquireProductUpdateLease: mocks.acquire,
   createProductUpdateRun: mocks.createRun,
   releaseProductUpdateLease: mocks.release,
-  failProductUpdateRun: vi.fn(),
+  failProductUpdateRun: mocks.fail,
   finishProductUpdateDryRun: vi.fn(),
   finishProductUpdateDryRunFailure: vi.fn(),
   finishProductUpdateNoChange: vi.fn(),
   heartbeatProductUpdateLease: vi.fn(),
-  loadProductUpdateSnapshot: vi.fn(),
-  publishProductUpdateObservations: vi.fn(),
-  recordProductUpdateSnapshot: vi.fn()
+  loadProductUpdateSnapshot: mocks.load,
+  publishProductUpdateObservations: mocks.publish,
+  recordProductUpdateSnapshot: mocks.record
 }));
 
+import { unityVersionControlAdapter } from "../../src/lib/product-updates/sources/unity-version-control";
 import { levelPlayMediationAdapterSources } from "../../src/lib/product-updates/sources/levelplay-mediation-adapters";
 import { runProductUpdateAdapter } from "../../src/lib/product-updates/runner";
 
@@ -153,5 +159,48 @@ describe("Product Updates runner lifecycle", () => {
     ).rejects.toThrow(/run insert unavailable/);
     expect(mocks.release).toHaveBeenCalledOnce();
     expect(mocks.release).toHaveBeenCalledWith(target.targetId, "lease-token");
+  });
+});
+
+
+describe("complete Version Control evidence in the runner", () => {
+  const fixture = (name: string) => readFileSync(new URL(`../fixtures/product-updates/markdown/uvcs-years/${name}.md`, import.meta.url), "utf8");
+  const uvcsTarget = { ...target, sourceKey: "unity-version-control", targetKey: "major-11", url: unityVersionControlAdapter.manifest.targets[0].url, lastValidatedRecordCount: 156 };
+  const setup = () => {
+    mocks.getTarget.mockResolvedValue(uvcsTarget);
+    mocks.acquire.mockResolvedValue({token: "lease-token",target: uvcsTarget});
+    mocks.createRun.mockResolvedValue(1);
+    mocks.record.mockResolvedValue(2);
+    mocks.publish.mockResolvedValue({created: 0,updated: 156});
+    mocks.fail.mockResolvedValue(undefined);
+  };
+  test("publishes only the complete collection and replays it without fetching", async () => {
+    setup();
+    const fetchImpl = vi.fn<typeof fetch>(async input => {
+      const name = String(input).match(/\/(20\d{2})\.md$/)?.[1] ?? "index";
+      return new Response(fixture(name), {headers: {"content-type":"text/markdown"}});
+    });
+    const results = await runProductUpdateAdapter(unityVersionControlAdapter, {force: true,fetchImpl});
+    expect(results[0]).toMatchObject({status:"success",recordsObserved:156});
+    const published = mocks.publish.mock.calls[0][0];
+    expect(published.observations).toHaveLength(156);
+    expect(JSON.parse(published.fetched.text).years).toHaveLength(5);
+    mocks.load.mockResolvedValue({id:2,source_id:1,target_id:2,requested_url:uvcsTarget.url,final_url:uvcsTarget.url,http_status:200,etag:null,last_modified:null,content_sha256:published.fetched.sha256,content_text:published.fetched.text});
+    fetchImpl.mockClear();
+    const replay = await runProductUpdateAdapter(unityVersionControlAdapter,{force:true,replaySnapshotId:2,fetchImpl});
+    expect(replay[0]).toMatchObject({status:"success",recordsObserved:156});
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(mocks.publish.mock.calls[1][0].observations).toEqual(published.observations);
+  });
+  test("does not publish or replace snapshots when a historical year fetch fails", async () => {
+    setup();
+    const fetchImpl = vi.fn<typeof fetch>(async input => {
+      const name = String(input).match(/\/(20\d{2})\.md$/)?.[1] ?? "index";
+      return name === "2022" ? new Response("",{status:503}) : new Response(fixture(name));
+    });
+    await expect(runProductUpdateAdapter(unityVersionControlAdapter,{force:true,fetchImpl,fetchOptions:{retries:0}})).rejects.toThrow(/503/);
+    expect(mocks.publish).not.toHaveBeenCalled();
+    expect(mocks.record).not.toHaveBeenCalled();
+    expect(mocks.release).toHaveBeenCalledOnce();
   });
 });

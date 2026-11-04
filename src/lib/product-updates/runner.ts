@@ -242,7 +242,7 @@ async function runTarget(
         text: replaySnapshot.content_text
       };
     } else {
-      fetched = await fetchProductUpdateTarget(targetManifest, lease.target, {
+      fetched = await (adapter.fetch ?? fetchProductUpdateTarget)(targetManifest, lease.target, {
         timeoutMs: adapter.manifest.timeoutMs,
         maxResponseBytes: adapter.manifest.maxResponseBytes,
         fetchImpl: options.fetchImpl,
@@ -313,12 +313,12 @@ async function runTarget(
       // fetcher. A replay therefore re-runs the conversion instead of
       // trusting a derived artefact.
       text:
-        targetManifest.documentFormat === "markdown"
+        !adapter.parseRawSnapshot && targetManifest.documentFormat === "markdown"
           ? markdownToHtml(fetched.text)
           : fetched.text
     };
     const observations = validateObservations(
-      adapter.parse(snapshot),
+      (adapter.parseRawSnapshot ?? adapter.parse)(snapshot),
       adapter.manifest,
       lease.target.lastValidatedRecordCount
     );

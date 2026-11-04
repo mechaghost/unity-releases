@@ -19,7 +19,7 @@ import { markdownTwinUrl } from "../../src/lib/product-updates/fetcher";
 import { markdownToHtml } from "../../src/lib/product-updates/markdown";
 import { PRODUCT_UPDATE_ADAPTERS } from "../../src/lib/product-updates/sources/index";
 import { validateObservations } from "../../src/lib/product-updates/validation";
-import type { ProductUpdateTargetManifest } from "../../src/lib/product-updates/types";
+import type { ProductUpdateTargetManifest, ProductUpdateTargetState } from "../../src/lib/product-updates/types";
 
 const ENABLED = process.env.UNITY_DOCS_CONTRACT === "1";
 const TIMEOUT_MS = 45_000;
@@ -53,6 +53,19 @@ describe.runIf(ENABLED)("docs.unity.com markdown contract", () => {
     for (const { adapter, target } of MARKDOWN_TARGETS) {
       const key = `${adapter.manifest.sourceKey}/${target.targetKey}`;
       try {
+        if (adapter.fetch && adapter.parseRawSnapshot) {
+          const fetched = await adapter.fetch(target, {
+            validatedEtag: null, validatedLastModified: null
+          } as ProductUpdateTargetState, {
+            timeoutMs: TIMEOUT_MS, maxResponseBytes: adapter.manifest.maxResponseBytes
+          });
+          if (fetched.kind !== "content") throw new Error("Expected complete source evidence");
+          validateObservations(adapter.parseRawSnapshot({
+            ...fetched, sourceKey: adapter.manifest.sourceKey, targetKey: target.targetKey,
+            fetchedAt: new Date().toISOString()
+          }), adapter.manifest, null);
+          continue;
+        }
         const response = await fetch(markdownTwinUrl(target as ProductUpdateTargetManifest), {
           headers: { accept: "text/markdown,text/plain" },
           signal: AbortSignal.timeout(TIMEOUT_MS)
