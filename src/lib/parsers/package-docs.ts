@@ -45,7 +45,11 @@ export function isPackageManagerManualRedirect(html: string, finalUrl: string, p
   const migrated = /^https:\/\/docs\.unity\.com\/en-us\/engine\/(\d+\.\d+)\/manual\/packages-list\/upm-ui-window\/upm-ui$/.exec(destination.href);
   if (migrated) {
     const content = $("#page-content-container");
-    return $("title").text().trim() === `Package Manager window reference • Package Manager window • ${migrated[1]} • Unity Editor • Unity Docs`
+    const title = $("title").text().trim();
+    const articleTitle = `Package Manager window reference • Package Manager window • ${migrated[1]} • Unity Editor`;
+    // Unity removed the site-brand suffix in November 2026. Both observed
+    // titles identify the same article; keep the route and content guards.
+    return (title === articleTitle || title === `${articleTitle} • Unity Docs`)
       && $('link[rel="alternate"][type="text/markdown"]').attr("href") === `${destination.href}.md`
       && content.find("h1").text().trim() === "Package Manager window reference"
       && content.find("h2#advanced-settings").text().trim() === "Advanced settings"
