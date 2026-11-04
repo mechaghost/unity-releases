@@ -57,6 +57,17 @@ test("combined worker cannot silently run with ingestion disabled", async () => 
   await expect(runAllProductUpdateGroups()).rejects.toThrow(/requires enabled/);
 });
 
+test("combined worker forwards dry-run and force controls to every family", async () => {
+  vi.stubEnv("PRODUCT_UPDATE_INGEST_ENABLED", "true");
+  vi.stubEnv("PRODUCT_UPDATE_SOURCES", "unity-hub");
+  mocks.adaptersForFamily.mockReturnValue([hub]);
+  const runGroup = vi.fn().mockResolvedValue([{ sourceKey: 'unity-hub', ok: true, status: 'success' }]);
+  await runAllProductUpdateGroups({ flags: ['--dry-run', '--force'], runGroup });
+  expect(runGroup).toHaveBeenCalledTimes(4);
+  for (const [argv] of runGroup.mock.calls) expect(argv.slice(1)).toEqual(['--dry-run', '--force']);
+  await expect(runAllProductUpdateGroups({ flags: ['--unknown'], runGroup })).rejects.toThrow(/Unknown/);
+});
+
 test.each([
   ["skipped-not-due", "nothing-due"], ["skipped-disabled", "skipped-disabled"],
   ["skipped-retired", "retired"], ["skipped-overlap", "skipped-overlap"],

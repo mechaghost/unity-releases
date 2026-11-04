@@ -200,7 +200,10 @@ export function sourceOutcome(result: Pick<SourceProcessResult, "ok" | "output">
 export async function runAllProductUpdateGroups(options: {
   signal?: AbortSignal;
   runGroup?: typeof runProductUpdateGroup;
+  flags?: string[];
 } = {}) {
+  const flags = options.flags ?? [];
+  if (flags.some(flag => !["--force", "--dry-run"].includes(flag))) throw new Error("Unknown combined product worker option");
   if (process.env.PRODUCT_UPDATE_INGEST_ENABLED !== "true" || !process.env.PRODUCT_UPDATE_SOURCES?.trim()) {
     throw new Error("Combined product worker requires enabled ingestion and an explicit source allowlist");
   }
@@ -212,7 +215,7 @@ export async function runAllProductUpdateGroups(options: {
   for (const family of PRODUCT_UPDATE_FAMILIES) {
     if (options.signal?.aborted) break;
     try {
-      const sources = await (options.runGroup ?? runProductUpdateGroup)([family], { signal: options.signal });
+      const sources = await (options.runGroup ?? runProductUpdateGroup)([family, ...flags], { signal: options.signal });
       summary.push({ family, ok: sources.every(s => s.ok), sources });
     } catch (error) {
       summary.push({ family, ok: false, error: error instanceof Error ? error.message : String(error) });
@@ -289,7 +292,7 @@ function boundedInteger(
 async function main() {
   const shutdown = cronShutdown();
   try {
-    if (process.argv[2] === "all") await runAllProductUpdateGroups({ signal: shutdown.signal });
+    if (process.argv[2] === "all") await runAllProductUpdateGroups({ signal: shutdown.signal, flags: process.argv.slice(3) });
     else await runProductUpdateGroup(process.argv.slice(2), { signal: shutdown.signal });
   } finally {
     shutdown.dispose();
