@@ -1,11 +1,14 @@
 import { normalizeIssueTrackerHref } from "./issue-tracker-links";
 
 /**
- * Confirmed removed destinations from the 2026-10-24 audit. Keep the original
+ * Confirmed removed destinations from reviewed link audits. Keep the original
  * URL as evidence; do not invent a replacement or erase historical note text.
  * Blocked/rate-limited URLs are deliberately not in this list.
  */
 export const REVIEWED_UNAVAILABLE_LINKS = [
+  // 2026-11-04: legacy slug redirects to /not-found (HTTP 200). Unity's
+  // 2022.3.13f1 release notes still cite UUM-54561; no replacement is verified.
+  { url: "https://issuetracker.unity3d.com/issues/particles-calling-setdirty-from-a-thread-causes-crashes", reason: "Unity Issue Tracker reports that the original issue page was not found." },
   { url: "https://unity.com/blog/unity-plugin-for-codex", reason: "The original article returns 404." },
   { url: "https://docs.unity.com/en-us/asset-transformer-sdk/2026.4/manual", reason: "The original documentation page returns 404." },
   { url: "https://github.com/LukeUnityDev", reason: "The original GitHub profile returns 404." },

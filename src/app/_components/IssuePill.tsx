@@ -1,4 +1,5 @@
 import { issueTrackerHref } from "@/lib/issue-tracker-links";
+import { resolveExternalLink } from "@/lib/external-links";
 export { issueTrackerHref } from "@/lib/issue-tracker-links";
 import {
   issueStatusLabel,
@@ -7,6 +8,7 @@ import {
 } from "@/lib/issue-status";
 import { HoverInfo } from "./HoverInfo";
 import { Icon } from "./Icon";
+import { ExternalLink } from "./ExternalLink";
 
 type IssuePillProps = {
   id: string;
@@ -26,17 +28,28 @@ type IssuePillProps = {
 
 export function IssuePill({ id, url, status, compact = false }: IssuePillProps) {
   const href = issueTrackerHref(id, url);
+  const resolved = resolveExternalLink(href);
   const tone = status && status.kind !== "unknown" ? issueStatusTone(status) : null;
-  const chip = (
+  const chip = resolved.href ? (
     <a
       className="chip chip--issue"
       data-status={tone ?? undefined}
-      href={href}
+      href={resolved.href}
       target="_blank"
       rel="noopener noreferrer"
     >
       <span className="chip--issue__id">{id}</span>
     </a>
+  ) : (
+    <span
+      className="chip chip--issue"
+      data-status={tone ?? undefined}
+      tabIndex={compact ? undefined : 0}
+      title={`${resolved.reason} Original URL: ${href}`}
+    >
+      <span className="chip--issue__id">{id}</span>
+      {" "}<span className="muted">(Source unavailable)</span>
+    </span>
   );
 
   if (compact) return chip;
@@ -44,7 +57,7 @@ export function IssuePill({ id, url, status, compact = false }: IssuePillProps) 
   return (
     <span className="issue-links">
       <HoverInfo
-        // asChild: the chip itself is already a focusable <a>. Avoids
+        // asChild: the chip itself is already focusable. Avoids
         // doubling the tab stops on lane-heavy pages (~50 issue pills
         // per release-detail view).
         asChild
@@ -61,9 +74,9 @@ export function IssuePill({ id, url, status, compact = false }: IssuePillProps) 
           <>
             <a href={`/issues/${encodeURIComponent(id)}`}>All mentions of {id}</a>
             {" · "}
-            <a href={href} target="_blank" rel="noopener noreferrer">
+            <ExternalLink href={href}>
               Unity Issue Tracker ↗
-            </a>
+            </ExternalLink>
           </>
         }
       >
