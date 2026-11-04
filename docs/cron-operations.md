@@ -61,3 +61,8 @@ family config, then reconnect the other family services to the `release` branch
 and their original config paths. Verify effective commands and schedules before
 triggering runs. Do not delete a referenced config or fall back to the root web
 config. Schema changes are additive; `skipped` run history should be retained.
+
+Railway redeploys of an existing build can retain its old file-based manifest.
+After changing a service's config-file path, deploy a fresh source upload or
+GitHub build and verify the effective command and schedule. Changing the service
+settings alone is not proof that the deployed manifest changed.

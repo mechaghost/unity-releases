@@ -16,3 +16,6 @@ __inv*.ts
 test-results/
 playwright-report/
 .artifacts/site-audit/
+.artifacts/health.json
+.artifacts/link-check.json
+.artifacts/link-cursor.json

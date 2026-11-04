@@ -42,8 +42,8 @@ Execution:
 - [x] Monitoring and resumable audit, with failure/continuation tests
 - [x] Job health, combined product runner and schedule configs
 - [x] Crawl checkpoints and cleanup, with database contracts
-- [x] Review and full local verification; ready to commit main
-- [ ] Release, migrate schedules, verify live runs and endpoints
+- [x] Review and full local verification; committed on main
+- [x] Release, migrate schedules, verify live runs and endpoints
 
 Implementation review fixed three issues: skipped overlap rows could mask a hung
 collector; a child returning `not-configured` could look successful; and a sample
@@ -51,7 +51,23 @@ key based on the calendar could starve external links across multi-day crawls.
 Regression tests cover all three, plus a real child interrupted during HTTP that
 retains a valid cursor and partial report. No change to source request pacing.
 
-Pre-release checks: typecheck, 1,146 unit tests (six skipped), all six database
-contracts and production build passed. All 243 desktop/mobile browser tests passed (nine skipped). Live release checks
-remain. All 71 product source keys were preserved in the
-prepared union; no additional per-family override variables were configured.
+Pre-release checks: typecheck, 1,147 unit tests (six skipped), all six database
+contracts and production build passed. All 243 desktop/mobile browser tests passed
+(nine skipped). Combined-run flags now preserve `--dry-run` and `--force`.
+All 71 product source keys were preserved; no additional per-family override
+variables were configured.
+
+Production verification on November 4, 2026 (implementation commit `b8936b2`):
+- Railway web deployment succeeded; `/`, `/stats`, `/releases`, `/api/health`
+  and `/api/updates/health` returned 200. Both JSON health results were `ok`.
+- Combined products completed all four families in 30 seconds without failures.
+  Nothing was due; three retired sources were reported as retired.
+- Issue reports completed in three seconds with no pending, due or failed items.
+- Core completed all ten jobs in 443,959 ms; all 22 invariants passed.
+  Discussions refreshed 47 roster pages, made 48 requests and skipped 462 users
+  that were not yet due. This mid-cycle run does not establish steady-state cost.
+- Only three collection schedules remain. The three replaced product services
+  have no schedule, an inert command and no connected GitHub source. Variables
+  and family configs remain available for rollback.
+- GitHub verification passed on main and release (runs 41887594198 and
+  41887642331). Production health workflow 41887642761 also passed.
