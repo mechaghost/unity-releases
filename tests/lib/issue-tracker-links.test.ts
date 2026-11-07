@@ -15,6 +15,17 @@ describe("Unity Issue Tracker links", () => {
   ])("repairs old search and ID URL shapes: %s", url => {
     expect(normalizeIssueTrackerHref(url)).toBe("https://issuetracker.unity.com/?q=UUM-142773");
   });
+  test.each(["LOC-725", "NAVB-144", "UUM-54561"])("repairs retired package GUID routes for %s", id => {
+    const source = `https://issuetracker.unity3d.com/product/unity/issues/guid/${id}`;
+    expect(normalizeIssueTrackerHref(source)).toBe(`https://issuetracker.unity.com/?q=${id}`);
+    expect(issueTrackerHref(id, source)).toBe(`https://issuetracker.unity.com/?q=${id}`);
+  });
+  test("preserves unrecognized GUID values and unrelated product routes", () => {
+    for (const source of [
+      "https://issuetracker.unity3d.com/product/unity/issues/guid/not-an-id",
+      "https://issuetracker.unity3d.com/product/other/issues/guid/LOC-725"
+    ]) expect(normalizeIssueTrackerHref(source)).toBe(source);
+  });
   test("keeps known source slugs on their original host because the legacy redirect maps changed slugs", () => {
     const source="https://issuetracker.unity3d.com/issues/crash-on-mono-log-write-logfile-when-more-than-one-copy-of-bee-backend-is-running";
     expect(issueTrackerHref("UUM-142773",source)).toBe(source);

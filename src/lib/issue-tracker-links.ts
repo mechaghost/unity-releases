@@ -24,7 +24,9 @@ export function normalizeIssueTrackerHref(href: string): string {
   const url = trackerUrl(href);
   if (!url) return href;
   const path = url.pathname.replace(/\/+$/, "");
-  const idPath = /^\/issues\/((?:UUM|UVSB|DOTS|URP|HDRP|LOC|TMP|SGB|ADDR|IN)-\d+)$/i.exec(path);
+  // Older package changelogs use the retired product GUID route too.
+  // Keep the issue ID searchable without guessing a replacement issue slug.
+  const idPath = /^\/(?:issues|product\/unity\/issues\/guid)\/((?:UUM|UVSB|DOTS|URP|HDRP|LOC|NAVB|TMP|SGB|ADDR|IN)-\d+)$/i.exec(path);
   if (idPath) return searchHref(idPath[1]);
   if (path === "" || path === "/issues") {
     const id = url.searchParams.get("q") || url.searchParams.get("search");
