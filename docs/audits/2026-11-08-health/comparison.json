@@ -1,0 +1,252 @@
+{
+  "newBroken": [],
+  "clearedBroken": [],
+  "identicalFailureRecords": true,
+  "broken": [
+    {
+      "url": "https://issuetracker.unity3d.com/issues/particles-calling-setdirty-from-a-thread-causes-crashes",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/releases/2022.3.13f1"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-725",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-727",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-779",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-787",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-820",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-855",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-864",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-870",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-882",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-909",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-929",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-942",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-964",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-966",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-969",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/LOC-976",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/NAVB-144",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/NAVB-146",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/NAVB-154",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/NAVB-47",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/NAVB-96",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/UUM-144318",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/UUM-154808",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    },
+    {
+      "url": "https://issuetracker.unity3d.com/product/unity/issues/guid/UUM-6744",
+      "result": "broken",
+      "status": 200,
+      "finalUrl": "https://issuetracker.unity.com/not-found",
+      "references": [
+        "https://unityreleases.com/packages"
+      ]
+    }
+  ],
+  "missingTargets": [],
+  "unexpectedTargets": [],
+  "cadences": {
+    "24": 75,
+    "168": 7,
+    "12": 2
+  },
+  "crawl": {
+    "checkedAt": "2026-11-08T16:26:10.587Z",
+    "startedAt": "2026-11-04T18:26:15.603Z",
+    "origin": "https://unityreleases.com",
+    "broken": 25,
+    "unverified": 33940,
+    "requestsThisRun": 2230,
+    "interrupted": false,
+    "crawlComplete": false,
+    "blockedInternal": false,
+    "internalComplete": false,
+    "complete": false
+  }
+}
