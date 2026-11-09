@@ -1,0 +1,24 @@
+{
+  "expectedActive": 84,
+  "missing": [],
+  "unexpected": [],
+  "pastDue": [],
+  "retired": [
+    [
+      "levelplay-adapter-tencent-ios",
+      "tencent-ios"
+    ],
+    [
+      "levelplay-adapter-vk-ad-network-ios",
+      "vk-ad-network-ios"
+    ],
+    [
+      "levelplay-adapter-vk-ad-network-android",
+      "vk-ad-network-android"
+    ],
+    [
+      "vpc-aws",
+      "aws"
+    ]
+  ]
+}

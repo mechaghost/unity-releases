@@ -1,0 +1,62 @@
+[
+  {
+    "event_type": "package_version",
+    "title": "com.unity.transport 2.7.5",
+    "event_time": "2026-11-06T20:28:04.412Z",
+    "source_url": "https://packages.unity.com/com.unity.transport"
+  },
+  {
+    "event_type": "package_version",
+    "title": "com.unity.addressables 4.2.0",
+    "event_time": "2026-11-06T19:39:57.306Z",
+    "source_url": "https://packages.unity.com/com.unity.addressables"
+  },
+  {
+    "event_type": "package_version",
+    "title": "com.unity.scriptablebuildpipeline 4.0.3",
+    "event_time": "2026-11-06T19:39:39.890Z",
+    "source_url": "https://packages.unity.com/com.unity.scriptablebuildpipeline"
+  },
+  {
+    "event_type": "blog_post",
+    "title": "How SEED renders a world players never stop building",
+    "event_time": "2026-11-06T00:00:00.000Z",
+    "source_url": "https://unity.com/blog/seed-unity-rendering-performance"
+  },
+  {
+    "event_type": "blog_post",
+    "title": "Our new XR e-book is here: Build XR with Unity: Meta XR",
+    "event_time": "2026-11-06T00:00:00.000Z",
+    "source_url": "https://unity.com/blog/our-new-xr-e-book-is-here-build-xr-with-unity:-meta-xr"
+  },
+  {
+    "event_type": "package_version",
+    "title": "com.unity.netcode.gameobjects 3.2.1",
+    "event_time": "2026-11-05T21:19:16.522Z",
+    "source_url": "https://packages.unity.com/com.unity.netcode.gameobjects"
+  },
+  {
+    "event_type": "package_version",
+    "title": "com.unity.services.friends 1.4.0",
+    "event_time": "2026-11-05T19:19:39.878Z",
+    "source_url": "https://packages.unity.com/com.unity.services.friends"
+  },
+  {
+    "event_type": "package_version",
+    "title": "com.unity.localization 1.5.14",
+    "event_time": "2026-11-05T18:05:14.290Z",
+    "source_url": "https://packages.unity.com/com.unity.localization"
+  },
+  {
+    "event_type": "package_version",
+    "title": "com.unity.sdk.linux-arm64 1.1.1",
+    "event_time": "2026-11-05T17:33:43.320Z",
+    "source_url": "https://packages.unity.com/com.unity.sdk.linux-arm64"
+  },
+  {
+    "event_type": "package_version",
+    "title": "com.unity.toolchain.macos-arm64-linux 1.1.1",
+    "event_time": "2026-11-05T17:32:49.807Z",
+    "source_url": "https://packages.unity.com/com.unity.toolchain.macos-arm64-linux"
+  }
+]

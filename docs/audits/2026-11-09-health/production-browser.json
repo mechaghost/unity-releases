@@ -1,0 +1,45 @@
+[
+  {
+    "name": "Localization",
+    "total": 87,
+    "oldGuid": 0,
+    "search": 79,
+    "samples": [
+      {
+        "text": "LOC-725",
+        "href": "https://issuetracker.unity.com/?q=LOC-725"
+      }
+    ]
+  },
+  {
+    "name": "AI Navigation",
+    "total": 14,
+    "oldGuid": 0,
+    "search": 12,
+    "samples": [
+      {
+        "text": "NAVB-144",
+        "href": "https://issuetracker.unity.com/?q=NAVB-144"
+      }
+    ]
+  },
+  {
+    "particleAnchors": 0,
+    "unavailableLabels": 1
+  },
+  {
+    "version": "6000.7.0b7",
+    "status": 200,
+    "heading": "6000.7.0b7"
+  },
+  {
+    "version": "6000.5.0b11",
+    "status": 200,
+    "heading": "6000.5.0b11"
+  },
+  {
+    "version": "6000.6.0a7",
+    "status": 200,
+    "heading": "6000.6.0a7"
+  }
+]

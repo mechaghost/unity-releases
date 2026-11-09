@@ -1,0 +1,61 @@
+[
+  {
+    "source": "stable",
+    "version": "6000.3.28f1",
+    "revision": "8f082d2fe476",
+    "matched": true
+  },
+  {
+    "source": "beta",
+    "version": "6000.7.0b8",
+    "revision": "0bc2e945afca",
+    "matched": true
+  },
+  {
+    "source": "alpha",
+    "version": "7000.0.0a16",
+    "revision": "0745a91df592",
+    "matched": true
+  },
+  {
+    "source": "hub",
+    "channel": "production",
+    "version": "3.22.6",
+    "date": "2026-11-06T00:00:00.000Z",
+    "matched": true
+  },
+  {
+    "source": "hub",
+    "channel": "beta",
+    "version": "4.0.0-beta.5",
+    "date": "2026-11-06T00:00:00.000Z",
+    "matched": true
+  },
+  {
+    "source": "cli",
+    "channel": "beta",
+    "version": "1.0.0-beta.17",
+    "date": "2026-11-05T00:00:00.000Z",
+    "matched": true
+  },
+  {
+    "source": "input",
+    "version": "1.20.1",
+    "matched": true
+  },
+  {
+    "source": "entities",
+    "version": "1.5.0",
+    "matched": true
+  },
+  {
+    "source": "entities-docs",
+    "version": "6.6.0",
+    "matched": true
+  },
+  {
+    "source": "uvc",
+    "version": "11.0.16.10616",
+    "matched": true
+  }
+]

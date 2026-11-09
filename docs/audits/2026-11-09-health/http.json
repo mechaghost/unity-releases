@@ -1,0 +1,135 @@
+[
+  {
+    "name": "home",
+    "url": "https://unityreleases.com/",
+    "finalUrl": "https://unityreleases.com/",
+    "status": 200,
+    "bytes": 113436
+  },
+  {
+    "name": "stats",
+    "url": "https://unityreleases.com/stats",
+    "finalUrl": "https://unityreleases.com/stats",
+    "status": 200,
+    "bytes": 110634
+  },
+  {
+    "name": "releases",
+    "url": "https://unityreleases.com/releases",
+    "finalUrl": "https://unityreleases.com/releases",
+    "status": 200,
+    "bytes": 289298
+  },
+  {
+    "name": "health",
+    "url": "https://unityreleases.com/api/health",
+    "finalUrl": "https://unityreleases.com/api/health",
+    "status": 200,
+    "bytes": 2283
+  },
+  {
+    "name": "updates-health",
+    "url": "https://unityreleases.com/api/updates/health",
+    "finalUrl": "https://unityreleases.com/api/updates/health",
+    "status": 200,
+    "bytes": 41308
+  },
+  {
+    "name": "release-data",
+    "url": "https://unityreleases.com/api/releases",
+    "finalUrl": "https://unityreleases.com/api/releases",
+    "status": 200,
+    "bytes": 1251022
+  },
+  {
+    "name": "package-data",
+    "url": "https://unityreleases.com/api/packages",
+    "finalUrl": "https://unityreleases.com/api/packages",
+    "status": 200,
+    "bytes": 77729
+  },
+  {
+    "name": "updates-data",
+    "url": "https://unityreleases.com/api/updates?limit=100",
+    "finalUrl": "https://unityreleases.com/api/updates?limit=100",
+    "status": 200,
+    "bytes": 51446
+  },
+  {
+    "name": "uvc-data",
+    "url": "https://unityreleases.com/api/updates?product=unity-version-control&limit=3",
+    "finalUrl": "https://unityreleases.com/api/updates?product=unity-version-control&limit=3",
+    "status": 200,
+    "bytes": 1556
+  },
+  {
+    "name": "particle",
+    "url": "https://unityreleases.com/releases/2022.3.13f1",
+    "finalUrl": "https://unityreleases.com/releases/2022.3.13f1",
+    "status": 200,
+    "bytes": 584704
+  },
+  {
+    "name": "upstream-stable",
+    "url": "https://unity.com/releases/editor/latest",
+    "finalUrl": "https://unity.com/releases/editor/whats-new/6000.3.28f1",
+    "status": 200,
+    "bytes": 746350
+  },
+  {
+    "name": "upstream-beta",
+    "url": "https://unity.com/releases/editor/beta",
+    "finalUrl": "https://unity.com/releases/editor/beta",
+    "status": 200,
+    "bytes": 1873681
+  },
+  {
+    "name": "upstream-alpha",
+    "url": "https://unity.com/releases/editor/alpha",
+    "finalUrl": "https://unity.com/releases/editor/alpha",
+    "status": 200,
+    "bytes": 1797062
+  },
+  {
+    "name": "upstream-hub",
+    "url": "https://unity.com/unity-hub/release-notes",
+    "finalUrl": "https://unity.com/unity-hub/release-notes",
+    "status": 200,
+    "bytes": 1599328
+  },
+  {
+    "name": "upstream-cli",
+    "url": "https://docs.unity.com/en-us/unity-cli/release-notes",
+    "finalUrl": "https://docs.unity.com/en-us/unity-cli/release-notes",
+    "status": 200,
+    "bytes": 2363830
+  },
+  {
+    "name": "upstream-input",
+    "url": "https://packages.unity.com/com.unity.inputsystem",
+    "finalUrl": "https://packages.unity.com/com.unity.inputsystem",
+    "status": 200,
+    "bytes": 269369
+  },
+  {
+    "name": "upstream-entities",
+    "url": "https://packages.unity.com/com.unity.entities",
+    "finalUrl": "https://packages.unity.com/com.unity.entities",
+    "status": 200,
+    "bytes": 207206
+  },
+  {
+    "name": "upstream-entities-docs",
+    "url": "https://docs.unity3d.com/Packages/com.unity.entities@6.6/changelog/CHANGELOG.html",
+    "finalUrl": "https://docs.unity3d.com/Packages/com.unity.entities@6.6/changelog/CHANGELOG.html",
+    "status": 200,
+    "bytes": 390592
+  },
+  {
+    "name": "upstream-uvc",
+    "url": "https://docs.unity.com/en-us/unity-version-control/release-notes/11",
+    "finalUrl": "https://docs.unity.com/en-us/unity-version-control/release-notes/11",
+    "status": 200,
+    "bytes": 498536
+  }
+]
