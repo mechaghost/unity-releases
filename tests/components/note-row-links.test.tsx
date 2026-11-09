@@ -44,3 +44,30 @@ test("UUM-54561's stored release-note text and history survive its unavailable s
   expect(html).toContain('href="/issues/UUM-54561"');
   expect(JSON.stringify(row)).toBe(original);
 });
+
+
+test.each([
+  {
+    issueId: "UUM-67108", version: "6000.0.0b12", area: "License",
+    section: "Known Issues", impact_kind: "known_issue",
+    url: "https://issuetracker.unity3d.com/issues/hub-crashes-if-the-user-is-marked-as-non-compliant-in-the-genesis-backend",
+    body: "Hub crashes if the user is marked as non-compliant in the genesis backend"
+  },
+  {
+    issueId: "UUM-37468", version: "2022.3.3f1", area: "Shaders",
+    section: "Fixes", impact_kind: "fix",
+    url: "https://issuetracker.unity3d.com/issues/incompatible-keyword-states-error",
+    body: 'Fixed "State comes from an incompatible keyword space" error when using dynamic branching with use pass or fallbacks.'
+  }
+])("$issueId preserves historical content and provenance for its missing source", async ({issueId, url, body, ...fields}) => {
+  const row = note({...fields, body, issue_ids: [issueId], issue_links_json: [{id: issueId, url}]});
+  const original = JSON.stringify(row);
+  const html = renderToStaticMarkup(await NoteRow({row}));
+  expect(html).toContain(body.replaceAll('"', "&quot;"));
+  expect(html).toContain(issueId);
+  expect(html).toContain("Source unavailable");
+  expect(html).toContain(`Original URL: ${url}`);
+  expect(html).not.toContain(`href="${url}"`);
+  expect(html).toContain(`href="/issues/${issueId}"`);
+  expect(JSON.stringify(row)).toBe(original);
+});
