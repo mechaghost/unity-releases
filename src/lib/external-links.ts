@@ -13,6 +13,9 @@ export const REVIEWED_UNAVAILABLE_LINKS = [
   // Official 6000.0.0b12 / 2022.3.3f1 notes still cite UUM-67108 / UUM-37468.
   { url: "https://issuetracker.unity3d.com/issues/hub-crashes-if-the-user-is-marked-as-non-compliant-in-the-genesis-backend", reason: "Unity Issue Tracker reports that the original issue page was not found." },
   { url: "https://issuetracker.unity3d.com/issues/incompatible-keyword-states-error", reason: "Unity Issue Tracker reports that the original issue page was not found." },
+  // 2026-11-12: UUM-33950 redirects to /not-found (HTTP 200).
+  // 2021.3.28f1 / 2022.3.3f1 notes retain the original issue; no replacement is verified.
+  { url: "https://issuetracker.unity3d.com/issues/anti-aliasing-around-objects-results-in-outlines-when-recording-against-a-background", reason: "Unity Issue Tracker reports that the original issue page was not found." },
   { url: "https://unity.com/blog/unity-plugin-for-codex", reason: "The original article returns 404." },
   { url: "https://docs.unity.com/en-us/asset-transformer-sdk/2026.4/manual", reason: "The original documentation page returns 404." },
   { url: "https://github.com/LukeUnityDev", reason: "The original GitHub profile returns 404." },

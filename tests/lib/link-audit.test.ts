@@ -10,6 +10,25 @@ describe('link audit', () => {
     expect(classifyLink(html('', 403))).toBe('blocked');
     expect(classifyLink(html('', 500))).toBe('broken');
   });
+  for (const host of ['issuetracker.unity.com', 'issuetracker.unity3d.com']) {
+    for (const path of ['/issues/404', '/issues/404/argumentoutofrangeexception-errors-in-the-console-when-removing-items-from-a-scriptableobjects-listview']) {
+      it(`accepts real numeric issue 404 without masking errors: ${host}${path}`, () => {
+        const url = `https://${host}${path}`;
+        const body = '<title>Unity Issue Tracker - ArgumentOutOfRangeException errors</title><h1>ArgumentOutOfRangeException errors</h1><p>Fixed UUM-10786</p>';
+        expect(classifyLink(html(body, 200, url))).toBe('reachable');
+        expect(classifyLink(html(body, 404, url))).toBe('broken');
+        expect(classifyLink(html('', 403, url))).toBe('blocked');
+        expect(classifyLink(html('', 429, url))).toBe('blocked');
+        expect(classifyLink(html('<title>Unity Issue Tracker - Page not found</title>', 200, url))).toBe('broken');
+        expect(classifyLink(html('<p>Application error: a server-side exception</p>', 200, url))).toBe('broken');
+      });
+    }
+  }
+  for (const url of ['https://issuetracker.unity.com/404', 'https://issuetracker.unity.com/issues/not-found', 'https://issuetracker.unity.com/issues/404/not-found', 'https://unity.com/issues/404', 'https://issuetracker.unity.com.example.org/issues/404']) {
+    it(`still rejects error paths: ${url}`, () => {
+      expect(classifyLink(html('', 200, url))).toBe('broken');
+    });
+  }
   it('crawls query links, detects missing anchors and never recurses into external sites', async () => {
     const calls: string[] = [];
     const responses: Record<string, AuditResponse> = {

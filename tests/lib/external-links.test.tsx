@@ -70,3 +70,19 @@ test("checker extracts exactly the links the changelog renders", () => {
   const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(match=>match[1].replaceAll("&amp;","&"));
   expect(hrefs).toEqual(changelogLinks(notes));
 });
+
+
+test("November 12 issue review retains UUM-33950 evidence but keeps valid UUM-10786 linked", () => {
+  const missing = "https://issuetracker.unity3d.com/issues/anti-aliasing-around-objects-results-in-outlines-when-recording-against-a-background";
+  const valid = "https://issuetracker.unity3d.com/issues/argumentoutofrangeexception-errors-in-the-console-when-removing-items-from-a-scriptableobjects-listview";
+  const notes = `Historical anti-aliasing fix [UUM-33950](${missing}). ListView fix [UUM-10786](${valid}).`;
+  const html = renderToStaticMarkup(<>{renderChangelog(notes)}</>);
+  expect(html).toContain("Historical anti-aliasing fix");
+  expect(html).toContain("UUM-33950");
+  expect(html).toContain("Source unavailable");
+  expect(html).not.toContain(`href="${missing}"`);
+  expect(REVIEWED_UNAVAILABLE_LINKS.some(entry => entry.url === missing)).toBe(true);
+  expect(resolveExternalLink(valid).href).toBe(valid);
+  expect(html).toContain(`href="${valid}"`);
+  expect(changelogLinks(notes)).toEqual([valid]);
+});

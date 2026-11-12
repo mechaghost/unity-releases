@@ -26,7 +26,13 @@ const EXTERNAL_DOMAINS = ['unity.com', 'unity3d.com', 'github.com', 'githubuserc
 export function classifyLink(response: AuditResponse): AuditResult['result'] {
   if (response.status === 403 || response.status === 429) return 'blocked';
   if (response.status >= 400) return 'broken';
-  if (/(?:^|\/)(?:not-found|404)(?:\/|$)/i.test(new URL(response.finalUrl).pathname)) return 'broken';
+  const destination = new URL(response.finalUrl);
+  // Unity issue 404 is a real numeric ID (UUM-10786), with an optional slug.
+  // Only exempt that route from the path heuristic; HTTP and HTML errors still fail.
+  const numericIssue404 = ['issuetracker.unity.com', 'issuetracker.unity3d.com'].includes(destination.hostname)
+    && /^\/issues\/404(?:\/[^/]+)?\/?$/.test(destination.pathname);
+  if (/(?:^|\/)not-found(?:\/|$)/i.test(destination.pathname)
+    || (!numericIssue404 && /(?:^|\/)404(?:\/|$)/i.test(destination.pathname))) return 'broken';
   if (response.contentType.includes('html')) {
     const $ = load(response.body);
     const title = $('head > title').text().trim();
