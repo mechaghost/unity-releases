@@ -98,6 +98,32 @@ describe("Monetization Product Update adapters", () => {
     });
   });
 
+  test("preserves compact multiline Markdown notes before padding and folding", () => {
+    const text = "# LevelPlay SDK Changelog\n\n| Unity Package | LevelPlay SDK | Release Date | Notes |\n| --- | --- | --- | --- |\n| 9.8.0 | 2026/11/10 | * Wraps Android 9.8.0 SDK and iOS 9.8.0 SDK.\n* General improvements and bug fixes. |    |\n| 9.5.1 | 9.6.0 | 2026/08/19 | - Historical notes.";
+    const rows = levelPlayUnityAdapter.parseRawSnapshot!({ text, finalUrl: levelPlayUnityAdapter.manifest.targets[0].url } as ProductUpdateSnapshot);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ version: "9.8.0", releaseDate: "2026-11-10T00:00:00.000Z", summary: "Wraps Android 9.8.0 SDK and iOS 9.8.0 SDK. General improvements and bug fixes." });
+    expect(rows[1].version).toBe("9.5.1");
+    expect(() => levelPlayUnityAdapter.parseRawSnapshot!({ text: text.replace("2026/11/10", "2026/02/30") } as ProductUpdateSnapshot)).toThrow();
+  });
+
+  test.each(["", "<td></td>"])("accepts compact Unity rows alongside historical rows (%s)", (padding) => {
+    const fixture = readFixture("levelplay-unity.html").replace("<tbody>", `<tbody><tr><td>9.8.0</td><td>2026/11/12</td><td>Wraps Android and iOS SDK 9.8.0.</td>${padding}</tr>`);
+    const rows = parse(levelPlayUnityAdapter, fixture);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({ version: "9.8.0", releaseDate: "2026-11-12T00:00:00.000Z", summary: "Wraps Android and iOS SDK 9.8.0." });
+    expect(rows[1]).toMatchObject({ version: "9.5.0", releaseDate: "2026-07-01T00:00:00.000Z" });
+  });
+
+  test.each([
+    "<td>9.8.0</td><td>2026/02/30</td><td>Notes</td>",
+    "<td>9.8.0</td><td>2026/11/12</td><td></td>",
+    "<td>9.8.0</td><td>2026/11/12</td><td>Notes</td><td>Ambiguous</td>"
+  ])("rejects malformed compact Unity rows: %s", (cells) => {
+    const fixture = readFixture("levelplay-unity.html").replace("<tbody>", `<tbody><tr>${cells}</tr>`);
+    expect(() => parse(levelPlayUnityAdapter, fixture)).toThrow();
+  });
+
   test("pins every current mediation changelog to an explicit source", () => {
     expect(LEVELPLAY_MEDIATION_ADAPTER_INVENTORY).toHaveLength(26);
     expect(levelPlayMediationAdapterSources).toHaveLength(51);

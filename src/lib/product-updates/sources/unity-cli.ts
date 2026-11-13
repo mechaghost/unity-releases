@@ -1,3 +1,4 @@
+import { fetchCliHistory, parseCliHistory } from "./unity-cli-history";
 import * as cheerio from "cheerio";
 import {
   normalizeProductUpdateText,
@@ -19,7 +20,7 @@ export const unityCliAdapter: ProductUpdateAdapter = {
     sourceKey: "unity-cli",
     displayName: "Unity CLI release notes",
     family: "editor-tooling",
-    parserVersion: "unity-cli-md-v1",
+    parserVersion: "unity-cli-months-v2",
     displayPriority: 10,
     allowedEvidenceHosts: ["docs.unity.com"],
     cadenceHours: 12,
@@ -27,7 +28,7 @@ export const unityCliAdapter: ProductUpdateAdapter = {
     maxResponseBytes: 2 * 1024 * 1024,
     minimumExpectedRecords: 1,
     maximumExpectedRecords: 100,
-    maximumRecordDropFraction: 0.5,
+    maximumRecordDropFraction: 0,
     targets: [
       {
         targetKey: "standalone",
@@ -37,6 +38,8 @@ export const unityCliAdapter: ProductUpdateAdapter = {
       }
     ]
   },
+  fetch: fetchCliHistory,
+  parseRawSnapshot: parseCliHistory,
   parse: parseUnityCliReleaseNotes
 };
 

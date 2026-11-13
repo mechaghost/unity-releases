@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { markdownToHtml } from "../markdown";
 import {
   normalizeProductUpdateText,
   productUpdateSlug,
@@ -72,7 +73,7 @@ function createLevelPlaySdkAdapter(
       sourceKey: `levelplay-${platform.key}`,
       displayName: `LevelPlay ${platform.label} SDK changelog`,
       family: "monetization",
-      parserVersion: "levelplay-sdk-md-v2",
+      parserVersion: "levelplay-sdk-md-v3",
       displayPriority: 10,
       allowedEvidenceHosts: ["docs.unity.com"],
       cadenceHours: 24,
@@ -90,7 +91,10 @@ function createLevelPlaySdkAdapter(
         }
       ]
     },
-    parse: (snapshot) => parseLevelPlaySdkChangelog(snapshot, platform)
+    parse: (snapshot) => parseLevelPlaySdkChangelog(snapshot, platform),
+    ...(platform.key === "unity" ? { parseRawSnapshot: (snapshot: ProductUpdateSnapshot) =>
+      parseLevelPlaySdkChangelog({ ...snapshot, text: markdownToHtml(normalizeCompactUnityRows(snapshot.text)) }, platform)
+    } : {})
   };
 }
 
@@ -120,11 +124,16 @@ export function parseLevelPlaySdkChangelog(
     const version = normalizeProductUpdateText(
       cells.eq(platform.versionColumn).text()
     );
+    // New Unity rows omit the wrapped SDK column. Markdown renders these
+    // beneath the historical four-column header with an empty final cell.
+    const compactUnityRow = platform.key === "unity"
+      && (cells.length === 3 || (cells.length === 4 && !normalizeProductUpdateText(cells.eq(3).text())))
+      && parseSlashDate(normalizeProductUpdateText(cells.eq(1).text())) !== null;
     const releaseDateText = normalizeProductUpdateText(
-      cells.eq(platform.releaseDateColumn).text()
+      cells.eq(compactUnityRow ? 1 : platform.releaseDateColumn).text()
     );
     const note = normalizeProductUpdateText(
-      cells.eq(platform.notesColumn).text()
+      cells.eq(compactUnityRow ? 2 : platform.notesColumn).text()
     );
     if (!version && !releaseDateText && !note) return;
     if (!/^[0-9][0-9A-Za-z.+/-]*$/.test(version)) {
@@ -202,4 +211,21 @@ function parseSlashDate(value: string) {
     return null;
   }
   return date.toISOString();
+}
+
+/** Restore the omitted SDK cell before multiline table folding can split notes. */
+function normalizeCompactUnityRows(markdown: string): string {
+  let compact = false;
+  return markdown.split(/\r?\n/).map(line => {
+    if (line.startsWith("|")) {
+      compact = /^\|\s*[0-9][0-9A-Za-z.+/-]*\s*\|\s*\d{4}\/\d{1,2}\/\d{1,2}\s*\|/.test(line);
+      if (compact) {
+        const notes = line.split("|").slice(3).join("|").replace(/\|\s*(?:\|\s*)?$/, "");
+        if (notes.includes("|")) throw new Error("LevelPlay Unity compact row has ambiguous columns");
+        line = line.replace(/^(\|[^|]+\|)/, "$1 | ");
+      }
+    } else if (/^#{1,6}\s/.test(line)) compact = false;
+    // The exporter pads the omitted column after the final notes line.
+    return compact ? line.replace(/\|\s*\|\s*$/, "|") : line;
+  }).join("\n");
 }
