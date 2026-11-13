@@ -19,18 +19,30 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Identify compatible audit checkpoint
+        id: cursor
+        env:
+          AUDIT_HASH: ${{ hashFiles('scripts/check-site-links.ts', 'src/lib/link-audit.ts', 'src/lib/changelog-links.ts', 'src/lib/external-links.ts', 'src/lib/issue-tracker-links.ts', 'package-lock.json', '.github/workflows/site-links.yml') }}
+        run: |
+          set -euo pipefail
+          # Production follows release. Hash rendering inputs, not the branch SHA:
+          # docs-only commits must not reset a multi-day crawl.
+          git fetch --no-tags --depth=1 origin release
+          render_hash=$(git ls-tree -r FETCH_HEAD -- src/app src/components src/lib src/middleware.ts public next.config.ts next.config.mjs package.json package-lock.json | sha256sum | cut -d ' ' -f1)
+          echo "prefix=link-cursor-v2-${render_hash}-${AUDIT_HASH}-" >> "$GITHUB_OUTPUT"
+          echo "Release rendering hash: ${render_hash}; audit hash: ${AUDIT_HASH}"
       - uses: actions/cache/restore@v4
         with:
           path: .artifacts/link-cursor.json
-          key: link-cursor-v1-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: link-cursor-v1-
+          key: ${{ steps.cursor.outputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ steps.cursor.outputs.prefix }}
       - name: Check internal links, health, and rotating external sample
         run: npx tsx scripts/check-site-links.ts --site https://unityreleases.com --max-pages 2000 --budget-seconds 1200 --external-limit 250 --resume .artifacts/link-cursor.json --output .artifacts/link-check.json
       - uses: actions/cache/save@v4
-        if: always()
+        if: always() && steps.cursor.outcome == 'success'
         with:
           path: .artifacts/link-cursor.json
-          key: link-cursor-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ steps.cursor.outputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
