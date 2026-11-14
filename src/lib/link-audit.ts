@@ -12,6 +12,7 @@ export type AuditOptions = {
   onProgress?: (checked: number) => void;
   budgetMs?: number; now?: () => number; signal?: AbortSignal;
   resume?: AuditCheckpoint;
+  refreshHealth?: boolean;
   onCheckpoint?: (state: AuditCheckpoint) => Promise<void>;
 };
 export type AuditCheckpoint = {
@@ -177,10 +178,24 @@ export async function auditSite(options: AuditOptions) {
       return null;
     }
   }
+  // Health is a current observation, independent of the multi-day link cursor.
+  const freshHealth = new Set(options.refreshHealth
+    ? ['/api/health', '/api/updates/health'].map(path => origin + path) : []);
+  for (const url of freshHealth) {
+    for (let i = results.length - 1; i >= 0; i--) if (results[i].url === url) results.splice(i, 1);
+    const before = results.length;
+    if (!outOfTime()) {
+      await request(url);
+      requestsThisRun++;
+    }
+    if (results.length === before) results.push({ url, result: 'unverified',
+      reason: 'Fresh health probe interrupted or time budget exhausted', references: [...(references.get(url) ?? [])] });
+  }
   await checkpoint();
   while (index < queue.length && index - initialIndex < maxPages && !outOfTime()
     && now() - start < budgetMs * 0.8) {
     const url = queue[index++];
+    if (freshHealth.has(url)) continue; // Already checked this slice; retain cursor positions.
     const response = await request(url);
     requestsThisRun++;
     if (!response) {
@@ -236,7 +251,7 @@ export async function auditSite(options: AuditOptions) {
   await checkpoint(crawlComplete);
   // Synthetic coverage entries belong in the report, never the resumable work state.
   const reportResults = [...results];
-  for (const url of queue.slice(index)) reportResults.push({ url, result: 'unverified', reason: 'Internal crawl paused; queued for next run', references: [...(references.get(url) ?? [])] });
+  for (const url of queue.slice(index).filter(url => !freshHealth.has(url))) reportResults.push({ url, result: 'unverified', reason: 'Internal crawl paused; queued for next run', references: [...(references.get(url) ?? [])] });
   for (const [url, fragment] of fragments) {
     const targets = ids.get(fragment.target);
     if (targets && !targets.has(fragment.hash)) reportResults.push({ url, result: 'broken', reason: 'Missing fragment target', references: [fragment.reference] });
@@ -249,6 +264,7 @@ export async function auditSite(options: AuditOptions) {
   const blockedInternal = results.some(r => new URL(r.url).origin === origin && r.result === 'blocked');
   return { checkedAt: new Date().toISOString(), startedAt, origin, broken, unverified, requestsThisRun,
     interrupted: Boolean(options.signal?.aborted), crawlComplete, blockedInternal,
+    healthComplete: !results.some(r => freshHealth.has(r.url) && r.result === 'unverified'),
     internalComplete: index === queue.length && !blockedInternal, complete: unverified === 0, results: reportResults };
 }
 

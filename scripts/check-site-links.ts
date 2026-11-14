@@ -36,7 +36,7 @@ async function main() {
     sampleIndex: integer('sample-index', Math.floor(Date.now() / 86_400_000), Number.MAX_SAFE_INTEGER),
     delayMs: integer('delay-ms', 150, 10000),
     budgetMs: integer('budget-seconds', 1200, 7200) * 1000,
-    signal: controller.signal, resume,
+    signal: controller.signal, resume, refreshHealth: true,
     onCheckpoint: async state => {
       if (resumePath) await save(resumePath, state);
       await save(output, { checkedAt: new Date().toISOString(), partial: true,
@@ -52,7 +52,7 @@ async function main() {
   for (const result of report.results.filter(r => r.result === 'broken').slice(0,20)) console.error(`${result.status ?? ''} ${result.url} ${result.reason ?? ''}`);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Site link check\n\n${summary}\n\nUnverified includes blocked hosts, network failures, and URLs outside this run's limits. See the uploaded JSON for exact URLs and referring pages.\n`);
   // A saved queue is an intentional slice, not evidence that unchecked pages passed.
-  process.exitCode = report.interrupted ? 2 : resumePath && !process.argv.includes('--require-complete')
+  process.exitCode = report.interrupted || !report.healthComplete ? 2 : resumePath && !process.argv.includes('--require-complete')
     ? report.broken > 0 || report.blockedInternal ? 1 : 0
     : auditExitCode(report, process.argv.includes('--require-complete'));
 }

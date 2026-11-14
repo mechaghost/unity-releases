@@ -167,3 +167,73 @@ it('rotates external samples across completed multi-day crawls', async () => {
   }
   expect([...externalCalls].sort()).toEqual(['a','b','c','d'].map(x => 'https://unity.com/' + x));
 });
+
+
+describe('fresh health on resumed slices', () => {
+  const healthUrls = ['/api/health', '/api/updates/health'].map(path => origin + path);
+  async function checkpointWithHealth(status: string) {
+    let saved!: AuditCheckpoint;
+    await auditSite({ origin, seeds: ['/old', ...healthUrls, '/next', '/later'], maxPages: 3,
+      refreshHealth: true, delayMs: 0, onCheckpoint: async state => { saved = structuredClone(state); },
+      fetchPage: async url => healthUrls.includes(url)
+        ? { body: JSON.stringify({ status }), status: 200, finalUrl: url, contentType: 'application/json' }
+        : html('', 404, url) });
+    return saved;
+  }
+  for (const [before, after] of [['degraded', 'ok'], ['ok', 'degraded']]) {
+    it(`${before} to ${after} replaces health without duplicates or lost cursor progress`, async () => {
+      const saved = await checkpointWithHealth(before);
+      const calls: string[] = [];
+      let updated!: AuditCheckpoint;
+      const report = await auditSite({ origin, resume: saved, refreshHealth: true, maxPages: 1, delayMs: 0,
+        onCheckpoint: async state => { updated = structuredClone(state); },
+        fetchPage: async url => {
+          calls.push(url);
+          return healthUrls.includes(url)
+            ? { body: JSON.stringify({ status: after }), status: 200, finalUrl: url, contentType: 'application/json' }
+            : html('', 200, url);
+        } });
+      expect(calls).toEqual([...healthUrls, origin + '/next']);
+      expect(report.requestsThisRun).toBe(3);
+      expect(updated.queue).toEqual(saved.queue);
+      expect(updated.index).toBe(saved.index + 1);
+      expect(updated.startedAt).toBe(saved.startedAt);
+      expect(updated.sampleIndex).toBe(saved.sampleIndex);
+      expect(report.crawlComplete).toBe(false);
+      expect(report.results.find(r => r.url === origin + '/old')?.result).toBe('broken');
+      expect(report.results.find(r => r.url === origin + '/later')?.result).toBe('unverified');
+      for (const url of healthUrls) {
+        expect(report.results.filter(r => r.url === url)).toHaveLength(1);
+        expect(updated.results.filter(r => r.url === url)).toHaveLength(1);
+        expect(report.results.find(r => r.url === url)?.result).toBe(after === 'ok' ? 'reachable' : 'broken');
+      }
+      expect(report.broken).toBe(after === 'ok' ? 1 : 3);
+    });
+  }
+  for (const mode of ['timeout', 'blocked', 'invalid', 'budget', 'abort']) {
+    it(`reports fresh ${mode} instead of cached healthy observations`, async () => {
+      const saved = await checkpointWithHealth('ok');
+      let clock = 0;
+      const controller = new AbortController();
+      const calls: string[] = [];
+      const report = await auditSite({ origin, resume: saved, refreshHealth: true, maxPages: 0, delayMs: 0,
+        now: () => clock, budgetMs: 10, signal: controller.signal,
+        fetchPage: async url => {
+          calls.push(url);
+          if (mode === 'timeout') throw new Error('timeout');
+          if (mode === 'budget') clock = 10;
+          if (mode === 'abort') { controller.abort(); throw new Error('aborted'); }
+          return { body: mode === 'invalid' ? '{' : '{"status":"ok"}', status: mode === 'blocked' ? 403 : 200,
+            finalUrl: url, contentType: 'application/json' };
+        } });
+      expect(report.healthComplete).toBe(!['budget', 'abort'].includes(mode));
+      expect(report.requestsThisRun).toBe(calls.length);
+      expect(calls).toHaveLength(['budget', 'abort'].includes(mode) ? 1 : 2);
+      const health = report.results.filter(r => healthUrls.includes(r.url));
+      expect(health).toHaveLength(2);
+      if (mode === 'budget') expect(health.map(r => r.result)).toEqual(['reachable', 'unverified']);
+      else expect(health.map(r => r.result)).toEqual(Array(2).fill(mode === 'abort' ? 'unverified' : mode === 'blocked' ? 'blocked' : 'broken'));
+      expect(report.crawlComplete).toBe(false);
+    });
+  }
+});
