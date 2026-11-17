@@ -1,6 +1,6 @@
-const pipelineDocs = "https://docs.unity3d.com/Packages/com.unity.pipeline@0.9/manual/";
+const pipelineDocs = "https://docs.unity3d.com/Packages/com.unity.pipeline@1.0/manual/";
 const cliDocs = "https://docs.unity.com/en-us/unity-cli/";
-export const TOOLING_REVIEWED = "2026-10-25";
+export const TOOLING_REVIEWED = "2026-11-17";
 type Feature = { title: string; description: string; source: string };
 export type ToolingGuide = {
   slug: string; name: string; role: string; summary: string; version: string; status: string;
@@ -8,23 +8,36 @@ export type ToolingGuide = {
   requirements: string; setup: string; setupSource: string; features: Feature[];
 };
 const pipelineFeature = (title: string, description: string, page: string): Feature => ({ title, description, source: `${pipelineDocs}${page}.html` });
-const cliFeature = (title: string, description: string, anchor: string): Feature => ({ title, description, source: `${cliDocs}unity-cli-reference#${anchor}` });
+const cliReferences = {
+  "editors-and-modules": "editor-project-commands#editors-and-modules",
+  "projects-builds-and-templates": "editor-project-commands#projects-builds-and-templates",
+  "accounts-licenses-and-unity-cloud": "accounts-licenses-cloud-commands#accounts-licenses-and-unity-cloud",
+  "version-control": "uvcs-commands",
+  "unity-collaboration": "accounts-licenses-cloud-commands#unity-collaboration",
+  "connected-editors-and-ai-agents": "editor-project-commands#connected-editors-and-ai-agents",
+  "diagnostics-and-configuration": "cli-config-diagnostics-commands#diagnostics-and-configuration",
+  "output-formats-and-automation": "output-formats",
+  "cli-lifecycle": "cli-config-diagnostics-commands#cli-lifecycle"
+} as const;
+const cliFeature = (title: string, description: string, section: keyof typeof cliReferences): Feature => ({ title, description, source: `${cliDocs}reference/${cliReferences[section]}` });
 export const TOOLING_GUIDES: ToolingGuide[] = [
   {
-    slug: "unity-pipeline", name: "Unity Pipeline", role: "Automate the Editor", version: "0.9.1-exp.1", status: "Experimental", released: "2026-10-22",
+    slug: "unity-pipeline", name: "Unity Pipeline", role: "Automate the Editor", version: "1.0.0", status: "Stable", released: "2026-11-11",
     summary: "Create scenes and assets, run tests and builds, and inspect a running game through commands your scripts and coding agents can use.",
-    headline: "Custom command improvements and mobile build fixes",
+    headline: "Pipeline 1.0 is stable",
     changes: [
+      "1.0.0: The changelog dates the stable release to November 11. Unity announced it on November 12 as a promotion of 1.0.0-pre.1 with no code changes, then presented CLI and Pipeline 1.0 together at Unite Tokyo on November 17.",
+      "1.0: Unity commits to backward-compatible changes and a stable API with a deprecation mechanism. Review the changelog when moving from an experimental package.",
       "0.9.1: Custom commands can use dotted names to declare their group. A description-only attribute can infer the group and command name from your code.",
       "0.9.1: Fixed the pre-build exception on Android, iOS, and other non-Standalone targets that prevented runtime settings from being baked into the build.",
       "0.9.1: Fixed AutoStaticsCleanup analyzer warnings when opening projects in Unity 7.0.",
       "0.9.0: Added Build Profile creation and editing, platform discovery, and controls for keeping Play Mode running while the Editor is unfocused.",
       "0.9.0: Added grouped command discovery, per-command timeouts, and status requests that can respond while another command runs. Code Reload is now called Method Reload."
     ],
-    migration: "Pipeline 0.9 groups commands as unity command <group> <name>. Older flat command names no longer work. Run unity command against your installed package to find the current names before updating scripts.",
-    changelog: "https://docs.unity3d.com/Packages/com.unity.pipeline@0.9/changelog/CHANGELOG.html",
+    migration: "From 1.0.0-pre.1, Unity reports no code changes. From experimental versions, review the removed APIs and command names: use unity command <group> <name> and discover the current names with unity command. script eval returns its value directly; check exit code 6 for a failed eval instead of a success field.",
+    changelog: "https://docs.unity3d.com/Packages/com.unity.pipeline@1.0/changelog/CHANGELOG.html",
     requirements: "Requires Unity 6.0 or later, Unity CLI, and the com.unity.pipeline package in your project. The package connects to a running Editor through a local HTTP API; it is separate from URP/HDRP rendering pipelines and the hosted Pipeline Automation service. Player access needs its own runtime setup.",
-    setup: "unity auth login\nunity pipeline install\n# Return to Unity and wait for compilation.\nunity pipeline list\nunity command\n# Choose a project when several Editors are open:\nunity command --project-path=<path-to-your-project>",
+    setup: "unity auth login\nunity pipeline install\n# Return to Unity and wait for compilation.\nunity pipeline editors\nunity command\n# Choose a project when several Editors are open:\nunity command --project-path=<path-to-your-project>",
     setupSource: `${cliDocs}unity-pipeline/unity-pipeline-package`,
     features: [
       pipelineFeature("Assets and files", "Find, create, import, move, copy, rename, and delete assets. Read and change importer settings, create folders, and work with text files.", "commands/assets-and-files"),
@@ -50,10 +63,14 @@ export const TOOLING_GUIDES: ToolingGuide[] = [
     ]
   },
   {
-    slug: "unity-cli", name: "Unity CLI", role: "Unity from your terminal", version: "1.0.0-beta.14", status: "Beta", released: "2026-10-21",
+    slug: "unity-cli", name: "Unity CLI", role: "Unity from your terminal", version: "1.0.1", status: "Stable", released: "2026-11-16",
     summary: "Install Editors, manage projects, automate builds and tests, and connect coding agents to Unity without the Hub desktop app.",
-    headline: "Better unattended workflows and more control for agents",
+    headline: "Stable CLI, with a 1.0.1 automation update",
     changes: [
+      "1.0.1 (November 16): MCP tool filters accept whole Editor command groups. Command manifests include each command’s full path, and log streams use consistent paging fields.",
+      "1.0.1: Version-control unlink output removes credentials from remote URLs for every scheme. Piped TSV output now includes headers for more commands; review scripts that previously captured a bare value.",
+      "1.0.0 shipped November 12; the November 17 Unite Tokyo announcement introduced CLI and Pipeline 1.0 together. Unity commits to compatible commands, flags, and output across 1.x, with deprecation warnings before removals.",
+      "Still coming: the supported Linux containerized Editor. The announcement also places further AI Generators, Live Games, and Build Automation commands on the roadmap.",
       "beta.14: Open a project with --until-ready to wait for the Editor. Blocking dialogs now report a useful error instead of leaving automation waiting indefinitely.",
       "beta.14: Install an Editor into a chosen workspace with --download-directory, and preview another operating system’s downloads with --dry-run --operating-system.",
       "beta.14: Filter which Editor tools an MCP client can see with --tools and --exclude-tools. Discover old command names and their replacements with unity command --obsolete-command-names.",
@@ -61,7 +78,7 @@ export const TOOLING_GUIDES: ToolingGuide[] = [
       "beta.14: Hardened downloads, credential handling, and diagnostic output. Check the full release notes for platform-specific fixes and security changes.",
       "beta.12: Create projects with Pipeline already installed using --with-pipeline, wait for Editor readiness, and see package release summaries during Pipeline upgrades."
     ],
-    migration: "The standalone CLI uses unity commands, rather than the old Hub -- --headless syntax. Check help for your installed version and review exit codes and JSON output before migrating CI scripts. CLI and Pipeline versions are updated separately.",
+    migration: "The standalone CLI uses unity commands, rather than the old Hub -- --headless syntax. Check help for your installed version and review exit codes and output before migrating CI scripts. In 1.0.1, piped TSV can include headers: use --json and read the documented fields when capturing values. CLI and Pipeline versions are updated separately.",
     changelog: `${cliDocs}release-notes`,
     requirements: "Supports macOS 14+, Windows 10 21H1+, and supported Linux distributions with glibc 2.34+ (including Ubuntu 22.04+ and RHEL 9). Editor automation also needs Pipeline and Unity 6+. Build machines still need the right Editor, platform modules, and license.",
     setup: "unity --version\nunity --help\nunity auth login\nunity editors -i\nunity doctor\n# Discover commands for your installed version:\nunity commands --grep build",
