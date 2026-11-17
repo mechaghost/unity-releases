@@ -14,8 +14,7 @@
   gap: var(--space-2);
 }
 
-.areaCard .areaCopy h2,
-.areaCard .areaCopy h3 {
+.areaCard .areaCopy :is(h2, h3):global(.guide-feature-title) {
   padding-inline-end: var(--space-5);
   overflow-wrap: anywhere;
   font-size: var(--text-lg);
@@ -123,6 +122,11 @@
 @media (max-width: 650px) {
   .releaseHeader h2 { scroll-margin-top: calc(56px + var(--space-3)); }
   .releaseHeader { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 420px) {
+  .areaCard .areaCopy :is(h2, h3):global(.guide-feature-title) { padding-inline-end: 0; font-size: var(--text-md); }
+  .cardArrow { position: static; align-self: flex-end; margin-block-start: auto; }
 }
 
 @media (max-width: 380px) {

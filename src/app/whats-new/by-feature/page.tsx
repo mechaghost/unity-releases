@@ -4,7 +4,7 @@ import { EngineFeatureCards } from "./EngineFeatureCards";
 import styles from "./engine-features.module.css";
 
 const title = "What’s new by engine feature";
-const description = "Explore what changed in 3D, 2D, multiplayer, and platform support across Unity 6 releases.";
+const description = "See when features and improvements arrived across Unity 6 releases, with links to Unity articles and staff posts.";
 
 export const dynamic = "force-dynamic";
 export const metadata = {

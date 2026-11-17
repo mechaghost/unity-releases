@@ -3,13 +3,26 @@ import { expect, test } from "@playwright/test";
 
 const index = "/whats-new/by-feature";
 const wcag = ["wcag2a", "wcag2aa", "wcag21aa"];
+const areas = [
+  ["3D", "3d"],
+  ["2D", "2d"],
+  ["Multiplayer", "multiplayer"],
+  ["Platforms", "platforms"],
+  ["UI & Accessibility", "ui-accessibility"],
+  ["Editor & Workflow", "editor-workflow"],
+  ["Scripting & ECS", "scripting-ecs"],
+  ["Performance & Profiling", "performance-profiling"]
+];
 
 test("browse engine features from home and jump to a release", async ({ page }, testInfo) => {
+  if (testInfo.project.name.startsWith("mobile")) await page.setViewportSize({ width: 320, height: 850 });
   await page.goto("/");
   const browse = page.getByRole("region", { name: "Browse by engine feature" });
-  for (const name of ["3D", "2D", "Multiplayer", "Platforms"]) {
+  for (const [name, slug] of areas) {
     const link = browse.getByRole("link", { name, exact: true });
     await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", `${index}/${slug}`);
+    await link.scrollIntoViewIfNeeded();
     await link.locator("img").evaluate((image: HTMLImageElement) => image.decode());
   }
   await browse.scrollIntoViewIfNeeded();
@@ -31,7 +44,7 @@ test("area guides have shareable URLs, source links, and readable layouts", asyn
   if (testInfo.project.name.startsWith("mobile")) await page.setViewportSize({ width: 320, height: 850 });
   await page.goto(index);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("What’s new by engine feature");
-  for (const [name, slug] of [["3D", "3d"], ["2D", "2d"], ["Multiplayer", "multiplayer"], ["Platforms", "platforms"]]) {
+  for (const [name, slug] of areas) {
     await page.getByRole("main").getByRole("link", { name, exact: true }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`${name} in Unity 6`);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${index}/${slug}$`));
@@ -42,7 +55,7 @@ test("area guides have shareable URLs, source links, and readable layouts", asyn
   }
   expect((await request.get(`${index}/unknown`)).status()).toBe(404);
   const sitemap = await (await request.get("/sitemap.xml")).text();
-  for (const path of [index, ...["3d", "2d", "multiplayer", "platforms"].map(slug => `${index}/${slug}`)]) {
+  for (const path of [index, ...areas.map(([, slug]) => `${index}/${slug}`)]) {
     expect(sitemap).toContain(`${path}</loc>`);
   }
 
@@ -62,5 +75,31 @@ test("area guides have shareable URLs, source links, and readable layouts", asyn
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect((await new AxeBuilder({ page }).include("main").withTags(wcag).analyze()).violations).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath(`engine-guide-${theme}.png`), fullPage: true });
+  }
+});
+
+test("new topics show official reading under the matching releases", async ({ page }, testInfo) => {
+  const reading = [
+    ["ui-accessibility", "6.3", /Native screen readers on Windows and macOS/, /native-desktop-screen-reader-support/],
+    ["editor-workflow", "6.6", /Get started with content directories/, /getting-started-with-content-directories/],
+    ["scripting-ecs", "6.6", /Burst moves into the engine/, /the-future-of-burst-in-unity-6-6/],
+    ["performance-profiling", "6.2", /Investigate crashes and Android freezes/, /transition-to-new-diagnostics/]
+  ] as const;
+  if (testInfo.project.name.startsWith("mobile")) await page.setViewportSize({ width: 320, height: 850 });
+  for (const [slug, version, title, href] of reading) {
+    await page.goto(`${index}/${slug}`);
+    const versionLinks = page.getByRole("navigation", { name: "Jump to a Unity release" });
+    const versions = await versionLinks.getByRole("link").allTextContents();
+    expect(versions).toEqual([...versions].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })));
+    await versionLinks.getByRole("link", { name: `Unity ${version}`, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`#unity-${version.replace(".", "-")}$`));
+    const release = page.getByRole("region", { name: new RegExp(`^Unity ${version.replace(".", "\\.")}( LTS)?$`) });
+    await expect(release.getByRole("link", { name: title })).toHaveAttribute("href", href);
+  }
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
+    await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
+    expect((await new AxeBuilder({ page }).include("main").withTags(wcag).analyze()).violations).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath(`performance-${theme}.png`), fullPage: true });
   }
 });
