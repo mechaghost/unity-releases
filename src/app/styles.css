@@ -7272,7 +7272,7 @@ button.filter-section__head:focus-visible {
 .guide-figure figcaption { padding-block: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
 .guide-figure figcaption a { text-decoration: underline; }
 .guide-highlight-copy { display: flex; flex: 1; flex-direction: column; padding: var(--space-4); }
-.release-guide .guide-highlight h2 { font-size: var(--text-xl); line-height: 1.3; margin: 0; }
+.release-guide .guide-highlight .guide-feature-title { font-size: var(--text-xl); line-height: 1.3; margin: 0; }
 .guide-card .guide-figure { margin-top: var(--space-3); }
 .guide-status { font-size: var(--text-sm); }
 .guide-status p { margin-block: var(--space-1); }
@@ -7282,7 +7282,7 @@ button.filter-section__head:focus-visible {
 
 .guide-feature-link { display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--surface-raised); color: var(--text-primary); text-decoration: none; }
 .guide-feature-link:hover { border-color: var(--text-link); }
-.guide-feature-link:hover h2 { color: var(--text-link); text-decoration: underline; text-underline-offset: 3px; }
+.guide-feature-link:hover .guide-feature-title { color: var(--text-link); text-decoration: underline; text-underline-offset: 3px; }
 .guide-feature-link:focus-visible { outline: 3px solid var(--text-link); outline-offset: 4px; }
 .guide-feature-image { position: relative; flex: none; aspect-ratio: 16 / 9; overflow: hidden; background: var(--surface-sunken); border-bottom: 1px solid var(--border-default); }
 .guide-feature-image img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }

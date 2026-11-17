@@ -19,6 +19,10 @@ type NavSection = {
   items: NavItem[];
 };
 
+function isEngineFeaturePath(pathname: string) {
+  return pathname === "/whats-new/by-feature" || pathname.startsWith("/whats-new/by-feature/");
+}
+
 function isEditorToolingPath(pathname: string) {
   return (
     pathname === "/updates/editor-tooling" ||
@@ -38,7 +42,13 @@ const NAV: NavSection[] = [
         href: "/",
         label: "What’s new",
         icon: "newspaper",
-        match: (pathname) => pathname === "/" || pathname === "/whats-new" || pathname.startsWith("/whats-new/")
+        match: (pathname) => pathname === "/" || pathname === "/whats-new" || (pathname.startsWith("/whats-new/") && !isEngineFeaturePath(pathname))
+      },
+      {
+        href: "/whats-new/by-feature",
+        label: "Engine features",
+        icon: "layers",
+        match: isEngineFeaturePath
       },
       {
         href: "/guides/agentic-coding-with-unity",

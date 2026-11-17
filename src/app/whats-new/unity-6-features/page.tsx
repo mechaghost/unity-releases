@@ -1,4 +1,5 @@
 import { firstQueryValue } from "@/lib/pagination";
+import { ENGINE_FEATURES_PATH } from "@/lib/engine-features";
 import { filterUnity6Features, unity6Features } from "@/lib/unity6-features";
 import { pageSocialMetadata } from "@/lib/site";
 import { FeatureCard } from "../GuideParts";
@@ -44,6 +45,6 @@ export default async function Unity6FeaturesPage({ searchParams }: Props) {
       <div className="guide-grid">{results.map(({ guide, feature }, index) => <FeatureCard key={feature.id} guide={guide} feature={feature} eager={index < 2} showVersion />)}</div>
       {results.length === 0 && <div className="empty-state"><h2>No matching features</h2><p>Try another search or <a href={path}>clear the filters</a> to see every highlight.</p></div>}
     </section>
-    <footer className="guide-footer">Independent guides · <a href="/releases">Browse technical release notes</a> · <a href="/whats-new/past-releases">Past release guides</a></footer>
+    <footer className="guide-footer"><a href={ENGINE_FEATURES_PATH}>Browse by engine feature</a> · <a href="/releases">Browse technical release notes</a> · <a href="/whats-new/past-releases">Past release guides</a></footer>
   </div>;
 }

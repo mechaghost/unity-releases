@@ -5,6 +5,8 @@ import { pageSocialMetadata } from "@/lib/site";
 import { GuideCard } from "./GuideParts";
 import { ToolingCards } from "./ToolingGuides";
 import { MoreUpdates } from "./MoreUpdates";
+import { EngineFeatureCards } from "./by-feature/EngineFeatureCards";
+import engineFeatureStyles from "./by-feature/engine-features.module.css";
 
 export const dynamic = "force-dynamic";
 const description = "Discover what changed in Unity 6.0 through 6.6, why it matters, and how LTS and Supported Update releases differ.";
@@ -26,6 +28,10 @@ export default async function WhatsNewPage() {
         <a href="/whats-new/unity-6-features">Browse all Unity 6 features <span aria-hidden="true">→</span></a>
         <a href="/whats-new/past-releases">Past releases <span aria-hidden="true">→</span></a>
       </nav>
+    </section>
+    <section className={engineFeatureStyles.areaSection} aria-labelledby="browse-engine-features">
+      <h2 id="browse-engine-features">Browse by engine feature</h2>
+      <EngineFeatureCards headingLevel={3} />
     </section>
     <ToolingCards />
     <MoreUpdates />
