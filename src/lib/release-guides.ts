@@ -47,7 +47,8 @@ export const RELEASE_GUIDES: readonly ReleaseGuide[] = [
       highlight("Interfaces", "Soft interface shadows", "UI Toolkit adds soft shadows around interface elements."),
       highlight("Interfaces", "Shape custom interfaces", "Mesh modifiers let teams bend and reshape interface elements."),
       highlight("Visual tools", "See visual tools running", "Graph Toolkit can show active connections, live data, and errors inside a graph."),
-      highlight("Project security", "Verify imported packages", "Signed Unity package files help identify who published imported content.")
+      highlight("Project security", "Verify imported packages", "Signed Unity package files help identify who published imported content."),
+      highlight("Audio", "Import more detailed spatial audio", "Unity can import second- and third-order ambisonic clips for more precise 360-degree sound.", "Playback requires a compatible ambisonic decoder plug-in.")
     ]),
   guide("6.5", "update", "2026-06-15", "2D lights, physics, and mobile effects.",
     "2D teams and technical artists interested in more control over lighting, sprites, and effects.",
@@ -62,7 +63,8 @@ export const RELEASE_GUIDES: readonly ReleaseGuide[] = [
       highlight("Lighting", "Find lighting settings together", "Lighting Search brings lighting objects and settings into one searchable view."),
       highlight("Visual tools", "Customize visual tools", "Graph Toolkit adds more control over the look and behavior of custom editors."),
       highlight("Android", "Optimize Android builds", "New build optimizations can reduce startup time and processor work."),
-      highlight("Learning", "Find package examples", "A dedicated Samples view makes installed package examples easier to find.")
+      highlight("Learning", "Find package examples", "A dedicated Samples view makes installed package examples easier to find."),
+      highlight("3D physics", "Simulate chains and gears more accurately", "The Direct Solver helps keep long chains, stiff joints, and gears stable in simulation.", "Requires the Entities-based Unity Physics package.")
     ]),
   guide("6.4", "update", "2026-03-17", "Project checks, console performance, and matchmaking.",
     "Teams investing in project health, console performance, or faster asset loading.",

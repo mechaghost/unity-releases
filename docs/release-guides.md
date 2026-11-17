@@ -34,7 +34,7 @@ Keep each visible feature to a benefit-led heading and one sentence. Keep casual
 
 The overview starts with the page title and one chronological release grid. Guides start with a breadcrumb, title, support badges, then feature images. Do not add slogans, category eyebrows, introductory sections, jump buttons, or a support panel ahead of the cards. Keep detailed support explanations below the cards in disclosures. Release cards show small, muted support lines beneath their badges: published LTS months by plan, or support until the next stable release. Past Update cards use the first stable successor’s launch month as the support-end month. Overview images open the guide; individual feature cards open their detail pages. Use specific feature names and one useful sentence, without catchphrases. Browser tests require first cards within 180px on the overview and 260px on guides, including 320px screens.
 
-The current catalog has 61 illustrated features: 16 for 6.6, 11 for 6.5, 5 for 6.4, 8 for 6.3, 7 for 6.2, 6 for 6.1, and 8 for 6.0. These are editorial launch highlights, not an exhaustive list of API changes. Counts follow the available content, not a quota. Megacity illustrates ECS; it is not a new 6.4 demo. Animated source images are presented as stills.
+The current catalog has 63 illustrated features: 17 for 6.6, 12 for 6.5, 5 for 6.4, 8 for 6.3, 7 for 6.2, 6 for 6.1, and 8 for 6.0. These are editorial launch highlights, not an exhaustive list of API changes. Counts follow the available content, not a quota. Megacity illustrates ECS; it is not a new 6.4 demo. Animated source images are presented as stills.
 
 ## Feature detail pages
 

@@ -289,6 +289,14 @@
     "height": 287,
     "original": "https://europe1.discourse-cdn.com/unity/original/4X/4/3/4/434fcfaf6a5e7daba7a425b8ee806997ddce1954.png"
   },
+  "6.6-16": {
+    "src": "/images/release-guides/6.6-16.webp",
+    "alt": "Ambisonic decoder selection in Unity’s Audio project settings",
+    "width": 412,
+    "height": 264,
+    "original": "https://docs.unity.com/api/media?file=/engine/6000.6/media/images/AmbisonicAudioSettings.png",
+    "source": "https://docs.unity.com/en-us/engine/6000.6/manual/audio/ambisonic/instructions"
+  },
   "6.5-4": {
     "src": "/images/release-guides/6.5-4.webp",
     "alt": "Unity tilemap editing demonstration",
@@ -337,6 +345,14 @@
     "width": 1008,
     "height": 644,
     "original": "https://europe1.discourse-cdn.com/unity/original/4X/6/1/7/617d3d91daec9ba349144f0a8bbae96be2f197e6.jpeg"
+  },
+  "6.5-11": {
+    "src": "/images/release-guides/6.5-11.webp",
+    "alt": "Chain and gear in Unity’s Direct Solver prototype",
+    "width": 267,
+    "height": 200,
+    "original": "https://europe1.discourse-cdn.com/unity/original/4X/2/1/c/21c88393673ef618c8e75e014ebf117d1b8c00b5.gif",
+    "source": "https://discussions.unity.com/t/physics-development-status-and-next-milestones-may-2025/1637988"
   },
   "6.4-4": {
     "src": "/images/release-guides/6.4-4.webp",

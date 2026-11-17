@@ -422,6 +422,32 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       "unitypackage"
     ]
   },
+  "6.6-16": {
+    "slug": "higher-order-ambisonic-audio",
+    "technicalName": "Second- and third-order ambisonic audio",
+    "links": [
+      {
+        "label": "Set up ambisonic audio in Unity 6.6",
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/audio/ambisonic/instructions"
+      },
+      {
+        "label": "Ambisonic audio changes in Unity 6.6",
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/whats-new/unity66#second-and-third-order-ambisonic-audio"
+      }
+    ],
+    "overview": [
+      "An ambisonic recording stores sound from every direction and can rotate as the listener turns. Unity 6.6 adds support for second-order clips with nine channels and third-order clips with sixteen channels. These formats can preserve more directional detail than four-channel first-order clips."
+    ],
+    "steps": [
+      "Open Edit > Project Settings > Audio and select a decoder plug-in that supports the clip’s order and your speaker mode.",
+      "Import a multichannel B-format WAV with ACN channel order and SN3D normalization, then enable Ambisonic in the clip’s Inspector.",
+      "Assign the clip to an Audio Source and leave Spatialize disabled. The ambisonic decoder handles the orientation of the sound field."
+    ],
+    "notes": [
+      "Unity 6.6 requires a third-party or custom decoder plug-in. Check the plug-in’s supported channel counts and output modes."
+    ],
+    "searchTerms": ["Ambisonic", "Spatial Audio"]
+  },
   "6.5-0": {
     "slug": "custom-2d-lights-shadows",
     "technicalName": "Custom 2D lights and shadows",
@@ -699,6 +725,28 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       "Package Manager",
       "Samples"
     ]
+  },
+  "6.5-11": {
+    "slug": "unity-physics-direct-solver",
+    "technicalName": "Unity Physics Direct Solver",
+    "links": [
+      {
+        "label": "Set up the Direct Solver in Unity 6.5",
+        "url": "https://docs.unity.com/en-us/engine/6000.5/manual/whats-new/unity65#new-direct-solver-option-in-the-unity-physics-package"
+      }
+    ],
+    "overview": [
+      "The Direct Solver is an option for setups that are difficult to simulate accurately with the default iterative solver, including stiff joints, large differences in mass, and long chains of connected bodies. A scene can use the Direct Solver on its chain or gears while keeping the iterative solver for other collisions."
+    ],
+    "steps": [
+      "Set Solver Type on the Unity Physics body and custom joint authoring components. With built-in Rigidbody or Joint authoring, add the Solver Type authoring component.",
+      "Import the Advanced Game Physics Sample – Chain and Gears from the Unity Physics package to see both solvers in one scene."
+    ],
+    "notes": [
+      "This is a solver option in the Entities-based Unity Physics package. The iterative solver remains the default. The image shows Unity’s earlier Direct Solver demonstration."
+    ],
+    "searchTerms": ["Direct Solver", "Unity Physics"],
+    "packageId": "com.unity.physics"
   },
   "6.4-0": {
     "slug": "built-in-project-auditor",

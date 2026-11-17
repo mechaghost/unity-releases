@@ -37,7 +37,7 @@ describe("release guides", () => {
     expect(new Set(features.map(f => f.image.src)).size).toBe(features.length);
     for (const { image } of features) {
       expect(image.alt.length).toBeGreaterThan(10);
-      expect(image.source).toMatch(/^https:\/\/(unity\.com|discussions\.unity\.com|docs\.unity3d\.com)\//);
+      expect(image.source).toMatch(/^https:\/\/(unity\.com|discussions\.unity\.com|docs\.unity(?:3d)?\.com)\//);
       expect(image.original).toMatch(/^https:\/\//);
       expect(image.src).toMatch(/^\/images\/release-guides\/6\.[0-6]-\d+\.webp$/);
       const buffer = readFileSync(resolve("public", image.src.slice(1)));

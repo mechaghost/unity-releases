@@ -11,7 +11,10 @@ const areas = [
   ["UI & Accessibility", "ui-accessibility"],
   ["Editor & Workflow", "editor-workflow"],
   ["Scripting & ECS", "scripting-ecs"],
-  ["Performance & Profiling", "performance-profiling"]
+  ["Performance & Profiling", "performance-profiling"],
+  ["Physics", "physics"],
+  ["Animation", "animation"],
+  ["Audio", "audio"]
 ];
 
 test("browse engine features from home and jump to a release", async ({ page }, testInfo) => {
@@ -83,7 +86,10 @@ test("new topics show official reading under the matching releases", async ({ pa
     ["ui-accessibility", "6.3", /Native screen readers on Windows and macOS/, /native-desktop-screen-reader-support/],
     ["editor-workflow", "6.6", /Get started with content directories/, /getting-started-with-content-directories/],
     ["scripting-ecs", "6.6", /Burst moves into the engine/, /the-future-of-burst-in-unity-6-6/],
-    ["performance-profiling", "6.2", /Investigate crashes and Android freezes/, /transition-to-new-diagnostics/]
+    ["performance-profiling", "6.2", /Investigate crashes and Android freezes/, /transition-to-new-diagnostics/],
+    ["physics", "6.5", /What changed in Physics Core 2D/, /physics-core-2d-in-unity-6-5/],
+    ["animation", "6.6", /Animation Rigging and Timeline become core packages/, /unity66#added-search-bar-to-the-animation-window/],
+    ["audio", "6.3", /Extend Unity’s scriptable audio pipeline/, /6000\.3\/manual\/audio\/scriptable-processors/]
   ] as const;
   if (testInfo.project.name.startsWith("mobile")) await page.setViewportSize({ width: 320, height: 850 });
   for (const [slug, version, title, href] of reading) {
@@ -100,6 +106,9 @@ test("new topics show official reading under the matching releases", async ({ pa
     await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
     await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
     expect((await new AxeBuilder({ page }).include("main").withTags(wcag).analyze()).violations).toEqual([]);
-    await page.screenshot({ path: testInfo.outputPath(`performance-${theme}.png`), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath(`audio-${theme}.png`), fullPage: true });
   }
+  await page.getByRole("link", { name: "Import more detailed spatial audio", exact: true }).click();
+  await expect(page).toHaveURL(/\/whats-new\/unity-6-6\/higher-order-ambisonic-audio$/);
+  await expect(page.getByRole("region", { name: "Requirements and limits" })).toContainText("decoder plug-in");
 });

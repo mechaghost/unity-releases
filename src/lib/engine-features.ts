@@ -357,6 +357,116 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
         href: "https://unity.com/how-to/analyze-memory-usage-memory-profiling-tools"
       }]
     }
+  },
+  {
+    slug: "physics",
+    name: "Physics",
+    description: "Collisions, joints, and simulation in 2D and 3D.",
+    cover: "6.5-11",
+    features: ["6.5-2", "6.5-11"],
+    articles: {
+      "6.6": [{
+        title: "More control over 2D collision detection",
+        description: "The 6.6 release notes cover collision thresholds, contact filtering, and faster handling of contacts in Physics Core 2D.",
+        source: "Unity Release Notes",
+        href: "https://unity.com/releases/editor/whats-new/6000.6.0f1"
+      }],
+      "6.5": [{
+        title: "What changed in Physics Core 2D",
+        description: "Unity’s physics team explains the new module, its project settings, and how to write simulation results to custom targets.",
+        source: "Unity Discussions",
+        href: "https://discussions.unity.com/t/physics-core-2d-in-unity-6-5/1715178"
+      }, {
+        title: "Try the Direct Solver sample",
+        description: "Unity’s physics team explains how to import the Chain and Gears sample from Package Manager.",
+        source: "Unity Discussions",
+        href: "https://discussions.unity.com/t/physics-development-status-and-next-milestones-may-2025/1637988?page=2"
+      }],
+      "6.3": [{
+        title: "Get started with low-level 2D physics",
+        description: "The physics team introduces the Box2D v3-based API, independent worlds, and debug drawing.",
+        source: "Unity Discussions",
+        href: "https://discussions.unity.com/t/low-level-2d-physics-in-unity-6-3/1683247"
+      }],
+      "6.2": [{
+        title: "Try the experimental Unity Vehicles package",
+        description: "Unity’s 6.2 notes cover the new ECS vehicle controller and its support for client prediction.",
+        source: "Unity Manual",
+        href: "https://docs.unity.com/en-us/engine/6000.5/manual/whats-new/unity62#entities-1"
+      }],
+      "6.0": [{
+        title: "Check how Rigidbody torque changes on upgrade",
+        description: "See which force modes changed in 6.0 and how to preserve the movement you tuned in 2022 LTS.",
+        source: "Unity Manual",
+        href: "https://docs.unity.com/en-us/engine/6000.0/manual/upgrade-guides/upgrade-guide-unity6#physics:-changed-how-torque-is-computed-when-forcemode.velocitychange-or-forcemode.acceleration-is-used"
+      }]
+    }
+  },
+  {
+    slug: "animation",
+    name: "Animation",
+    description: "Keyframes, character rigs, Timeline, and sprite animation.",
+    cover: "6.5-5",
+    features: ["6.6-6", "6.6-7", "6.5-5"],
+    articles: {
+      "6.6": [{
+        title: "Animation Rigging and Timeline become core packages",
+        description: "Unity’s 6.6 notes also show how to find animated properties with the new Animation window search bar.",
+        source: "Unity Manual",
+        href: "https://docs.unity.com/en-us/engine/6000.6/manual/whats-new/unity66#added-search-bar-to-the-animation-window"
+      }],
+      "6.5": [{
+        title: "Find your way around the redesigned Animation window",
+        description: "The clip menu and playback controls move to the top, and Ripple is easier to find when editing groups of keys.",
+        source: "Unity Manual",
+        href: "https://docs.unity.com/en-us/engine/6000.5/manual/whats-new/unity65#animation-window-redesign"
+      }],
+      "6.3": [{
+        title: "Try Unity’s 2D Animation sample",
+        description: "Unity’s artists share characters used to demonstrate the 6.3 improvements and explain how they rigged and posed them.",
+        source: "Unity Discussions",
+        href: "https://discussions.unity.com/t/new-2d-animation-sample-package-on-unity-asset-store/1703916"
+      }],
+      "6.0": [{
+        title: "Rig and animate a 2D character in Unity 6",
+        description: "Follow the Happy Harvest example to rig a character, swap sprites, and animate different facing directions.",
+        source: "Unity Discussions",
+        href: "https://discussions.unity.com/t/how-to-animate-2d-characters-in-unity-6/1642950"
+      }]
+    }
+  },
+  {
+    slug: "audio",
+    name: "Audio",
+    description: "Spatial sound, scriptable audio, and playback tools.",
+    cover: "6.6-16",
+    features: ["6.6-16"],
+    articles: {
+      "6.6": [{
+        title: "Set up higher-order ambisonic playback",
+        description: "Choose a compatible decoder, import an ambisonic clip, and play it through an Audio Source.",
+        source: "Unity Manual",
+        href: "https://docs.unity.com/en-us/engine/6000.6/manual/audio/ambisonic/instructions"
+      }],
+      "6.5": [{
+        title: "Use audio clips in scriptable generators",
+        description: "Unity’s audio team shares a nested generator sample and explains how to try the experimental Enhanced Audio Foundation.",
+        source: "Unity Discussions",
+        href: "https://discussions.unity.com/t/audio-status-update-q2-2026/1723396"
+      }],
+      "6.3": [{
+        title: "Extend Unity’s scriptable audio pipeline",
+        description: "Use the Unity 6.3 manual to create a custom generator and attach it to an Audio Source.",
+        source: "Unity Manual",
+        href: "https://docs.unity.com/en-us/engine/6000.3/manual/audio/scriptable-processors"
+      }],
+      "6.0": [{
+        title: "Vary footsteps and ambience with Audio Random Container",
+        description: "A Unity Learn walkthrough shows how to shuffle clips for ambient sounds or play a random sound as the player moves.",
+        source: "Unity Learn",
+        href: "https://learn.unity.com/tutorial/the-basics-of-the-audio-random-container"
+      }]
+    }
   }
 ];
 
