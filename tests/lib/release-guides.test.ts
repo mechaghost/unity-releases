@@ -61,8 +61,12 @@ describe("release guides", () => {
   test("an Update cannot claim current support indefinitely without review", () => {
     const guide = get("6.6");
     const lastReviewed = Date.parse(`${guide.reviewed}T00:00:00Z`);
-    expect(guideStatus(guide, new Date(lastReviewed + 30 * 86_400_000)).label).toBe("Supported now");
-    expect(guideStatus(guide, new Date(lastReviewed + 31 * 86_400_000)).label).toBe("Check current support");
+    const fresh = new Date(lastReviewed + 30 * 86_400_000);
+    const stale = new Date(lastReviewed + 31 * 86_400_000);
+    expect(guideStatus(guide, fresh).label).toBe("Supported now");
+    expect(guideSupportLines(guide, fresh)).toEqual(["Supported until the next stable version releases"]);
+    expect(guideStatus(guide, stale).label).toBe("Check current support");
+    expect(guideSupportLines(guide, stale)).toEqual([`Support last checked ${formatGuideDate(guide.reviewed)}`]);
   });
   test("a future release is not presented as available", () => {
     expect(guideStatus(get("6.6"), at("2026-08-31")).label).toBe("Upcoming");

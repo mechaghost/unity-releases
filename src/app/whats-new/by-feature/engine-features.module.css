@@ -115,12 +115,15 @@
   font-weight: var(--weight-medium);
 }
 
+@media (max-width: 1024px) {
+  .releaseHeader h2 { scroll-margin-top: calc(52px + var(--space-4)); }
+}
+
 @media (max-width: 980px) {
   .areaGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 650px) {
-  .releaseHeader h2 { scroll-margin-top: calc(56px + var(--space-3)); }
   .releaseHeader { flex-direction: column; align-items: flex-start; }
 }
 

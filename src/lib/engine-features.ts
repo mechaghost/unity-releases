@@ -185,7 +185,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
         href: "https://discussions.unity.com/t/unity-6-6-is-now-available/1735357"
       }],
       "6.5": [{
-        title: "Advanced Text Generator becomes the default",
+        title: "Advanced Text Generator becomes the runtime default",
         description: "Unity’s UI team explains the switch for runtime panels, font support, and how to migrate existing font assets.",
         source: "Unity Discussions",
         href: "https://discussions.unity.com/t/advanced-text-generator-atg-now-default-in-6-5/1715871"
@@ -208,10 +208,10 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
         href: "https://docs.unity3d.com/6000.2/Documentation/Manual/ui-systems/create-world-space-ui.html"
       }],
       "6.0": [{
-        title: "Build custom controls with data binding",
-        description: "Use the Unity Learn sample project to make a UI Toolkit control update as its data changes.",
-        source: "Unity Learn",
-        href: "https://learn.unity.com/tutorial/67938e4aedbc2a3600fbb84c"
+        title: "Bind UI Toolkit controls to runtime data",
+        description: "Follow the Unity 6.0 example to bind a label to a data source in UI Builder and update it when the data changes.",
+        source: "Unity Manual",
+        href: "https://docs.unity.com/en-us/engine/6000.0/manual/uitoolkits/uielements/uie-data-binding/uie-runtime-binding/uie-get-started-runtime-binding"
       }, {
         title: "Support screen readers on Android and iOS",
         description: "See how to expose your game’s interface to TalkBack and VoiceOver and respect system text settings.",
@@ -229,7 +229,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
     articles: {
       "6.6": [{
         title: "Get started with content directories",
-        description: "Unity’s asset team walks through building and loading a first content directory.",
+        description: "Unity’s asset team shares the 6.6 manual, code examples, and an Addressables migration video.",
         source: "Unity Discussions",
         href: "https://discussions.unity.com/t/getting-started-with-content-directories/1740417"
       }, {
@@ -289,7 +289,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
       }],
       "6.5": [{
         title: "Move from InstanceID to EntityId",
-        description: "Unity’s upgrade notes explain the new identifier type and which code needs to change.",
+        description: "Replace obsolete InstanceID APIs and update code that stores EntityId as a 32-bit value.",
         source: "Unity Manual",
         href: "https://docs.unity.com/en-us/engine/6000.5/manual/upgrade-guides/upgrade-guide-unity65"
       }],

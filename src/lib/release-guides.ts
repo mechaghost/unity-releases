@@ -34,7 +34,7 @@ export const RELEASE_GUIDES: readonly ReleaseGuide[] = [
     "Teams looking to shorten everyday development loops and understand what makes their game large or slow to build.",
     "https://discussions.unity.com/t/unity-6-6-is-now-available/1735357", [
       highlight("2D visuals", "Control 2D lighting", "Choose which lights affect each character or object in a 2D scene.", "Requires the Universal Render Pipeline (URP) 2D renderer."),
-      highlight("Lighting", "Bake lighting with compute shaders", "The new opt-in light baker generates lightmaps and probe data and can use hardware ray tracing."),
+      highlight("Lighting", "Bake lighting with compute shaders", "An opt-in baker for URP and HDRP generates lightmaps and probe data and can use hardware ray tracing."),
       highlight("Production workflow", "Inspect build size and time", "Build Analysis shows build times, large assets, and errors together."),
       highlight("Creative workflow", "Enter Play mode faster", "New projects skip code reloading when you press Play, reducing the wait before testing.", "Code state is not reset automatically between Play sessions."),
       highlight("Asset loading", "Load assets in smaller groups", "Content directories give teams finer control over local asset loading."),
@@ -82,7 +82,7 @@ export const RELEASE_GUIDES: readonly ReleaseGuide[] = [
       highlight("Audience reach", "Accounts, saves, and achievements", "Platform Toolkit provides shared workflows for accounts, saved games, and achievements."),
       highlight("Performance", "Clearer performance reports", "Profiler highlights help teams identify where to investigate performance."),
       highlight("2D production", "Find unused texture space", "Sprite Atlas Analyzer reports packing and texture inefficiencies."),
-      highlight("Visual quality", "More efficient mobile effects", "Rendering improvements offer more efficient post-processing for mobile and untethered XR."),
+      highlight("Visual quality", "More efficient effects on untethered XR", "URP can apply supported post-processing effects on-tile on compatible untethered XR devices."),
       highlight("Builds", "Reduce shader build work", "Shader build settings help teams control which shader variants get compiled."),
       highlight("Networking", "HTTP/2 connections", "UnityWebRequest uses HTTP/2 by default on supported platforms when the server supports it."),
       highlight("World building", "Create terrain materials visually", "Shader Graph brings visual material editing to terrain."),
@@ -168,6 +168,9 @@ export function guideSupportLines(guide: ReleaseGuide, now = new Date()): string
       `Personal / Pro: ${label(guide.supportThrough)} ${month(guide.supportThrough)}`,
       `Enterprise / Industry: ${label(guide.extendedThrough)} ${month(guide.extendedThrough)}`
     ];
+  }
+  if (guideStatus(guide, now).label === "Check current support") {
+    return [`Support last checked ${formatGuideDate(guide.reviewed)}`];
   }
   const successor = RELEASE_GUIDES
     .filter(candidate => candidate.released > guide.released && candidate.released <= today)

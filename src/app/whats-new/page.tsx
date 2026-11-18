@@ -9,7 +9,7 @@ import { EngineFeatureCards } from "./by-feature/EngineFeatureCards";
 import engineFeatureStyles from "./by-feature/engine-features.module.css";
 
 export const dynamic = "force-dynamic";
-const description = "Discover what changed in Unity 6.0 through 6.6, why it matters, and how LTS and Supported Update releases differ.";
+const description = "Explore what changed across Unity 6 releases and check the support status of each version.";
 export const metadata = {
   title: "What’s new in Unity", description,
   alternates: { canonical: "/" },

@@ -70,8 +70,8 @@ export default async function EngineFeatureAreaPage({ params }: Props) {
           <div className={styles.releaseHeader}>
             <h2 id={guide.slug} tabIndex={-1}>Unity {guide.version}{guide.kind === "lts" ? " LTS" : ""}</h2>
             <div className={styles.releaseLinks}>
-              <a href={guideHref(guide)} aria-label={`Full Unity ${guide.version} guide`}>Full release guide <Icon name="arrow-right" size={14} /></a>
-              {!articles.some(article => article.href === guide.source) && <a href={guide.source} aria-label={`Unity ${guide.version} announcement`}>Unity announcement <Icon name="external-link" size={13} /></a>}
+              <a href={guideHref(guide)} aria-label={`Full release guide for Unity ${guide.version}`}>Full release guide <Icon name="arrow-right" size={14} /></a>
+              {!articles.some(article => article.href === guide.source) && <a href={guide.source} aria-label={`Unity announcement for ${guide.version}`}>Unity announcement <Icon name="external-link" size={13} /></a>}
             </div>
           </div>
           {features.length > 0 && <div className={`guide-grid ${styles.featureGrid}`}>

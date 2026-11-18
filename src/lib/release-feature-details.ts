@@ -45,6 +45,10 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "technicalName": "Unity Compute Light Baker",
     "links": [
       {
+        "label": "Unity Compute Light Baker setup and requirements",
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/direct-and-indirect-lighting/lightmapping/baking-before-runtime/configure/unity-compute-light-baker"
+      },
+      {
         "label": "Graphics Project Settings",
         "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/class-GraphicsSettings.html#light-baker"
       }
@@ -53,11 +57,11 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       "Unity Compute Light Baker produces baked lightmaps and probe data using compute shaders. Hardware ray tracing can accelerate the bake on compatible GPUs."
     ],
     "steps": [
-      "Open Project Settings > Graphics and locate Light Baker.",
-      "Select Unity Compute Light Baker, then regenerate the lighting data for the scene."
+      "In Project Settings > Graphics > Light Baker, set Default Light Baker to Unity Compute Light Baker.",
+      "On supported hardware, enable Hardware Ray Tracing in Window > Rendering > Lighting if you want to use it. Regenerate the scene’s lighting data."
     ],
     "notes": [
-      "Bake results can differ from the previous light baker; lighting settings may need adjustment."
+      "Requires URP or HDRP. Bake results can differ from the previous light baker, so you may need to adjust your lighting settings."
     ],
     "searchTerms": [
       "Compute Light Baker",
@@ -137,7 +141,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       "Content directories track dependencies per asset so local content can load in smaller pieces. Addressables can use them while retaining its existing loading API."
     ],
     "steps": [
-      "In Addressables, select the local groups to migrate and use Convert Schema(s) to content directories.",
+      "Install Addressables 4.0 or newer to convert existing groups. Select the local groups and use Convert Schema(s) to content directories.",
       "Build the content directory and distribute its output with the Player. The conversion guide covers the settings that change."
     ],
     "notes": [
@@ -890,17 +894,21 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       {
         "label": "Platform Toolkit 1.0 manual",
         "url": "https://docs.unity3d.com/Packages/com.unity.platformtoolkit@1.0/manual/index.html"
+      },
+      {
+        "label": "Unity 6.3 launch and supported platforms",
+        "url": "https://discussions.unity.com/t/platform-toolkit-official-cross-platform-api-now-available-for-6-3/1698376"
       }
     ],
     "overview": [
       "Platform Toolkit offers one asynchronous API for common platform services such as player accounts, saves, controller ownership, and achievements. Editor testing can exercise those workflows before building to a device."
     ],
     "steps": [
-      "Install the Platform Toolkit core package and the support package for the intended platform.",
-      "Use the toolkit’s account, storage, or achievement workflow and its Editor test controls before integrating the target platform implementation."
+      "Install the Platform Toolkit core package to develop and test account, storage, or achievement workflows in the Editor.",
+      "Install the support package for the intended platform before building and deploying."
     ],
     "notes": [
-      "Platform support and access requirements differ by target. Console deployment still requires the relevant platform authorization and tools."
+      "Unity lists Pro or higher for the 6.3 platform support packages. Console deployment also requires the relevant platform authorization and tools."
     ],
     "searchTerms": [
       "Platform Toolkit"
