@@ -88,7 +88,8 @@ test("new topics show official reading under the matching releases", async ({ pa
     ["scripting-ecs", "6.6", /Burst moves into the engine/, /the-future-of-burst-in-unity-6-6/],
     ["performance-profiling", "6.2", /Investigate crashes and Android freezes/, /transition-to-new-diagnostics/],
     ["physics", "6.5", /What changed in Physics Core 2D/, /physics-core-2d-in-unity-6-5/],
-    ["animation", "6.6", /Animation Rigging and Timeline become core packages/, /unity66#added-search-bar-to-the-animation-window/],
+    ["physics", "6.2", /Try the experimental Unity Vehicles package/, /6000\.2\/Documentation\/Manual\/WhatsNewUnity62\.html#entities$/],
+    ["animation", "6.6", /Animation Rigging and Timeline become core packages/, /unity66#animation-rigging-is-a-core-package/],
     ["audio", "6.3", /Extend Unity’s scriptable audio pipeline/, /6000\.3\/manual\/audio\/scriptable-processors/]
   ] as const;
   if (testInfo.project.name.startsWith("mobile")) await page.setViewportSize({ width: 320, height: 850 });

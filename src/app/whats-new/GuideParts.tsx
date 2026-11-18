@@ -46,7 +46,7 @@ export function FeatureCard({ guide, feature, eager = false, showVersion = false
     <a className="guide-feature-link" href={featureHref(guide, feature)} aria-labelledby={headingId}>
       <div className="guide-feature-image"><img src={feature.image.src} alt={feature.image.alt} width={feature.image.width} height={feature.image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
       <div className="guide-highlight-copy">
-        {showVersion && <p className="feature-catalog-version">Introduced in Unity {guide.version}</p>}
+        {showVersion && <p className="feature-catalog-version">Unity {guide.version} highlight</p>}
         <Heading className="guide-feature-title" id={headingId}>{feature.title}</Heading>
         <p>{feature.benefit}</p>
         <div className="guide-feature-footer"><Chip className="chip--area">{feature.category}</Chip>{preview && <span className="guide-badge">Preview at launch</span>}<span className="guide-feature-action" aria-hidden="true">Explore feature <span>→</span></span></div>

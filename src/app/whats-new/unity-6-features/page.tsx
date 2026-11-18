@@ -35,7 +35,7 @@ export default async function Unity6FeaturesPage({ searchParams }: Props) {
     </header>
     <form action={path} method="get" className="filter-bar feature-catalog-filters" role="search" aria-label="Filter Unity 6 features">
       <label className="feature-catalog-search">Search features<input type="search" name="q" defaultValue={q} placeholder="Try lighting, UI Toolkit, or WebGPU" /></label>
-      <label>Introduced in<select name="version" defaultValue={version}><option value="">All Unity 6 versions</option>{versions.map(value => <option key={value} value={value}>Unity {value}</option>)}</select></label>
+      <label>Unity release<select name="version" defaultValue={version}><option value="">All Unity 6 versions</option>{versions.map(value => <option key={value} value={value}>Unity {value}</option>)}</select></label>
       <label>Category<select name="category" defaultValue={category}><option value="">All categories</option>{categories.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
       <button className="btn btn--primary" type="submit">Apply filters</button>
       <a className="btn btn--secondary" href={path}>Clear filters</a>

@@ -103,14 +103,14 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
         href: "https://unity.com/releases/editor/whats-new/6000.6.0f1"
       }],
       "6.5": [{
-        title: "Test stateful Cloud Code and a local server",
-        description: "Experimental packages let teams keep state across calls and test server logic locally.",
+        title: "Write Cloud Code modules in the Editor",
+        description: "The experimental package supports C# authoring in 6.5 and later. State and local server testing also work in 6.3 LTS.",
         source: "Unity Discussions",
-        href: "https://discussions.unity.com/t/new-cloud-code-features-to-develop-deploy-and-grow-your-games/1718489"
+        href: "https://discussions.unity.com/t/create-event-based-multiplayer-games-with-stateful-logic-and-cloud-code/1731013"
       }],
       "6.4": [{
         title: "Debug matchmaking from the dashboard",
-        description: "Unity’s release post covers ticket logs, pool and filter rules, and configuration history.",
+        description: "Unity announced this Matchmaker service update alongside 6.4. See ticket logs, pool and filter rules, and configuration history.",
         source: "Unity Discussions",
         href: "https://discussions.unity.com/t/unity-6-4-is-now-available/1713245"
       }],
@@ -291,7 +291,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
         title: "Move from InstanceID to EntityId",
         description: "Unity’s upgrade notes explain the new identifier type and which code needs to change.",
         source: "Unity Manual",
-        href: "https://docs.unity.com/en-us/engine/6000.6/manual/upgrade-guides/upgrade-guide-unity65"
+        href: "https://docs.unity.com/en-us/engine/6000.5/manual/upgrade-guides/upgrade-guide-unity65"
       }],
       "6.4": [{
         title: "Entities and related packages ship with the Editor",
@@ -303,7 +303,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
         title: "Entities 1.4 and experimental Unity Vehicles",
         description: "The 6.2 manual links to the Entities changes and introduces the ECS-compatible vehicle controller.",
         source: "Unity Manual",
-        href: "https://docs.unity.com/en-us/engine/6000.5/manual/whats-new/unity62#entities-1"
+        href: "https://docs.unity3d.com/6000.2/Documentation/Manual/WhatsNewUnity62.html#entities"
       }],
       "6.0": [{
         title: "Get started with data-oriented systems in Unity 6",
@@ -346,7 +346,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
       }],
       "6.1": [{
         title: "Unity’s profiling handbook for Unity 6",
-        description: "Learn when to capture, which profiling tool to use, and how to check memory and power use on target devices.",
+        description: "Published during the 6.1 release cycle, this Unity 6 handbook covers profiling frames, memory, and power on target devices.",
         source: "Unity Resources",
         href: "https://unity.com/resources/ultimate-guide-to-profiling-unity-games-unity-6"
       }],
@@ -392,7 +392,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
         title: "Try the experimental Unity Vehicles package",
         description: "Unity’s 6.2 notes cover the new ECS vehicle controller and its support for client prediction.",
         source: "Unity Manual",
-        href: "https://docs.unity.com/en-us/engine/6000.5/manual/whats-new/unity62#entities-1"
+        href: "https://docs.unity3d.com/6000.2/Documentation/Manual/WhatsNewUnity62.html#entities"
       }],
       "6.0": [{
         title: "Check how Rigidbody torque changes on upgrade",
@@ -413,7 +413,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
         title: "Animation Rigging and Timeline become core packages",
         description: "Unity’s 6.6 notes also show how to find animated properties with the new Animation window search bar.",
         source: "Unity Manual",
-        href: "https://docs.unity.com/en-us/engine/6000.6/manual/whats-new/unity66#added-search-bar-to-the-animation-window"
+        href: "https://docs.unity.com/en-us/engine/6000.6/manual/whats-new/unity66#animation-rigging-is-a-core-package"
       }],
       "6.5": [{
         title: "Find your way around the redesigned Animation window",
@@ -429,7 +429,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
       }],
       "6.0": [{
         title: "Rig and animate a 2D character in Unity 6",
-        description: "Follow the Happy Harvest example to rig a character, swap sprites, and animate different facing directions.",
+        description: "Follow this Unity 6 tutorial to rig a character, swap sprites, and animate different facing directions using the Happy Harvest sample.",
         source: "Unity Discussions",
         href: "https://discussions.unity.com/t/how-to-animate-2d-characters-in-unity-6/1642950"
       }]
@@ -462,7 +462,7 @@ export const ENGINE_FEATURE_AREAS: readonly EngineFeatureArea[] = [
       }],
       "6.0": [{
         title: "Vary footsteps and ambience with Audio Random Container",
-        description: "A Unity Learn walkthrough shows how to shuffle clips for ambient sounds or play a random sound as the player moves.",
+        description: "This Unity 6.0 tutorial shows how to shuffle ambient clips or play a random sound as the player moves.",
         source: "Unity Learn",
         href: "https://learn.unity.com/tutorial/the-basics-of-the-audio-random-container"
       }]

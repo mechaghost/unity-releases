@@ -7,11 +7,11 @@ test("browse all Unity 6 highlights, share filters and open a feature", async ({
   await expect(page).toHaveURL(/\/whats-new\/unity-6-features$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Unity 6 feature highlights");
   for (const version of ["6.0", "6.1", "6.2", "6.3", "6.4", "6.5", "6.6"]) {
-    expect(await page.locator(".feature-catalog-version").filter({ hasText: `Introduced in Unity ${version}` }).count()).toBeGreaterThan(0);
+    expect(await page.locator(".feature-catalog-version").filter({ hasText: `Unity ${version} highlight` }).count()).toBeGreaterThan(0);
   }
   const total = await page.locator(".guide-highlight").count();
   await page.getByLabel("Search features").fill("Graph Toolkit");
-  await page.getByRole("combobox", { name: "Introduced in", exact: true }).selectOption("6.2");
+  await page.getByRole("combobox", { name: "Unity release", exact: true }).selectOption("6.2");
   await page.getByRole("combobox", { name: "Category", exact: true }).selectOption("Visual tools");
   await page.getByRole("button", { name: "Apply filters" }).click();
   await expect(page.locator(".guide-highlight")).toHaveCount(1);
@@ -28,7 +28,7 @@ test("browse all Unity 6 highlights, share filters and open a feature", async ({
   await expect(page.locator(".guide-highlight")).toHaveCount(total);
 
   // Keep screenshot/accessibility checks small while exercising the same card layout.
-  await page.getByRole("combobox", { name: "Introduced in", exact: true }).selectOption("6.2");
+  await page.getByRole("combobox", { name: "Unity release", exact: true }).selectOption("6.2");
   await page.getByRole("button", { name: "Apply filters" }).click();
   if (testInfo.project.name.startsWith("mobile")) await page.setViewportSize({ width: 320, height: 850 });
   for (const theme of ["light", "dark"]) {

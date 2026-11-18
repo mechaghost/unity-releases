@@ -1,6 +1,6 @@
 import { LocalUpdatedTime } from "../_components/LocalUpdatedTime";
 import { lastDataUpdate } from "@/lib/last-data-update";
-import { RELEASE_GUIDES, guideStatus } from "@/lib/release-guides";
+import { RELEASE_GUIDES, RELEASE_GUIDES_REVIEWED, formatGuideDate, guideStatus } from "@/lib/release-guides";
 import { pageSocialMetadata } from "@/lib/site";
 import { GuideCard } from "./GuideParts";
 import { ToolingCards } from "./ToolingGuides";
@@ -35,6 +35,6 @@ export default async function WhatsNewPage() {
     </section>
     <ToolingCards />
     <MoreUpdates />
-    <footer className="guide-footer">Independent guides · Reviewed October 24, 2026. <a href="/releases">All Editor releases</a></footer>
+    <footer className="guide-footer">Independent guides · Reviewed <time dateTime={RELEASE_GUIDES_REVIEWED}>{formatGuideDate(RELEASE_GUIDES_REVIEWED)}</time>. <a href="/releases">All Editor releases</a></footer>
   </div>;
 }

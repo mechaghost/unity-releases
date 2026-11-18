@@ -9,14 +9,14 @@ Edit src/lib/release-guides.ts. Keep releases newest first. For each new guide:
 - Verify the official launch announcement, date, support type, and support policy. Do not publish a guide based on a roadmap or beta announcement as a released version.
 - Write as many short, original highlights as the release supports; there is no fixed card count. Cover distinct features with a reader benefit and a relevant image. Link the source announcement containing those claims. Keep total paraphrased source content concise.
 - Distinguish optional services, beta/experimental features, hardware requirements, and separate pricing. Do not imply that a feature appeared here for the first time merely because a launch post mentions it.
-- Review support separately from launch content. Set reviewed to the actual check date. Update the overview review text and sitemap timestamp if the editorial review changes.
+- Review support separately from launch content. Update `RELEASE_GUIDES_REVIEWED` after checking all seven guides. The overview and sitemap use that date.
 - Do not automatically turn patch notes or AI drafts into published guides. Later patch fixes belong in the existing technical tools.
 
 ## Support rules
 
 LTS and Update describe release type. Supported now, Superseded, and Standard support ended describe maintenance. Never infer support from a recent patch timestamp or label an old Update as currently supported.
 
-Sources checked October 24, 2026: Unity's release support page specifies standard support through October 2026 for 6.0 and December 2027 for 6.3, plus one year for Enterprise/Industry. Store month precision as published. A month deadline expires on the first day of the next month (UTC); the UI makes no exact-day promise. Extensions are conditional on subscription, not standard support.
+Sources checked November 17, 2026. Unity specifies standard support through October 2026 for 6.0 and December 2027 for 6.3, plus one year for Enterprise and Industry. Store the published month. The site considers the deadline past on the first day of the next month in UTC. Extensions depend on the subscription. [Unity 6 support policy](https://unity.com/releases/unity-6/support)
 
 An Update is superseded when a later released family in the reviewed catalog exists. If the newest Update has not been reviewed in over 30 days, show Check current support instead of retaining a positive claim. Pages render per request so deadlines do not freeze at build time. Review this catalog whenever a new family launches, even if its full editorial guide is not yet ready; remove stale claims before publishing highlights. Previews remain accessible through Editor Releases.
 
@@ -76,8 +76,14 @@ Verification includes the homepage and alias canonical, old comparison bookmarks
 
 ## Unity 6 feature catalog
 
-`/whats-new/unity-6-features` combines the existing feature cards for every published Unity 6 guide, including superseded releases. The overview links to it with “Browse all Unity 6 features.” Each card names the version that introduced the highlight and links to the existing feature detail page.
+`/whats-new/unity-6-features` combines the existing feature cards for every published Unity 6 guide, including superseded releases. The overview links to it with “Browse all Unity 6 features.” Each card names the release that highlighted the feature and links to the feature detail page.
 
 Search (`q`), version (`version`) and category (`category`) are GET parameters, so filtered views can be bookmarked and shared. Search matches all entered words across titles, benefits, categories, requirements and editorial search terms. Unknown filter options fall back to all versions/categories. The count, empty state and clear-filters link reflect the combined filters. All matching cards render together; images below the first row load lazily.
 
 This is a catalog of selected launch highlights, not every release-note change or a promise that older Editor versions include later features. Future releases and non-Unity-6 guides are excluded. Existing per-release guides and the past-release archive stay available. The canonical and sitemap include the unfiltered catalog URL.
+
+### November 17, 2026 content review
+
+Checked the seven launch guides, all 63 illustrated highlights and detail pages, and all 59 article and post cards across the 11 engine feature pages. The date shown on a guide is Unity’s public announcement date. The download archive records the first build separately. [Unity download archive](https://unity.com/releases/editor/archive)
+
+Use the target version’s manual or package docs for setup and compatibility. A later manual’s historical release page can supply the original notes when the target manual link redirects to its index. Identify service updates and tutorials in the card copy so readers can tell whether they need that Editor version. In this review, Unity 6.1 Build Profile quality overrides apply to the built Player, and the experimental Cloud Code package requires 6.5 for native authoring while it supports scopes and local testing on 6.3 LTS. [Unity 6.1 Build Profiles](https://docs.unity3d.com/6000.1/Documentation/Manual/build-profiles-override-settings.html) [Unity Cloud Code version table](https://discussions.unity.com/t/create-event-based-multiplayer-games-with-stateful-logic-and-cloud-code/1731013)

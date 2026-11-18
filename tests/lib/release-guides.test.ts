@@ -59,7 +59,10 @@ describe("release guides", () => {
     expect(get("6.0").kind).toBe("lts");
   });
   test("an Update cannot claim current support indefinitely without review", () => {
-    expect(guideStatus(get("6.6"), at("2026-12-01")).label).toBe("Check current support");
+    const guide = get("6.6");
+    const lastReviewed = Date.parse(`${guide.reviewed}T00:00:00Z`);
+    expect(guideStatus(guide, new Date(lastReviewed + 30 * 86_400_000)).label).toBe("Supported now");
+    expect(guideStatus(guide, new Date(lastReviewed + 31 * 86_400_000)).label).toBe("Check current support");
   });
   test("a future release is not presented as available", () => {
     expect(guideStatus(get("6.6"), at("2026-08-31")).label).toBe("Upcoming");

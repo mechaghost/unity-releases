@@ -113,7 +113,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       "Reset persistent static state explicitly, or use the static-cleanup attributes described in the manual. Project Auditor can flag domain-reload issues."
     ],
     "notes": [
-      "Existing projects keep their configured behavior. Code that relies on domain reload to clear state must be updated."
+      "Existing projects keep their configured behavior. If you disable domain reload, update any code that relies on it to clear state."
     ],
     "searchTerms": [
       "domain reload",
@@ -827,22 +827,26 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
   },
   "6.4-3": {
     "slug": "matchmaker-reports",
-    "technicalName": "Matchmaker reports",
+    "technicalName": "Unity Matchmaker Dashboard logs",
     "links": [
+      {
+        "label": "Unity 6.4 announcement and Matchmaker update",
+        "url": "https://discussions.unity.com/t/unity-6-4-is-now-available/1713245"
+      },
       {
         "label": "Matchmaker documentation",
         "url": "https://docs.unity.com/ugs/en-us/manual/matchmaker/manual/matchmaker-overview"
       }
     ],
     "overview": [
-      "Matchmaker adds better visibility into ticket activity and unmatched players. Reports can explain why a ticket did not satisfy a pool’s matching conditions."
+      "The service update adds Dashboard logs for ticket creation, match results, allocation requests, and backfills. The Dashboard also shows configuration history with change diffs."
     ],
     "steps": [
-      "Open the project’s Matchmaker area in Unity Dashboard and inspect the affected ticket or matching report.",
-      "Compare the unmet criteria with the pool and rule configuration; use logs to follow creation, matching, allocation, and backfill activity."
+      "Open the project’s Matchmaker area in Unity Dashboard and inspect the affected ticket in the logs.",
+      "Compare the ticket with the pool and filter rules. Use configuration history to check whether recent edits changed those rules."
     ],
     "notes": [
-      "Requires the separate Unity Matchmaker service and access to the project’s Dashboard. These service changes are not an offline Editor feature."
+      "Requires the Unity Matchmaker service and access to the project’s Dashboard. Unity announced it alongside 6.4 as a service update."
     ],
     "searchTerms": [
       "Matchmaker",
@@ -913,7 +917,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       },
       {
         "label": "Profiler window reference",
-        "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/ProfilerWindow.html#captures-list"
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/analysis/profiler/window#captures-list-1"
       }
     ],
     "overview": [
@@ -924,7 +928,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       "Select one frame or a range to inspect the statistics, then use the detailed Profiler modules to investigate the expensive work."
     ],
     "notes": [
-      "The module is not enabled by default. A target frame time is an analysis threshold, not a setting that changes game performance."
+      "The target frame time is a threshold for reading the capture. Set the game’s actual frame rate separately."
     ],
     "searchTerms": [
       "Profiler Highlights"
@@ -985,7 +989,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Shader Build Settings",
-        "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/class-GraphicsSettings.html#shader-build-settings"
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/unity-editor/editor-settings-reference/comp-manager-group/class-graphics-settings#shader-build-settings-1"
       },
       {
         "label": "Reduce shader variants",
@@ -1016,19 +1020,20 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
         "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/web-request.html"
       },
       {
-        "label": "Unity 6.3 HTTP/2 announcement",
-        "url": "https://unity.com/blog/unity-6-3-lts-is-now-available"
+        "label": "Unity 6.3 HTTP/2 platform support",
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/whats-new/unity63#http/2-protocol-for-unitywebrequest"
       }
     ],
     "overview": [
-      "UnityWebRequest uses HTTP/2 when the server supports it. The update concerns the network connection used for requests, so existing request code can benefit without a new gameplay API."
+      "UnityWebRequest uses HTTP/2 by default on supported platforms when the server supports it. Existing request code can use the new protocol without API changes."
     ],
     "steps": [
       "Use UnityWebRequest for the request and connect to an endpoint configured for HTTP/2.",
       "Inspect server or network logs to confirm the negotiated protocol and compare concurrent-request behavior."
     ],
     "notes": [
-      "The server must support HTTP/2. This does not mean every request becomes faster or that a gRPC client is configured automatically."
+      "Unity 6.3 supports HTTP/2 on Android, Embedded Linux, Linux, macOS, PlayStation 4 and 5, Universal Windows Platform, and Windows.",
+      "On Android, you can force HTTP/1.1 in Player settings under Other Settings > Configuration."
     ],
     "searchTerms": [
       "HTTP/2",
@@ -1311,19 +1316,19 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "technicalName": "HDRP water deformation",
     "links": [
       {
-        "label": "Deform a water surface vertically",
+        "label": "Deform the water surface with a decal",
         "url": "https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.1/manual/water-deform-a-water-surface.html"
       }
     ],
     "overview": [
-      "HDRP water decals can deform a water surface vertically and horizontally. A Shader Graph material defines the pattern, including rolling waves."
+      "HDRP 17.1 adds horizontal deformation to water decals. Combining horizontal and vertical movement lets you create rolling waves with a Shader Graph material."
     ],
     "steps": [
-      "Enable Deformation in the water surface’s Water Decals settings.",
-      "Add GameObject > Water > Water Decal, create a Deformer and Foam Water Decal material, and edit its Shader Graph."
+      "Enable Horizontal Deformation in Project Settings > Quality > HDRP > Rendering > Water. Enable Deformation in the water surface’s Water Decals settings.",
+      "Create a Water Decal with a Deformer and Foam material. Connect a gradient texture to the Horizontal Deformation block in the material’s Shader Graph."
     ],
     "notes": [
-      "Requires HDRP’s water system. Deformation changes height; it is not a general fluid simulation."
+      "Requires HDRP’s water system. Horizontal deformation can change the surface shape at the water’s edge."
     ],
     "searchTerms": [
       "water deformation"
@@ -1399,10 +1404,10 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     ],
     "steps": [
       "Open File > Build Profiles and select the target profile.",
-      "Add quality-setting overrides and choose the quality levels available to that build."
+      "Enable Override Global Quality Settings, choose the included levels, and set the default level for the build."
     ],
     "notes": [
-      "Overrides apply in Play mode as well as the built Player when that profile is active."
+      "The built Player uses the profile’s included and default quality levels. Play Mode uses the level selected in the global Quality settings."
     ],
     "searchTerms": [
       "Build Profiles",
@@ -1426,7 +1431,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       "GPU Resident Drawer uses GPU instancing to reduce CPU draw-call work for compatible objects. GPU occlusion culling can then skip objects hidden behind other geometry."
     ],
     "steps": [
-      "Keep BatchRendererGroup shader variants in Graphics settings and enable the SRP Batcher in URP.",
+      "In Project Settings > Graphics, set BatchRendererGroup Variants to Keep All. Enable the SRP Batcher in URP.",
       "Set GPU Resident Drawer to Instanced Drawing and use the Forward+ rendering path."
     ],
     "notes": [
@@ -1446,14 +1451,15 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
         "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/urp/probevolumes-showandadjust.html"
       },
       {
-        "label": "Adaptive Probe Volume window",
-        "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/lighting-window.html#ProbeVolumes"
+        "label": "Add and bake Adaptive Probe Volumes in URP",
+        "url": "https://docs.unity.com/en-us/engine/6000.0/manual/lighting-overview/lighting/probevolumes/use"
       }
     ],
     "overview": [
-      "Adaptive Probe Volumes place and manage baked lighting probes across a scene. They let moving objects receive indirect lighting from the surrounding environment."
+      "Adaptive Probe Volumes place baked lighting probes across a scene so moving objects can receive indirect light. Unity 6.0 brings Lighting Scenario Blending to URP."
     ],
     "steps": [
+      "Enable Adaptive Probe Volumes in the render pipeline settings, then add a volume to the scene.",
       "Use the Adaptive Probe Volumes tab in Window > Rendering > Lighting to configure and bake probe data.",
       "Open Rendering Debugger and display probes to inspect their density and identify invalid samples."
     ],
@@ -1521,23 +1527,23 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "technicalName": "Distributed authority",
     "links": [
       {
-        "label": "Distributed authority documentation (current package)",
-        "url": "https://docs.unity3d.com/Packages/com.unity.netcode.gameobjects@latest?subfolder=/manual/terms-concepts/distributed-authority.html"
+        "label": "Ownership and authority in Netcode for GameObjects 2.0",
+        "url": "https://mp-docs.dl.it.unity3d.com/netcode/2.0.0/basics/ownership/"
       },
       {
-        "label": "Multiplayer Use Cases Bitesize Sample",
-        "url": "https://github.com/Unity-Technologies/com.unity.multiplayer.samples.bitesize/tree/main/Basic/MultiplayerUseCases"
+        "label": "Experimental Asteroids sample linked at launch",
+        "url": "https://github.com/Unity-Technologies/com.unity.multiplayer.samples.bitesize/tree/main/Experimental/Asteroids-CMB-NGO-Sample"
       }
     ],
     "overview": [
       "Distributed authority lets clients own different parts of a networked simulation instead of putting all authority on one game host. It changes how ownership and synchronization are designed."
     ],
     "steps": [
-      "Use the distributed-authority documentation to configure the appropriate Netcode for GameObjects and multiplayer service setup.",
+      "For the Unity 6.0 launch workflow, use Netcode for GameObjects 2.0 with the Multiplayer Services package.",
       "Study the official sample’s ownership and synchronization flow before assigning gameplay responsibilities to clients."
     ],
     "notes": [
-      "Beta at the Unity 6 launch. Client ownership has different trust and failure-handling implications from a server-authoritative design. Current package documentation may describe later changes."
+      "Beta at the Unity 6 launch. The Multiplayer Services package coordinates session state through Unity’s cloud service."
     ],
     "searchTerms": [
       "distributed authority"
@@ -1602,7 +1608,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       },
       {
         "label": "custom property drawers",
-        "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/ui-systems/custom-control-customize-uxml-attributes.html#add-custom-property-drawer-in-ui-builder"
+        "url": "https://docs.unity.com/en-us/engine/6000.0/manual/uitoolkits/uielements/uie-structure-ui/uie-custom-controls/custom-control-customize-uxml-attributes#add-custom-property-drawer-in-ui-builder-1"
       }
     ],
     "overview": [

@@ -32,7 +32,7 @@ export default async function ReleaseGuidePage({ params }: Props) {
     <details className="guide-support">
       <summary>Support and release details</summary>
       <p><strong>{status.label}.</strong> {status.detail}</p>
-      <p>Released <time dateTime={guide.released}>{formatGuideDate(guide.released)}</time> · Reviewed <time dateTime={guide.reviewed}>{formatGuideDate(guide.reviewed)}</time></p>
+      <p>Announced <time dateTime={guide.released}>{formatGuideDate(guide.released)}</time> · Reviewed <time dateTime={guide.reviewed}>{formatGuideDate(guide.reviewed)}</time></p>
       <ExternalLink href={SUPPORT_SOURCE}>Unity’s support policy</ExternalLink>
     </details>
     <div className="guide-actions">

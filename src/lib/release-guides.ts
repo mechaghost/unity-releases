@@ -19,11 +19,12 @@ export type ReleaseGuide = {
   highlights: GuideHighlight[];
 };
 export const SUPPORT_SOURCE = "https://unity.com/releases/unity-6/support";
+export const RELEASE_GUIDES_REVIEWED = "2026-11-17";
 const highlight = (category: string, title: string, benefit: string, limitation?: string): HighlightCopy =>
   ({ category, title, benefit, limitation });
 const guide = (version: string, kind: ReleaseGuide["kind"], released: string, summary: string, audience: string,
   source: string, highlights: HighlightCopy[], supportThrough?: string, extendedThrough?: string): ReleaseGuide =>
-  ({ version, slug: `unity-${version.replace(".", "-")}`, kind, released, reviewed: "2026-10-24", summary, audience, source, highlights: highlights.map((item, index) => {
+  ({ version, slug: `unity-${version.replace(".", "-")}`, kind, released, reviewed: RELEASE_GUIDES_REVIEWED, summary, audience, source, highlights: highlights.map((item, index) => {
     const image = (images as Record<string, Omit<GuideImage, "source"> & { source?: string }>)[`${version}-${index}`];
     return { ...item, image: { ...image, source: image.source ?? source } };
   }), supportThrough, extendedThrough });
@@ -33,7 +34,7 @@ export const RELEASE_GUIDES: readonly ReleaseGuide[] = [
     "Teams looking to shorten everyday development loops and understand what makes their game large or slow to build.",
     "https://discussions.unity.com/t/unity-6-6-is-now-available/1735357", [
       highlight("2D visuals", "Control 2D lighting", "Choose which lights affect each character or object in a 2D scene.", "Requires the Universal Render Pipeline (URP) 2D renderer."),
-      highlight("Lighting", "Faster lighting calculations", "The new light baker uses graphics hardware to speed up lighting calculations."),
+      highlight("Lighting", "Bake lighting with compute shaders", "The new opt-in light baker generates lightmaps and probe data and can use hardware ray tracing."),
       highlight("Production workflow", "Inspect build size and time", "Build Analysis shows build times, large assets, and errors together."),
       highlight("Creative workflow", "Enter Play mode faster", "New projects skip code reloading when you press Play, reducing the wait before testing.", "Code state is not reset automatically between Play sessions."),
       highlight("Asset loading", "Load assets in smaller groups", "Content directories give teams finer control over local asset loading."),
@@ -72,7 +73,7 @@ export const RELEASE_GUIDES: readonly ReleaseGuide[] = [
       highlight("Project health", "Built-in project checks", "Project Auditor is now included in the Editor."),
       highlight("Project health", "Unsigned package warnings", "New prompts flag unsigned packages and packages from outside Unity."),
       highlight("Performance", "Console quality scaling", "Adaptive Performance expands its basic provider to PlayStation and Xbox platforms."),
-      highlight("Multiplayer", "Matchmaking reports", "New Matchmaker reports explain why players have not found a match.", "Requires the separate Unity Matchmaker service."),
+      highlight("Multiplayer", "Matchmaking logs in the Dashboard", "A Unity Matchmaker service update announced alongside 6.4 lets you inspect tickets, results, and backfill activity."),
       highlight("Large worlds", "ECS included in the Editor", "Tools for simulating large numbers of objects now come with the Editor.")
     ]),
   guide("6.3", "lts", "2025-12-04", "Platform tools, performance reports, and 2D improvements.",
@@ -83,7 +84,7 @@ export const RELEASE_GUIDES: readonly ReleaseGuide[] = [
       highlight("2D production", "Find unused texture space", "Sprite Atlas Analyzer reports packing and texture inefficiencies."),
       highlight("Visual quality", "More efficient mobile effects", "Rendering improvements offer more efficient post-processing for mobile and untethered XR."),
       highlight("Builds", "Reduce shader build work", "Shader build settings help teams control which shader variants get compiled."),
-      highlight("Networking", "HTTP/2 connections", "HTTP/2 support lets games use newer web-server connections."),
+      highlight("Networking", "HTTP/2 connections", "UnityWebRequest uses HTTP/2 by default on supported platforms when the server supports it."),
       highlight("World building", "Create terrain materials visually", "Shader Graph brings visual material editing to terrain."),
       highlight("Interfaces", "Sharp icons at any size", "Native SVG support keeps UI Toolkit vector graphics sharp when resized.")
     ], "2027-12", "2028-12"),
@@ -103,7 +104,7 @@ export const RELEASE_GUIDES: readonly ReleaseGuide[] = [
     "https://unity.com/blog/unity-6-1-is-now-available", [
       highlight("Visual quality", "More lights and objects", "Deferred+ expands rendering options for scenes with more lights and objects.", "Requires the Universal Render Pipeline (URP)."),
       highlight("Project health", "Project checks", "Project Auditor helps inspect code, assets, settings, and builds.", "Installed as a separate package in Unity 6.1."),
-      highlight("Visual quality", "Rolling waves", "Water deformation adds rolling waves to high-end scenes.", "Requires the High Definition Render Pipeline (HDRP)."),
+      highlight("Visual quality", "Rolling waves", "Water decals can now deform the surface horizontally to create rolling waves.", "Requires the High Definition Render Pipeline (HDRP)."),
       highlight("Web experiences", "WebGPU browser graphics", "Experimental WebGPU support brings newer graphics capabilities to browsers.", "Experimental in this release; requires a WebGPU-compatible browser."),
       highlight("Graphics", "Focus graphics work where it matters", "Variable Rate Shading reduces detail in selected areas to save rendering work.", "Requires compatible graphics hardware."),
       highlight("Publishing", "Set quality per build", "Build profiles can override quality settings for different target devices.")

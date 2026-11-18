@@ -3,7 +3,7 @@ import { pageSocialMetadata } from "@/lib/site";
 import { GuideCard } from "../GuideParts";
 
 export const dynamic = "force-dynamic";
-const description = "Browse the features introduced in superseded Unity releases.";
+const description = "Browse the highlights from superseded Unity releases.";
 export const metadata = {
   title: "Past Unity releases", description,
   alternates: { canonical: "/whats-new/past-releases" },
