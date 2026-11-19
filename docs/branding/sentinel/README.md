@@ -46,7 +46,7 @@ Use blue for primary actions, links and active selection. Keep fixes, warnings a
 
 The canonical geometry is in `src/lib/sentinel.ts`. `SentinelMark` uses it for the navigation, favicon, Apple icon and sharing card. The tile is always white; fills never follow the theme.
 
-Run `npm run brand:generate` to rebuild the downloadable SVG and 16/32/48/180/192/512px PNGs in `public/brand`. The 1200×630 sharing image is served at `/opengraph-image`; `/icon` and `/apple-icon` provide Next metadata icons. `/manifest.webmanifest` references the 192/512px PNGs.
+Run `npm run brand:generate` to rebuild the SVG and 16/32/48/180/192/512px PNGs in `public/brand`. Open Graph and Twitter metadata use the [1200×630 gearbox banner](../../../public/brand/social-preview-gearbox.png). The original `/opengraph-image` route also serves this PNG. `/icon` and `/apple-icon` provide Next metadata icons, and `/manifest.webmanifest` references the 192/512px PNGs.
 
 The navigation provides stacked desktop and compact horizontal mobile wordmarks. Both use locally hosted Inter; version strings use locally hosted JetBrains Mono. Font licenses and source details are in `src/app/fonts`.
 

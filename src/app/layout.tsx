@@ -14,6 +14,7 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_TAGLINE,
+  siteSocialImage,
   siteUrl
 } from "@/lib/site";
 import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
@@ -62,12 +63,14 @@ export const metadata: Metadata = {
     title: `${SITE_NAME} - ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
     url: "/",
-    locale: "en_US"
+    locale: "en_US",
+    images: [siteSocialImage()]
   },
   twitter: {
     card: "summary_large_image",
     title: `${SITE_NAME} - ${SITE_TAGLINE}`,
-    description: SITE_DESCRIPTION
+    description: SITE_DESCRIPTION,
+    images: [siteSocialImage()]
   },
   category: "technology"
 };

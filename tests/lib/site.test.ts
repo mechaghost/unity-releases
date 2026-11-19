@@ -27,8 +27,15 @@ describe("pageSocialMetadata", () => {
     expect(og.url).toBe("https://unityreleases.com/releases");
     expect(og.siteName).toBe("Unity Releases");
     expect(og.locale).toBe("en_US");
-    expect(og.images).toEqual([{ url: "https://unityreleases.com/opengraph-image", width: 1200, height: 630, alt: "Unity Releases" }]);
-    expect(twitter.images).toEqual(["https://unityreleases.com/opengraph-image"]);
+    const image = {
+      url: "https://unityreleases.com/brand/social-preview-gearbox.png",
+      width: 1200,
+      height: 630,
+      type: "image/png",
+      alt: "Unity Releases. Know what changed. An exploded gearbox with a cobalt base."
+    };
+    expect(og.images).toEqual([image]);
+    expect(twitter.images).toEqual([image]);
     expect(twitter.card).toBe("summary_large_image");
     expect(twitter.title).toBe("Editor Releases - Unity Releases");
     expect(twitter.description).toBe("Every indexed Unity editor release.");
@@ -43,6 +50,7 @@ describe("pageSocialMetadata", () => {
     });
     const og = meta.openGraph as Record<string, unknown>;
     expect(og.url).toBe("https://staging.unityreleases.com/faq");
+    expect(og.images).toEqual([expect.objectContaining({ url: "https://staging.unityreleases.com/brand/social-preview-gearbox.png" })]);
   });
 
   test("preserves query-style paths so /compare?from=...&to=... unfurls correctly", () => {

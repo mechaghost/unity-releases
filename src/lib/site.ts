@@ -29,6 +29,19 @@ export const SITE_TAGLINE = "Features, releases, and upgrades";
 export const SITE_DESCRIPTION =
   "Explore what’s new in Unity, read release guides, and compare Editor versions. Find feature documentation, package versions, and reported issues. Independent project, not affiliated with Unity Technologies.";
 
+export const SOCIAL_PREVIEW_PATH = "/brand/social-preview-gearbox.png";
+export const SOCIAL_PREVIEW_ALT = "Unity Releases. Know what changed. An exploded gearbox with a cobalt base.";
+export const SOCIAL_PREVIEW_SIZE = { width: 1200, height: 630 };
+
+export function siteSocialImage() {
+  return {
+    url: `${siteUrl()}${SOCIAL_PREVIEW_PATH}`,
+    alt: SOCIAL_PREVIEW_ALT,
+    type: "image/png",
+    ...SOCIAL_PREVIEW_SIZE
+  };
+}
+
 /**
  * Build per-page Open Graph + Twitter metadata so each route surfaces
  * its own title/description/url when shared on Slack, Discord, X, etc.
@@ -43,6 +56,7 @@ export function pageSocialMetadata(opts: {
 }): Pick<Metadata, "openGraph" | "twitter"> {
   const fullTitle = `${opts.title} - ${SITE_NAME}`;
   const url = `${siteUrl()}${opts.path}`;
+  const image = siteSocialImage();
   return {
     openGraph: {
       title: fullTitle,
@@ -51,13 +65,13 @@ export function pageSocialMetadata(opts: {
       type: "website",
       siteName: SITE_NAME,
       locale: "en_US",
-      images: [{ url: `${siteUrl()}/opengraph-image`, width: 1200, height: 630, alt: SITE_NAME }]
+      images: [image]
     },
     twitter: {
       card: "summary_large_image",
       title: fullTitle,
       description: opts.description,
-      images: [`${siteUrl()}/opengraph-image`]
+      images: [image]
     }
   };
 }

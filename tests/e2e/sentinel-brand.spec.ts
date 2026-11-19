@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { load } from "cheerio";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
@@ -50,4 +51,31 @@ test("brand image endpoints return images and install metadata", async ({ reques
   const manifest = await request.get("/manifest.webmanifest");
   expect(manifest.ok()).toBe(true);
   expect((await manifest.json()).icons).toHaveLength(2);
+});
+
+test("link preview crawlers get the gearbox PNG and descriptive alt text", async ({ request }) => {
+  const imagePath = "/brand/social-preview-gearbox.png";
+  const image = await request.get(imagePath);
+  expect(image.ok()).toBe(true);
+  expect(image.headers()["content-type"]).toContain("image/png");
+  const imageBytes = await image.body();
+  expect(await sharp(imageBytes).metadata()).toMatchObject({ format: "png", width: 1200, height: 630 });
+  expect((await (await request.get("/opengraph-image")).body()).equals(imageBytes)).toBe(true);
+
+  for (const route of ["/", "/whats-new/by-feature", "/releases"]) {
+    const response = await request.get(route, { headers: { "User-Agent": "Slackbot-LinkExpanding 1.0" } });
+    expect(response.ok(), route).toBe(true);
+    const $ = load(await response.text());
+    const ogImage = $('head meta[property="og:image"]');
+    expect(ogImage, route).toHaveLength(1);
+    const url = ogImage.attr("content")!;
+    expect(new URL(url).pathname).toBe(imagePath);
+    expect($('head meta[property="og:image:width"]').attr("content")).toBe("1200");
+    expect($('head meta[property="og:image:height"]').attr("content")).toBe("630");
+    const alt = $('head meta[property="og:image:alt"]').attr("content");
+    expect(alt).toContain("gearbox with a cobalt base");
+    expect($('head meta[name="twitter:card"]').attr("content")).toBe("summary_large_image");
+    expect($('head meta[name="twitter:image"]').attr("content")).toBe(url);
+    expect($('head meta[name="twitter:image:alt"]').attr("content")).toBe(alt);
+  }
 });
