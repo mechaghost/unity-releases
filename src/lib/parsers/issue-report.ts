@@ -1,7 +1,7 @@
 import { load } from "cheerio";
 import { extractFlightStream, findFlightObject, parseFlightRows } from "../ingest/rsc-flight";
 
-export const ISSUE_REPORT_PARSER_VERSION = "issue-report-v1";
+export const ISSUE_REPORT_PARSER_VERSION = "issue-report-v2";
 const HOSTS = new Set(["issuetracker.unity.com", "issuetracker.unity3d.com"]);
 export const normalizeIssueId = (id: string) => {
   const normalized = id.trim().toUpperCase();
@@ -53,10 +53,13 @@ export function parseIssueReport(html: string, expectedId: string): ParsedIssueR
   const $ = load(html);
   const identity = findFlightObject(parseFlightRows(extractFlightStream(html)), node => typeof node.issueExternalKey === "string");
   if (identity?.issueExternalKey !== id) throw new Error(`Issue identity missing or mismatched for ${id}`);
-  if ($("h1").length !== 1 || $(".issue-description").length !== 1) throw new Error("Issue page structure changed");
-  const title = $("h1").text().replace(/\s+/g, " ").trim();
+  const descriptions = $(".issue-description");
+  // Formatted report text can contain headings; only a heading outside it is a page title.
+  const titleHeadings = $("h1").filter((_, heading) => $(heading).closest(".issue-description").length === 0);
+  if (titleHeadings.length !== 1 || descriptions.length !== 1) throw new Error("Issue page structure changed");
+  const title = titleHeadings.text().replace(/\s+/g, " ").trim();
   if (!title || title.length > 2048) throw new Error("Invalid issue title");
-  const descriptionNode = $(".issue-description").clone();
+  const descriptionNode = descriptions.clone();
   descriptionNode.find("script, style, nav, form, iframe").remove();
   descriptionNode.find("br").replaceWith(" ");
   descriptionNode.find("p, li, div, pre, h1, h2, h3").append(" ");

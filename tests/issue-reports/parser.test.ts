@@ -3,8 +3,32 @@ import { describe, expect, test } from "vitest";
 import { normalizeIssueId, parseIssueReport, trackerHtmlRedirect, trackerPageUnavailable, validatedTrackerUrl } from "../../src/lib/parsers/issue-report";
 const customer = readFileSync("tests/fixtures/issue-reports/customer.html", "utf8");
 const streamedMissing = readFileSync("tests/fixtures/issue-reports/streamed-not-found.html", "utf8");
+const syntheticId = "UUM-123456";
+const syntheticReport = (outerTitle: string, description: string) =>
+  `${outerTitle}${description}<script>self.__next_f.push([1,${JSON.stringify(`1:{"issueExternalKey":"${syntheticId}"}\n`)}])</script>`;
 
 describe("tracker report parsing", () => {
+  test("uses the exterior title without treating a nested description heading as a page title", () => {
+    const html = syntheticReport(
+      "<h1> Example issue title </h1>",
+      '<div class="issue-description"><div><h1>Example section</h1><p>Example body.</p></div></div>'
+    );
+    expect(parseIssueReport(html, syntheticId)).toEqual({
+      issueId: syntheticId,
+      title: "Example issue title",
+      description: "Example section Example body.",
+      descriptionTruncated: false,
+    });
+    expect(() => parseIssueReport(html, "UUM-123457")).toThrow(/identity/);
+  });
+  test("rejects missing or ambiguous exterior titles and ambiguous descriptions", () => {
+    const description = '<div class="issue-description"><h1>Example section</h1></div>';
+    for (const html of [
+      syntheticReport("", description),
+      syntheticReport("<h1>Title</h1><h1>Other page title</h1>", description),
+      syntheticReport("<h1>Title</h1>", description + description),
+    ]) expect(() => parseIssueReport(html, syntheticId)).toThrow(/structure/);
+  });
   test("follows only a corroborated streamed not-found shell, without declaring it unavailable", () => {
     const url = "https://issuetracker.unity.com/issues/24434";
     expect(trackerHtmlRedirect(streamedMissing, url)).toBe("https://issuetracker.unity.com/not-found");
