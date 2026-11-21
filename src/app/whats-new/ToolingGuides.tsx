@@ -1,6 +1,7 @@
 import { TOOLING_GUIDES, TOOLING_REVIEWED, type ToolingGuide } from "@/lib/tooling-guides";
 import { formatGuideDate } from "@/lib/release-guides";
 import { pageSocialMetadata } from "@/lib/site";
+import { UNITE_TOKYO_PATH } from "@/lib/unite-tokyo";
 import { ExternalLink } from "../_components/ExternalLink";
 import styles from "./tooling.module.css";
 
@@ -36,6 +37,7 @@ export function ToolingDetail({ guide }: { guide: ToolingGuide }) {
       <h3>{guide.headline}</h3><ul className={styles.changes}>{guide.changes.map(change => <li key={change}>{change}</li>)}</ul>
       <aside className={styles.migration}><h3>Before you update</h3><p>{guide.migration}</p></aside>
       <p><ExternalLink href={guide.changelog}>Full release notes and version history</ExternalLink></p>
+      <p><a href={`${UNITE_TOKYO_PATH}#tools`}>See the other tools Unity showed at Unite Tokyo 2026</a>.</p>
     </section>
     <section id="features" className={styles.section} aria-labelledby="features-heading">
       <h2 id="features-heading">What you can do</h2><p>Browse the documented feature areas. Each reference includes command details; availability depends on your installed version and project packages.</p>

@@ -2,6 +2,7 @@ import { LocalUpdatedTime } from "../_components/LocalUpdatedTime";
 import { lastDataUpdate } from "@/lib/last-data-update";
 import { RELEASE_GUIDES, RELEASE_GUIDES_REVIEWED, formatGuideDate, guideStatus } from "@/lib/release-guides";
 import { pageSocialMetadata } from "@/lib/site";
+import { UNITE_TOKYO_PATH } from "@/lib/unite-tokyo";
 import { GuideCard } from "./GuideParts";
 import { ToolingCards } from "./ToolingGuides";
 import { MoreUpdates } from "./MoreUpdates";
@@ -25,6 +26,7 @@ export default async function WhatsNewPage() {
     <section id="release-guides" aria-label="Release guides">
       <div className="guide-grid">{released.map((guide, index) => <GuideCard key={guide.slug} guide={guide} now={now} eager={index < 2} />)}</div>
       <nav className="guide-browse-links" aria-label="Browse release guides">
+        <a href={UNITE_TOKYO_PATH}>Unite Tokyo 2026 <span aria-hidden="true">→</span></a>
         <a href="/whats-new/unity-6-features">Browse all Unity 6 features <span aria-hidden="true">→</span></a>
         <a href="/whats-new/past-releases">Past releases <span aria-hidden="true">→</span></a>
       </nav>

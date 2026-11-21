@@ -5,6 +5,7 @@ import { ENGINE_FEATURE_AREAS, ENGINE_FEATURES_PATH, engineFeatureHref } from "@
 import type { MetadataRoute } from "next";
 import { listReleaseSummaries, listTopIssueIds } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
+import { UNITE_TOKYO_PATH, UNITE_TOKYO_REVIEWED } from "@/lib/unite-tokyo";
 import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
 import { PRODUCT_UPDATE_FAMILY_CATALOG } from "@/lib/product-updates/catalog";
 import {
@@ -34,6 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...RELEASE_GUIDES.map(guide => ({ url: `${origin}${guideHref(guide)}`, lastModified: new Date(guide.reviewed), changeFrequency: "weekly" as const, priority: 0.8 })),
     ...RELEASE_GUIDES.flatMap(guide => guideFeatures(guide).map(feature => ({ url: `${origin}${featureHref(guide, feature)}`, lastModified: new Date(guide.reviewed), changeFrequency: "monthly" as const, priority: 0.7 }))),
     { url: `${origin}/`, changeFrequency: "daily", priority: 1.0 },
+    { url: `${origin}${UNITE_TOKYO_PATH}`, lastModified: new Date(UNITE_TOKYO_REVIEWED), changeFrequency: "monthly", priority: 0.8 },
     { url: `${origin}/whats-new/unity-6-features`, changeFrequency: "weekly", priority: 0.85 },
     { url: `${origin}${ENGINE_FEATURES_PATH}`, changeFrequency: "monthly", priority: 0.8 },
     ...ENGINE_FEATURE_AREAS.map(area => ({ url: `${origin}${engineFeatureHref(area)}`, changeFrequency: "monthly" as const, priority: 0.8 })),
@@ -46,7 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${origin}/discussions`, changeFrequency: "daily", priority: 0.6 },
     { url: `${origin}/news`, changeFrequency: "daily", priority: 0.5 },
     { url: `${origin}/stats`, changeFrequency: "daily", priority: 0.4 },
-    { url: `${origin}/guides/agentic-coding-with-unity`, lastModified: new Date("2026-10-25"), changeFrequency: "monthly", priority: 0.7 },
+    { url: `${origin}/guides/agentic-coding-with-unity`, lastModified: new Date(UNITE_TOKYO_REVIEWED), changeFrequency: "monthly", priority: 0.7 },
     { url: `${origin}/faq`, changeFrequency: "monthly", priority: 0.6 },
     // Primary-nav pages that were missing from the static list (the per-issue
     // URLs below already made /issues/* crawlable; the index pages weren't).

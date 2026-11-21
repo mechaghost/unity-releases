@@ -2,9 +2,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 for (const path of ["/", "/whats-new"]) {
-  test(`${path} places Pipeline and CLI immediately after release guides`, async ({ page }) => {
+  test(`${path} links to Pipeline and CLI after release and engine feature guides`, async ({ page }) => {
     await page.goto(path);
-    await expect(page.locator('#release-guides + #pipeline-and-cli')).toBeVisible();
+    await expect(page.locator('#release-guides ~ [aria-labelledby="browse-engine-features"] + #pipeline-and-cli')).toBeVisible();
     for (const [name, slug] of [["Unity Pipeline", "unity-pipeline"], ["Unity CLI", "unity-cli"]]) {
       const link = page.locator('#pipeline-and-cli a').filter({ has: page.getByRole('heading', { name, exact: true }) });
       await link.focus();

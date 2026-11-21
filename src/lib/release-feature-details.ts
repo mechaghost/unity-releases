@@ -17,11 +17,11 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Create a 2D light in URP",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/urp/2d-light-properties-explained.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/unity2d/2d-urp/2d-index/2d-light-properties-explained"
       },
       {
         "label": "Optimize 2D lights in URP",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/urp/2d-light-batching-debugger.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/unity2d/2d-urp/2d-index/2d-light-batching-debugger"
       }
     ],
     "overview": [
@@ -50,7 +50,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       },
       {
         "label": "Graphics Project Settings",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/class-GraphicsSettings.html#light-baker"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/unity-editor/editor-settings-reference/comp-manager-group/class-graphics-settings#light-baker"
       }
     ],
     "overview": [
@@ -74,11 +74,11 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Build Analysis window",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/build-analysis-window-reference.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/building-and-publishing/build-analyze-builds/build-analysis-window-reference"
       },
       {
         "label": "Build history",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/build-history.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/building-and-publishing/build-analyze-builds/build-history"
       }
     ],
     "overview": [
@@ -102,11 +102,11 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Enter Play mode without domain reload",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/domain-reloading.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/programming-environment/code-reload-serialization/code-reload/code-reloading-editor/domain-reloading"
       },
       {
         "label": "Domain reloading issues",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/project-auditor/domain-reloading-issues.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/analysis/project-auditor/project-issues/domain-reloading-issues"
       }
     ],
     "overview": [
@@ -130,7 +130,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Introduction to content directories",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/content-directories-introduction.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/assets-and-media/assets-managing-runtime/content-directories/introduction"
       },
       {
         "label": "Convert Addressables projects to content directories",
@@ -159,7 +159,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Configure the Hierarchy window",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/configure-hierarchy-window.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/unity-editor/editor-windows-views-reference/hierarchy-window/configure"
       }
     ],
     "overview": [
@@ -207,7 +207,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Profiler modules introduction",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/profiler-modules-introduction.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/analysis/profiler/visualizing-data/modules-introduction"
       }
     ],
     "overview": [
@@ -229,7 +229,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Frame Debugger Event Information reference",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/frame-debugger-window-event-information.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/profiling/frame-debugger-window-event-information"
       }
     ],
     "overview": [
@@ -251,11 +251,11 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Compile shaders with the DirectX 12 compiler",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/shader-dxc-compiler.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/shaders/shader-troubleshooting/shader-reducing/shader-dxc-compiler"
       },
       {
         "label": "Reduce shader variants",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/shader-variant-stripping.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/shaders/shader-troubleshooting/shader-reducing/shader-variants/shader-variant-stripping"
       }
     ],
     "overview": [
@@ -304,7 +304,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Apply effects behind elements with backdrop filters",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/ui-systems/backdrop-filter.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/uitoolkits/uielements/uie-uss/uss-filter/backdrop-filter"
       }
     ],
     "overview": [
@@ -328,7 +328,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Apply common effects with built-in filters",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/ui-systems/built-in-filters.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/uitoolkits/uielements/uie-uss/uss-filter/built-in-filters"
       }
     ],
     "overview": [
@@ -352,11 +352,11 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "UIElements.VisualElement.AddMeshModifier",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/ScriptReference/UIElements.VisualElement.AddMeshModifier.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/uielements/visualelement/addmeshmodifier"
       },
       {
         "label": "Custom vertex data",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/ui-systems/custom-vertex-data.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/uitoolkits/uielements/uie-uss/ui-shader-graph/custom-vertex-data"
       }
     ],
     "overview": [
@@ -380,11 +380,11 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "GraphMotion",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/ScriptReference/Unity.GraphToolkit.Editor.GraphVisualization.GraphMotion.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/script-reference/unity/graphtoolkit/editor/graphvisualization/graphmotion"
       },
       {
         "label": "GraphLogger",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/ScriptReference/Unity.GraphToolkit.Editor.GraphLogger.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/script-reference/unity/graphtoolkit/editor/graphlogger"
       }
     ],
     "overview": [
@@ -408,7 +408,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Package signatures in asset packages",
-        "url": "https://docs.unity3d.com/6000.6/Documentation/Manual/AssetPackagesSignatures.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.6/manual/assets-and-media/asset-packages/signatures"
       }
     ],
     "overview": [
@@ -839,7 +839,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       },
       {
         "label": "Matchmaker documentation",
-        "url": "https://docs.unity.com/ugs/en-us/manual/matchmaker/manual/matchmaker-overview"
+        "url": "https://docs.unity.com/en-us/mps-sdk/matchmaking/mm-toc"
       }
     ],
     "overview": [
@@ -921,7 +921,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Highlights Profiler module reference",
-        "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/ProfilerHighlights.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/analysis/profiler/visualizing-data/highlights"
       },
       {
         "label": "Profiler window reference",
@@ -972,7 +972,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "On-tile post-processing setup",
-        "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/xr-graphics-on-tile-post-processing.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/xr/graphics/on-tile-post-processing"
       }
     ],
     "overview": [
@@ -1001,7 +1001,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       },
       {
         "label": "Reduce shader variants",
-        "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/shader-variant-stripping.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/materials-and-shaders/shaders/shader-troubleshooting/shader-reducing/shader-variants/shader-variant-stripping"
       }
     ],
     "overview": [
@@ -1025,7 +1025,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "UnityWebRequest",
-        "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/web-request.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/scripting/web-request"
       },
       {
         "label": "Unity 6.3 HTTP/2 platform support",
@@ -1054,7 +1054,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "custom terrain shaders and materials",
-        "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/terrain-shader-graph.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/creating-environments/script-terrain/terrain-shader-graph"
       },
       {
         "label": "Terrain Shaders sample",
@@ -1082,7 +1082,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Work with vector graphics",
-        "url": "https://docs.unity3d.com/6000.3/Documentation/Manual/ui-systems/work-with-vector-graphics.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.3/manual/uitoolkits/uielements/uie-ui-renderer/work-with-vector-graphics"
       }
     ],
     "overview": [
@@ -1428,11 +1428,11 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "GPU Resident Drawer",
-        "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/urp/gpu-resident-drawer.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.0/manual/analysis/graphics-performance-profiling/in-urp/reduce-draw-calls-urp/reduce-rendering-work-on-cpu/gpu-resident-drawer"
       },
       {
         "label": "GPU occlusion culling of instances",
-        "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/urp/gpu-culling.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.0/manual/analysis/graphics-performance-profiling/in-urp/gpu-culling"
       }
     ],
     "overview": [
@@ -1456,7 +1456,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Display Adaptive Probe Volumes",
-        "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/urp/probevolumes-showandadjust.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.0/manual/lighting-overview/lighting/probevolumes/showandadjust"
       },
       {
         "label": "Add and bake Adaptive Probe Volumes in URP",
@@ -1489,7 +1489,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
       },
       {
         "label": "Unity 6.0 Multiplayer Center package",
-        "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/com.unity.multiplayer.center.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.0/manual/packages-list/packages-all/pack-core/com-unity-multiplayer-center"
       }
     ],
     "overview": [
@@ -1513,7 +1513,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "Build Profiles",
-        "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/build-profiles.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.0/manual/building-and-publishing/build-settings/build-profiles"
       }
     ],
     "overview": [
@@ -1612,7 +1612,7 @@ export const FEATURE_DETAILS: Record<string, FeatureDetails> = {
     "links": [
       {
         "label": "runtime binding system",
-        "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/UIE-runtime-binding.html"
+        "url": "https://docs.unity.com/en-us/engine/6000.0/manual/uitoolkits/uielements/uie-data-binding/uie-runtime-binding"
       },
       {
         "label": "custom property drawers",

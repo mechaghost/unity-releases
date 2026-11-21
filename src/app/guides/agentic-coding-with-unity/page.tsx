@@ -53,10 +53,11 @@ export default function AgenticCodingWithUnityPage() {
       <summary>Set up Unity for your coding agent</summary>
       <div className={styles.detailBody}>
         <p>Use Unity 6.0 or later and a coding agent that can run terminal commands. Save your work, then <ExternalLink href="https://docs.unity.com/en-us/unity-cli/use-unity-cli">install Unity CLI</ExternalLink>. Reopen your terminal in the project folder with Unity open.</p>
+        <p>Unity also publishes plug-ins with its own skills for Claude Code, Codex, Google Antigravity, and Grok. <ExternalLink href="https://docs.unity.com/en-us/ai/unity-plugin">Find setup instructions for your agent</ExternalLink>.</p>
         <pre className={styles.prompt}><code>{`unity auth login
 unity pipeline install
 # Wait for Unity to finish compiling, then:
-unity pipeline list
+unity pipeline editors
 unity command`}</code></pre>
         <p>Check for your project and <strong>Pipeline: Installed</strong>. If several Editors are open, use <code>unity command --project-path=&lt;path-to-your-project&gt;</code>. <ExternalLink href="https://docs.unity.com/en-us/unity-cli/unity-pipeline/unity-pipeline-package">Setup help</ExternalLink>.</p>
         <p>Open your coding agent in this project folder, then choose a prompt below. For CI, the build machine also needs the correct Editor, platform modules, and licensing setup.</p>

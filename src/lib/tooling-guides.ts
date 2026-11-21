@@ -36,7 +36,7 @@ export const TOOLING_GUIDES: ToolingGuide[] = [
     ],
     migration: "From 1.0.0-pre.1, Unity reports no code changes. From experimental versions, review the removed APIs and command names: use unity command <group> <name> and discover the current names with unity command. script eval returns its value directly; check exit code 6 for a failed eval instead of a success field.",
     changelog: "https://docs.unity3d.com/Packages/com.unity.pipeline@1.0/changelog/CHANGELOG.html",
-    requirements: "Requires Unity 6.0 or later, Unity CLI, and the com.unity.pipeline package in your project. The package connects to a running Editor through a local HTTP API; it is separate from URP/HDRP rendering pipelines and the hosted Pipeline Automation service. Player access needs its own runtime setup.",
+    requirements: "Requires Unity 6.0 or later, Unity CLI, and the com.unity.pipeline package in your project. The package connects to a running Editor through a local HTTP API. Unity’s separate hosted Production Pipeline API is in beta. Player access needs its own runtime setup.",
     setup: "unity auth login\nunity pipeline install\n# Return to Unity and wait for compilation.\nunity pipeline editors\nunity command\n# Choose a project when several Editors are open:\nunity command --project-path=<path-to-your-project>",
     setupSource: `${cliDocs}unity-pipeline/unity-pipeline-package`,
     features: [

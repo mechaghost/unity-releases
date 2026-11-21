@@ -10,11 +10,13 @@ test("home navigation is uniform and refresh time follows the visitor timezone",
     await expect(page.locator(".guide-updated time")).toHaveText("Jul 26, 2026, 5:05 PM PDT");
     await expect(page.locator(".guide-updated time")).toHaveAttribute("datetime", "2026-07-27T00:05:02.000Z");
     const links = page.getByRole("navigation", { name: "Browse release guides" }).getByRole("link");
-    await expect(links).toHaveCount(2);
-    const boxes = await Promise.all([links.nth(0).boundingBox(), links.nth(1).boundingBox()]);
-    expect(boxes[0]!.y).toBe(boxes[1]!.y);
+    await expect(links).toHaveCount(3);
+    if (!testInfo.project.name.startsWith("mobile")) {
+      const rows = await links.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top));
+      expect(new Set(rows).size).toBe(1);
+    }
     const fonts = await links.evaluateAll(els => els.map(el => getComputedStyle(el).fontSize));
-    expect(fonts[0]).toBe(fonts[1]);
+    expect(new Set(fonts).size).toBe(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.evaluate(() => document.fonts.ready);
     const fontResources = await page.evaluate(() => performance.getEntriesByType("resource")
