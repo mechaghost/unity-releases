@@ -32,16 +32,22 @@ test("Unite Tokyo guide is discoverable and labels tool availability", async ({ 
   await expect(graphics.getByRole("link", { name: "Watch Unity’s 2D feature demo" })).toHaveAttribute(
     "href", "https://www.youtube.com/watch?v=MKs5XZl5G9Y"
   );
+  await page.getByRole("link", { name: "Unity 6.7 LTS and Unity 7", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Unity 6.7 LTS and Unity 7");
   await expect(page.getByRole("link", { name: "Search 6.7 release notes" })).toHaveAttribute("href", "/explorer?minorLine=6000.7");
   await expect(page.getByRole("link", { name: "Search 7.0 release notes" })).toHaveAttribute("href", "/explorer?minorLine=7000.0");
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Unite Tokyo 2026" }).click();
   await page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: "Development and collaboration tools" }).click();
   await expect(page).toHaveURL(/#tools$/);
   await expect(page.getByText("Stable 1.x", { exact: true })).toBeVisible();
   await expect(page.getByText("Beta · general availability planned for 2027", { exact: true })).toBeVisible();
   await expect(page.getByText("Editor plug-in and CLI experimental", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Hosted Unity Production Pipeline API", exact: true }).click();
   await expect(page.getByRole("link", { name: "Hosted Pipeline docs" })).toHaveAttribute(
     "href", "https://docs.unity.com/en-us/unity-production-pipeline"
   );
+  await page.getByRole("link", { name: "Back to Development and collaboration tools" }).click();
+  await expect(page).toHaveURL(/unite-tokyo-2026#tools$/);
 
   for (const theme of ["light", "dark"]) {
     await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);

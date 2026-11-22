@@ -6,7 +6,7 @@ import type { MetadataRoute } from "next";
 import { listReleaseSummaries, listTopIssueIds } from "@/lib/db/repositories";
 import { siteUrl } from "@/lib/site";
 import { UNITY_EVENTS_PATH } from "@/lib/unite-event-paths";
-import { UNITE_EVENTS } from "@/lib/unite-events";
+import { eventTopicHref, UNITE_EVENTS } from "@/lib/unite-events";
 import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
 import { PRODUCT_UPDATE_FAMILY_CATALOG } from "@/lib/product-updates/catalog";
 import {
@@ -38,6 +38,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${origin}/`, changeFrequency: "daily", priority: 1.0 },
     { url: `${origin}${UNITY_EVENTS_PATH}`, changeFrequency: "monthly", priority: 0.8 },
     ...UNITE_EVENTS.map(event => ({ url: `${origin}${event.path}`, lastModified: new Date(event.reviewed), changeFrequency: "monthly" as const, priority: 0.8 })),
+    ...UNITE_EVENTS.flatMap(event => event.sections.flatMap(section => section.topics.map(topic => ({
+      url: `${origin}${eventTopicHref(event, topic)}`,
+      lastModified: new Date(event.reviewed),
+      changeFrequency: "monthly" as const,
+      priority: 0.7
+    })))),
     { url: `${origin}/whats-new/unity-6-features`, changeFrequency: "weekly", priority: 0.85 },
     { url: `${origin}${ENGINE_FEATURES_PATH}`, changeFrequency: "monthly", priority: 0.8 },
     ...ENGINE_FEATURE_AREAS.map(area => ({ url: `${origin}${engineFeatureHref(area)}`, changeFrequency: "monthly" as const, priority: 0.8 })),

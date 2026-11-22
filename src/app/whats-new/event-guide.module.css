@@ -15,33 +15,11 @@
 .image { aspect-ratio: auto; }
 .image img { height: auto; }
 
-.demos {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5);
-  margin-bottom: var(--space-5);
-}
-
-.demos .image { aspect-ratio: 3 / 2; }
-.demos .image img { height: 100%; }
-
-.demoLink {
-  display: block;
-  width: fit-content;
-  margin-bottom: var(--space-1);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-}
-
 @media (max-width: 740px) {
   .hero { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (max-width: 650px) {
-  .demos { grid-template-columns: minmax(0, 1fr); }
-}
-
 @media print {
   .image img { max-height: 180px; }
-  .hero, .demos { break-inside: avoid; }
+  .hero { break-inside: avoid; }
 }

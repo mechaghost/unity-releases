@@ -40,7 +40,7 @@ export function GuideHighlightCard({
   headingId: string;
   title: string;
   summary: string;
-  image: GuideImage;
+  image?: GuideImage;
   beforeTitle?: ReactNode;
   action: string;
   children: ReactNode;
@@ -50,7 +50,7 @@ export function GuideHighlightCard({
   const Heading = headingLevel === 3 ? "h3" : "h2";
   return <article className="guide-highlight">
     <a className="guide-feature-link" href={href} aria-labelledby={headingId}>
-      <div className="guide-feature-image"><img src={image.src} alt={image.alt} width={image.width} height={image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
+      {image && <div className="guide-feature-image"><img src={image.src} alt={image.alt} width={image.width} height={image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>}
       <div className="guide-highlight-copy">
         {beforeTitle}
         <Heading className="guide-feature-title" id={headingId}>{title}</Heading>

@@ -30,6 +30,7 @@ const UNITE_TOKYO_KEYNOTE_IMAGE: GuideImage = {
 
 const UNITE_TOKYO_GRAPHICS_DEMOS: EventDemo[] = [
   {
+    topicSlug: "atrio-urp-lighting",
     image: {
       src: "/images/unite-tokyo-2026/atrio.webp",
       alt: "Sunlit courtyard with stone arches and climbing plants in Unity’s Atrio sample",
@@ -42,6 +43,7 @@ const UNITE_TOKYO_GRAPHICS_DEMOS: EventDemo[] = [
     credit: "Atrio on the Asset Store"
   },
   {
+    topicSlug: "physics-core-2d-and-bunny-blitz",
     image: {
       src: "/images/unite-tokyo-2026/bunny-blitz.webp",
       alt: "The Bunny Blitz Physics rabbit holds a lit bomb in a stylized stone chamber",
@@ -69,7 +71,9 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
     title: "Editor and engine",
     topics: [
       {
+        slug: "unity-6-7-and-unity-7",
         title: "Unity 6.7 LTS and Unity 7",
+        teaser: "Find both Editor lines, their release notes, and Unity’s upgrade guidance.",
         status: "6.7 beta · 7.0 alpha",
         summary: "Unity targets late 2026 for 6.7 LTS and early 2027 for Unity 7. Unity 6.7 is in beta and Unity 7 is in alpha. Unity plans an upgrade similar to a Unity 6 update, with specific breaking changes to check before moving.",
         links: [
@@ -84,7 +88,9 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
         ]
       },
       {
+        slug: "coreclr-upgrade",
         title: "CoreCLR and the upgrade path",
+        teaser: "See how Unity plans to move the Editor to CoreCLR and what to check before upgrading.",
         summary: "Unity 6.7 offers experimental desktop CoreCLR and iOS IL2CPP player options. Unity 7 plans CoreCLR in the Editor, .NET 10, C# 14, and MSBuild project compilation. Unity showed Project Auditor upgrades for 7.0, CoreCLR, and URP. Unity plans to drop both the Intel Mac Editor and Intel Mac player targets in 7.0.",
         links: [
           ["CoreCLR status and player options", `${discussions}/coreclr-scripting-and-net-update-october-2026/1738338`],
@@ -94,18 +100,24 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
         ]
       },
       {
+        slug: "ecs-for-all",
         title: "ECS for All",
+        teaser: "See how GameObjects and Entities work together in the Unity 7 roadmap.",
         status: "6.7 foundation · 7.0 authoring plans",
         summary: "Unity 6.7 shares an ID between a GameObject and its Entity. Unity 7.0 plans data components on GameObjects and prefabs, with Entity data editing in the Inspector. The spaceship demo measured one workload and setup.",
         links: [["ECS for All", `${unity}/ecs`], ["Watch the ECS demo", "https://www.youtube.com/watch?v=cAYg3rYUtkQ"], ["Tokyo ECS for All session slides", "https://www.docswell.com/s/UnityJapan/57NP6J-2026-11-16-235408"]]
       },
       {
+        slug: "profiling-networking-package-security",
         title: "Profiling, networking, and package security",
+        teaser: "Explore the Web Requests Profiler, unified Netcode, and package security settings.",
         summary: "The roadmap showed a Web Requests Profiler for timing, errors, and bandwidth, plus a unified Netcode direction for client prediction and larger games. It also showed Unity-native cloud logic with shared state through CloudBehaviours, and project-wide package security settings.",
         links: [["Unity Core Standards update", `${discussions}/unity-core-standards-what-s-new-in-6-6-and-6-7-and-looking-ahead-to-unity-7/1740002`], slides(12), ["Multiplayer changes in Unity 6", "/whats-new/by-feature/multiplayer"]]
       },
       {
+        slug: "engine-systems",
         title: "Graph tools, audio, navigation, input, and animation",
+        teaser: "See roadmap updates for five Unity engine systems, from graph debugging to animation.",
         summary: "Unity showed Graph Toolkit state machines and live debugging, audio processors and root outputs, NavWorld queries from jobs, terrain tree navigation, and Input System priority and sensor support. The animation roadmap includes a low-level C# API with Burst and ECS support, with more Animator work planned later in Unity 7.",
         links: [slides(17), ["Audio changes in Unity 6", "/whats-new/by-feature/audio"], ["Animation changes in Unity 6", "/whats-new/by-feature/animation"]]
       }
@@ -117,16 +129,9 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
     demos: UNITE_TOKYO_GRAPHICS_DEMOS,
     topics: [
       {
-        title: "Moving to URP",
-        status: "Unity 7 roadmap",
-        summary: "The Built-in Render Pipeline stays supported through 6.7 LTS and is slated for removal in 7.0. Unity’s Tokyo migration session says HDRP is slated for deprecation in 7.0, with support through the first Unity 7 LTS. Unity is building more high-end features into URP.",
-        links: [
-          ["Migrate from Built-in to URP", `${docs}/engine/6000.7/manual/render-pipelines/universal-render-pipeline/introduction/installing-and-configuring-urp/upgrading-from-birp`],
-          ["Tokyo render pipeline migration slides", "https://www.docswell.com/s/UnityJapan/KJWMRQ-2026-11-16-235814"]
-        ]
-      },
-      {
+        slug: "atrio-urp-lighting",
         title: "URP lighting and the Atrio sample",
+        teaser: "Try Unity’s Atrio sample for dynamic lighting, reflections, and ambient occlusion in URP.",
         status: "Sample available · 6.7 beta",
         summary: "Atrio shows dynamic indirect lighting with Surface Cache GI, glossy screen-space reflections, and ground-truth ambient occlusion. The Asset Store lists URP and 6000.7.0b8 for this sample. Unity also showed work on physical light units, auto exposure, sky, fog, and light falloff for Built-in migration.",
         links: [
@@ -137,17 +142,9 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
         ]
       },
       {
-        title: "Unity Graphics Kernel and Unity Neural",
-        summary: "Unity’s Graphics Kernel is in early access for Vulkan in 6.7 beta and DirectX 12 in 7.0 alpha. Unity also covered Metal and showed neural inference in URP. Neural Texture Compression is experimental in 6.7 and planned for release in Unity 7. Unity measured roughly 30% lower texture memory in Atrio with the compression enabled.",
-        links: [["Graphics Kernel early access and setup", `${discussions}/introducing-the-unity-graphics-kernel/1741739`], ["Watch Unity Neural", "https://www.youtube.com/watch?v=gFWJb3YVVE4"], slides(41)]
-      },
-      {
-        title: "Upscaling and shader tools",
-        summary: "Unity covered URP upscalers, including STP, DLSS, FSR, and MetalFX, plus platform and partner options. The roadmap also covers per-material stencil settings in Shader Graph, DXC and newer HLSL features, faster shader build profiles, Advanced Shader Delivery, and compute shader tracing.",
-        links: [slides(39), slides(43), ["3D graphics changes in Unity 6", "/whats-new/by-feature/3d"]]
-      },
-      {
+        slug: "physics-core-2d-and-bunny-blitz",
         title: "Physics Core 2D, rendering, and Bunny Blitz",
+        teaser: "See new physics components and try the Bunny Blitz Physics sample.",
         status: "Sample available · 6.7 beta",
         summary: "Unity showed Pose, Area, and Constraint components for Physics Core 2D, more ways to customize the 2D renderer, and profiling for sprites, tilemaps, graphics, and physics. Bunny Blitz lists URP and 6000.7.0b9. Unity 7 plans deeper 2D physics and animation integration, faster Tilemap and SpriteShape rendering, and better 2D authoring in 3D scenes.",
         links: [
@@ -158,7 +155,34 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
         ]
       },
       {
+        slug: "moving-to-urp",
+        title: "Moving to URP",
+        teaser: "Check Unity’s Built-in and HDRP plans and the official URP migration guide.",
+        status: "Unity 7 roadmap",
+        summary: "The Built-in Render Pipeline stays supported through 6.7 LTS and is slated for removal in 7.0. Unity’s Tokyo migration session says HDRP is slated for deprecation in 7.0, with support through the first Unity 7 LTS. Unity is building more high-end features into URP.",
+        links: [
+          ["Migrate from Built-in to URP", `${docs}/engine/6000.7/manual/render-pipelines/universal-render-pipeline/introduction/installing-and-configuring-urp/upgrading-from-birp`],
+          ["Tokyo render pipeline migration slides", "https://www.docswell.com/s/UnityJapan/KJWMRQ-2026-11-16-235814"]
+        ]
+      },
+      {
+        slug: "graphics-kernel-and-neural",
+        title: "Unity Graphics Kernel and Unity Neural",
+        teaser: "Find the Graphics Kernel preview and see Neural Texture Compression in action.",
+        summary: "Unity’s Graphics Kernel is in early access for Vulkan in 6.7 beta and DirectX 12 in 7.0 alpha. Unity also covered Metal and showed neural inference in URP. Neural Texture Compression is experimental in 6.7 and planned for release in Unity 7. Unity measured roughly 30% lower texture memory in Atrio with the compression enabled.",
+        links: [["Graphics Kernel early access and setup", `${discussions}/introducing-the-unity-graphics-kernel/1741739`], ["Watch Unity Neural", "https://www.youtube.com/watch?v=gFWJb3YVVE4"], slides(41)]
+      },
+      {
+        slug: "upscaling-and-shader-tools",
+        title: "Upscaling and shader tools",
+        teaser: "Browse Unity’s plans for upscaling, Shader Graph, and shader compilation.",
+        summary: "Unity covered URP upscalers, including STP, DLSS, FSR, and MetalFX, plus platform and partner options. The roadmap also covers per-material stencil settings in Shader Graph, DXC and newer HLSL features, faster shader build profiles, Advanced Shader Delivery, and compute shader tracing.",
+        links: [slides(39), slides(43), ["3D graphics changes in Unity 6", "/whats-new/by-feature/3d"]]
+      },
+      {
+        slug: "ui-toolkit-and-localization",
         title: "UI Toolkit, accessibility, and localization",
+        teaser: "See what Unity showed for UI authoring, runtime accessibility, and text.",
         summary: "Unity 6.7 highlights include Scene view authoring, keyframe animation, better Inspector support, faster selectors, and a UI Profiler. Unity also covered Advanced Text Generator, built-in localization, Smart Strings, and a unified table editor. Unity 7 previews include grid layout, reusable components, Shader Graph UI filters, UI Builder improvements, runtime screen readers, curved UI, font subsetting, TextMesh Pro text improvements, and a Figma connector.",
         links: [slides(53), ["Tokyo UI Toolkit session slides", "https://www.docswell.com/s/UnityJapan/Z8NP62-2026-11-16-234510"], ["UI and accessibility changes in Unity 6", "/whats-new/by-feature/ui-accessibility"]]
       }
@@ -169,31 +193,41 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
     title: "Development and collaboration tools",
     topics: [
       {
+        slug: "unity-cli-and-local-pipeline",
         title: "Unity CLI and the local Pipeline package",
+        teaser: "Find the 1.0 tools Unity presented for automating a running Editor.",
         status: "Stable 1.x",
         summary: "Unity presented stable CLI and com.unity.pipeline 1.0 together at Tokyo. The local package connects a running Editor to the CLI so scripts and agents can create content, run tests and builds, and call custom commands. The roadmap also covers Generators in the CLI, agent identity, and testing on devices.",
         links: [["Unity CLI guide", "/whats-new/unity-cli"], ["Unity Pipeline package guide", "/whats-new/unity-pipeline"], ["Unity’s official 1.0 announcement", `${unity}/the-unity-cli-1.0-is-here`], ["Tokyo CLI prototyping session slides", "https://www.docswell.com/s/UnityJapan/ZJWMVJ-2026-11-18-141631"]]
       },
       {
+        slug: "coding-agent-plugins",
         title: "Official plug-ins for coding agents",
+        teaser: "Find Unity’s setup guides for Claude Code, Codex, Antigravity, and Grok.",
         status: "Setup docs available",
         summary: "Unity publishes setup instructions for Claude Code, Codex, Google Antigravity, and Grok. The plug-ins bundle Unity-authored skills and connect agent workflows to Unity tools.",
         links: [["Unity plug-in installation docs", `${docs}/ai/unity-plugin`], ["Agentic Coding with Unity guide", "/guides/agentic-coding-with-unity"]]
       },
       {
+        slug: "hosted-production-pipeline",
         title: "Hosted Unity Production Pipeline API",
+        teaser: "See the browser workflow for project access, scene previews, and comments.",
         status: "Beta · general availability planned for 2027",
         summary: "Unity’s cloud beta gives teams project access through a web dashboard, REST API, and CLI. The Tokyo demo showed asset changes, scene previews, and comments pinned to scene objects. The local Pipeline package handles automation inside a running Editor.",
         links: [["Hosted Pipeline docs", `${docs}/unity-production-pipeline`], ["Hosted beta signup and access details", `${unity}/features/unity-production-pipeline`], ["Watch the Tokyo demo", "https://www.youtube.com/watch?v=culEkDxK6dY"]]
       },
       {
+        slug: "asset-library",
         title: "Asset Library",
+        teaser: "Find Unity’s experimental tools for importing individual Asset Store items.",
         status: "Editor plug-in and CLI experimental",
         summary: "Search for and import individual Asset Store items in Unity 6 or later through the Editor plug-in or use the experimental CLI. The CLI can search supported paid assets and imports free or owned items. Unity showed URP adaptation in the demo. Check the docs for supported assets and render pipeline variants.",
         links: [["Asset Library Editor plug-in", `${docs}/asset-store/asset-library/plugin-introduction`], ["Experimental Asset Library CLI", `${docs}/asset-store/asset-library/cli-introduction`]]
       },
       {
+        slug: "method-reload-content-and-devops",
         title: "Method Reload, Content Directories, and DevOps",
+        teaser: "See what Unity showed for live code changes, content delivery, and builds.",
         summary: "Unity showed opt-in Method Reload for changing supported methods while a game runs, including on IL2CPP devices. Local Content Directories are available, and remote distribution is planned. The DevOps roadmap showed Build Automation for Nintendo Switch and Switch 2, premium build caching, higher-performance compute, Unity Version Control merge requests, and Accelerator V2 with a free self-hosted version planned.",
         links: [["Method Reload package manual", "https://docs.unity3d.com/Packages/com.unity.pipeline@1.0/manual/method-reload.html"], ["Tokyo Content Directories session slides", "https://www.docswell.com/s/UnityJapan/Z4NP78-2026-11-18-141915"], ["Build Automation quick start", "https://learn.unity.com/tutorial/unity-build-automation"], slides(23)]
       }
@@ -204,17 +238,23 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
     title: "Platforms and builds",
     topics: [
       {
+        slug: "meta-vr-glasses-and-xr",
         title: "Meta VR Glasses and XR",
+        teaser: "Find the Unity and Meta XR SDK requirements for building for the glasses.",
         summary: "Meta had already announced the hardware at Connect. At Tokyo, Unity covered developer tooling for Unity 6.7 or newer and Meta XR SDK v209. The roadmap also covered 7.1.4 spatial audio, 2D app spatialization, spatial containers on Android XR, and microgestures.",
         links: [["Build for Meta VR Glasses with Unity", `${unity}/blog/build-for-meta-vr-glasses-with-unity`], slides(63)]
       },
       {
+        slug: "android-steam-and-xbox",
         title: "Android, Googlebook, Steam, and Xbox",
+        teaser: "Browse plans for mobile dependencies, input support, and platform build profiles.",
         summary: "Unity targets official Googlebook support in 2027, including better large-screen and input support. The roadmap shows built-in Android and iOS dependency management, Android startup metrics, full-screen layout and controller updates, Steam Build Profiles for desktop, Xbox multi-target build profiles, and shared Windows and Xbox haptics.",
         links: [slides(58), ["Platform changes in Unity 6", "/whats-new/by-feature/platforms"]]
       },
       {
+        slug: "platform-toolkit-builds-and-sentis",
         title: "Platform Toolkit, Build Profiles, and Sentis",
+        teaser: "See Unity’s plans for platform APIs, build settings, and on-device AI acceleration.",
         summary: "Unity showed a leaderboard API, platform authentication tokens, and Quest 3 and 3S support. Build Profiles plans include output path overrides and reusable partial settings. Sentis plans on-device AI acceleration through LiteRT on Android and Windows ML on Windows.",
         links: [slides(64)]
       }
@@ -225,19 +265,25 @@ const UNITE_TOKYO_SECTIONS: EventSection[] = [
     title: "Asset Store and creator programs",
     topics: [
       {
+        slug: "synty-and-spark",
         title: "Synty Studios and Unity Spark",
+        teaser: "See what Unity’s Synty acquisition means for Spark and the asset catalog.",
         status: "Acquisition announced · Spark closed beta waitlist",
         summary: "Unity announced that it acquired Synty Studios. Synty’s packs remain on the Asset Store, and Unity plans to include the library from the start of the Spark closed beta.",
         links: [["Unity’s Synty acquisition announcement", `${unity}/blog/synty-studios-acquisition`], ["Synty on the Asset Store", "https://assetstore.unity.com/publishers/5217"], ["Unity Spark", `${unity}/spark`]]
       },
       {
+        slug: "unity-fellowship",
         title: "Unity Fellowship",
+        teaser: "Find the terms and application deadline for Unity’s indie studio program.",
         status: "Applications opened November 17",
         summary: "Unity’s program offers ten indie teams $50,000 each and launch support, with no revenue share or repayment. The first intake closes December 18, 2026 at 5 p.m. ET. Unity plans to announce the first teams at GDC in March 2027.",
         links: [["Fellowship application and eligibility", `${unity}/unity-fellowship`]]
       },
       {
+        slug: "studio-showcases",
         title: "Studio showcases",
+        teaser: "See how the teams behind hololive Dreams and Ratatan used Unity.",
         summary: "QualiArts and TVT shared how they used Unity tools for hololive Dreams and Ratatan during the keynote.",
         links: [["Unity’s Japanese keynote recap", `${unity}/ja/blog/unite-tokyo-2026-keynote-recap`]]
       }

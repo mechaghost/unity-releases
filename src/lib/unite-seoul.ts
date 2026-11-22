@@ -33,7 +33,9 @@ export const UNITE_SEOUL: UniteEvent = {
       title: "Editor and engine",
       topics: [
         {
+          slug: "unity-7-announcement",
           title: "Unity 7 announced",
+          teaser: "Read the original Unity 7 roadmap and find the latest upgrade guidance.",
           status: "July announcement",
           summary: "Unity introduced Unity 7 as a continuation of Unity 6. The July roadmap targeted a December 2026 beta and a first-quarter 2027 release. Unity later published a list of planned breaking changes, including platform and rendering changes to check before upgrading.",
           links: [
@@ -43,7 +45,9 @@ export const UNITE_SEOUL: UniteEvent = {
           ]
         },
         {
+          slug: "coreclr-and-iteration",
           title: "CoreCLR and faster iteration",
+          teaser: "See Unity’s planned .NET upgrade and a demo of live code changes on a device.",
           status: "Shown on the roadmap",
           summary: "Unity outlined CoreCLR, .NET 10, C# 14, and MSBuild for Unity 7, along with a new code reload model. It also showed faster entry into Play Mode in new Unity 6.6 projects, migration checks in Project Auditor, and live code changes on a mobile device.",
           links: [
@@ -59,6 +63,7 @@ export const UNITE_SEOUL: UniteEvent = {
       title: "Graphics and 2D",
       demos: [
         {
+          topicSlug: "dynamic-lighting-in-urp",
           image: {
             src: "/images/unite-seoul-2026/mecha-hangar.webp",
             alt: "Charles Sanglimsuwan onstage with Sakura Rabbit’s Mecha Repair Hangar projected behind him",
@@ -71,6 +76,7 @@ export const UNITE_SEOUL: UniteEvent = {
           credit: "Mecha Repair Hangar photo from Unity"
         },
         {
+          topicSlug: "bunny-blitz-and-2d",
           image: {
             src: "/images/unite-seoul-2026/bunny-blitz.webp",
             alt: "Bunny Blitz sample artwork with a cartoon rabbit and platforms in a brightly lit fantasy scene",
@@ -85,7 +91,9 @@ export const UNITE_SEOUL: UniteEvent = {
       ],
       topics: [
         {
+          slug: "dynamic-lighting-in-urp",
           title: "Dynamic lighting in URP",
+          teaser: "Watch the Mecha Repair Hangar demo for real-time lighting in URP.",
           status: "Unity 6.7 alpha at Seoul",
           summary: "Sakura Rabbit’s Mecha Repair Hangar demo showed Surface Cache GI updating indirect light as the scene changed. Unity paired it with screen-space reflections and ground-truth ambient occlusion. The three features were in preview at the event.",
           links: [
@@ -94,15 +102,9 @@ export const UNITE_SEOUL: UniteEvent = {
           ]
         },
         {
-          title: "WebGPU, shaders, and mobile rendering",
-          summary: "Unity presented production-ready WebGPU support for Unity 6.6, DXC shader compilation for DirectX 12, and more control over shader builds. The roadmap also showed a fast shader build profile for 6.7 and mobile rendering changes designed to reduce memory traffic.",
-          links: [
-            ["Unity 6.6 release announcement", "https://discussions.unity.com/t/unity-6-6-is-now-available/1735357"],
-            ["Unity 6.6 shader build settings", "/whats-new/unity-6-6/shader-compilation"]
-          ]
-        },
-        {
+          slug: "bunny-blitz-and-2d",
           title: "Bunny Blitz and 2D workflows",
+          teaser: "Try the sample that blends 3D characters and objects into a 2D scene.",
           status: "Sample available",
           summary: "Unity’s Bunny Blitz sample shows how to use 3D characters and objects in a 2D scene. The 2D talk also covered Physics Core 2D, rendering large numbers of sprites with RenderSprite, and tracking sprite and atlas usage in the Profiler.",
           links: [
@@ -111,7 +113,19 @@ export const UNITE_SEOUL: UniteEvent = {
           ]
         },
         {
+          slug: "webgpu-shaders-and-mobile",
+          title: "WebGPU, shaders, and mobile rendering",
+          teaser: "Find the WebGPU and shader changes Unity presented for 6.6 and 6.7.",
+          summary: "Unity presented production-ready WebGPU support for Unity 6.6, DXC shader compilation for DirectX 12, and more control over shader builds. The roadmap also showed a fast shader build profile for 6.7 and mobile rendering changes designed to reduce memory traffic.",
+          links: [
+            ["Unity 6.6 release announcement", "https://discussions.unity.com/t/unity-6-6-is-now-available/1735357"],
+            ["Unity 6.6 shader build settings", "/whats-new/unity-6-6/shader-compilation"]
+          ]
+        },
+        {
+          slug: "unity-neural",
           title: "Unity Neural",
+          teaser: "See how Unity introduced neural upscaling and texture compression.",
           status: "Shown on the roadmap",
           summary: "Unity introduced an updated upscaling framework and Neural Texture Compression. The keynote showed on-device inference through Sentis, with the first Unity Neural features planned for Unity 6.7 and more planned for Unity 7.",
           links: [
@@ -126,7 +140,9 @@ export const UNITE_SEOUL: UniteEvent = {
       title: "Development and collaboration tools",
       topics: [
         {
+          slug: "cli-and-production-pipeline",
           title: "Unity CLI and hosted Production Pipeline",
+          teaser: "See the browser-to-Editor workflow Unity demoed with the CLI and hosted tools.",
           status: "Previewed at Seoul",
           summary: "The keynote showed an artist fixing a texture from a browser, checking it in Scene Preview, and sending it through version control. Unity then used the CLI to validate and push updated content to a running Nintendo Switch 2. Unity opened closed-beta applications for the hosted production tools. The CLI and local Editor package have their own release histories.",
           links: [
@@ -136,7 +152,9 @@ export const UNITE_SEOUL: UniteEvent = {
           ]
         },
         {
+          slug: "unity-studio-and-automation",
           title: "Unity Studio and industrial automation",
+          teaser: "See collaboration in Unity Studio and Unity’s plans for industrial asset workflows.",
           summary: "Unity Studio demonstrated multiple teammates working in a shared 3D scene from their browsers. Unity also announced Pipeline Automation for industry workflows that bring in assets from product data systems, optimize them, and publish them to 3D applications.",
           links: [
             ["Unity Industry product update", "https://unity.com/blog/unity-industry-product-releases-2026"],
@@ -150,7 +168,9 @@ export const UNITE_SEOUL: UniteEvent = {
       title: "Platforms and builds",
       topics: [
         {
+          slug: "meta-quest-and-xreal-aura",
           title: "Meta Quest tools and XREAL AURA",
+          teaser: "Find the Quest developer tools and Unity’s wired Android XR support.",
           summary: "Unity and Meta showed agent-assisted workflows for building and validating Quest projects. Unity also covered its Android XR support for XREAL AURA and showed how Resolution Games brought Demeo to the device.",
           links: [
             ["Unity’s wired Android XR support", "https://unity.com/blog/unity-android-xr-wired-glasses-support"],
@@ -158,7 +178,9 @@ export const UNITE_SEOUL: UniteEvent = {
           ]
         },
         {
+          slug: "unity-inside-unreal",
           title: "Unity inside Unreal Engine",
+          teaser: "See how the Fantasy Kingdom demo split simulation and rendering across two engines.",
           status: "Technical demo",
           summary: "Unity and Epic showed a Unity simulation rendered in Unreal Engine. The Fantasy Kingdom demo synchronized lighting, physics, and input across engines. Unity invited developers to register interest for early access in 2027.",
           links: [
@@ -173,13 +195,17 @@ export const UNITE_SEOUL: UniteEvent = {
       title: "Commerce and growth",
       topics: [
         {
+          slug: "unity-iap-and-direct-sales",
           title: "Unity IAP 5.4 and direct sales",
+          teaser: "See what Unity announced for direct checkout, webshops, and shared catalogs.",
           status: "Announced as available at Seoul",
           summary: "Unity introduced direct checkout and a no-code webshop builder alongside IAP 5.4. The SDK and dashboard can share a catalog and report sales across supported checkout methods. Unity named Stripe and Coda as initial payments partners.",
           links: [["Unity IAP release and commerce documentation", "https://docs.unity.com/en-us/iap/whats-new"]]
         },
         {
+          slug: "unity-vector-and-ad-tools",
           title: "Unity Vector and ad campaign tools",
+          teaser: "Watch Unity’s plans for ad creatives, campaign tools, and reporting.",
           status: "Shown on the roadmap",
           summary: "Unity discussed planned tools for managing ad creatives and measuring their performance. It also announced Unity Ads MCP and Campaign Assistant for working with campaigns, budgets, and bids from AI tools.",
           links: [["Watch the Unity Vector keynote segment", keynoteChapters + "&t=2636s"]]
