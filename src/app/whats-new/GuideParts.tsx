@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { guideHref, guideStatus, guideSupportLines, type GuideImage, type ReleaseGuide } from "@/lib/release-guides";
 import { Chip } from "../_components/Chip";
 import { featureHref, type ReleaseFeature } from "@/lib/release-features";
@@ -32,6 +33,37 @@ export function FeatureImage({ image, eager = false, guide }: { image: GuideImag
   </figure>;
 }
 
+export function GuideHighlightCard({
+  href, headingId, title, summary, image, beforeTitle, action, children, eager = false, headingLevel = 2
+}: {
+  href: string;
+  headingId: string;
+  title: string;
+  summary: string;
+  image: GuideImage;
+  beforeTitle?: ReactNode;
+  action: string;
+  children: ReactNode;
+  eager?: boolean;
+  headingLevel?: 2 | 3;
+}) {
+  const Heading = headingLevel === 3 ? "h3" : "h2";
+  return <article className="guide-highlight">
+    <a className="guide-feature-link" href={href} aria-labelledby={headingId}>
+      <div className="guide-feature-image"><img src={image.src} alt={image.alt} width={image.width} height={image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
+      <div className="guide-highlight-copy">
+        {beforeTitle}
+        <Heading className="guide-feature-title" id={headingId}>{title}</Heading>
+        <p>{summary}</p>
+        <div className="guide-feature-footer">
+          {children}
+          <span className="guide-feature-action" aria-hidden="true">{action} <span>→</span></span>
+        </div>
+      </div>
+    </a>
+  </article>;
+}
+
 export function FeatureCard({ guide, feature, eager = false, showVersion = false, headingLevel = 2 }: {
   guide: ReleaseGuide;
   feature: ReleaseFeature;
@@ -39,18 +71,12 @@ export function FeatureCard({ guide, feature, eager = false, showVersion = false
   showVersion?: boolean;
   headingLevel?: 2 | 3;
 }) {
-  const headingId = `feature-${feature.id}`;
-  const Heading = headingLevel === 3 ? "h3" : "h2";
   const preview = /\b(beta|experimental)\b/i.test(feature.limitation ?? "");
-  return <article className="guide-highlight">
-    <a className="guide-feature-link" href={featureHref(guide, feature)} aria-labelledby={headingId}>
-      <div className="guide-feature-image"><img src={feature.image.src} alt={feature.image.alt} width={feature.image.width} height={feature.image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
-      <div className="guide-highlight-copy">
-        {showVersion && <p className="feature-catalog-version">Unity {guide.version} highlight</p>}
-        <Heading className="guide-feature-title" id={headingId}>{feature.title}</Heading>
-        <p>{feature.benefit}</p>
-        <div className="guide-feature-footer"><Chip className="chip--area">{feature.category}</Chip>{preview && <span className="guide-badge">Preview at launch</span>}<span className="guide-feature-action" aria-hidden="true">Explore feature <span>→</span></span></div>
-      </div>
-    </a>
-  </article>;
+  return <GuideHighlightCard href={featureHref(guide, feature)} headingId={`feature-${feature.id}`}
+    title={feature.title} summary={feature.benefit} image={feature.image} action="Explore feature"
+    eager={eager} headingLevel={headingLevel}
+    beforeTitle={showVersion && <p className="feature-catalog-version">Unity {guide.version} highlight</p>}>
+    <Chip className="chip--area">{feature.category}</Chip>
+    {preview && <span className="guide-badge">Preview at launch</span>}
+  </GuideHighlightCard>;
 }

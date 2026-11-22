@@ -53,5 +53,5 @@ test("Unite Tokyo guide is discoverable and labels tool availability", async ({ 
   expect(await (await request.get("/sitemap.xml")).text()).toContain(`${path}</loc>`);
   expect(await (await request.get("/llms.txt")).text()).toContain(`${path})`);
   await page.goto("/resources");
-  await expect(page.getByRole("link", { name: "Unite Tokyo 2026 guide" })).toHaveAttribute("href", path);
+  await expect(page.getByRole("link", { name: "Unity event guides" })).toHaveAttribute("href", "/whats-new/events");
 });

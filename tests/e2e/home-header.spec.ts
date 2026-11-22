@@ -10,7 +10,7 @@ test("home navigation is uniform and refresh time follows the visitor timezone",
     await expect(page.locator(".guide-updated time")).toHaveText("Jul 26, 2026, 5:05 PM PDT");
     await expect(page.locator(".guide-updated time")).toHaveAttribute("datetime", "2026-07-27T00:05:02.000Z");
     const links = page.getByRole("navigation", { name: "Browse release guides" }).getByRole("link");
-    await expect(links).toHaveCount(3);
+    await expect(links).toHaveCount(2);
     if (!testInfo.project.name.startsWith("mobile")) {
       const rows = await links.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top));
       expect(new Set(rows).size).toBe(1);

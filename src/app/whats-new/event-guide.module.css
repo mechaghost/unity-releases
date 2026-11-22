@@ -22,6 +22,9 @@
   margin-bottom: var(--space-5);
 }
 
+.demos .image { aspect-ratio: 3 / 2; }
+.demos .image img { height: 100%; }
+
 .demoLink {
   display: block;
   width: fit-content;

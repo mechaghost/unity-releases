@@ -1,7 +1,8 @@
 import { issueReportSearchEnabled } from "@/lib/issue-reports/flags";
 import { NextResponse } from "next/server";
 import { siteUrl } from "@/lib/site";
-import { UNITE_TOKYO_PATH } from "@/lib/unite-tokyo";
+import { UNITY_EVENTS_PATH } from "@/lib/unite-event-paths";
+import { UNITE_EVENTS } from "@/lib/unite-events";
 import { getTrackedVersionLines } from "@/lib/db/repositories";
 import { describeGeneration, groupTrackedLines } from "@/lib/tracked-versions";
 import { productUpdateNavigationEnabled } from "@/lib/product-updates/flags";
@@ -161,7 +162,8 @@ filtering UI.
 
 - [What’s new in Unity](${origin}/) - the home page. Explore major-release
   features, practical guides, and official documentation.
-- [Unite Tokyo 2026](${origin}${UNITE_TOKYO_PATH}) - keynote and roadmap announcements, preview status, sample projects, and official sources.
+- [Events](${origin}${UNITY_EVENTS_PATH}) - Unity conference guides and recordings.
+${UNITE_EVENTS.map(event => `- [${event.title}](${origin}${event.path}) - ${event.cardSummary}`).join("\n")}
 - [Compare versions](${origin}/compare) - pick two versions
   to diff. Same data as \`/compare.md\` rendered with filtering UI.
 - [Editor Releases](${origin}/releases) - every indexed Unity editor

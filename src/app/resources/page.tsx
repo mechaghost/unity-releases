@@ -3,7 +3,7 @@ import { listResources, type ResourceRow } from "@/lib/db/repositories";
 import { ExternalLink } from "../_components/ExternalLink";
 import { ResourcesFilter } from "../_components/ResourcesFilter";
 import { pageSocialMetadata } from "@/lib/site";
-import { UNITE_TOKYO_PATH } from "@/lib/unite-tokyo";
+import { UNITY_EVENTS_PATH } from "@/lib/unite-event-paths";
 import { pageBounds, pageNumber, pageHref, queryParams } from "@/lib/pagination";
 import { Pagination } from "../_components/Pagination";
 import { LoadError } from "../_components/LoadError";
@@ -61,7 +61,7 @@ export default async function ResourcesPage({
           <h1>Resources</h1>
         </div>
         <p>Unity tutorials, articles, videos, and reference material.</p>
-        <p><a href={UNITE_TOKYO_PATH}>Unite Tokyo 2026 guide</a></p>
+        <p><a href={UNITY_EVENTS_PATH}>Unity event guides</a></p>
         <p>Want to automate Unity development? <a href="/guides/agentic-coding-with-unity">Start with the Agentic Coding with Unity guide</a>.</p>
       </section>
 

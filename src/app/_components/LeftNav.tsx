@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { isUnityEventPath, UNITY_EVENTS_PATH } from "@/lib/unite-event-paths";
 import { Icon, type IconName } from "./Icon";
 import { SentinelMark } from "./SentinelMark";
 import { ThemeToggle } from "./ThemeToggle";
@@ -42,13 +43,20 @@ const NAV: NavSection[] = [
         href: "/",
         label: "What’s new",
         icon: "newspaper",
-        match: (pathname) => pathname === "/" || pathname === "/whats-new" || (pathname.startsWith("/whats-new/") && !isEngineFeaturePath(pathname))
+        match: (pathname) => pathname === "/" || pathname === "/whats-new" ||
+          (pathname.startsWith("/whats-new/") && !isEngineFeaturePath(pathname) && !isUnityEventPath(pathname))
       },
       {
         href: "/whats-new/by-feature",
         label: "Engine features",
         icon: "layers",
         match: isEngineFeaturePath
+      },
+      {
+        href: UNITY_EVENTS_PATH,
+        label: "Events",
+        icon: "calendar",
+        match: isUnityEventPath
       },
       {
         href: "/guides/agentic-coding-with-unity",

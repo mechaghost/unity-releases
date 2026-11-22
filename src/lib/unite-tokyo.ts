@@ -1,8 +1,9 @@
 import type { GuideImage } from "./release-guides";
+import type { EventDemo, EventLink, EventSection, UniteEvent } from "./unite-events";
+import { UNITE_TOKYO_PATH } from "./unite-event-paths";
 
-export const UNITE_TOKYO_PATH = "/whats-new/unite-tokyo-2026";
-export const UNITE_TOKYO_DATE = "2026-11-17";
-export const UNITE_TOKYO_REVIEWED = "2026-11-21";
+const UNITE_TOKYO_DATE = "2026-11-17";
+const UNITE_TOKYO_REVIEWED = "2026-11-21";
 
 const unity = "https://unity.com";
 const docs = "https://docs.unity.com/en-us";
@@ -13,16 +14,12 @@ const bunnyBlitzSample = "https://assetstore.unity.com/packages/templates/packs/
 const roadmapSlides = "https://cdn.bfldr.com/S5BC9Y64/at/k7crmvj3rg9z7c8w9m9tbmvs/Unite_2026_Tokyo_-_Roadmap_Final.pdf";
 const slides = (page: number) => [`Tokyo roadmap slides (PDF, page ${page})`, `${roadmapSlides}#page=${page}`] as const;
 
-type GuideLink = readonly [label: string, href: string];
-type Topic = { title: string; status?: string; summary: string; links: GuideLink[] };
-type Section = { id: string; title: string; topics: Topic[] };
-
-export const UNITE_TOKYO_RECORDINGS: GuideLink[] = [
+const UNITE_TOKYO_RECORDINGS: EventLink[] = [
   ["Watch the keynote", "https://www.youtube.com/watch?v=ZWX5TfR1UAI"],
   ["Watch the roadmap session", "https://www.youtube.com/watch?v=gJV4fZ7dpQw"]
 ];
 
-export const UNITE_TOKYO_KEYNOTE_IMAGE: GuideImage = {
+const UNITE_TOKYO_KEYNOTE_IMAGE: GuideImage = {
   src: "/images/unite-tokyo-2026/keynote.webp",
   alt: "Adam Smith speaking on the Unite Tokyo stage in front of a blue screen",
   width: 1200,
@@ -31,7 +28,7 @@ export const UNITE_TOKYO_KEYNOTE_IMAGE: GuideImage = {
   source: keynoteRecap
 };
 
-export const UNITE_TOKYO_GRAPHICS_DEMOS: { image: GuideImage; video: GuideLink; credit: string }[] = [
+const UNITE_TOKYO_GRAPHICS_DEMOS: EventDemo[] = [
   {
     image: {
       src: "/images/unite-tokyo-2026/atrio.webp",
@@ -58,7 +55,7 @@ export const UNITE_TOKYO_GRAPHICS_DEMOS: { image: GuideImage; video: GuideLink; 
   }
 ];
 
-export const UNITE_TOKYO_SOURCES: GuideLink[] = [
+const UNITE_TOKYO_SOURCES: EventLink[] = [
   ["Keynote recap", keynoteRecap],
   ["Keynote recap in Japanese", `${unity}/ja/blog/unite-tokyo-2026-keynote-recap`],
   ["Unity roadmap", `${unity}/roadmap`],
@@ -66,7 +63,7 @@ export const UNITE_TOKYO_SOURCES: GuideLink[] = [
   ["Unity Japan session schedule and slides", "https://unitetokyo.com/session/"]
 ];
 
-export const UNITE_TOKYO_SECTIONS: Section[] = [
+const UNITE_TOKYO_SECTIONS: EventSection[] = [
   {
     id: "editor",
     title: "Editor and engine",
@@ -117,6 +114,7 @@ export const UNITE_TOKYO_SECTIONS: Section[] = [
   {
     id: "graphics",
     title: "Graphics, 2D, and UI",
+    demos: UNITE_TOKYO_GRAPHICS_DEMOS,
     topics: [
       {
         title: "Moving to URP",
@@ -246,3 +244,16 @@ export const UNITE_TOKYO_SECTIONS: Section[] = [
     ]
   }
 ];
+
+export const UNITE_TOKYO: UniteEvent = {
+  path: UNITE_TOKYO_PATH,
+  title: "Unite Tokyo 2026",
+  description: "Unity 6.7 LTS and Unity 7 updates from Tokyo, plus graphics demos, coding tools, and creator programs.",
+  cardSummary: "Unity 6.7 and Unity 7 updates, new graphics samples, Unity CLI 1.0, and the Unity Fellowship.",
+  date: UNITE_TOKYO_DATE,
+  reviewed: UNITE_TOKYO_REVIEWED,
+  keynoteImage: UNITE_TOKYO_KEYNOTE_IMAGE,
+  recordings: UNITE_TOKYO_RECORDINGS,
+  sections: UNITE_TOKYO_SECTIONS,
+  sources: UNITE_TOKYO_SOURCES
+};

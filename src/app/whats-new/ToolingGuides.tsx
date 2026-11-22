@@ -1,7 +1,7 @@
 import { TOOLING_GUIDES, TOOLING_REVIEWED, type ToolingGuide } from "@/lib/tooling-guides";
 import { formatGuideDate } from "@/lib/release-guides";
 import { pageSocialMetadata } from "@/lib/site";
-import { UNITE_TOKYO_PATH } from "@/lib/unite-tokyo";
+import { UNITE_TOKYO_PATH } from "@/lib/unite-event-paths";
 import { ExternalLink } from "../_components/ExternalLink";
 import styles from "./tooling.module.css";
 
