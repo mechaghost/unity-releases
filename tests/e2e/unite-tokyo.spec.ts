@@ -12,6 +12,26 @@ test("Unite Tokyo guide is discoverable and labels tool availability", async ({ 
   await expect(page).toHaveURL(new RegExp(`${path}$`));
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Unite Tokyo 2026");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${path}$`));
+  await expect(page.getByRole("link", { name: "Watch the keynote" })).toHaveAttribute(
+    "href", "https://www.youtube.com/watch?v=ZWX5TfR1UAI"
+  );
+  await expect(page.getByRole("link", { name: "Watch the roadmap session" })).toHaveAttribute(
+    "href", "https://www.youtube.com/watch?v=gJV4fZ7dpQw"
+  );
+  const images = page.locator('main img[src^="/images/unite-tokyo-2026/"]');
+  await expect(images).toHaveCount(3);
+  for (const image of await images.all()) {
+    await image.scrollIntoViewIfNeeded();
+    await image.evaluate((element: HTMLImageElement) => element.decode());
+    await expect(image).toBeVisible();
+  }
+  const graphics = page.getByRole("region", { name: "Graphics, 2D, and UI" });
+  await expect(graphics.getByRole("link", { name: "Watch the Atrio lighting demo" })).toHaveAttribute(
+    "href", "https://www.youtube.com/watch?v=QfXsGwrBgVg"
+  );
+  await expect(graphics.getByRole("link", { name: "Watch Unity’s 2D feature demo" })).toHaveAttribute(
+    "href", "https://www.youtube.com/watch?v=MKs5XZl5G9Y"
+  );
   await expect(page.getByRole("link", { name: "Search 6.7 release notes" })).toHaveAttribute("href", "/explorer?minorLine=6000.7");
   await expect(page.getByRole("link", { name: "Search 7.0 release notes" })).toHaveAttribute("href", "/explorer?minorLine=7000.0");
   await page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: "Development and collaboration tools" }).click();

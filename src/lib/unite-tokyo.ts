@@ -1,3 +1,5 @@
+import type { GuideImage } from "./release-guides";
+
 export const UNITE_TOKYO_PATH = "/whats-new/unite-tokyo-2026";
 export const UNITE_TOKYO_DATE = "2026-11-17";
 export const UNITE_TOKYO_REVIEWED = "2026-11-21";
@@ -5,6 +7,9 @@ export const UNITE_TOKYO_REVIEWED = "2026-11-21";
 const unity = "https://unity.com";
 const docs = "https://docs.unity.com/en-us";
 const discussions = "https://discussions.unity.com/t";
+const keynoteRecap = `${unity}/blog/unite-tokyo-2026-keynote-recap`;
+const atrioSample = "https://assetstore.unity.com/packages/3d/environments/atrio-3d-stylized-sample-project-426254";
+const bunnyBlitzSample = "https://assetstore.unity.com/packages/templates/packs/bunny-blitz-2d-physics-core-sample-project-426130";
 const roadmapSlides = "https://cdn.bfldr.com/S5BC9Y64/at/k7crmvj3rg9z7c8w9m9tbmvs/Unite_2026_Tokyo_-_Roadmap_Final.pdf";
 const slides = (page: number) => [`Tokyo roadmap slides (PDF, page ${page})`, `${roadmapSlides}#page=${page}`] as const;
 
@@ -12,11 +17,50 @@ type GuideLink = readonly [label: string, href: string];
 type Topic = { title: string; status?: string; summary: string; links: GuideLink[] };
 type Section = { id: string; title: string; topics: Topic[] };
 
-export const UNITE_TOKYO_SOURCES: GuideLink[] = [
-  ["Keynote recap", `${unity}/blog/unite-tokyo-2026-keynote-recap`],
-  ["Keynote recap in Japanese", `${unity}/ja/blog/unite-tokyo-2026-keynote-recap`],
+export const UNITE_TOKYO_RECORDINGS: GuideLink[] = [
   ["Watch the keynote", "https://www.youtube.com/watch?v=ZWX5TfR1UAI"],
-  ["Watch the roadmap session", "https://www.youtube.com/watch?v=gJV4fZ7dpQw"],
+  ["Watch the roadmap session", "https://www.youtube.com/watch?v=gJV4fZ7dpQw"]
+];
+
+export const UNITE_TOKYO_KEYNOTE_IMAGE: GuideImage = {
+  src: "/images/unite-tokyo-2026/keynote.webp",
+  alt: "Adam Smith speaking on the Unite Tokyo stage in front of a blue screen",
+  width: 1200,
+  height: 800,
+  original: "https://cdn.sanity.io/images/fuvbjjlp/production/0418bb71e2d7269fe2b479d4ef1d21771d3f8b7a-4032x2688.jpg",
+  source: keynoteRecap
+};
+
+export const UNITE_TOKYO_GRAPHICS_DEMOS: { image: GuideImage; video: GuideLink; credit: string }[] = [
+  {
+    image: {
+      src: "/images/unite-tokyo-2026/atrio.webp",
+      alt: "Sunlit courtyard with stone arches and climbing plants in Unity’s Atrio sample",
+      width: 960,
+      height: 640,
+      original: "https://assetstorev1-prd-cdn.unity3d.com/key-image/a126be60-befa-4f24-9602-f53c4d08cf92.jpg?v=1",
+      source: atrioSample
+    },
+    video: ["Watch the Atrio lighting demo", "https://www.youtube.com/watch?v=QfXsGwrBgVg"],
+    credit: "Atrio on the Asset Store"
+  },
+  {
+    image: {
+      src: "/images/unite-tokyo-2026/bunny-blitz.webp",
+      alt: "The Bunny Blitz Physics rabbit holds a lit bomb in a stylized stone chamber",
+      width: 960,
+      height: 640,
+      original: "https://assetstorev1-prd-cdn.unity3d.com/key-image/3842ba2a-3496-411e-81c8-87b48dad5a10.jpg?v=1",
+      source: bunnyBlitzSample
+    },
+    video: ["Watch Unity’s 2D feature demo", "https://www.youtube.com/watch?v=MKs5XZl5G9Y"],
+    credit: "Bunny Blitz Physics on the Asset Store"
+  }
+];
+
+export const UNITE_TOKYO_SOURCES: GuideLink[] = [
+  ["Keynote recap", keynoteRecap],
+  ["Keynote recap in Japanese", `${unity}/ja/blog/unite-tokyo-2026-keynote-recap`],
   ["Unity roadmap", `${unity}/roadmap`],
   ["Download the roadmap slides (PDF)", roadmapSlides],
   ["Unity Japan session schedule and slides", "https://unitetokyo.com/session/"]
@@ -88,7 +132,7 @@ export const UNITE_TOKYO_SECTIONS: Section[] = [
         status: "Sample available · 6.7 beta",
         summary: "Atrio shows dynamic indirect lighting with Surface Cache GI, glossy screen-space reflections, and ground-truth ambient occlusion. The Asset Store lists URP and 6000.7.0b8 for this sample. Unity also showed work on physical light units, auto exposure, sky, fog, and light falloff for Built-in migration.",
         links: [
-          ["Get Atrio on the Asset Store", "https://assetstore.unity.com/packages/3d/environments/atrio-3d-stylized-sample-project-426254"],
+          ["Get Atrio on the Asset Store", atrioSample],
           ["Graphics updates in the 6.7 beta", `${discussions}/graphics-updates-with-the-unity-6-7-beta-release-we-want-to-hear-your-feedback/1737140`],
           ["Tokyo URP lighting session slides", "https://www.docswell.com/s/UnityJapan/53JWYM-2026-11-16-235027"],
           slides(33)
@@ -109,7 +153,7 @@ export const UNITE_TOKYO_SECTIONS: Section[] = [
         status: "Sample available · 6.7 beta",
         summary: "Unity showed Pose, Area, and Constraint components for Physics Core 2D, more ways to customize the 2D renderer, and profiling for sprites, tilemaps, graphics, and physics. Bunny Blitz lists URP and 6000.7.0b9. Unity 7 plans deeper 2D physics and animation integration, faster Tilemap and SpriteShape rendering, and better 2D authoring in 3D scenes.",
         links: [
-          ["Get Bunny Blitz on the Asset Store", "https://assetstore.unity.com/packages/templates/packs/bunny-blitz-2d-physics-core-sample-project-426130"],
+          ["Get Bunny Blitz on the Asset Store", bunnyBlitzSample],
           ["Tokyo 2D graphics session slides", "https://www.docswell.com/s/UnityJapan/ZQ2W4M-2026-11-16-235111"],
           slides(45),
           ["2D changes in Unity 6", "/whats-new/by-feature/2d"]

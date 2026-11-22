@@ -1,10 +1,14 @@
-import { formatGuideDate } from "@/lib/release-guides";
+import { formatGuideDate, type GuideImage } from "@/lib/release-guides";
 import { pageSocialMetadata } from "@/lib/site";
 import {
-  UNITE_TOKYO_DATE, UNITE_TOKYO_PATH, UNITE_TOKYO_REVIEWED, UNITE_TOKYO_SECTIONS, UNITE_TOKYO_SOURCES
+  UNITE_TOKYO_DATE, UNITE_TOKYO_GRAPHICS_DEMOS, UNITE_TOKYO_KEYNOTE_IMAGE, UNITE_TOKYO_PATH,
+  UNITE_TOKYO_RECORDINGS, UNITE_TOKYO_REVIEWED, UNITE_TOKYO_SECTIONS, UNITE_TOKYO_SOURCES
 } from "@/lib/unite-tokyo";
+import type { ReactNode } from "react";
 import { ExternalLink } from "../../_components/ExternalLink";
+import { Icon } from "../../_components/Icon";
 import styles from "../tooling.module.css";
+import media from "./media.module.css";
 
 const title = "Unite Tokyo 2026";
 const description = "What Unity announced in Tokyo, from Unity 6.7 LTS and Unity 7 to graphics, coding tools, platforms, and creator programs.";
@@ -15,15 +19,35 @@ export const metadata = {
   ...pageSocialMetadata({ title, description, path: UNITE_TOKYO_PATH })
 };
 
+function TokyoFigure({ image, eager = false, children }: { image: GuideImage; eager?: boolean; children: ReactNode }) {
+  return <figure className="guide-figure">
+    <a className={`guide-image-link ${media.image}`} href={image.src} aria-label={`Enlarge image: ${image.alt}`}>
+      <img src={image.src} width={image.width} height={image.height} alt={image.alt}
+        loading={eager ? "eager" : "lazy"} decoding="async" />
+    </a>
+    <figcaption>{children}</figcaption>
+  </figure>;
+}
+
 export default function UniteTokyoPage() {
   return <article className={`release-guide ${styles.detail}`}>
     <nav className="guide-breadcrumb" aria-label="Breadcrumb">
       <a href="/">What’s new</a><span aria-hidden="true"> / </span><span>{title}</span>
     </nav>
-    <header className="guide-hero">
-      <h1>{title}</h1>
-      <p>What Unity announced on <time dateTime={UNITE_TOKYO_DATE}>{formatGuideDate(UNITE_TOKYO_DATE)}</time> and which tools, samples, and Editor builds you can try.</p>
-      <p className={styles.reviewed}>Sources checked <time dateTime={UNITE_TOKYO_REVIEWED}>{formatGuideDate(UNITE_TOKYO_REVIEWED)}</time>. Unity may change roadmap dates and preview features.</p>
+    <header className={`guide-hero ${media.hero}`}>
+      <div>
+        <h1>{title}</h1>
+        <p>What Unity announced on <time dateTime={UNITE_TOKYO_DATE}>{formatGuideDate(UNITE_TOKYO_DATE)}</time> and which tools, samples, and Editor builds you can try.</p>
+        <p className={styles.reviewed}>Sources checked <time dateTime={UNITE_TOKYO_REVIEWED}>{formatGuideDate(UNITE_TOKYO_REVIEWED)}</time>. Unity may change roadmap dates and preview features.</p>
+        <div className={media.recordings}>
+          {UNITE_TOKYO_RECORDINGS.map(([label, href]) => <ExternalLink className="btn btn--secondary" key={href} href={href}>
+            {label}<Icon name="external-link" size={14} />
+          </ExternalLink>)}
+        </div>
+      </div>
+      <TokyoFigure image={UNITE_TOKYO_KEYNOTE_IMAGE} eager>
+        <ExternalLink href={UNITE_TOKYO_KEYNOTE_IMAGE.source}>Photo from Unity’s keynote recap</ExternalLink>
+      </TokyoFigure>
     </header>
     <nav className={styles.jumpLinks} aria-label="On this page">
       {UNITE_TOKYO_SECTIONS.map(section => <a key={section.id} href={`#${section.id}`}>{section.title}</a>)}
@@ -31,6 +55,12 @@ export default function UniteTokyoPage() {
     </nav>
     {UNITE_TOKYO_SECTIONS.map(section => <section key={section.id} id={section.id} className={styles.section} aria-labelledby={`${section.id}-heading`}>
       <h2 id={`${section.id}-heading`}>{section.title}</h2>
+      {section.id === "graphics" && <div className={media.demos}>
+        {UNITE_TOKYO_GRAPHICS_DEMOS.map(({ image, video: [label, href], credit }) => <TokyoFigure key={image.src} image={image}>
+          <ExternalLink className={media.demoLink} href={href}>{label}</ExternalLink>
+          <ExternalLink href={image.source}>{credit}</ExternalLink>
+        </TokyoFigure>)}
+      </div>}
       <div className={styles.features}>{section.topics.map(topic => <section key={topic.title} className={styles.feature}>
         <h3>{topic.title}</h3>
         {topic.status && <div className="guide-badges"><span className="guide-badge guide-badge--quiet">{topic.status}</span></div>}
