@@ -21,6 +21,20 @@ type TrackBody =
   | { kind: "pageview"; path: string }
   | { kind: "event"; eventType: string; path?: string; metadata?: Record<string, unknown> };
 
+// Railway's HTTP logs include the status but omit the rejection reason.
+// Log only the reason, at most once per hour per reason in each process.
+const lastRejectionLog = new Map<string, number>();
+
+function rejectTracking(reason: string) {
+  const now = Date.now();
+  const last = lastRejectionLog.get(reason);
+  if (last === undefined || now - last >= 60 * 60 * 1000) {
+    lastRejectionLog.set(reason, now);
+    console.warn(JSON.stringify({ event: "analytics_request_rejected", reason }));
+  }
+  return Response.json({ ok: false, error: reason }, { status: 400 });
+}
+
 export async function POST(request: Request) {
   // Bot filter (UA-based). Bots overwhelmingly skip JS so most never
   // reach this point, but headless-Chrome scrapers do and we filter
@@ -36,16 +50,16 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as TrackBody;
   } catch {
-    return Response.json({ ok: false, error: "invalid_json" }, { status: 400 });
+    return rejectTracking("invalid_json");
   }
 
   if (!body || typeof body !== "object") {
-    return Response.json({ ok: false, error: "invalid_body" }, { status: 400 });
+    return rejectTracking("invalid_body");
   }
 
   if (body.kind === "pageview") {
     if (typeof body.path !== "string") {
-      return Response.json({ ok: false, error: "invalid_path" }, { status: 400 });
+      return rejectTracking("invalid_path");
     }
     await recordPageView(body.path);
     return Response.json({ ok: true });
@@ -53,14 +67,14 @@ export async function POST(request: Request) {
 
   if (body.kind === "event") {
     if (typeof body.eventType !== "string" || body.eventType.length === 0) {
-      return Response.json({ ok: false, error: "invalid_event_type" }, { status: 400 });
+      return rejectTracking("invalid_event_type");
     }
     // Cap the metadata size so a runaway client can't dump megabytes
     // into the analytics table.
     const metadata = body.metadata ?? {};
     const serialized = JSON.stringify(metadata);
     if (serialized.length > 2048) {
-      return Response.json({ ok: false, error: "metadata_too_large" }, { status: 400 });
+      return rejectTracking("metadata_too_large");
     }
     await recordEvent(body.eventType, {
       path: body.path,
@@ -69,5 +83,5 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
-  return Response.json({ ok: false, error: "unknown_kind" }, { status: 400 });
+  return rejectTracking("unknown_kind");
 }

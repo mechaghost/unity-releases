@@ -115,10 +115,13 @@ export function buildReleaseNoteSearchQuery(filters: ReleaseNoteSearchFilters): 
   const offsetParam = add(filters.offset ?? 0);
 
   const order = releaseNoteOrder(filters);
+  // For the unfiltered archive Postgres can count from an index and stop
+  // fetching full note rows at LIMIT. Both reads share the same snapshot.
+  const total = where.length ? "COUNT(*) OVER()" : "(SELECT COUNT(*) FROM release_note_items)";
 
   return {
     text: `
-      SELECT ${RELEASE_NOTE_COLUMNS}, COUNT(*) OVER() AS total_count
+      SELECT ${RELEASE_NOTE_COLUMNS}, ${total} AS total_count
       FROM release_note_items
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY ${order}, id ASC

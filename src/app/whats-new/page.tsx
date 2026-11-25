@@ -25,7 +25,7 @@ export default async function WhatsNewPage() {
   return <div className="release-guide">
     <header className="guide-hero page-header__title-row"><h1>What’s new in Unity?</h1><LocalUpdatedTime timestamp={updatedAt} /></header>
     <section id="release-guides" aria-label="Release guides">
-      <div className="guide-grid">{released.map((guide, index) => <GuideCard key={guide.slug} guide={guide} now={now} eager={index < 2} />)}</div>
+      <div className="guide-grid">{released.map((guide, index) => <GuideCard key={guide.slug} guide={guide} now={now} eager={index === 0} highPriority={index === 0} />)}</div>
       <nav className="guide-browse-links" aria-label="Browse release guides">
         <a href="/whats-new/unity-6-features">Browse all Unity 6 features <span aria-hidden="true">→</span></a>
         <a href="/whats-new/past-releases">Past releases <span aria-hidden="true">→</span></a>

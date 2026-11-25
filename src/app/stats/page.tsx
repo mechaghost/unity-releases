@@ -422,9 +422,7 @@ function TrafficSection({ stats }: { stats: TrafficStats | null }) {
       <section className="stats-section">
         <h2>Site Traffic</h2>
         <p className="muted">
-          Traffic data is captured server-side via DB-backed middleware. If
-          this section is empty after a fresh deploy, the page_views table
-          is still warming up - check back after the first few pageviews.
+          Traffic counts are currently unavailable.
         </p>
       </section>
     );
@@ -445,9 +443,8 @@ function TrafficSection({ stats }: { stats: TrafficStats | null }) {
     <section className="stats-section">
       <h2>Site Traffic</h2>
       <p className="muted">
-        Pageviews tracked server-side without cookies, IP storage, or any
-        third-party analytics. Bots that identify themselves in the
-        user-agent string are filtered out at the middleware.
+        Pageviews are recorded when a browser sends a visit. The site filters known
+        bot user agents and stores counts without cookies or IP addresses.
       </p>
       <div className="stats-grid">
         {cards.map((card) => (
@@ -461,7 +458,7 @@ function TrafficSection({ stats }: { stats: TrafficStats | null }) {
           <ol className="stats-breakdown__list stats-breakdown__list--ranked">
             {stats.topPaths7d.map((row) => (
               <li key={row.path} className="stats-breakdown__row">
-                <a href={row.path}>{row.path}</a>
+                {row.href ? <a href={row.href}>{row.path}</a> : <span>{row.path}</span>}
                 <strong className="tabnums">{formatNumber(row.views)}</strong>
               </li>
             ))}

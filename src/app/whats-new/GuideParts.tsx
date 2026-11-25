@@ -1,3 +1,4 @@
+import { CardImage } from "./CardImage";
 import type { ReactNode } from "react";
 import { guideHref, guideStatus, guideSupportLines, type GuideImage, type ReleaseGuide } from "@/lib/release-guides";
 import { Chip } from "../_components/Chip";
@@ -11,13 +12,13 @@ export function GuideBadges({ guide, now }: { guide: ReleaseGuide; now: Date }) 
   </div>;
 }
 
-export function GuideCard({ guide, now, eager = false }: { guide: ReleaseGuide; now: Date; eager?: boolean }) {
+export function GuideCard({ guide, now, eager = false, highPriority }: { guide: ReleaseGuide; now: Date; eager?: boolean; highPriority?: boolean }) {
   return <article className="guide-card">
     <a className="guide-release-link" href={guideHref(guide)} aria-label={`Read the Unity ${guide.version} guide`}>
     <h2>Unity {guide.version}{guide.kind === "lts" ? " LTS" : ""}</h2>
     <GuideBadges guide={guide} now={now} />
     <div className="guide-card-support">{guideSupportLines(guide, now).map(line => <span key={line}>{line}</span>)}</div>
-    <div className="guide-feature-image"><img src={guide.highlights[0].image.src} alt={guide.highlights[0].image.alt} width={guide.highlights[0].image.width} height={guide.highlights[0].image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>
+    <CardImage image={guide.highlights[0].image} eager={eager} highPriority={highPriority} />
     <p className="guide-card-summary">{guide.summary}</p>
     <span className="guide-read" aria-hidden="true">View features →</span>
     </a>
@@ -50,7 +51,7 @@ export function GuideHighlightCard({
   const Heading = headingLevel === 3 ? "h3" : "h2";
   return <article className="guide-highlight">
     <a className="guide-feature-link" href={href} aria-labelledby={headingId}>
-      {image && <div className="guide-feature-image"><img src={image.src} alt={image.alt} width={image.width} height={image.height} loading={eager ? "eager" : "lazy"} decoding="async" /></div>}
+      {image && <CardImage image={image} eager={eager} />}
       <div className="guide-highlight-copy">
         {beforeTitle}
         <Heading className="guide-feature-title" id={headingId}>{title}</Heading>

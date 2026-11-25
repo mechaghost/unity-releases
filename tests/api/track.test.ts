@@ -96,6 +96,21 @@ describe("POST /api/track", () => {
     expect(await res.json()).toEqual({ ok: false, error: "unknown_kind" });
   });
 
+  test("logs repeated rejections once without recording the request body", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      for (let i = 0; i < 2; i++) {
+        const res = await POST(postRequest("null"));
+        expect(res.status).toBe(400);
+      }
+      expect(warn.mock.calls).toEqual([[JSON.stringify({
+        event: "analytics_request_rejected", reason: "invalid_body"
+      })]]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   test("rejects invalid JSON", async () => {
     const res = await POST(postRequest("not json"));
     expect(res.status).toBe(400);

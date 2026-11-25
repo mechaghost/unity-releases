@@ -95,7 +95,7 @@ export async function getIssueStatuses(
       `SELECT iid AS issue_id, r.version, r.section, r.release_date
          FROM release_note_items r,
               unnest(r.issue_ids) AS iid
-        WHERE iid = ANY($1)`,
+        WHERE r.issue_ids && $1::text[] AND iid = ANY($1)`,
       [unique]
     )
   ).rows;
@@ -950,7 +950,7 @@ export type TrafficStats = {
   pageViews7d: number;
   pageViews30d: number;
   /** Top paths by view count in the last 7 days. */
-  topPaths7d: Array<{ path: string; views: number }>;
+  topPaths7d: Array<{ path: string; views: number; href: string | null }>;
   /** Total events recorded across all kinds in the last 30 days. */
   events30d: number;
   /** Event counts by type in the last 30 days. */
@@ -974,13 +974,19 @@ export async function getTrafficStats(): Promise<TrafficStats> {
       (SELECT COUNT(*) FROM site_events WHERE occurred_at > now() - INTERVAL '30 days') AS events_30d
   `);
 
-  const top = await query<{ path: string; views: string }>(`
-    SELECT path, COUNT(*)::bigint AS views
-    FROM page_views
-    WHERE viewed_at > now() - INTERVAL '7 days'
-    GROUP BY path
+  const top = await query<{ path: string; views: string; indexed_release: boolean }>(`
+    SELECT ranked.*, EXISTS (
+      SELECT 1 FROM unity_releases WHERE version = substr(ranked.path, length('/releases/') + 1)
+    ) AS indexed_release
+    FROM (
+      SELECT path, COUNT(*)::bigint AS views
+      FROM page_views
+      WHERE viewed_at > now() - INTERVAL '7 days'
+      GROUP BY path
+      ORDER BY views DESC, path ASC
+      LIMIT 15
+    ) ranked
     ORDER BY views DESC, path ASC
-    LIMIT 15
   `);
 
   const byType = await query<{ event_type: string; count: string }>(`
@@ -996,7 +1002,12 @@ export async function getTrafficStats(): Promise<TrafficStats> {
     pageViews24h: Number(row?.views_24h ?? 0),
     pageViews7d: Number(row?.views_7d ?? 0),
     pageViews30d: Number(row?.views_30d ?? 0),
-    topPaths7d: top.rows.map((r) => ({ path: r.path, views: Number(r.views) })),
+    topPaths7d: top.rows.map(({ path, views, indexed_release }) => {
+      // A recorded visit can point to a missing release or an invalid local path.
+      const localPath = /^\/(?!\/)[^\\\s]*$/.test(path);
+      const missingRelease = path.startsWith("/releases/") && !indexed_release;
+      return { path, views: Number(views), href: localPath && !missingRelease ? path : null };
+    }),
     events30d: Number(row?.events_30d ?? 0),
     eventsByType30d: byType.rows.map((r) => ({
       eventType: r.event_type,

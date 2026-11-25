@@ -14,6 +14,7 @@ vi.mock("../../src/lib/db/client", () => ({
 import {
   diffRangeCounts,
   getIssueStatuses,
+  getTrafficStats,
   getTrackedVersionLines,
   listReleaseSummaries,
   packageVersionsAtBoundary,
@@ -421,6 +422,22 @@ describe("packageVersionsAtBoundary", () => {
     expect(out.size).toBe(0);
     expect(mocks.query).not.toHaveBeenCalled();
   });
+});
+
+test("top paths keep visit counts and link only to indexed releases and local paths", async () => {
+  mocks.query.mockResolvedValueOnce(rows()).mockResolvedValueOnce(rows(
+    { path: "/releases/6000.4.0a6", views: "36", indexed_release: false },
+    { path: "/releases/6000.4.0a5", views: "15", indexed_release: true },
+    { path: "/explorer", views: "12", indexed_release: false },
+    { path: "//example.com", views: "1", indexed_release: false }
+  )).mockResolvedValueOnce(rows());
+
+  expect((await getTrafficStats()).topPaths7d).toEqual([
+    { path: "/releases/6000.4.0a6", views: 36, href: null },
+    { path: "/releases/6000.4.0a5", views: 15, href: "/releases/6000.4.0a5" },
+    { path: "/explorer", views: 12, href: "/explorer" },
+    { path: "//example.com", views: 1, href: null }
+  ]);
 });
 
 // ─── getIssueStatuses ─────────────────────────────────────────

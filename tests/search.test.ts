@@ -7,6 +7,7 @@ import {
 describe("release note search SQL", () => {
   test("breaks date/source-order ties with a stable row id for pagination", () => {
     const query = buildReleaseNoteSearchQuery({ limit: 100, offset: 100 });
+    expect(query.text).toContain("(SELECT COUNT(*) FROM release_note_items) AS total_count");
     expect(query.text).toContain("ORDER BY release_date DESC NULLS LAST, source_order ASC, id ASC");
   });
   test("can build a count query matching explorer filters", () => {

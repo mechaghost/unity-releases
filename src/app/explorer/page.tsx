@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import type { IssueReportContext } from "@/lib/issue-reports/context";
 import { filtersFromSearchParams } from "@/lib/api";
 import {
@@ -346,9 +347,12 @@ function uniqueValues<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
 
+// These dropdowns describe the whole archive and are shared by every search.
+const cachedFacets = unstable_cache(listReleaseNoteFacets, ["release-note-facets"], { revalidate: 300 });
+
 async function safeFacets() {
   try {
-    return await listReleaseNoteFacets();
+    return await cachedFacets();
   } catch {
     return {
       versions: [],
